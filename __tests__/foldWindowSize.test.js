@@ -28,7 +28,8 @@ test('fold: the book, the responsive hook and every width-sized screen read the 
     assert.doesNotMatch(s, /const \{ width[^}]*\} = useWindowDimensions\(\)/, `${f} reads the width from the measured size`);
   }
   const app = read('App.js');
-  assert.equal((app.match(/<WindowSizeRoot>/g) || []).length, 2, 'both app roots are measured');
+  // A-135: one app root (the loading gate and the app share it, so nothing is re-created when it opens).
+  assert.equal((app.match(/<WindowSizeRoot>/g) || []).length, 1, 'the app root is measured');
   const w = read('lib/windowSize.js');
   assert.match(w, /onLayout/);
   assert.match(w, /export function useWindowSize\(/);
@@ -88,8 +89,8 @@ test('A-129: the measured size reaches every sheet and modal (they render under 
   // of the WindowSizeRoot above it; the size is right only if nothing renders outside that root.
   const app = read('App.js');
   const returns = app.split('\n').reduce((acc, l, i, all) => (/^\s*return \($/.test(l) && /<WindowSizeRoot>|<SafeAreaProvider/.test(all[i + 1] || '') ? acc.concat(all[i + 1].trim()) : acc), []);
-  assert.equal(returns.length, 2, 'both app roots found');
-  for (const r of returns) assert.equal(r, '<WindowSizeRoot>', 'the measured root is the outermost element of each app root');
+  assert.equal(returns.length, 1, 'the one app root found (A-135: the gate renders inside it)');
+  for (const r of returns) assert.equal(r, '<WindowSizeRoot>', 'the measured root is the outermost element of the app root');
   const idx = codeOf(read('index.js'));
   assert.doesNotMatch(idx, /AppRegistry\.registerComponent/, 'no second React root outside App');
   assert.equal((idx.match(/registerRootComponent\(/g) || []).length, 1, 'one root: App');

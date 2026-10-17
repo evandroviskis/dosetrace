@@ -124,29 +124,30 @@ test('A-120 (c): whenAllSettled waits for every read, failures included, with a 
   assert.deepEqual(await whenAllSettled([], { capMs: 20 }), { timedOut: false });
 });
 
-test('A-120 (c): Today holds its content behind the app\'s spinner until its first load has finished', () => {
+// A-135 (founder 2026-10-17, picture a135-today-skeleton, "aprovo, pulso ligado") replaced A-120's
+// spinner and its "hidden until everything is read" block with the skeleton: each block waits for
+// ITS reads as a placeholder of its final size (__tests__/a135TodaySkeleton.test.js). What A-120
+// guaranteed still holds and is checked here: every read that fills the first screen is waited
+// for, the 4 s cap ends the wait, the food card is mounted (it reads) while hidden, the empty state
+// never shows before the protocols were read, and the ring fills once the content appears.
+test('A-120 (c) / A-135: Today waits for every first read; no spinner, no false empty state, the food card loads hidden', () => {
   const today = read('screens/TodayScreen.js');
   assert.match(today, /import \{ whenAllSettled(, deferred)? \} from '\.\.\/lib\/firstLoad';/);
   assert.match(today, /const \[firstLoaded, setFirstLoaded\] = useState\(false\);/);
-  // The first focus waits for every read that fills the first screen, the alert inputs included.
   const fx = today.slice(today.indexOf('const firstReads = ['), today.indexOf('];', today.indexOf('const firstReads = [')));
   for (const f of ['fetchProtocols()', 'fetchTodayLogs()', 'fetchPendingYesterday()', 'fetchStreakData()', 'fetchProtocolStreaks()', 'fetchLastSites()', 'fetchAlerts()', 'heroReadyRef.current.p']) {
     assert.ok(fx.includes(f), `first load waits for ${f}`);
   }
   assert.match(today, /if \(!firstLoadedRef\.current\) whenAllSettled\(firstReads\)\.then\(\(\) => \{ firstLoadedRef\.current = true; setFirstLoaded\(true\); \}\);/);
-  // While loading: the header and the app's loading spinner (App.js ThemedLoading), nothing else.
-  assert.match(today, /\{!firstLoaded && \(\s*<View style=\{s\.loadingBox\}>\s*<ActivityIndicator size="large" color=\{colors\.accent\} \/>/);
-  // The content (alerts box, tracker, food card, doses) is kept mounted but hidden, so the food card
-  // loads with it, and is shown in one go.
-  assert.match(today, /<View style=\{firstLoaded \? null : s\.hiddenUntilLoaded\}>/);
-  assert.match(today, /hiddenUntilLoaded: \{ display: 'none' \}/);
+  assert.ok(!/ActivityIndicator/.test(today), 'no spinner on Today (A-135)');
   const left = today.slice(today.indexOf('const leftPage = ('), today.indexOf('\n  );\n', today.indexOf('const leftPage = (')));
-  const hiddenAt = left.indexOf('s.hiddenUntilLoaded');
-  for (const part of ['{alerts.length > 0 && (', '{pendingYest.length > 0 && (', '<TodayTracker', '<FoodLogHero', '{protocols.length === 0 && !loading && (']) {
-    const at = left.indexOf(part);
-    assert.ok(at > hiddenAt, `${part} sits inside the hidden-until-loaded block`);
+  // Each block shows only once its part is read (lib/todaySkeleton sectionsReady).
+  for (const part of ['{ready.alerts && alerts.length > 0 && (', '{ready.pending && pendingYest.length > 0 && (', '{ready.tracker && protocols.length > 0 && (', '{ready.doses && protocols.length === 0 && !loading && (', '{ready.doses && protocols.length > 0 && (']) {
+    assert.ok(left.includes(part), part);
   }
-  // The food card says when its first read is done (also when it fails).
+  // The food card is mounted (it reads its data) but hidden until its read is done.
+  assert.match(left, /<View style=\{ready\.food \? null : s\.hiddenUntilLoaded\} onLayout=\{onBlock\('food'\)\}>/);
+  assert.match(today, /hiddenUntilLoaded: \{ display: 'none' \}/);
   assert.match(left, /<FoodLogHero variant="today" onReady=\{heroReadyRef\.current\.resolve\} \/>/);
   const hero = read('screens/components/FoodLogHero.js');
   assert.match(hero, /export default function FoodLogHero\(\{ variant = 'journey', onChanged, onReady \}\)/);
@@ -155,13 +156,11 @@ test('A-120 (c): Today holds its content behind the app\'s spinner until its fir
   assert.match(today, /useEffect\(\(\) => \{ if \(firstLoaded\) playRingIntro\(\); \}, \[firstLoaded\]\);/);
 });
 
-test('A-120: theme tokens only for the new loading view (both themes)', () => {
-  for (const f of ['screens/TodayScreen.js', 'screens/LogScreen.js']) {
-    const src = read(f);
-    const box = src.match(/loadingBox: \{[^}]*\}/);
-    assert.ok(box, `${f} loadingBox`);
-    assert.ok(!/#[0-9a-fA-F]{3,8}|'white'|'black'|rgba\(/.test(box[0]), `${f}: no hardcoded color`);
-  }
+test('A-120: theme tokens only for the Dose log\'s loading view (both themes)', () => {
+  const src = read('screens/LogScreen.js');
+  const box = src.match(/loadingBox: \{[^}]*\}/);
+  assert.ok(box, 'LogScreen loadingBox');
+  assert.ok(!/#[0-9a-fA-F]{3,8}|'white'|'black'|rgba\(/.test(box[0]), 'no hardcoded color');
 });
 
 // ── Coordinator follow-up: Android startup work around Today's first load ──────────────────────

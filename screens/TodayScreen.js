@@ -8,11 +8,13 @@ import {
   Modal,
   TextInput,
   AppState,
-  ActivityIndicator,
 } from 'react-native';
 import { readCheckNow } from '../lib/realityCheckNow';
 import { loadAlertInputs } from '../lib/todayAlertsLoad';
 import { whenAllSettled, deferred } from '../lib/firstLoad';
+import { sectionsReady, skeletonPlan, layoutFromMeasure } from '../lib/todaySkeleton';
+import { cachedTodayLayout, saveTodayLayout, loadTodayLayout } from '../lib/todayLayoutStore';
+import { SkeletonBlock, TODAY_HEADER } from './components/TodaySkeleton';
 import { firstSyncGate } from '../lib/firstSyncGate';
 import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
@@ -69,7 +71,6 @@ import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
 import FoodLogHero from './components/FoodLogHero';
-import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
@@ -167,6 +168,9 @@ const TOAST_MS = 4000;
 // dose logged on another phone has arrived: the session's one gate, lib/firstSyncGate (A-123: the
 // Missed scan waits on the same one).
 
+// A-135: which first-load part ends each placeholder block ("add a protocol" waits for the doses).
+const SKEL_SECTION = { alerts: 'alerts', pending: 'pending', tracker: 'tracker', food: 'food', empty: 'doses', doses: 'doses' };
+
 // ── Schedule math ──────────────────────────────────────────────
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
 
@@ -242,14 +246,61 @@ export default function TodayScreen() {
   const rcStart = rcNow && rcNow.start ? rcNow.start : null; // open reality-check weigh-in → an alert
   const latestLabDate = alertInputs.latestLabDate;
   const alertSnooze = alertInputs.snooze;
-  // A-120 (founder 2026-10-15, Fold7 cold start): Today's first view appears once, complete. Until
-  // the first load has finished the content stays hidden behind the app's loading spinner; later
-  // updates (sync, data_changed, a dose written) update in place.
+  // A-120 (founder 2026-10-15, Fold7 cold start): never a false empty state, never a list that
+  // jumps; later updates (sync, data_changed, a dose written) update in place.
+  // A-135 (founder 2026-10-17, picture a135-today-skeleton, "aprovo, pulso ligado"): Today opens at
+  // once with its skeleton — each block is a placeholder as tall as the room it took last time (the
+  // mould, lib/todayLayoutStore), and fills in place when ITS first reads are done (reads, below;
+  // lib/todaySkeleton sectionsReady). firstLoaded (every read done, or the 4 s cap) ends them all.
   const [firstLoaded, setFirstLoaded] = useState(false);
   const firstLoadedRef = useRef(false);
+  const [reads, setReads] = useState({});
+  const markRead = (task, key) => Promise.resolve(task).finally(() => {
+    if (!firstLoadedRef.current) setReads((r) => (r[key] ? r : { ...r, [key]: true }));
+  });
+  const ready = sectionsReady(reads, firstLoaded);
+  // The mould: the opening's (read at the app start) until this user is known; another user's or
+  // none → the default shape set. Only heights and counts, never data (lib/todaySkeleton).
+  const [mould, setMould] = useState(() => cachedTodayLayout(null, book ? 'book' : 'single'));
+  const plan = useMemo(() => skeletonPlan(mould), [mould]);
+  const uidRef = useRef(null);
+  const measureRef = useRef({ heights: {}, cards: {} });
+  const presentRef = useRef({});
+  const doseIdsRef = useRef([]);
+  const saveTRef = useRef(null);
   const heroReadyRef = useRef(null);
   if (!heroReadyRef.current) heroReadyRef.current = deferred();
   useEffect(() => { if (firstLoaded) firstShownRef.current.resolve(); }, [firstLoaded]);
+  // A-135: the mould belongs to this user (another user's, or none, gives the default shapes); read
+  // here too when Today opens without the app's opening (a sign-in).
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getCachedUser().catch(() => null), loadTodayLayout()]).then(([user]) => {
+      if (!alive) return;
+      uidRef.current = user?.id || null;
+      if (firstLoadedRef.current || !uidRef.current) return;
+      const mine = cachedTodayLayout(uidRef.current, bookRef.current ? 'book' : 'single');
+      setMould((cur) => (JSON.stringify(cur) === JSON.stringify(mine) ? cur : mine));
+    });
+    return () => { alive = false; if (saveTRef.current) clearTimeout(saveTRef.current); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (firstLoaded) scheduleMould(); }, [firstLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  // What Today drew, measured: each block's room (onBlock) and each dose card (renderDoseCard). Saved
+  // a moment after the layout settles, and only once the first screen is complete.
+  // own: the block's own style when onLayout sits on it (its bottom margin is part of its room).
+  const onBlock = (key, own) => (e) => { measureRef.current.heights[key] = e.nativeEvent.layout.height + ((own && StyleSheet.flatten(own).marginBottom) || 0); scheduleMould(); };
+  const cardHeights = () => doseIdsRef.current.map((id) => measureRef.current.cards[id]).filter((h) => Number.isFinite(h));
+  function scheduleMould() {
+    if (saveTRef.current) clearTimeout(saveTRef.current);
+    saveTRef.current = setTimeout(saveMould, 700);
+  }
+  function saveMould() {
+    const uid = uidRef.current;
+    if (!firstLoadedRef.current || !uid) return;
+    const book = bookRef.current;
+    const lay = layoutFromMeasure({ present: presentRef.current, heights: measureRef.current.heights, cards: cardHeights() });
+    saveTodayLayout(uid, book ? 'book' : 'single', lay);
+  }
   const actionInProgressRef = useRef(false); // ref, not state — must block synchronously on double-tap
   const pendingFxRef = useRef(new Set()); // deferred follow-ups of recent takes (see markTaken)
   // Site questions wait their turn (S-25): one picker at a time, and never together with
@@ -361,15 +412,16 @@ export default function TodayScreen() {
       }).catch(() => {});
       // A-120: every read that fills the first screen; the first focus shows the content when all
       // of them have finished (the food card says so through onReady).
+      // A-135: each read also marks its own part done, so its block fills in as soon as it can.
       const firstReads = [
-        fetchProtocols(),
-        fetchTodayLogs(),
-        fetchPendingYesterday(),
-        fetchStreakData(),
-        fetchProtocolStreaks(),
-        fetchLastSites(),
-        fetchAlerts(),
-        heroReadyRef.current.p,
+        markRead(fetchProtocols(), 'protocols'),
+        markRead(fetchTodayLogs(), 'todayLogs'),
+        markRead(fetchPendingYesterday(), 'pending'),
+        markRead(fetchStreakData(), 'streak'),
+        markRead(fetchProtocolStreaks(), 'pStreaks'),
+        markRead(fetchLastSites(), 'sites'),
+        markRead(fetchAlerts(), 'alerts'),
+        markRead(heroReadyRef.current.p, 'food'),
       ];
       if (!firstLoadedRef.current) whenAllSettled(firstReads).then(() => { firstLoadedRef.current = true; setFirstLoaded(true); });
       focusedRef.current = true;
@@ -1910,7 +1962,7 @@ export default function TodayScreen() {
     // today's dose of this protocol; yesterday's pending slot is selected on its own row.
     const picked = book && isPickedDose(p.id, todayKey);
     return (
-      <View key={p.id} style={[s.dose, (picked || opts.highlight) && s.dosePicked]}>
+      <View key={p.id} style={[s.dose, (picked || opts.highlight) && s.dosePicked]} onLayout={opts.highlight ? undefined : (e) => { measureRef.current.cards[p.id] = e.nativeEvent.layout.height; scheduleMould(); }}>
         {/* Today redesign part 5 (prototype card()): dot, name, the amount in Geist Mono with
             " · Daily" in ink2; the time with the drawn arrow; "Due" once due, a grey
             "reminder" tag before it (when a reminder time is set). */}
@@ -2119,6 +2171,12 @@ export default function TodayScreen() {
     ? { undoBar: [s.undoBar, toastOnLeftPage], takeNoticeBar: [s.takeNoticeBar, toastOnLeftPage] }
     : s;
 
+  // A-135: what this render draws, for the mould (counts and presence only).
+  presentRef.current = { alerts: alerts.length, pending: pendingYest.filter((it) => protocols.some((x) => x.id === it.protocolId)).length, tracker: protocols.length > 0, empty: protocols.length === 0 && !loading, doses: protocols.length > 0 };
+  doseIdsRef.current = todayCards.filter((p) => !focusCard || p.id !== focusCard.id).map((p) => p.id);
+  const firstSkel = (plan.find((b) => !ready[SKEL_SECTION[b.key]]) || {}).key;
+  const skel = (key) => (ready[SKEL_SECTION[key]] ? null : <SkeletonBlock spec={plan.find((b) => b.key === key)} first={key === firstSkel} />);
+
   const leftPage = (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         {/* Today v2.1 order (founder 2026-09-29): header → Alerts (gone when none) → Pending
@@ -2128,17 +2186,9 @@ export default function TodayScreen() {
           <Text style={s.title}>{t('tab_today')}</Text>
         </View>
 
-        {/* A-120: until the first load has finished, the app's loading spinner (App.js
-            ThemedLoading) under the header; the content below is mounted (the food card loads
-            with it) but hidden, then shown in one go — never growing one section at a time. */}
-        {!firstLoaded && (
-          <View style={s.loadingBox}>
-            <ActivityIndicator size="large" color={colors.accent} />
-          </View>
-        )}
-        <View style={firstLoaded ? null : s.hiddenUntilLoaded}>
-
-        {focusCard && (
+        {/* A-135: no spinner. Each block below is its placeholder (SkeletonBlock, as tall as last
+            time) until its own first reads are done, then its real content in the same place. */}
+        {ready.doses && focusCard && (
           // A-44: the dose its reminder was about, at the top, highlighted (ink outline).
           <View style={s.block}>
             <View style={s.lab}><Text style={s.labText}>{t('today_notif_focus_title')}</Text></View>
@@ -2146,8 +2196,9 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {alerts.length > 0 && (
-          <View style={s.block}>
+        {skel('alerts')}
+        {ready.alerts && alerts.length > 0 && (
+          <View style={s.block} onLayout={onBlock('alerts', s.block)}>
             <View style={s.lab}>
               <Text style={s.labText}>{t('today_alerts_title')}</Text>
               <Text style={s.labCount}>{alerts.length}</Text>
@@ -2193,8 +2244,9 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {pendingYest.length > 0 && (
-          <View style={s.block}>
+        {skel('pending')}
+        {ready.pending && pendingYest.length > 0 && (
+          <View style={s.block} onLayout={onBlock('pending', s.block)}>
             <View style={s.lab}><Text style={s.labText}>{t('today_pending_title')}</Text></View>
             {pendingYest.map((item) => {
               const pr = protocols.find((x) => x.id === item.protocolId);
@@ -2238,15 +2290,19 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {protocols.length > 0 && (
-          <TodayTracker rings={rings} weekDots={weekDots} streak={streak} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} />
+        {skel('tracker')}
+        {ready.tracker && protocols.length > 0 && (
+          <View onLayout={onBlock('tracker')}><TodayTracker rings={rings} weekDots={weekDots} streak={streak} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} /></View>
         )}
-
+        {skel('food')}
+        <View style={ready.food ? null : s.hiddenUntilLoaded} onLayout={onBlock('food')}>
         {/* AI food log while a reality check runs (FL-33) — lib/foodThread todayFoodHeroPolicy. */}
         <FoodLogHero variant="today" onReady={heroReadyRef.current.resolve} />
+        </View>
 
-        {protocols.length === 0 && !loading && (
-          <View style={s.empty}>
+        {skel('empty')}
+        {ready.doses && protocols.length === 0 && !loading && (
+          <View style={s.empty} onLayout={onBlock('empty', s.empty)}>
             <FeatureIcon name="syringe" size={44} color={colors.ink2} />
             <Text style={s.emptyTitle}>{t('today_empty_title')}</Text>
             <Text style={s.emptySub}>{t('today_empty_sub')}</Text>
@@ -2256,8 +2312,9 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {protocols.length > 0 && (
-          <View style={s.block}>
+        {skel('doses')}
+        {ready.doses && protocols.length > 0 && (
+          <View style={s.block} onLayout={onBlock('doses', s.block)}>
             <View style={s.lab}>
               <Text style={s.sectionTitle}>{t('today_doses').charAt(0).toUpperCase() + t('today_doses').slice(1)}</Text>
               {totalDoses > 0 && <Text style={s.labCount}>{dosesTakenLabel(doneDoses, totalDoses, t, language)}</Text>}
@@ -2309,7 +2366,7 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {(tomorrowCards.length > 0 || next5Cards.length > 0) && (
+        {ready.doses && (tomorrowCards.length > 0 || next5Cards.length > 0) && (
           <View style={s.block}>
             <View style={s.foldList}>
               {foldRow('tom', t('today_section_tomorrow'), tomorrowCards)}
@@ -2328,8 +2385,7 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {protocols.length > 0 && <Text style={s.disclaimer}>{t('today_disclaimer')}</Text>}
-        </View>
+        {ready.doses && protocols.length > 0 && <Text style={s.disclaimer}>{t('today_disclaimer')}</Text>}
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -2514,9 +2570,8 @@ const makeStyles = (c) => StyleSheet.create({
 });
 
 const legacyStyles = (c) => ({
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  loadingBox: { paddingTop: 96, alignItems: 'center', justifyContent: 'center' }, // A-120: first load
-  hiddenUntilLoaded: { display: 'none' }, // A-120: mounted, not shown, until the first load finished
+  centered: TODAY_HEADER.centered, // A-135: one column for Today and its opening
+  hiddenUntilLoaded: { display: 'none' }, // A-135: the food card, mounted (it reads its data), not shown until it has
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, backgroundColor: c.bg },
   date: { fontSize: 13, fontWeight: '600', color: c.textMuted, letterSpacing: 0.2, marginBottom: 2 },
@@ -2667,9 +2722,10 @@ const legacyStyles = (c) => ({
 // cards = raised, radius 20–24, no border / shadow / tint; the one action in ink.
 const todayV21Styles = (c) => ({
   container: { flex: 1, backgroundColor: c.ground },
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18, gap: 2 },
-  date: { fontSize: 15, color: c.ink2 },
-  title: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
+  // A-135: the opening draws the same header (screens/components/TodaySkeleton TODAY_HEADER).
+  header: TODAY_HEADER.header,
+  date: { ...TODAY_HEADER.date, color: c.ink2 },
+  title: { ...TODAY_HEADER.title, color: c.ink },
   block: { paddingHorizontal: 16, marginBottom: 26, gap: 10 },
   lab: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 4, gap: 8 },
   labText: { fontSize: 17, fontWeight: '600', color: c.ink },

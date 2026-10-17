@@ -40,6 +40,9 @@ installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
 import { isForegroundStale } from './lib/stillGoingGate';
+import { bootView, lastSignedInUser } from './lib/todaySkeleton';
+import { loadTodayLayout, forgetTodayLayout } from './lib/todayLayoutStore';
+import { TodayOpening } from './screens/components/TodaySkeleton';
 
 // ErrorBoundary renders outside LanguageProvider, so it carries its own
 // dependency-free translations for the crash screen.
@@ -176,34 +179,40 @@ function TabIcon({ Glyph, focused }) {
   return <Glyph color={focused ? colors.ink : colors.ink3} focused={focused} />; // Graduated: active = ink, never blue
 }
 
+// The five tabs; the real app and its opening (BootTabs, A-135) draw the same bar from these.
+const tabDefs = (t) => [
+  { name: 'Today', label: t('tab_today'), Glyph: TodayGlyph, component: TodayScreen },
+  { name: 'Protocols', label: t('tabbar_protocols'), Glyph: ProtocolsGlyph, component: ProtocolsScreen },
+  { name: 'Journey', label: t('tab_journey'), Glyph: JourneyGlyph, component: JourneyScreen },
+  { name: 'Body', label: t('tab_body'), Glyph: BodyGlyph, component: BodyScreen },
+  { name: 'Settings', label: t('tabbar_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
+];
+
+// Graduated tab bar (DESIGN.md §5): flat on the ground, hairline on top, active = ink + 600,
+// inactive = ink3. Never blue. The bar sits above the system's bottom bar (Android).
+function tabScreenOptions(colors, insets) {
+  return {
+    headerShown: false,
+    tabBarActiveTintColor: colors.ink,
+    tabBarInactiveTintColor: colors.ink3,
+    tabBarStyle: tabBarStyle(colors, insets.bottom),
+    tabBarLabelStyle: {
+      fontSize: 11,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+  };
+}
+
 function MainTabs() {
   const { t } = useLanguage();
-
-  const tabs = [
-    { name: 'Today', label: t('tab_today'), Glyph: TodayGlyph, component: TodayScreen },
-    { name: 'Protocols', label: t('tabbar_protocols'), Glyph: ProtocolsGlyph, component: ProtocolsScreen },
-    { name: 'Journey', label: t('tab_journey'), Glyph: JourneyGlyph, component: JourneyScreen },
-    { name: 'Body', label: t('tab_body'), Glyph: BodyGlyph, component: BodyScreen },
-    { name: 'Settings', label: t('tabbar_settings'), Glyph: SettingsGlyph, component: SettingsScreen },
-  ];
+  const tabs = tabDefs(t);
 
   const { colors } = useTheme();
   const insets = useSafeAreaInsets(); // the tab bar sits above the system's bottom bar (Android)
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        // Graduated tab bar (DESIGN.md §5): flat on the ground, hairline on top,
-        // active = ink + 600, inactive = ink3. Never blue.
-        tabBarActiveTintColor: colors.ink,
-        tabBarInactiveTintColor: colors.ink3,
-        tabBarStyle: tabBarStyle(colors, insets.bottom),
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 2,
-        },
-      }}
+      screenOptions={tabScreenOptions(colors, insets)}
     >
       {tabs.map(tab => (
         <Tab.Screen
@@ -273,18 +282,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
     else onLinkFailedShown && onLinkFailedShown();
   };
 
-  const base = isDark ? DarkTheme : DefaultTheme;
-  const navTheme = {
-    ...base,
-    colors: {
-      ...base.colors,
-      background: colors.bg,
-      card: colors.card,
-      text: colors.text,
-      border: colors.border,
-      primary: colors.accent,
-    },
-  };
+  const navTheme = navThemeFor(colors, isDark);
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onNavReady} onStateChange={onNavReady}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -340,6 +338,64 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   );
 }
 
+function navThemeFor(colors, isDark) {
+  const base = isDark ? DarkTheme : DefaultTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: colors.bg,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.accent,
+    },
+  };
+}
+
+// A-135 (founder 2026-10-17, picture a135-today-skeleton): while the app starts after a signed-in
+// session, it already shows Today — the real tab bar (same options) over Today's opening skeleton
+// (TodayOpening); the other tabs are empty and taps wait until the app is up. When the start ends,
+// the real Today draws the same header and blocks in the same place.
+function BootEmpty() {
+  const { colors } = useTheme();
+  return <View style={{ flex: 1, backgroundColor: colors.ground }} />;
+}
+
+function BootTabs() {
+  const { t } = useLanguage();
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <NavigationContainer theme={navThemeFor(colors, isDark)}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Tab.Navigator screenOptions={tabScreenOptions(colors, insets)} screenListeners={{ tabPress: (e) => e.preventDefault() }}>
+        {tabDefs(t).map((tab) => (
+          <Tab.Screen
+            key={tab.name}
+            name={tab.name}
+            component={tab.name === 'Today' ? TodayOpening : BootEmpty}
+            options={{ tabBarLabel: tab.label, tabBarIcon: ({ focused }) => <TabIcon Glyph={tab.Glyph} focused={focused} /> }}
+          />
+        ))}
+      </Tab.Navigator>
+    </NavigationContainer>
+  );
+}
+
+// The loading gate's screen (lib/todaySkeleton bootView): Today's opening after a signed-in
+// session; the full-screen spinner when the last session was not signed in (welcome / sign in
+// keep what they had); a plain ground for the few ms before the mould, fonts, language and theme
+// are read (never English or the wrong theme first).
+function BootScreen({ lastUser, fontsLoaded }) {
+  const { ready: langReady } = useLanguage();
+  const { ready: themeReady, colors } = useTheme();
+  const view = bootView({ lastUser, fontsLoaded, langReady, themeReady });
+  if (view === 'spinner') return <ThemedLoading />;
+  if (view === 'today') return <BootTabs />;
+  return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+}
+
 function ThemedLoading() {
   const { colors } = useTheme();
   return (
@@ -369,6 +425,11 @@ export default function App() {
   const [seenOnboarding, setSeenOnboarding] = useState(null);
   const navigationRef = useRef(null);
   const fontsLoaded = useAppFonts();
+  // A-135: the owner of Today's mould = the last signed-in user (undefined until read, null none).
+  const [bootUser, setBootUser] = useState(undefined);
+  useEffect(() => {
+    loadTodayLayout().then((st) => setBootUser(lastSignedInUser(st))).catch(() => setBootUser(null));
+  }, []);
 
   // Notification taps (A-44: each lands on its reason; the food question opens the one food
   // chat, FL-18/37) wait here until the signed-in app (the 'Main' route) exists — a tap that
@@ -786,19 +847,12 @@ export default function App() {
 
   // Gate the UI on fonts too, so the app never flashes the system font and
   // then reflows into Plus Jakarta Sans.
-  if (loading || !fontsLoaded || seenOnboarding === null) {
-    return (
-      <WindowSizeRoot>
-      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <LanguageProvider>
-          <ThemeProvider>
-            <ThemedLoading />
-          </ThemeProvider>
-        </LanguageProvider>
-      </SafeAreaProvider>
-      </WindowSizeRoot>
-    );
-  }
+  // A-135: one app root for the gate and the app, so the language, theme, safe area and measured
+  // window are not created again when the gate opens (Today's opening and Today match exactly).
+  const booting = loading || !fontsLoaded || seenOnboarding === null;
+  // No session once started (signed out, or never signed in): the next cold start is a signed-out
+  // one — forget the mould (outside onAuthStateChange, which stays synchronous).
+  useEffect(() => { if (!booting && !session) forgetTodayLayout(); }, [booting, session]);
 
   return (
     <WindowSizeRoot>
@@ -806,6 +860,9 @@ export default function App() {
       <ErrorBoundary>
         <LanguageProvider>
           <ThemeProvider>
+            {booting ? (
+              <BootScreen lastUser={bootUser} fontsLoaded={fontsLoaded} />
+            ) : (
             <ThemedRoot
               session={session}
               navigationRef={navigationRef}
@@ -841,6 +898,7 @@ export default function App() {
               onBackToOnboarding={backToOnboarding}
               authEntry={authEntry}
             />
+            )}
           </ThemeProvider>
         </LanguageProvider>
       </ErrorBoundary>
