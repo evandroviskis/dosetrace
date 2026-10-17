@@ -569,7 +569,9 @@ export default function SerumCurveScreen({ embedded = false }) {
     setIntroFx({ drops: drops.length <= 60 ? drops : [], hitsSingle, showDrop });
     clock.value = 0;
     clock.value = withTiming(C_TOTAL, { duration: C_TOTAL, easing: Easing.linear });
-    introTimerRef.current = setTimeout(() => { introDoneRef.current = true; setIntroFx(null); }, C_TOTAL + 50);
+    // A-136 (5): the end lands the clock on C_TOTAL too, so a reveal animation dropped or cut
+    // before its last frame can never leave the projection half drawn.
+    introTimerRef.current = setTimeout(() => { cancelAnimation(clock); clock.value = C_TOTAL; introDoneRef.current = true; setIntroFx(null); }, C_TOTAL + 50);
   }, [model]);
 
   // Later changes (skips the first run, which the intro owns): a new horizon rescales smoothly; anything else (selection,
