@@ -59,3 +59,25 @@ test('council (2): BootTabs still prevents navigation but records the tap; the a
   assert.match(app, /const target = bootTabTarget\(\{ tapped: tab, routeNames: names, tabNames: TAB_NAMES, pendingNav: !!pendingNavRef\.current \}\);/);
   assert.match(app, /onNavReady=\{onRootNavReady\}/);
 });
+
+// (3) Copy (A-136 oral IU wizard): the warning said what is wrong but not what to do. It now names
+// the two fields by their on-screen names and the fix, in each language's own IU word.
+test('council (3): the serving unit warning says how to fix it, natural in all 6 languages', () => {
+  const { translations: tr } = require('../i18n/translations.js');
+  const want = {
+    en: { iu: 'IU', field: 'strength per serving' },
+    es: { iu: 'UI', field: 'contenido por porción' },
+    pt: { iu: 'UI', field: 'concentração por porção' },
+    fr: { iu: 'UI', field: 'dosage par portion' },
+    de: { iu: 'IE', field: 'Wirkstoff pro Portion' },
+    it: { iu: 'UI', field: 'dosaggio per porzione' },
+  };
+  for (const [lang, w] of Object.entries(want)) {
+    const s = tr[lang].protocols_serving_unit_mismatch;
+    assert.ok(s.includes(w.field), `${lang} names the field: ${s}`);
+    assert.ok(tr[lang].protocols_serving_strength.toLowerCase() === w.field.toLowerCase(), `${lang} field name matches the label`);
+    assert.ok(new RegExp(`\\b${w.iu}\\b`).test(s), `${lang} says ${w.iu}: ${s}`);
+    assert.ok(s.includes('mg / mcg / g'), `${lang} names the weight units: ${s}`);
+  }
+  assert.match(tr.fr.protocols_serving_unit_mismatch, /^Indiquez /, 'French says vous');
+});
