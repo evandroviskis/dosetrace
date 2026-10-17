@@ -459,7 +459,7 @@ const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8')
 
 test('T8 CS-9: lib/supabase.js gives the client the wrapper; auto refresh stays off; recovery is foreground-only', () => {
   const s = read('lib', 'supabase.js');
-  assert.match(s, /import \{ createAuthFetch, recoveryCall \} from '\.\/authFetch';/);
+  assert.match(s, /import \{ createAuthFetch, recoveryCall, netInfoOffline \} from '\.\/authFetch';/);
   assert.match(s, /global: \{ fetch: authFetch\.fetch \}/);
   assert.match(s, /autoRefreshToken: false,/);
   assert.match(s, /canRecover: \(\) => AppState\.currentState === 'active' && !storedSessionOnly\(\)/);

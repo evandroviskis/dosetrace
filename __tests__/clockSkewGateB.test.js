@@ -175,6 +175,7 @@ test('CS-18 (Gate B 2): auth 401/403 bad_jwt or "token is expired" and a functio
 function loadDeletion(fakes) {
   return loadFn('lib/accountActions.js', 'export async function requestAccountDeletion(', 'requestAccountDeletion', {
     supabase: fakes.supabase, fetch: fakes.fetch, process: { env: { EXPO_PUBLIC_SUPABASE_URL: URL_ } },
+    pauseSyncForDeletion: () => {}, resumeSyncAfterDeletion: () => {}, waitForSyncIdle: async () => {}, // clockSkewDeletion tests these
   });
 }
 
@@ -193,7 +194,7 @@ test('CS-19 (Gate B 2): delete account after the clock moved back: a 401 refresh
   assert.equal(refreshes, 1);
 });
 
-test('CS-19: delete account retries once only; a 200 never refreshes; a failed refresh reports the error', async () => {
+test('CS-19: delete account retries once only; a 200 never refreshes; a failed refresh is offline', async () => {
   let refreshes = 0;
   const base = (sess) => ({ auth: {
     getSession: async () => ({ data: { session: { access_token: 'old' } } }),
@@ -204,7 +205,7 @@ test('CS-19: delete account retries once only; a 200 never refreshes; a failed r
   await assert.rejects(loadDeletion({ supabase: base({ data: { session: { access_token: 'new' } }, error: null }), fetch: always401 })(), /Invalid session/);
   assert.equal(calls, 2, 'one retry');
   calls = 0;
-  await assert.rejects(loadDeletion({ supabase: base({ data: { session: null }, error: { message: 'x' } }), fetch: always401 })(), /Invalid session/);
+  assert.deepEqual(await loadDeletion({ supabase: base({ data: { session: null }, error: { message: 'x' } }), fetch: always401 })(), { offline: true }, 'no new session: offline, not "deletion failed" (CS-25)');
   assert.equal(calls, 1, 'no retry without a new session');
   refreshes = 0;
   const ok = await loadDeletion({ supabase: base(null), fetch: async () => json({ ok: true, appleManualRevokeNeeded: true }) })();
