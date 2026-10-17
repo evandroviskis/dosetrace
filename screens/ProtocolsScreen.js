@@ -31,6 +31,7 @@ import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '../lib/localeFormat';
 import { protocolDisplayName } from '../lib/protocolName';
 import { readPieces } from '../lib/readPieces';
+import { doseUnitCheck } from '../lib/doseUnitCheck';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -46,7 +47,7 @@ import { tabBarStyle, TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { dueNextOrder } from '../lib/protocolSort';
 import { protocolTakeAction } from '../lib/protocolTake';
 import { pendingFromYesterday } from '../lib/pendingYesterday';
-import { unitsCompatible, computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
+import { computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
 import { drawReading, smallDraw, isMlSyringe, sizeLabelNoBreak as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
 import { explainerModel } from '../lib/fitExplainer';
 import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
@@ -1855,9 +1856,11 @@ export default function ProtocolsScreen() {
   }, [pendingSave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate draw volume from the current wizard inputs (pure module).
-  const unitsOk = type === 'recon'
-    ? unitsCompatible(unit, doseUnit)
-    : unitsCompatible(concentrationUnit || 'mg', doseUnit);
+  // A-136 (6): each type reads the dose against its own strength (oral: the serving strength).
+  const unitCheck = doseUnitCheck({
+    type, unit, concentrationUnit, doseUnit, dose,
+    servingStrength, servingStrengthUnit, servingUnits, form: notes, language,
+  });
   const wizardDraw = computeDraw({
     type, amount, water, dose, doseUnit, unit,
     concentration, concentrationUnit, syringeSize,
@@ -1866,7 +1869,7 @@ export default function ProtocolsScreen() {
   const drawML = wizardDraw.drawML;
   const drawUnits = wizardDraw.drawUnits;
   const drawValid = wizardDraw.valid;
-  const unitMismatch = !!(dose && !unitsOk);
+  const unitMismatch = !unitCheck.ok;
   // A recon draw that overflows the chosen syringe is almost always a data-entry
   // slip (wrong water volume, dose, or syringe). Flag it and block saving.
   const drawExceedsSyringe = type === 'recon' && wizardDraw.exceedsSyringe;
@@ -2022,7 +2025,7 @@ export default function ProtocolsScreen() {
     // Part 21: no icon, the button reads OK (prototype sheetHTML).
     setWizSheet({
       title: t('protocols_check_values_title'),
-      body: unitMismatch ? t('protocols_unit_mismatch') : drawExceedsMsg,
+      body: unitMismatch ? t(unitCheck.messageKey) : drawExceedsMsg,
       buttons: [{ label: t('ok'), kind: 'primary' }],
     });
   }
