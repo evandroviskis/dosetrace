@@ -98,7 +98,7 @@ test('A-120 (b): LogScreen shows the app\'s spinner while loading; "no doses yet
   assert.match(log, /import \{ logListState \} from '\.\.\/lib\/firstLoad';/);
   assert.match(log, /const listState = logListState\(\{ loaded, rows: logs \}\);/);
   // The list (with its header counts and the empty text) is drawn only once the first load finished.
-  assert.match(log, /\{listState === 'loading' \? \(\s*<View style=\{s\.loadingBox\}>\s*<ActivityIndicator size="large" color=\{colors\.accent\} \/>/);
+  assert.match(log, /\{listState === 'loading' \? \(\s*<View style=\{s\.loadingBox\}>\s*\{!embedded && <ActivityIndicator size="large" color=\{colors\.accent\} \/>/); // the book's right page: plain ground (A-135 council 4a)
   assert.match(log, /listState === 'empty' && filter === 'All'\s*\? t\('log_empty_title'\)/);
   assert.equal((log.match(/t\('log_empty_title'\)/g) || []).length, 1);
   // The first load ends even when there is no user or the read fails (never a spinner forever).

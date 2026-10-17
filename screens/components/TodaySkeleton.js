@@ -18,6 +18,7 @@ import { TAB_SCREEN_EDGES } from '../../lib/tabBarStyle';
 import BookPanes, { useBook } from '../../components/BookPanes';
 import { PULSE_MS, shouldPulse, pulsePhase, skeletonPlan } from '../../lib/todaySkeleton';
 import { cachedTodayLayout } from '../../lib/todayLayoutStore';
+import { trackerFit } from '../../lib/trackerFit';
 
 // Today's header and column: one definition for Today and its opening, so the swap moves nothing.
 export const TODAY_HEADER = {
@@ -56,14 +57,19 @@ function usePulse() {
 }
 
 // A bar in the box of the text line it stands for (lh), so it sits where the text will be.
-function Bar({ w, h = 12, lh, color, style }) {
+// ps: the bar pulses on its own (the ring block, where the tracks and week circles stay still).
+function Bar({ w, h = 12, lh, color, style, ps }) {
+  const Box = ps ? Animated.View : View;
   return (
-    <View style={[{ height: lh || h, justifyContent: 'center' }, style]}>
+    <Box style={[{ height: lh || h, justifyContent: 'center' }, style, ps]}>
       <View style={{ width: w, height: h, borderRadius: 6, backgroundColor: color }} />
-    </View>
+    </Box>
   );
 }
-const Dot = ({ size, color, style }) => <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style]} />;
+const Dot = ({ size, color, style, ps }) => {
+  const Box = ps ? Animated.View : View;
+  return <Box style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style, ps]} />;
+};
 function Ring({ size, r, sw, color }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100">
@@ -107,36 +113,42 @@ function PendingShape({ spec, c, ps, s }) {
   );
 }
 
+// The ring block: the same fit as TodayTracker (lib/trackerFit on the measured slab interior), so the
+// gauges do not move at the swap. As in the picture, only the bars (and the flame's dot) pulse; the
+// ring tracks and the week circles stay still.
 function TrackerShape({ c, ps, s }) {
+  const [inner, setInner] = useState(0);
+  const fit = trackerFit(inner);
+  const line = c.slabInv.line;
   return (
-    <View style={[s.slab, s.grow]}>
-      <Animated.View style={[s.slabIn, ps]}>
-        <View style={s.gauges}>
-          <View style={s.big}>
-            <Ring size={132} r={38} sw={9} color={c.slabInv.line} />
-            <View style={s.bigIn}><Bar w={44} h={20} lh={38} color={c.slabInv.line} /><Bar w={38} h={8} lh={14} color={c.slabInv.line} /><Bar w={30} h={8} lh={14} color={c.slabInv.line} /></View>
+    <View style={[s.slab, s.grow]} onLayout={(e) => setInner(Math.round(e.nativeEvent.layout.width) - 40)}>
+      <View style={s.slabIn}>
+        <View style={[s.gauges, { gap: fit.gap }]}>
+          <View style={{ width: fit.big, height: fit.big }}>
+            <Ring size={fit.big} r={38} sw={9} color={line} />
+            <View style={s.bigIn}><Bar w={44} h={20} lh={38} color={line} ps={ps} /><Bar w={38} h={8} lh={14} color={line} ps={ps} /><Bar w={30} h={8} lh={14} color={line} ps={ps} /></View>
           </View>
           <View style={s.side}>
             {[0, 1].map((i) => (
               <View key={i} style={s.sideRow}>
-                <Ring size={44} r={40} sw={10} color={c.slabInv.line} />
-                <View style={s.sideText}><Bar w={56} h={10} lh={20} color={c.slabInv.line} /><Bar w={48} h={9} lh={17} color={c.slabInv.line} /></View>
-                <Bar w={36} h={16} lh={31} color={c.slabInv.line} />
+                <Ring size={44} r={40} sw={10} color={line} />
+                <View style={s.sideText}><Bar w={56} h={10} lh={20} color={line} ps={ps} /><Bar w={48} h={9} lh={17} color={line} ps={ps} /></View>
+                <Bar w={36} h={16} lh={31} color={line} ps={ps} />
               </View>
             ))}
           </View>
         </View>
         <View style={s.week}>
           {Array.from({ length: 7 }, (_, i) => (
-            <View key={i} style={s.wd}><View style={[s.wdc, { borderColor: c.slabInv.line }]} /><Bar w={22} h={8} lh={15} color={c.slabInv.line} /></View>
+            <View key={i} style={s.wd}><View style={[s.wdc, { borderColor: line }]} /><Bar w={22} h={8} lh={15} color={line} ps={ps} /></View>
           ))}
         </View>
-        <View style={[s.streak, { borderTopColor: c.slabInv.line }]}>
-          <Dot size={20} color={c.slabInv.line} />
-          <View style={s.grow}><Bar w={104} lh={22} color={c.slabInv.line} /></View>
-          <Bar w={92} h={10} lh={20} color={c.slabInv.line} />
+        <View style={[s.streak, { borderTopColor: line }]}>
+          <Dot size={20} color={line} ps={ps} />
+          <View style={s.grow}><Bar w={104} lh={22} color={line} ps={ps} /></View>
+          <Bar w={92} h={10} lh={20} color={line} ps={ps} />
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }
@@ -271,7 +283,6 @@ const makeStyles = (c) => StyleSheet.create({
   slab: { backgroundColor: c.slab, borderRadius: 28, marginHorizontal: 16, marginBottom: 26, overflow: 'hidden' },
   slabIn: { flex: 1, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, gap: 18 },
   gauges: { flexDirection: 'row', alignItems: 'center', gap: 18 },
-  big: { width: 132, height: 132 },
   bigIn: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 1 },
   side: { flex: 1, gap: 14, minWidth: 0 },
   sideRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

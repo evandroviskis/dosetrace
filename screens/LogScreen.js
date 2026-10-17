@@ -540,9 +540,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         </TouchableOpacity>
       </View>
 
+      {/* A-135 council (4a): on the book's right page (embedded) the page ground stays plain while it
+          loads — no spinner on the opening (founder rule, picture a135). */}
       {listState === 'loading' ? (
         <View style={s.loadingBox}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          {!embedded && <ActivityIndicator size="large" color={colors.accent} />}
         </View>
       ) : (
       <SectionList

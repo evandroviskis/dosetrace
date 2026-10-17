@@ -81,3 +81,49 @@ test('council (3): the serving unit warning says how to fix it, natural in all 6
   }
   assert.match(tr.fr.protocols_serving_unit_mismatch, /^Indiquez /, 'French says vous');
 });
+
+// (4) The Fold opening (founder rule "no spinners", picture a135).
+test('council (4a): the Dose log on the book\'s right page loads on its plain page ground, no spinner', () => {
+  const log = read('screens/LogScreen.js');
+  assert.match(log, /\{listState === 'loading' \? \(\s*<View style=\{s\.loadingBox\}>\s*\{!embedded && <ActivityIndicator size="large" color=\{colors\.accent\} \/>\}\s*<\/View>/);
+  assert.match(log, /loadingBox: \{ flex: 1, paddingTop: 96, alignItems: 'center' \}/, 'no ground of its own: the page ground shows');
+});
+
+const trackerShape = () => {
+  const src = read('screens/components/TodaySkeleton.js');
+  const i = src.indexOf('function TrackerShape(');
+  return src.slice(i, src.indexOf('\n}\n', i));
+};
+
+test('council (4b): the ring placeholder takes the same fit as the real tracker (no jump at the swap)', () => {
+  const src = read('screens/components/TodaySkeleton.js');
+  assert.match(src, /import \{ trackerFit \} from '\.\.\/\.\.\/lib\/trackerFit';/);
+  const t = trackerShape();
+  assert.match(t, /const \[inner, setInner\] = useState\(0\);/);
+  assert.match(t, /const fit = trackerFit\(inner\);/);
+  assert.match(t, /onLayout=\{\(e\) => setInner\(Math\.round\(e\.nativeEvent\.layout\.width\) - 40\)\}/, 'the slab interior, as TodayTracker');
+  assert.match(t, /\{ gap: fit\.gap \}/);
+  assert.match(t, /width: fit\.big, height: fit\.big/);
+  assert.match(t, /<Ring size=\{fit\.big\}/);
+  assert.ok(!/\b132\b|\b18\b/.test(t), 'no hardcoded gauge / gap');
+  // TodayTracker measures the same box the same way.
+  const tracker = read('screens/components/TodayTracker.js');
+  assert.match(tracker, /onLayout=\{\(e\) => setInner\(Math\.round\(e\.nativeEvent\.layout\.width\) - 40\)\}/);
+  // trackerFit with nothing measured is the approved 132 / 18.
+  const { trackerFit } = require('../lib/trackerFit');
+  assert.deepEqual(trackerFit(0), { big: 132, gap: 18, pctMax: null });
+});
+
+test('council (4c): only the placeholder bars pulse in the ring block, not the ring tracks or the week circles', () => {
+  const t = trackerShape();
+  assert.ok(!t.includes('Animated.View'), 'the block itself does not pulse');
+  assert.ok(!/<Ring[^>]*ps/.test(t), 'rings stay still');
+  assert.match(t, /<View style=\{\[s\.wdc, \{ borderColor: line \}\]\} \/>/, 'week circles stay still');
+  // Every bar in the block pulses (ps passed), and Bar can pulse on its own.
+  const bars = t.match(/<Bar\b[^>]*\/>/g) || [];
+  assert.ok(bars.length >= 9, String(bars.length));
+  for (const b of bars) assert.match(b, /\bps=\{ps\}/, b);
+  const src = read('screens/components/TodaySkeleton.js');
+  assert.match(src, /function Bar\(\{ w, h = 12, lh, color, style, ps \}\)/);
+  assert.match(src, /const Box = ps \? Animated\.View : View;/);
+});
