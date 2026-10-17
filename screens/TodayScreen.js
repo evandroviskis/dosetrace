@@ -80,7 +80,7 @@ import { DTSheet, VialCells } from './components/ProtocolParts';
 import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
-import { undoBarRuns } from '../lib/undoBar';
+import { undoBarRuns, vialPromptRelease } from '../lib/undoBar';
 import LogScreen from './LogScreen';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, {
@@ -380,6 +380,8 @@ export default function TodayScreen() {
   const logPopupOpenRef = useRef(false); // the embedded Dose log's site editor is open
   const logPopupWaiterRef = useRef(null); // the embedded Log's editor, waiting for Today's popup
   const vialDeferredRef = useRef(false); // the vial prompt waits for the embedded Log's editor
+  const pendingVialRef = useRef(null); // A-141 (5): { protocol, logId } — the vial prompt waits for the take's Undo bar
+  const undoDataRef = useRef(null); // the Undo bar's record, for callbacks that outlive a render
 
   // Last-site recall chip per protocol — pure recall, NOT a recommendation.
   // Shape: { [protocolId]: { stored: '{"type":"subq","sites":["abdomen_lr"]}', daysAgo: 3 } } (named when drawn)
@@ -394,6 +396,9 @@ export default function TodayScreen() {
     const t = setTimeout(() => setUndoData(null), TOAST_MS);
     return () => clearTimeout(t);
   }, [undoData, popupOpen]);
+  // A-141 (5): a vial prompt waiting behind the Undo bar opens once the bar has closed.
+  useEffect(() => { undoDataRef.current = undoData; }, [undoData]);
+  useEffect(() => { if (!undoData) releasePendingVial(); }, [undoData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -425,6 +430,7 @@ export default function TodayScreen() {
       ];
       if (!firstLoadedRef.current) whenAllSettled(firstReads).then(() => { firstLoadedRef.current = true; setFirstLoaded(true); });
       focusedRef.current = true;
+      if (!undoDataRef.current) releasePendingVial(); // A-141 (5): a vial prompt that waited while Today was away
       checkStillGoingWhenSynced();
       askKeptQuestions();
       playRingIntro(); // the ring fills from zero each time Today opens
@@ -798,7 +804,7 @@ export default function TodayScreen() {
       setUndoData(record);
       keepUndo(record);
       const p = getProtocolById(protocolId);
-      if (res.vialFinished && p && p.type === 'recon') showVialPromptFor(p, write.vialPromptDelay);
+      if (res.vialFinished && p && p.type === 'recon') queueVialPrompt(p, res.logId);
     }
     afterPendingWrite();
   }
@@ -987,8 +993,9 @@ export default function TodayScreen() {
       cancelTodaysDoseReminders(protocol.id, Math.max(newTakenToday, opts.cancelUpTo || 0)).catch(() => {});
 
       // Vial and oral supply already moved (once) inside recordDoseTaken.
-      // The vial prompt FOLLOWS the write (S-25), after the site picker has closed.
-      if (res.vialFinished && protocol.type === 'recon') showVialPromptFor(protocol, opts.vialPromptDelay);
+      // The vial prompt FOLLOWS the write (S-25), after the site picker has closed — and after
+      // this take's Undo bar has closed (A-141 (5)), so the Undo is never covered.
+      if (res.vialFinished && protocol.type === 'recon') queueVialPrompt(protocol, logId);
       const oralPrevUnitsTaken = res.oralPrevUnitsTaken;
       if (res.vialId || oralPrevUnitsTaken != null) fetchProtocols();
       syncVialAlerts().catch(() => {});
@@ -1196,6 +1203,7 @@ export default function TodayScreen() {
     // time, or write the deleted row back (founder 2026-10-02, delete a dose).
     if (!record || record.logId == null || undoneIdsRef.current.has(record.logId) || wasDeleted(record.logId)) return;
     undoneIdsRef.current.add(record.logId);
+    dropPendingVial(record.logId); // A-141 (5): the undone take's vial prompt never opens
     try {
       if (record.timer) clearTimeout(record.timer);
       const fx = record.fx;
@@ -1319,6 +1327,38 @@ export default function TodayScreen() {
     setContinuationProtocol(null);
     vialPromptOpenRef.current = false;
     setTimeout(openNextQuestion, 450); // a site question waiting behind the prompt
+  }
+
+  // A-141 (5) (Fold 2026-10-17): the vial-finished prompt covered the take's Undo bar, and its only
+  // ways out are real actions. It now waits (lib/undoBar vialPromptRelease) until that take's Undo
+  // window has closed and Today is in front. While it waits it counts as open for the questions
+  // queue (they still come after it), never for the Undo bar's time.
+  function queueVialPrompt(protocol, logId) {
+    vialPromptOpenRef.current = true;
+    vialPromptPendingRef.current = true;
+    pendingVialRef.current = { protocol, logId };
+    // No release here: the take sets its Undo bar right after, and the bar closing releases it.
+  }
+  function releasePendingVial() {
+    const pv = pendingVialRef.current;
+    const next = vialPromptRelease({
+      pending: pv, undoShowing: !!undoDataRef.current, focused: focusedRef.current,
+      undone: !!pv && undoneIdsRef.current.has(pv.logId), deleted: !!pv && wasDeleted(pv.logId),
+    });
+    if (next === 'drop') { dropPendingVial(pv.logId); return; }
+    if (next !== 'show') return;
+    pendingVialRef.current = null;
+    showVialPromptFor(pv.protocol, 0);
+  }
+  // Undo of the take (or a delete) before its prompt opened: the prompt never opens, and the
+  // questions that waited behind it go on.
+  function dropPendingVial(logId) {
+    const pv = pendingVialRef.current;
+    if (!pv || pv.logId !== logId) return;
+    pendingVialRef.current = null;
+    vialPromptOpenRef.current = false;
+    vialPromptPendingRef.current = false;
+    setTimeout(openNextQuestion, 450);
   }
 
   // delayMs: after a site picker, wait for it to fade out (iOS shows one modal at a time).
