@@ -84,6 +84,7 @@ F3. The test switches (`__test.markStale`, `__testNoDeviceExpiry`) are test-only
 ## 5e. DT Council, test build 3 (2026-10-17)
 
 - Review of 61b2c33..ed5d8bf, item 1: a 20 s timeout no longer resumes sync at once (the server goes on deleting): the account is checked with a raw GET /auth/v1/user under its own 8 s timeout (not supabase.auth.getUser(), which runs inside auth-js's lock — a stalled request there would hold every session call). Gone → ok + teardown; exists → resume + offline; unknown → paused + offline. A refresh refused as an invalid refresh token after a 401 → gone → ok.
+  - Known residual (accepted by the chair 2026-10-17, low): a refresh token revoked by "sign out everywhere" on another device at the same moment as this delete also reads as gone, so this phone tears down and says "Account deleted" while the account still exists on the server. That needs both actions inside the same seconds. In the common case (the server finished deleting after our 20 s timeout) the same signal correctly means gone. The user can still sign in again and repeat the deletion. Revisit if the device test or support shows it.
 
 - Item 3: the delete-user request is aborted after 20 s (AbortController + race) and treated as offline; the 20 s wait for a running pass clears its timer (CS-27).
 - Item 4: `_deletionInFlight` (lib/sync.js) keeps the deletion pause through a SIGNED_IN `startSyncEngine` until the request settles (CS-28).
