@@ -31,6 +31,7 @@ import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '../lib/localeFormat';
 import { protocolDisplayName } from '../lib/protocolName';
 import { readPieces } from '../lib/readPieces';
+import useKeyboardLift from '../components/useKeyboardLift';
 import { doseUnitCheck } from '../lib/doseUnitCheck';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -718,7 +719,7 @@ export function noteDraftKey(id) {
 // Also Today's right page on the Fold (A-115), with deleteProtocol null (no Delete next to the doses);
 // there `notice` (the why-no-supply box) sits under the name and tags, and withoutVial (a lyophilized
 // protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null }) {
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -730,6 +731,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   const noteDraft = draft != null ? draft : (p.note || '');
   const setNoteDraft = (text) => onDraft(p.id, text);
   const [noteFocus, setNoteFocus] = useState(false);
+  const noteRef = useRef(null); // A-136 (9): the page lifts the focused note above the keyboard
   // A saved or synced note replaces the draft (as before). Only a real change of the
   // stored note does: remounting after a fold or unfold keeps what was typed.
   const lastNote = useRef(p.note);
@@ -819,7 +821,8 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
           style={[s.noteWell, noteFocus && s.noteWellOn]}
           value={noteDraft}
           onChangeText={setNoteDraft}
-          onFocus={() => setNoteFocus(true)}
+          ref={noteRef}
+          onFocus={() => { setNoteFocus(true); if (onNoteFocus) onNoteFocus(noteRef); }}
           onBlur={() => setNoteFocus(false)}
           placeholder={p.type === 'oral' ? t('protocols_notes_placeholder_oral') : t('protocols_notes_placeholder')}
           placeholderTextColor={c.ink3}
@@ -937,6 +940,7 @@ export default function ProtocolsScreen() {
   // so it never flashes "New protocol" while sliding away (sim finding 2026-10-02).
   const resetOnHiddenRef = useRef(false);
   const scrollRef = useRef(null);
+  const detailLift = useKeyboardLift(scrollRef); // A-136 (9): the protocol page's note above the keyboard
   const [logCounts, setLogCounts] = useState({ Taken: 0, Skipped: 0, Missed: 0 });
   const [lastLog, setLastLog] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -2208,6 +2212,7 @@ export default function ProtocolsScreen() {
       onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
       draft={getDraft(noteDraftKey(p.id))}
       onDraft={(id, text) => { if (inBook && text != null) claimBookProtocol(id); onNoteDraft(id, text); }}
+      onNoteFocus={detailLift.liftField}
       t={t}
     />
   );
@@ -2451,9 +2456,10 @@ export default function ProtocolsScreen() {
                   <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+              <ScrollView {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
                 {renderDetail(bookProtocol, true)}
                 <View style={s.bottomPad} />
+                {detailLift.spacer}
               </ScrollView>
             </>
           ) : null}
@@ -2484,7 +2490,7 @@ export default function ProtocolsScreen() {
         )}
       </View>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+      <ScrollView {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {view === 'heroes' && protocols.length > 0 && (() => {
           const low = protocols.filter(p => vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low).map(p => (p.compound_id ? t(p.compound_id) : p.name));
           // Part 1: the last completed dose under the counts (prototype "Last: TB-500 · Mon 7:42 PM").
@@ -2564,6 +2570,7 @@ export default function ProtocolsScreen() {
         {view === 'detail' && renderDetail(openProtocol, false)}
 
         <View style={s.bottomPad} />
+        {detailLift.spacer}
       </ScrollView>
       </>
       )}

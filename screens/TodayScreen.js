@@ -73,6 +73,7 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
+import useKeyboardLift from '../components/useKeyboardLift';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { DTSheet, VialCells } from './components/ProtocolParts';
 import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
@@ -323,6 +324,7 @@ export default function TodayScreen() {
   const [dataRev, setDataRev] = useState(0);
   const [, setPageTick] = useState(0);
   const [, setNoteTick] = useState(0); // A-115: a note draft typed on the right page re-renders it
+  const pageLift = useKeyboardLift(); // A-136 (9): the right page's note above the keyboard
   const undoRecordsRef = useRef(new Map()); // logId → the undo record of a dose written here
   const logPopupOpenRef = useRef(false); // the embedded Dose log's site editor is open
   const logPopupWaiterRef = useRef(null); // the embedded Log's editor, waiting for Today's popup
@@ -1850,7 +1852,7 @@ export default function TodayScreen() {
             <Text style={s.pageEditText}>{t('protocols_edit')}</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.pageScroll}>
+        <ScrollView {...pageLift.scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={s.pageScroll}>
           <ProtocolDetail
             key={p.id}
             p={p} vial={vial}
@@ -1861,8 +1863,10 @@ export default function TodayScreen() {
             onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={toProtocol} onZoom={toProtocol}
             draft={getDraft(noteDraftKey(p.id))}
             onDraft={(id, text) => { if (text == null) clearDraft(noteDraftKey(id)); else setDraft(noteDraftKey(id), text); setNoteTick((n) => n + 1); }}
+            onNoteFocus={pageLift.liftField}
             t={t}
           />
+          {pageLift.spacer}
         </ScrollView>
       </>
     );

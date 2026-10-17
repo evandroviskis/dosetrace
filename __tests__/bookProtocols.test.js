@@ -83,7 +83,9 @@ test('BK-2: one column is today\'s tab: heroes, the list with "‹ My Protocols"
   assert.match(phoneBranch, /view === 'detail' && renderDetail\(openProtocol, false\)/);
   assert.match(phoneBranch, /view === 'list' && protocols\.length > 0 && sortPills/);
   assert.match(phoneBranch, /view === 'list' && protocols\.length > 0 && listCards/);
-  assert.match(phoneBranch, /<ScrollView ref=\{scrollRef\}/, 'the phone column keeps its scroll-to-top');
+  // A-136 (9): the ref now comes through the keyboard lift, which also fills scrollRef
+  assert.match(phoneBranch, /<ScrollView \{\.\.\.detailLift\.scrollProps\}/, 'the phone column keeps its scroll-to-top');
+  assert.match(src, /const detailLift = useKeyboardLift\(scrollRef\);/);
   assert.doesNotMatch(bookBranch, /view === 'heroes'|s\.heroes/, 'no heroes in the book');
   // The card style is untouched on the phone.
   assert.match(src, /style=\{book \? \[s\.pcard, s\.pcardBook, selected && s\.pcardSel\] : s\.pcard\}/);
