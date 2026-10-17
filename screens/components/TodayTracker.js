@@ -5,10 +5,12 @@
 // The slab is the opposite surface (light theme: dark slab; dark theme: light slab) with its
 // OWN measured interior palette (prototype .inv; theme.js slabInv, Today redesign part 3).
 // Ring math: lib/adherenceRings.js (doses, not days; never above 100%).
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { ringPct } from '../../lib/adherenceRings';
+import { trackerFit } from '../../lib/trackerFit';
 import FeatureIcon from '../../components/FeatureIcon';
 import RowChevron from '../../components/RowChevron';
 
@@ -82,25 +84,28 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
   const s = makeStyles(inv, slab);
   const ofText = (r) => t('vials_count_of').replace('{x}', String(r.taken)).replace('{y}', String(r.due));
   const todayPct = ringPct(rings && rings.today);
+  // A-136 (3): on a narrow slab (the Fold page) the small rings' text keeps one line (lib/trackerFit).
+  const [inner, setInner] = useState(0);
+  const fit = trackerFit(inner, [ringPct(rings && rings.week), ringPct(rings && rings.month)]);
   const side = (label, r) => {
     const p = ringPct(r);
     return (
       <View style={s.sideRow}>
         <Gauge size={44} pct={p} inv={inv} />
         <View style={s.sideText}>
-          <Text style={s.sideLabel}>{label}</Text>
-          <Text style={s.sideSub}>{r && r.due ? ofText(r) : '—'}</Text>
+          <Text style={s.sideLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{label}</Text>
+          <Text style={s.sideSub} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{r && r.due ? ofText(r) : '—'}</Text>
         </View>
-        <Text style={s.sidePct}>{p == null ? '—' : p}<Text style={s.sidePctSign}>{p == null ? '' : '%'}</Text></Text>
+        <Text style={[s.sidePct, fit.pctMax != null && { maxWidth: fit.pctMax }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>{p == null ? '—' : p}<Text style={s.sidePctSign}>{p == null ? '' : '%'}</Text></Text>
       </View>
     );
   };
   return (
-    <View style={s.slab}>
-      <View style={s.gauges}>
-        <View style={s.big} ref={ringRef} collapsable={false}>
-          <Gauge size={132} pct={todayPct} inv={inv} big />
-          <View style={s.bigIn} pointerEvents="none">
+    <View style={s.slab} onLayout={(e) => setInner(Math.round(e.nativeEvent.layout.width) - 40)}>
+      <View style={[s.gauges, { gap: fit.gap }]}>
+        <View style={[s.big, { width: fit.big, height: fit.big }]} ref={ringRef} collapsable={false}>
+          <Gauge size={fit.big} pct={todayPct} inv={inv} big />
+          <View style={[s.bigIn, { paddingHorizontal: Math.round(22 * fit.big / 132) }]} pointerEvents="none">
             {todayPct == null ? (
               <>
                 <Text style={s.bigNothing}>{t('today_nothing_due')}</Text>
@@ -108,7 +113,7 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
               </>
             ) : (
               <>
-                <Text style={s.bigNum}>{todayPct}<Text style={s.bigNumSign}>%</Text></Text>
+                <Text style={s.bigNum} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{todayPct}<Text style={s.bigNumSign}>%</Text></Text>
                 <Text style={s.bigCap} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{ofText(rings.today)}</Text>
                 <Text style={s.bigCapDay} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('today_section_today').toLowerCase()}</Text>
               </>
