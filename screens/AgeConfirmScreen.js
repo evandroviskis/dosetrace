@@ -113,6 +113,8 @@ export default function AgeConfirmScreen({ session }) {
     try {
       const result = await requestAccountDeletion();
       if (result.noSession) { setBusy(null); ok(t('error'), t('error_no_session')); return; }
+      // A sync pass still running is not "offline" (Delete account UI, founder 2026-10-17, 2).
+      if (result.syncBusy) { setBusy(null); ok(t('settings_delete_syncbusy_title'), t('settings_delete_syncbusy_body'), 'refresh'); return; }
       if (result.offline) { setBusy(null); ok(t('error'), t('settings_delete_offline')); return; }
       if (result.appleManualRevokeNeeded) {
         setBusy(null);

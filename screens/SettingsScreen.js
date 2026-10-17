@@ -24,7 +24,7 @@ import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
-import { fillStoreText } from '../lib/storeText';
+import { fillStoreText, storeKey } from '../lib/storeText';
 import { formatDate, decimalText, unitText } from '../lib/localeFormat';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
@@ -66,6 +66,51 @@ import { protocolDisplayName } from '../lib/protocolName';
 const REPORT_SCAN_WAIT_MS = 5000;
 const APPLE_APP_ID = '6761788157'; // App Store Connect app ID (io.outcom.dosetrace)
 const ANDROID_PACKAGE_ID = 'io.outcom.dosetrace';
+
+// Delete account UI (founder 2026-10-17 "1 B, 2, 3 C", docs/design/delete-account-wait.html).
+// 3 C: the store's own subscriptions page, the running platform's only (guideline 2.3.10).
+function manageSubscriptionsUrl(os) {
+  return os === 'android'
+    ? `https://play.google.com/store/account/subscriptions?package=${ANDROID_PACKAGE_ID}`
+    : 'https://apps.apple.com/account/subscriptions';
+}
+
+// 3 C: the first delete sheet. Premium users also read that deleting does not cancel the store
+// subscription (where to cancel, per platform) and get "Manage subscription", which opens the
+// store's page and leaves the sheet up; free users see the sheet as before.
+function deleteAccountSheet({ t, premium, os, onConfirm, openUrl }) {
+  const sheet = {
+    title: t('settings_delete'),
+    body: t('settings_delete_permanent_msg'),
+    buttons: [
+      { label: t('cancel'), kind: 'secondary' },
+      { label: t('settings_delete_confirm'), kind: 'danger', onPress: onConfirm },
+    ],
+  };
+  if (!premium) return sheet;
+  return {
+    ...sheet,
+    body2: t(storeKey('settings_delete_premium', os)),
+    link: {
+      label: t('settings_manage_subscription'),
+      keepOpen: true,
+      onPress: () => {
+        try { Promise.resolve(openUrl(manageSubscriptionsUrl(os))).catch(() => {}); } catch { /* no store page: the sheet stays */ }
+      },
+    },
+  };
+}
+
+// 1 B: while the server deletes (up to a minute) a fixed sheet: spinner, no buttons, not closed by
+// a tap outside or Android back. The result replaces it.
+function deletingAccountSheet(t) {
+  return { spinner: 'risk', locked: true, title: t('settings_delete_progress_title'), body: t('settings_delete_progress_body'), buttons: [] };
+}
+
+// 2: a sync pass was still running (requestAccountDeletion → { syncBusy }): nothing was deleted.
+function deleteSyncBusySheet(t) {
+  return { icon: 'refresh', title: t('settings_delete_syncbusy_title'), body: t('settings_delete_syncbusy_body'), buttons: [{ label: t('ok'), kind: 'primary' }] };
+}
 
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr',
@@ -165,7 +210,8 @@ export default function SettingsScreen({ navigation }) {
     if (tornDown.current) return;
     tornDown.current = true;
     // The phone could not sign out (no SIGNED_OUT ran): say so with the sign-out failure sheet.
-    finishAccountDeletion().then((r) => { if (r && r.failed) showSignOutFailed(); }).catch(() => showSignOutFailed());
+    // The progress sheet (1 B) stays up during the teardown; a locked sheet never stays behind.
+    finishAccountDeletion().then((r) => { if (r && r.failed) showSignOutFailed(); else setSheet((cur) => (cur && cur.locked ? null : cur)); }).catch(() => showSignOutFailed());
   };
   const closeSheet = () => {
     const closing = sheet;
@@ -530,31 +576,29 @@ export default function SettingsScreen({ navigation }) {
   }
 
   function handleDeleteAccount() {
-    setSheet({
-      title: t('settings_delete'),
-      body: t('settings_delete_permanent_msg'),
-      buttons: [
-        { label: t('cancel'), kind: 'secondary' },
-        // Second confirmation — this is irreversible. The sheet runs a button's action
-        // after it has closed, so the second sheet opens on its own.
-        { label: t('settings_delete_confirm'), kind: 'danger', onPress: () => setSheet({
-          title: t('settings_delete_final_title'),
-          body: t('settings_delete_final_msg'),
-          buttons: [
-            { label: t('cancel'), kind: 'secondary' },
-            { label: t('settings_delete_final_confirm'), kind: 'danger', onPress: () => executeAccountDeletion() },
-          ],
-        }) },
-      ],
-    });
+    setSheet(deleteAccountSheet({ t, premium, os: Platform.OS,
+      openUrl: (u) => Linking.openURL(u),
+      // Second confirmation — this is irreversible. The sheet runs a button's action
+      // after it has closed, so the second sheet opens on its own.
+      onConfirm: () => setSheet({
+        title: t('settings_delete_final_title'),
+        body: t('settings_delete_final_msg'),
+        buttons: [
+          { label: t('cancel'), kind: 'secondary' },
+          { label: t('settings_delete_final_confirm'), kind: 'danger', onPress: () => executeAccountDeletion() },
+        ],
+      }),
+    }));
   }
 
   async function executeAccountDeletion() {
+    setSheet(deletingAccountSheet(t)); // 1 B: right away, until the result replaces it
     try {
       // The one delete (lib/accountActions → delete-user: ALL of the user's data rows first,
       // then the auth account), shared with the 18+ confirmation sheet.
       const result = await requestAccountDeletion();
       if (result.noSession) { errorSheet(t('error_no_session')); return; }
+      if (result.syncBusy) { setSheet(deleteSyncBusySheet(t)); return; } // 2: not "offline"
       if (result.offline) { errorSheet(t('settings_delete_offline')); return; }
 
       // The account + data are deleted. If the user signed in with Apple but we

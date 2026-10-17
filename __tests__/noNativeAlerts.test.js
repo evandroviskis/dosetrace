@@ -70,7 +70,8 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 test('a sheet closed without a button runs onDismiss (the alert\'s cancelable onDismiss)', () => {
   const src = read('screens/components/ProtocolParts.js');
   const dt = src.slice(src.indexOf('export function DTSheet'), src.indexOf('export function DTActionSheet'));
-  assert.match(dt, /const dismiss = \(\) => \{ after\.queue\(shown\.onDismiss\); onClose\(\); \}/);
+  // A locked sheet (the delete progress, founder 2026-10-17 1 B) is the one exception: deleteAccountUi.test.js.
+  assert.match(dt, /const dismiss = \(\) => \{ if \(shown\.locked\) return; after\.queue\(shown\.onDismiss\); onClose\(\); \}/);
   assert.match(dt, /onRequestClose=\{dismiss\}/);
   assert.match(dt, /style=\{\[s\.scrim, \{ paddingBottom: centerGap \}\]\} onPress=\{dismiss\}/); // A-136 (2): + the system bottom inset
 });
@@ -80,7 +81,10 @@ test('Settings: sign out and both delete steps ask with Cancel first and the act
   const so = src.slice(src.indexOf('async function handleSignOut'), src.indexOf('function handleDeleteAccount'));
   assert.match(so, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*(\/\/[^\n]*\n\s*)*\{ label: t\('settings_signout'\), kind: 'danger'/);
   const del = src.slice(src.indexOf('function handleDeleteAccount'), src.indexOf('async function executeAccountDeletion'));
-  assert.match(del, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*\/\/[^\n]*\n[^\n]*\n\s*\{ label: t\('settings_delete_confirm'\), kind: 'danger'/);
+  // The first step is built by deleteAccountSheet (Premium paragraph + link, founder 2026-10-17 3 C).
+  const first = src.slice(src.indexOf('function deleteAccountSheet('), src.indexOf('function deletingAccountSheet('));
+  assert.match(first, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*\{ label: t\('settings_delete_confirm'\), kind: 'danger', onPress: onConfirm \}/);
+  assert.match(del, /setSheet\(deleteAccountSheet\(\{/);
   assert.match(del, /\{ label: t\('cancel'\), kind: 'secondary' \},\s*\{ label: t\('settings_delete_final_confirm'\), kind: 'danger', onPress: \(\) => executeAccountDeletion\(\) \}/);
 });
 

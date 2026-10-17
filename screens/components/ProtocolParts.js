@@ -3,7 +3,7 @@
 // choice), the bottom picker sheet that holds the iPhone wheel, the vial cells (one cell
 // per dose, remaining in data) and the enlarged syringe ruler. Theme tokens only.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import Svg, { Rect, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';
@@ -46,6 +46,12 @@ function useLast(config) {
 // [{ label, kind: 'primary' | 'secondary' | 'danger', onPress }], onDismiss }.
 // onDismiss (optional) runs when the sheet is closed WITHOUT a button (a tap outside, Android
 // back) — the native alert's cancelable onDismiss — after the sheet has gone.
+// Delete account UI (founder 2026-10-17, docs/design/delete-account-wait.html):
+//   body2          a second paragraph under body (prototype .sb + .sb);
+//   link.keepOpen  the link leaves the sheet up (the user comes back to the same place);
+//   spinner        a theme token name (e.g. 'risk'): a spinner in the icon circle instead of an icon;
+//   locked         a tap outside and Android back do nothing; the screen replaces the sheet itself.
+// No buttons: no empty button row.
 export function DTSheet({ config, onClose }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
@@ -58,33 +64,38 @@ export function DTSheet({ config, onClose }) {
   const stack = btns.length !== 2 || btns.some(b => String(b.label).length > 14);
   const ordered = stack && btns.length === 2 ? [btns[1], btns[0]] : btns;
   const press = (b) => { after.queue(b.onPress); onClose(); };
-  const dismiss = () => { after.queue(shown.onDismiss); onClose(); };
+  const dismiss = () => { if (shown.locked) return; after.queue(shown.onDismiss); onClose(); };
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={dismiss} onDismiss={after.onDismiss}>
       <Pressable style={[s.scrim, { paddingBottom: centerGap }]} onPress={dismiss} accessibilityRole="button" >
         <Pressable style={s.sheet} onPress={() => {}} accessibilityViewIsModal>
-          {shown.icon ? (
+          {shown.spinner ? (
+            <View style={s.icon}><ActivityIndicator size="small" color={c[shown.spinner] || c.ink} style={s.spinner} /></View>
+          ) : shown.icon ? (
             <View style={s.icon}><FeatureIcon name={shown.icon} size={26} color={c.ink} /></View>
           ) : null}
           <Text style={s.title} accessibilityRole="header">{shown.title}</Text>
           {shown.body ? <Text style={s.body}>{shown.body}</Text> : null}
+          {shown.body2 ? <Text style={[s.body, s.bodyMore]}>{shown.body2}</Text> : null}
           {shown.link ? (
-            <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; onClose(); if (fn) fn(); }} accessibilityRole="link">
+            <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; if (!shown.link.keepOpen) onClose(); if (fn) fn(); }} accessibilityRole="link">
               <Text style={s.linkText}>{shown.link.label}</Text>
             </TouchableOpacity>
           ) : null}
-          <View style={stack ? s.btnStack : s.btnRow}>
-            {ordered.map((b, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[s.btn, !stack && s.btnFlex, s[`btn_${b.kind || 'secondary'}`]]}
-                onPress={() => press(b)}
-                accessibilityRole="button"
-              >
-                <Text style={[s.btnText, s[`btnText_${b.kind || 'secondary'}`]]}>{b.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {btns.length ? (
+            <View style={stack ? s.btnStack : s.btnRow}>
+              {ordered.map((b, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[s.btn, !stack && s.btnFlex, s[`btn_${b.kind || 'secondary'}`]]}
+                  onPress={() => press(b)}
+                  accessibilityRole="button"
+                >
+                  <Text style={[s.btnText, s[`btnText_${b.kind || 'secondary'}`]]}>{b.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
           {shown.note ? <Text style={s.note}>{shown.note}</Text> : null}
         </Pressable>
       </Pressable>
@@ -297,6 +308,8 @@ const sheetStyles = (c) => StyleSheet.create({
   icon: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28 },
   body: { fontSize: 17, lineHeight: 22, color: c.ink2 },
+  bodyMore: { marginTop: -4 }, // prototype .sb + .sb: 10 between two paragraphs (gap 14)
+  spinner: { transform: [{ scale: 1.4 }] }, // prototype .spin.big: 28 pt (small draws 20)
   note: { fontSize: 13, lineHeight: 18, color: c.ink3 },
   // prototype .btnlink r-body (min-height 36 in the sheet): 17 ink, underlined in tick
   link: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' },

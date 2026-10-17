@@ -61,7 +61,7 @@ test('council fix 4: no token is ever left in the rendered text; unknown platfor
 test('council fix 4: every screen that shows the Terms or the FAQ fills the store text for Platform.OS', () => {
   for (const f of ['screens/SettingsScreen.js', 'screens/OnboardingFlowScreen.js', 'screens/AuthScreen.js']) {
     const src = read(f);
-    assert.match(src, /import \{ fillStoreText \} from '\.\.\/lib\/storeText';/, f);
+    assert.match(src, /import \{ fillStoreText(, storeKey)? \} from '\.\.\/lib\/storeText';/, f); // Settings also picks the delete sheet's store paragraph
     assert.match(src, /content=\{fillStoreText\(t\('settings_terms_body'\), t, Platform\.OS\)\}/, f);
     assert.doesNotMatch(src, /content=\{t\('settings_terms_body'\)\}/, `${f}: no raw Terms`);
   }
