@@ -1,5 +1,49 @@
 # DoseTrace — Project State
 
+**PAUSED 2026-10-17 ~18:45 EDT (founder left with the Fold). RESUME HERE:**
+
+**Build 53 / 72**
+- iOS 72 FINISHED; not yet submitted or on TestFlight.
+- Android 53 was still IN_PROGRESS at pause.
+- EAS build ids: android 30540a95-9e35-4d09-9145-2159acf6ff23, ios 523995ba-8aa7-4fd5-9957-c878589839fb.
+- Next steps, in order:
+  1. `eas submit -p android --profile internal --id <android id>`
+  2. `eas submit -p ios --profile production --id <ios id>`
+  3. `node scripts/asc-tf-release.cjs 72`
+  4. `node scripts/asc-create-and-submit.cjs --build 72 --write` (re-points ASC 1.3.0 to 72)
+
+**Fold device check of 53** (founder updates through Play after a Play cache clear)
+- In the food log, tap an entry. The "Corrigir este registro" sheet must be fully visible and scroll.
+- "Remover registro" must sit above the nav bar.
+- Edit the last item's kcal with the keyboard up.
+- Check both themes.
+
+**Android store screenshots**
+- Founder's choice: real Android captures, appreview account on the Fold, light theme.
+- Raw files go in `store/screenshots/raw-android/<lang>/`: status bar cropped, 1080×2409.
+- DONE: pt, en, es, fr → 01_curve, 03_doses, 05_labs, 07_reminders.
+- LEFT, in order:
+  1. de and it, screens 01/03/05/07: `scripts/fold-capture/lang4.sh <code> <current "Language" label> <target native name> <"Other date" label> <reminder-check title>`. Run it from the reminder-check screen of the previous language.
+  2. 02_today ×6 and 06_food ×6. Delete the extra test meals first, so Today shows a realistic day. Log one fresh meal per language for 06.
+  3. 04_progress ×6.
+  4. Build the Play slides from raw-android. `store-slides.cjs` reads `raw/` (iOS captures), so it needs a variant or option to read `raw-android/`.
+  5. Upload the slides to the Play listings ×6.
+
+**Capture setup**
+- Curve setup for 01: Testosterona Cipionato only, +14d, readout date 15 Sep 2026 (header shows "Last 33d").
+- Status bar demo mode (9:41) must be re-enabled before capturing. At pause it was turned off and the screen timeout was restored to 30 s.
+
+**Submit state**
+- ASC version 1.3.0 has build 71, What's New ×6 and screenshots ×6 (7 each).
+- The subscription draft (4 items) is waiting.
+- Done: Apple agreement accepted, privacy policy live, Play listings ×6 live.
+- To submit both stores:
+  - `node scripts/asc-create-and-submit.cjs --build 72 --submit`
+  - `node scripts/play-promote-production.cjs 53 --commit`
+
+**Founder still owes**
+- iPhone 71/72 tests: update over 1.2.4, clock +19 h, reset link on hello@.
+
 **1.3.0 RELEASE SCRIPTS READY 2026-10-17 (release-engineer review; no store writes made).** scripts/play-promote-production.cjs: release name "<app.json version> (<versionCode>)", notes from store/whats-new-<version>.json via _store_locales (Play it-IT), production completed = 100%, dry by default, --commit to release; dry run says NOT READY (exit 2) when the versionCode is not uploaded (vc52 not on Play yet; newest 51; dry run on vc51 validated OK with 6 notes). release-notes/1.3.0.json = the ios block x6 (no Android / Google Play). scripts/asc-create-and-submit.cjs: default run is READ-ONLY (all writes behind a guard), --write = writes + read-back, --submit = writes + read-back + submit; releaseType AFTER_APPROVAL, any INACTIVE phased release deleted, read back before submit; reuses an open READY_FOR_REVIEW submission (RL-6). Dry run --build 70: build 70 not in ASC yet (latest 1.3.0 (69) VALID), 1.3.0 version not created, no open submissions. Test __tests__/releaseScripts130.test.js. Still manual: RL-6 Add for Review (ASC website), screenshots x6 upload (both stores), Play listing is en-US only, App Privacy / Data safety.
 
 **A-145 + A-146 BUILT 2026-10-17 (build 52 scope, founder 2026-10-17; test first, not on device yet).** A-145: lib/database.js getTodayLogs bounded to before the start of tomorrow, so doses dated tomorrow (clock was ahead) never count as done today; list and ring agree (__tests__/a145TodayFutureRows.test.js). A-146: screens/components/FoodLogHero.js also reloads on import_complete / sync_complete / data_changed (debounced 300 ms, the same read as on focus, unsubscribed on unmount), so the food card fills after signing back in (__tests__/a146FoodCardAfterSignIn.test.js). Suite 2321: 2320 pass / 0 fail / 1 todo; expo export ios ok. Owed: Fold device check of both (a tomorrow-dated row; sign out / in with food logged today).
