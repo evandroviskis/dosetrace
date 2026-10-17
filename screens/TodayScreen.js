@@ -1905,6 +1905,7 @@ export default function TodayScreen() {
     fetchStreakData();
     fetchProtocolStreaks();
     fetchLastSites();
+    syncAllDoseReminders().catch(() => {}); // test build 3 council item 2: a Dose log change re-plans
   }
 
 
