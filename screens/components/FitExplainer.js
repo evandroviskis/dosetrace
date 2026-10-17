@@ -10,6 +10,7 @@ import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet, ScrollView 
 import Svg, { Rect, Path, Text as SvgText } from 'react-native-svg';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from '../../lib/theme';
+import { useSheetGap } from '../../components/useSheetInset';
 import { MONO } from '../../lib/fonts';
 import SyringeScale from './SyringeScale';
 import { renderText } from '../../lib/assistantText';
@@ -50,6 +51,7 @@ function Vial({ pct, c, amountLabel, waterLabel }) {
 export default function FitExplainer({ visible, model, t, language, onClose, onSplit, onAskAI }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
+  const gap = useSheetGap(30); // A-136 (2)
   const reduced = useReducedMotion();
   const [step, setStep] = useState(0);
   const [oneShot, setOneShot] = useState(false);
@@ -126,7 +128,7 @@ export default function FitExplainer({ visible, model, t, language, onClose, onS
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.scrim} onPress={onClose}>
+      <Pressable style={[s.scrim, { paddingBottom: gap }]} onPress={onClose}>
         <Pressable style={s.sheet} onPress={() => {}} accessibilityViewIsModal>
           <View style={s.head}>
             <Text style={s.title} accessibilityRole="header">{t('fx_title')}</Text>

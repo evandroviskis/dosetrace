@@ -50,6 +50,7 @@ import { useWindowSize } from '../../lib/windowSize';
 import Svg, { Ellipse, Circle, Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
+import { useSheetEdgePad } from '../../components/useSheetInset';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getCachedUser } from '../../lib/supabase';
 import {
@@ -121,6 +122,7 @@ export default function BodyMapModal({
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const sheetPad = useSheetEdgePad(24); // A-136 (2)
   const { width: winW } = useWindowSize(); // the measured window: a fold re-sizes the map (A-129)
   // An older typed-in site ("left glute") has no spot: show the saved text itself so the
   // user sees what is stored; it is kept unless they pick a spot (A-55).
@@ -249,7 +251,7 @@ export default function BodyMapModal({
       onRequestClose={onBack || onClose}
     >
       <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.sheet}>
+        <View style={[s.sheet, { paddingBottom: sheetPad }]}>
           <View style={s.header}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={s.title}>{t('bodymap_title')}</Text>

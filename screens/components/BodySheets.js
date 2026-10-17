@@ -5,6 +5,7 @@
 import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { useTheme } from '../../lib/theme';
+import { useSheetGap } from '../../components/useSheetInset';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { CrossMark } from '../../components/CheckMark';
 
@@ -14,12 +15,13 @@ import { CrossMark } from '../../components/CheckMark';
 export function BottomSheet({ visible, onClose, children, footer = null, overlay = null }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const gap = useSheetGap(30); // A-136 (2)
   return (
     <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* KeyboardAvoidingView owns its bottom padding (the keyboard), so the sheet's own
           inset from the screen edge sits on the inner View. */}
       <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.scrim}>
+        <View style={[s.scrim, { paddingBottom: gap }]}>
         <View style={s.sheet} accessibilityViewIsModal>
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
             {children}

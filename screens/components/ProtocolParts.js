@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform, ScrollView } from 'react-native';
 import Svg, { Rect, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
+import { useSheetGap } from '../../components/useSheetInset';
 import { MONO } from '../../lib/fonts';
 import FeatureIcon from '../../components/FeatureIcon';
 import { vialCells } from '../../lib/todayFormat';
@@ -48,6 +49,7 @@ function useLast(config) {
 export function DTSheet({ config, onClose }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
+  const centerGap = useSheetGap(16); // A-136 (2): clear the system bottom bar (Android)
   const open = !!config;
   const shown = useLast(config);
   const after = useAfterDismiss(open);
@@ -59,7 +61,7 @@ export function DTSheet({ config, onClose }) {
   const dismiss = () => { after.queue(shown.onDismiss); onClose(); };
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={dismiss} onDismiss={after.onDismiss}>
-      <Pressable style={s.scrim} onPress={dismiss} accessibilityRole="button" >
+      <Pressable style={[s.scrim, { paddingBottom: centerGap }]} onPress={dismiss} accessibilityRole="button" >
         <Pressable style={s.sheet} onPress={() => {}} accessibilityViewIsModal>
           {shown.icon ? (
             <View style={s.icon}><FeatureIcon name={shown.icon} size={26} color={c.ink} /></View>
@@ -96,6 +98,7 @@ export function DTSheet({ config, onClose }) {
 export function DTActionSheet({ config, onClose }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
+  const gap = useSheetGap(30); // A-136 (2)
   const open = !!config;
   const shown = useLast(config);
   const after = useAfterDismiss(open);
@@ -103,7 +106,7 @@ export function DTActionSheet({ config, onClose }) {
   const press = (fn) => { after.queue(fn); onClose(); };
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} onDismiss={after.onDismiss}>
-      <Pressable style={[s.scrim, s.scrimBottom]} onPress={onClose}>
+      <Pressable style={[s.scrim, s.scrimBottom, { paddingBottom: gap }]} onPress={onClose}>
         <Pressable style={s.actWrap} onPress={() => {}} accessibilityViewIsModal>
           <View style={s.actGroup}>
             {shown.heading ? (
@@ -131,9 +134,10 @@ export function DTActionSheet({ config, onClose }) {
 export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
+  const gap = useSheetGap(30); // A-136 (2)
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <Pressable style={[s.scrim, s.scrimBottom]} onPress={onDone}>
+      <Pressable style={[s.scrim, s.scrimBottom, { paddingBottom: gap }]} onPress={onDone}>
         <Pressable style={s.pickSheet} onPress={() => {}} accessibilityViewIsModal>
           <View style={s.pickHead}>
             <Text style={s.pickTitle}>{title}</Text>

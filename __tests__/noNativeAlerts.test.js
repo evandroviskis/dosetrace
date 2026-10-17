@@ -72,7 +72,7 @@ test('a sheet closed without a button runs onDismiss (the alert\'s cancelable on
   const dt = src.slice(src.indexOf('export function DTSheet'), src.indexOf('export function DTActionSheet'));
   assert.match(dt, /const dismiss = \(\) => \{ after\.queue\(shown\.onDismiss\); onClose\(\); \}/);
   assert.match(dt, /onRequestClose=\{dismiss\}/);
-  assert.match(dt, /style=\{s\.scrim\} onPress=\{dismiss\}/);
+  assert.match(dt, /style=\{\[s\.scrim, \{ paddingBottom: centerGap \}\]\} onPress=\{dismiss\}/); // A-136 (2): + the system bottom inset
 });
 
 test('Settings: sign out and both delete steps ask with Cancel first and the action in the risk colour', () => {

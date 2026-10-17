@@ -12,6 +12,7 @@ import * as Notifications from 'expo-notifications';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText } from '../lib/storeText';
 import { useTheme } from '../lib/theme';
+import { useSheetGap } from '../components/useSheetInset';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, loadOnboarding, markSeenOnboarding, markStashFresh, isStashFresh, clearOnboarding } from '../lib/onboardingStore';
 import { supabase, missingProfileFields } from '../lib/supabase';
@@ -146,6 +147,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   }, [metaKey]);
 
   const [showLang, setShowLang] = useState(false);
+  const langGap = useSheetGap(30); // A-136 (2)
   const [showCountry, setShowCountry] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
   const [legal, setLegal] = useState(false);
@@ -646,7 +648,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
       {/* Language picker (Graduated bottom sheet, prototype.html langSheet()) */}
       <Modal visible={showLang} animationType="fade" transparent onRequestClose={() => setShowLang(false)}>
-        <TouchableOpacity style={s.langBackdrop} activeOpacity={1} onPress={() => setShowLang(false)}>
+        <TouchableOpacity style={[s.langBackdrop, { paddingBottom: langGap }]} activeOpacity={1} onPress={() => setShowLang(false)}>
           <View style={s.langSheet}>
             <View style={s.sheetHead}>
               <Text style={s.sheetTitle}>{t('settings_language')}</Text>

@@ -20,7 +20,8 @@ for (const file of ['screens/components/CalculatorSection.js', 'screens/componen
     assert.ok(style, `style ${m[1]}`);
     assert.doesNotMatch(style[1], /padding/, `${m[1]} must not hold padding (the keyboard owns paddingBottom)`);
     const after = src.slice(src.indexOf(m[0]), src.indexOf(m[0]) + 400);
-    assert.match(after, /<View style=\{s\.scrim\}>/, 'the inset View is the first child');
+    // A-136 (2): the inset View also adds the system bottom inset on Android (useSheetGap)
+    assert.match(after, /<View style=\{\[s\.scrim, \{ paddingBottom: gap \}\]\}>/, 'the inset View is the first child');
     assert.match(src.match(/\n\s+scrim: \{([^}]*)\}/)[1], /paddingBottom: 30/);
   });
 }

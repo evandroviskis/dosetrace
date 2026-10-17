@@ -41,6 +41,7 @@ import { activitySource, activityKeyForMultiplier, legacyActivity } from '../../
 import { useLanguage } from '../../i18n/LanguageContext';
 import { pluralKey } from '../../lib/plural';
 import { useTheme } from '../../lib/theme';
+import { useSheetGap } from '../../components/useSheetInset';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { MONO } from '../../lib/fonts';
 import {
@@ -1909,12 +1910,13 @@ function TargetScale({ start, goal, frac, colors, width, label }) {
 // A bottom sheet (prototype .scrim.bot + .sheet). Forms close only through their
 // own Cancel / Save (never a stray tap on the scrim) so typed values are not lost.
 function SheetModal({ visible, onClose, s, children }) {
+  const gap = useSheetGap(30); // A-136 (2)
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* KeyboardAvoidingView owns its bottom padding (the keyboard height, 0 when closed), so
           the sheet's 30 pt inset sits on the View inside it (sheetInset.test.js). */}
       <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.scrim}>
+        <View style={[s.scrim, { paddingBottom: gap }]}>
           <View style={s.sheet}>
             <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetBody}>
               {children}

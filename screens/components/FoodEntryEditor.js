@@ -26,6 +26,7 @@ import Animated, { SlideInDown } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
+import { useSheetGap } from '../../components/useSheetInset';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import { updateFoodLog, deleteFoodLog } from '../../lib/database';
@@ -42,6 +43,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = makeStyles(colors);
+  const gap = useSheetGap(30); // A-136 (2)
   const [items, setItems] = useState([]);
   const [date, setDate] = useState(null);
   const key = editorDraftKey(row);
@@ -98,7 +100,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
       {/* KeyboardAvoidingView owns its bottom padding (the keyboard height), so the sheet's
           30 pt inset sits on the View inside it (sheetInset.test.js). */}
       <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={s.scrim}>
+        <View style={[s.scrim, { paddingBottom: gap }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={cancel} accessibilityRole="button" accessibilityLabel={t('cancel')} />
         <Animated.View entering={SlideInDown.duration(280)} style={s.sheet}>
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>

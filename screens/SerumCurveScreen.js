@@ -40,6 +40,7 @@ import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
 
 import { useTheme } from '../lib/theme';
+import { useSheetEdgePad } from '../components/useSheetInset';
 import { MONO, fontFamilyFor } from '../lib/fonts';
 import FeatureIcon from '../components/FeatureIcon';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -266,6 +267,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const [protocols, setProtocols] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerPad = useSheetEdgePad(32); // A-136 (2): the last row above the Fold's taskbar
   const [notCharted, setNotCharted] = useState({ iu: [], noData: [], noDose: [] });
   const [sourceOpen, setSourceOpen] = useState({}); // per compound id: its half-life source shown
   const [showCombined, setShowCombined] = useState(true);
@@ -1087,7 +1089,7 @@ export default function SerumCurveScreen({ embedded = false }) {
       {/* Multi-select picker sheet */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
         <Pressable style={s.modalScrim} onPress={() => setPickerOpen(false)}>
-          <Pressable style={s.sheet} onPress={() => {}}>
+          <Pressable style={[s.sheet, { paddingBottom: pickerPad }]} onPress={() => {}}>
             <View style={s.sheetHeadRow}>
               <Text style={s.sheetTitle}>{t('curve_choose_title')}</Text>
               <TouchableOpacity onPress={() => setPickerOpen(false)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
