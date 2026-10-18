@@ -27,6 +27,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';
+import useKeyboardLift from '../../components/useKeyboardLift';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import { updateFoodLog, deleteFoodLog } from '../../lib/database';
@@ -50,6 +51,12 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const { colors } = useTheme();
   const s = makeStyles(colors);
   const gap = useSheetGap(30); // A-136 (2)
+  // Android (Fold 2026-10-17, foodEditorKeyboard.test.js): the app draws edge to edge, so the
+  // keyboard covers the sheet's lower fields and nothing moves it (the KeyboardAvoidingView pads
+  // on iPhone only). While the keyboard is up the scroll content gets a keyboard-tall spacer and
+  // the focused field is scrolled just above the keyboard (lib/keyboardLift). iPhone unchanged.
+  const lift = useKeyboardLift(null, Platform.OS === 'android');
+  const nameRefs = useRef([]);
   const [items, setItems] = useState([]);
   const [date, setDate] = useState(null);
   const key = editorDraftKey(row);
@@ -109,7 +116,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
         <View style={[s.scrim, { paddingBottom: gap }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={cancel} accessibilityRole="button" accessibilityLabel={t('cancel')} />
         <Animated.View entering={SHEET_ENTERING} style={s.sheet}>
-          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body}>
+          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" {...lift.scrollProps} contentContainerStyle={s.body}>
             <View style={s.head}>
               <TouchableOpacity onPress={cancel} style={s.side} accessibilityRole="button">
                 <Text style={s.txtBtn}>{t('cancel')}</Text>
@@ -145,6 +152,8 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
               <View key={i} style={s.item}>
                 <View style={s.itemHead}>
                   <TextInput
+                    ref={(n) => { nameRefs.current[i] = n; }}
+                    onFocus={() => lift.liftField({ current: nameRefs.current[i] })}
                     style={[s.input, s.nameInput]}
                     value={it.food == null ? '' : String(it.food)}
                     onChangeText={(v) => setField(i, 'food', v)}
@@ -157,15 +166,16 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
                   </TouchableOpacity>
                 </View>
                 <View style={s.fields}>
-                  <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setField(i, 'kcal', v)} />
-                  <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setField(i, 'carb_g', v)} />
-                  <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setField(i, 'protein_g', v)} />
+                  <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setField(i, 'kcal', v)} onFocus={lift.liftField} />
+                  <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setField(i, 'carb_g', v)} onFocus={lift.liftField} />
+                  <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setField(i, 'protein_g', v)} onFocus={lift.liftField} />
                 </View>
               </View>
             ))}
             <TouchableOpacity style={s.danger} onPress={remove} accessibilityRole="button">
               <Text style={s.dangerText}>{t('nutri_delete_entry')}</Text>
             </TouchableOpacity>
+            {lift.spacer}
           </ScrollView>
         </Animated.View>
         </View>
@@ -174,11 +184,14 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   );
 }
 
-function EditNum({ s, colors, label, value, onChange }) {
+function EditNum({ s, colors, label, value, onChange, onFocus }) {
+  const ref = useRef(null);
   return (
     <View style={s.num}>
       <Text style={s.numLabel}>{label}</Text>
       <TextInput
+        ref={ref}
+        onFocus={() => { if (onFocus) onFocus(ref); }}
         style={s.input}
         value={value == null ? '' : String(Math.round(Number(value) || 0))}
         onChangeText={onChange}

@@ -2,11 +2,14 @@
 // the page's ScrollView, put spacer at the end of its content (room to scroll the last field up
 // while the keyboard is open), and call liftField(ref) from the field's onFocus. The field is
 // lifted on focus and again once the keyboard has opened. Rule: lib/keyboardLift.
+// enabled = false turns it off (no listeners, no spacer, no lift): a sheet whose
+// KeyboardAvoidingView already lifts it on iPhone uses it on Android only (food editor, Fold
+// 2026-10-17, foodEditorKeyboard.test.js).
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, View } from 'react-native';
 import { liftScrollY } from '../lib/keyboardLift';
 
-export default function useKeyboardLift(extRef) {
+export default function useKeyboardLift(extRef, enabled = true) {
   const scroll = useRef(null);
   const scrollY = useRef(0);
   const kbTop = useRef(null);
@@ -26,6 +29,7 @@ export default function useKeyboardLift(extRef) {
   }
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
       const ec = e && e.endCoordinates;
       kbTop.current = ec ? ec.screenY : null;
@@ -38,7 +42,7 @@ export default function useKeyboardLift(extRef) {
       setKbHeight(0);
     });
     return () => { show.remove(); hide.remove(); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     scrollProps: {
@@ -46,7 +50,7 @@ export default function useKeyboardLift(extRef) {
       onScroll: (e) => { scrollY.current = e.nativeEvent.contentOffset.y; },
       scrollEventThrottle: 32,
     },
-    spacer: kbHeight > 0 ? <View style={{ height: kbHeight }} /> : null,
-    liftField: (ref) => { field.current = ref; lift(); },
+    spacer: enabled && kbHeight > 0 ? <View style={{ height: kbHeight }} /> : null,
+    liftField: (ref) => { if (!enabled) return; field.current = ref; lift(); },
   };
 }
