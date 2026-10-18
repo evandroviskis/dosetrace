@@ -1,5 +1,7 @@
 # DoseTrace — Project State
 
+**BUILD 54 / 73 READY 2026-10-17 ~23:10 EDT (commit c249164):** Android 54 on the internal track (production still 1.2.4 vc45); iOS 73 VALID + live on Early Birds; ASC version 1.3.0 on build 73 (AFTER_APPROVAL, no phased release, NOT submitted). Contains the Android keyboard fixes for every sheet/modal with fields (bc90559, 0488172, 4884c70, useKeyboardLift reset). Store screenshots: App Store ×6 uploaded; Google Play slides ×6 from real Android captures built (store/screenshots/play/<lang>), NOT uploaded yet. Next: founder updates the Fold to 54 → keyboard check in every sheet in both themes → upload Play screenshots → submit both stores (asc-create-and-submit.cjs --build 73 --submit; play-promote-production.cjs 54 --commit).
+
 **PAUSED 2026-10-17 ~18:45 EDT (founder left with the Fold). RESUME HERE:**
 
 **Build 53 / 72**
