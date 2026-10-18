@@ -57,7 +57,7 @@ test('food editor keyboard: iPhone is unchanged (KeyboardAvoidingView padding)',
   assert.match(src, /<KeyboardAvoidingView style=\{s\.kav\} behavior=\{Platform\.OS === 'ios' \? 'padding' : undefined\}>/);
   const hook = read('components/useKeyboardLift.js');
   assert.match(hook, /export default function useKeyboardLift\(extRef, enabled = true\)/);
-  assert.match(hook, /if \(!enabled\) return undefined;/, 'no keyboard listeners when off');
+  assert.match(hook, /if \(!enabled\) \{[^}]*return undefined;\s*\}\s*const show = Keyboard\.addListener/, 'no keyboard listeners when off (the off branch returns before adding them)');
   assert.match(hook, /spacer: enabled && kbHeight > 0 \?/, 'no spacer when off');
   assert.match(hook, /liftField: \(ref\) => \{ if \(!enabled\) return;/, 'no lift when off');
 });
