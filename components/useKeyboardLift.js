@@ -29,7 +29,14 @@ export default function useKeyboardLift(extRef, enabled = true) {
   }
 
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled) {
+      // Turned off (a sheet closed with the keyboard up): forget the keyboard, so the next
+      // opening never starts with a keyboard-tall blank space.
+      kbTop.current = null;
+      field.current = null;
+      setKbHeight(0);
+      return undefined;
+    }
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
       const ec = e && e.endCoordinates;
       kbTop.current = ec ? ec.screenY : null;
