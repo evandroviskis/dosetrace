@@ -30,6 +30,7 @@ import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import RowChevron from '../components/RowChevron';
 import SegmentedBar from '../components/SegmentedBar';
+import useKeyboardLift from '../components/useKeyboardLift';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getHistoryProtocols,
@@ -214,6 +215,12 @@ export default function SettingsScreen({ navigation }) {
   const [activityLevel, setActivityLevel] = useState('');
   const [hasProvider, setHasProvider] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  // Android (edge to edge, the page sheet is never resized; build 54): Edit profile scrolls the
+  // focused field just above the keyboard, and the country list's end can scroll above it.
+  const profileLift = useKeyboardLift(null, Platform.OS === 'android' && showEditProfile);
+  const countryLift = useKeyboardLift(null, Platform.OS === 'android' && showCountryPicker);
+  const profileNameRef = useRef(null);
+  const profileYearRef = useRef(null);
   const [countrySearch, setCountrySearch] = useState('');
   // DoseTrace sheets instead of native alerts (decisions: "DoseTrace sheets replace native iOS
   // alerts everywhere"). `sheet` sits on the screen; `editSheet` is presented from inside the
@@ -1324,13 +1331,15 @@ export default function SettingsScreen({ navigation }) {
               <Text style={s.modalClose}>{t('save')}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView {...profileLift.scrollProps} style={s.modalBody} showsVerticalScrollIndicator={false}>
             {/* ── About you ─────────────────────────────────────────── */}
             <Text style={[s.editSection, s.editSectionFirst]}>{t('profile_sec_about')}</Text>
 
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_name')}</Text>
               <TextInput
+                ref={profileNameRef}
+                onFocus={() => profileLift.liftField(profileNameRef)}
                 style={s.editInput}
                 placeholder={t('profile_name_placeholder')}
                 placeholderTextColor={colors.ink3}
@@ -1360,6 +1369,8 @@ export default function SettingsScreen({ navigation }) {
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_birth_year')}</Text>
               <TextInput
+                ref={profileYearRef}
+                onFocus={() => profileLift.liftField(profileYearRef)}
                 style={s.editInput}
                 placeholder={t('profile_birth_year_ph')}
                 placeholderTextColor={colors.ink3}
@@ -1486,6 +1497,7 @@ export default function SettingsScreen({ navigation }) {
 
             <Text style={s.editDisclaimer}>{t('profile_data_note')}</Text>
             <View style={{ height: 40 }} />
+            {profileLift.spacer}
           </ScrollView>
 
           <DTSheet config={editSheet} onClose={() => setEditSheet(null)} />
@@ -1529,6 +1541,7 @@ export default function SettingsScreen({ navigation }) {
                 style={{ flex: 1 }}
                 contentContainerStyle={[s.centered, { paddingHorizontal: 20 }]}
                 keyboardShouldPersistTaps="handled"
+                ListFooterComponent={countryLift.spacer}
                 ItemSeparatorComponent={() => <View style={s.sheetDivider} />}
                 renderItem={({ item }) => (
                   <TouchableOpacity

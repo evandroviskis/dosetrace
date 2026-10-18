@@ -32,6 +32,7 @@ import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '..
 import { protocolDisplayName } from '../lib/protocolName';
 import { readPieces, readScale, READ } from '../lib/readPieces';
 import useKeyboardLift from '../components/useKeyboardLift';
+import useSheetKeyboard from '../components/useSheetKeyboard';
 import { doseUnitCheck } from '../lib/doseUnitCheck';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -118,6 +119,9 @@ const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','w
 // Free tier: max active protocols before Premium is required. If you change
 // this, update the copy in protocols_limit_msg + paywall_free_feat_3.
 const FREE_PROTOCOL_LIMIT = 3;
+// The editor's keyboard wrapper (build 54): fills the page sheet; on Android its bottom padding
+// is the keyboard's overlap while the keyboard is up.
+const EDITOR_FLEX = { flex: 1 };
 
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr',
@@ -929,6 +933,11 @@ export default function ProtocolsScreen() {
   const [pendingYest, setPendingYest] = useState([]); // A-42: yesterday's open slots (A-40), as Today shows them
   const [vialsByProtocol, setVialsByProtocol] = useState({});
   const [showModal, setShowModal] = useState(false);
+  // Android (edge to edge, the page sheet is never resized; build 54): the editor's footer
+  // (Back / Next / Save) and the assistant's composer sit on the keyboard, and the focused wizard
+  // field is scrolled into view. iPhone: the KeyboardAvoidingViews below, as before.
+  const editorKb = useSheetKeyboard(Platform.OS === 'android' && showModal, { gap: 0, topRoom: 0 });
+  const editorScrollRef = useCallback((n) => { modalScrollRef.current = n; if (editorKb.scrollProps.ref) editorKb.scrollProps.ref(n); }, [editorKb.scrollProps]);
   const [step, setStep] = useState(1);
   // The protocol screen (prototype protocol()): a tapped card opens it over the list.
   const [openId, setOpenId] = useState(null);
@@ -2610,6 +2619,7 @@ export default function ProtocolsScreen() {
         }}
       >
         <SafeAreaView style={s.modal}>
+          <View style={editorKb.lift ? [EDITOR_FLEX, { paddingBottom: editorKb.lift.bottom }] : EDITOR_FLEX} onLayout={editorKb.onLayout}>
           {assistant ? (
             <ProtocolAssistant
               key={assistant.door}
@@ -2645,7 +2655,7 @@ export default function ProtocolsScreen() {
             ))}
           </View>
 
-          <ScrollView ref={modalScrollRef} style={s.modalBody} contentContainerStyle={s.wiz} showsVerticalScrollIndicator={false}>
+          <ScrollView {...editorKb.scrollProps} ref={editorScrollRef} style={s.modalBody} contentContainerStyle={s.wiz} showsVerticalScrollIndicator={false}>
 
             {step === 1 && (
               <>
@@ -3346,6 +3356,7 @@ export default function ProtocolsScreen() {
           </View>
           </KeyboardAvoidingView>
           )}
+          </View>
 
           {/* "Why it does not fit" (AP-12) and the Ready-to-use syringe list (AP-21, option B). */}
           <FitExplainer

@@ -8,6 +8,7 @@ import {
   Modal,
   TextInput,
   AppState,
+  Platform,
 } from 'react-native';
 import { readCheckNow } from '../lib/realityCheckNow';
 import { loadAlertInputs } from '../lib/todayAlertsLoad';
@@ -63,6 +64,7 @@ import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExp
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, unitText } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
+import useSheetKeyboard from '../components/useSheetKeyboard';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
@@ -170,6 +172,14 @@ const TOAST_MS = 4000;
 
 // A-135: which first-load part ends each placeholder block ("add a protocol" waits for the doses).
 const SKEL_SECTION = { alerts: 'alerts', pending: 'pending', tracker: 'tracker', food: 'food', empty: 'doses', doses: 'doses' };
+
+// The vial prompt's body (build 54): on Android a ScrollView, so the card, capped above the
+// keyboard by useSheetKeyboard, scrolls its day field into view while its actions stay under it;
+// on iPhone a plain View, exactly as before. Platform is fixed, so the type never switches.
+function PromptBody({ style, scrollProps, children }) {
+  if (Platform.OS !== 'android') return <View style={style}>{children}</View>;
+  return <ScrollView {...scrollProps} contentContainerStyle={style} keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={false}>{children}</ScrollView>;
+}
 
 // ── Schedule math ──────────────────────────────────────────────
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
@@ -332,6 +342,8 @@ export default function TodayScreen() {
 
   // Vial continuation state
   const [showVialPrompt, setShowVialPrompt] = useState(false);
+  // Android: the card sits above the keyboard (edge to edge, the Modal is never resized; build 54).
+  const vialKb = useSheetKeyboard(Platform.OS === 'android' && showVialPrompt, { gap: 16 });
   const [continuationProtocol, setContinuationProtocol] = useState(null);
   // Inactivity nudge: a protocol with no doses logged for a while → "still going?"
   const [inactiveProtocol, setInactiveProtocol] = useState(null);
@@ -2496,77 +2508,80 @@ export default function TodayScreen() {
 
       {/* Vial continuation modal */}
       <Modal visible={showVialPrompt} transparent animationType="fade">
-        <View style={s.promptOverlay}>
-          <View style={s.promptCard}>
-            <Text style={s.promptTitle}>{t('today_vial_done_title')}</Text>
-            {continuationProtocol && (
-              <Text style={s.promptProtocolName}>{protocolDisplayName(continuationProtocol, t)}</Text>
-            )}
-            <Text style={s.promptSub}>{t('today_vial_done_sub')}</Text>
+        <View style={vialKb.lift ? [s.promptOverlay, { paddingBottom: vialKb.lift.bottom }] : s.promptOverlay} onLayout={vialKb.onLayout}>
+          <View style={[s.promptCard, vialKb.sheetStyle]}>
+            <PromptBody style={s.promptBody} scrollProps={vialKb.scrollProps}>
+              <Text style={s.promptTitle}>{t('today_vial_done_title')}</Text>
+              {continuationProtocol && (
+                <Text style={s.promptProtocolName}>{protocolDisplayName(continuationProtocol, t)}</Text>
+              )}
+              <Text style={s.promptSub}>{t('today_vial_done_sub')}</Text>
 
-            <Text style={s.promptLabel}>{t('today_vial_mix_date')}</Text>
-            <View style={s.yesterdayRow}>
-              <TouchableOpacity
-                style={s.yesterdayPill}
-                onPress={() => {
-                  const y = new Date();
-                  y.setDate(y.getDate() - 1);
-                  setNewVialMonth(y.getMonth());
-                  setNewVialDay(String(y.getDate()));
-                }}
-              >
-                <Text style={s.yesterdayPillText}>{t('today_yesterday')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.yesterdayPill}
-                onPress={() => {
-                  const td = new Date();
-                  setNewVialMonth(td.getMonth());
-                  setNewVialDay(String(td.getDate()));
-                }}
-              >
-                <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={s.promptMonthRow}>
-                {MONTH_KEYS.map((mk, idx) => (
-                  <TouchableOpacity
-                    key={mk}
-                    style={[s.promptMonthPill, newVialMonth === idx && s.promptMonthPillOn]}
-                    onPress={() => setNewVialMonth(idx)}
-                  >
-                    <Text style={[s.promptMonthText, newVialMonth === idx && s.promptMonthTextOn]}>
-                      {t(mk)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <Text style={s.promptLabel}>{t('today_vial_mix_date')}</Text>
+              <View style={s.yesterdayRow}>
+                <TouchableOpacity
+                  style={s.yesterdayPill}
+                  onPress={() => {
+                    const y = new Date();
+                    y.setDate(y.getDate() - 1);
+                    setNewVialMonth(y.getMonth());
+                    setNewVialDay(String(y.getDate()));
+                  }}
+                >
+                  <Text style={s.yesterdayPillText}>{t('today_yesterday')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.yesterdayPill}
+                  onPress={() => {
+                    const td = new Date();
+                    setNewVialMonth(td.getMonth());
+                    setNewVialDay(String(td.getDate()));
+                  }}
+                >
+                  <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
+                </TouchableOpacity>
               </View>
-            </ScrollView>
-            <TextInput
-              style={s.promptDayInput}
-              placeholder={t('protocols_day_dd')}
-              placeholderTextColor={colors.ink3}
-              keyboardType="numeric"
-              maxLength={2}
-              value={newVialDay}
-              onChangeText={(val) => {
-                const num = parseInt(val);
-                if (val === '' || (num >= 1 && num <= 31)) setNewVialDay(val);
-              }}
-            />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={s.promptMonthRow}>
+                  {MONTH_KEYS.map((mk, idx) => (
+                    <TouchableOpacity
+                      key={mk}
+                      style={[s.promptMonthPill, newVialMonth === idx && s.promptMonthPillOn]}
+                      onPress={() => setNewVialMonth(idx)}
+                    >
+                      <Text style={[s.promptMonthText, newVialMonth === idx && s.promptMonthTextOn]}>
+                        {t(mk)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+              <TextInput
+                style={s.promptDayInput}
+                placeholder={t('protocols_day_dd')}
+                placeholderTextColor={colors.ink3}
+                keyboardType="numeric"
+                maxLength={2}
+                value={newVialDay}
+                onChangeText={(val) => {
+                  const num = parseInt(val);
+                  if (val === '' || (num >= 1 && num <= 31)) setNewVialDay(val);
+                }}
+              />
 
-            {continuationProtocol && (() => {
-              const cap = dosesPerVial({
-                amount: continuationProtocol.amount, unit: continuationProtocol.unit,
-                dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
-              });
-              return cap ? (
-                <Text style={s.promptLabel}>
-                  {t(pluralKey('today_vial_new_capacity', cap, language)).replace('{n}', String(cap))}
-                </Text>
-              ) : null;
-            })()}
+              {continuationProtocol && (() => {
+                const cap = dosesPerVial({
+                  amount: continuationProtocol.amount, unit: continuationProtocol.unit,
+                  dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
+                });
+                return cap ? (
+                  <Text style={s.promptLabel}>
+                    {t(pluralKey('today_vial_new_capacity', cap, language)).replace('{n}', String(cap))}
+                  </Text>
+                ) : null;
+              })()}
+
+            </PromptBody>
 
             <View style={s.promptActions}>
               <TouchableOpacity
@@ -2770,6 +2785,7 @@ const legacyStyles = (c) => ({
   promptMonthTextOn: { color: c.ink, fontWeight: '600' },
   promptDayInput: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingVertical: 12, paddingHorizontal: 14, fontSize: 17, color: c.ink, width: 90, textAlign: 'center' },
   promptActions: { flexDirection: 'row', gap: 10 },
+  promptBody: { gap: 14 }, // the card's gap, inside its (Android: scrolling) body
   promptBtnSecondary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   promptBtnSecondaryText: { fontSize: 15, fontWeight: '700', color: c.ink, textAlign: 'center' },
   promptBtnPrimary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },

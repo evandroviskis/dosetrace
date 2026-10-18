@@ -142,7 +142,9 @@ test('A-115 "A": Today sends the focus target; My Protocols passes it to Edit, c
   const oe = between(PROT, 'function openEdit(p, goToStep, focusField) {', '\n  }\n');
   assert.match(oe, /pendingFocusRef\.current = focusField \? \{ field: focusField, id: p\.id \} : null;/);
   // The bottle size field: measured inside the form's scroll view, scrolled to, then focused.
-  assert.match(PROT, /<ScrollView ref=\{modalScrollRef\} style=\{s\.modalBody\}/);
+  // (build 54: the ref is merged with the Android keyboard hook's, modalKeyboard.test.js)
+  assert.match(PROT, /<ScrollView \{\.\.\.editorKb\.scrollProps\} ref=\{editorScrollRef\} style=\{s\.modalBody\}/);
+  assert.match(PROT, /const editorScrollRef = useCallback\(\(n\) => \{ modalScrollRef\.current = n;/);
   const fld = between(PROT, "<Fld s={s} label={t('protocols_container_units')}", '</Fld>');
   assert.match(fld, /onLayout=\{focusContainerField\}/);
   assert.match(fld, /<WInput ref=\{containerInputRef\}/);
