@@ -4,6 +4,8 @@
 // store/screenshots/captions.json. Output: store/screenshots/apple/<lang>/ (1320×2868, the
 // 6.9" size) and store/screenshots/play/<lang>/ (1440×2868, under Play's 2:1 limit).
 // Usage: node scripts/store-slides.cjs [lang ...]   (headless Chrome renders each slide)
+// Google Play uses real Android captures (founder 2026-10-17): store/screenshots/raw-android/<lang>/ (Fold,
+// status bar cropped, 1080×2409) when present; the App Store keeps the iPhone captures in raw/.
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -55,9 +57,11 @@ for (const lang of langs) {
   const caps = captions[lang];
   if (!caps) throw new Error('no captions for ' + lang);
   caps.forEach((cap, i) => {
-    const raw = path.join(SHOTS, 'raw', lang, cap.file + '.png');
-    if (!fs.existsSync(raw)) throw new Error('missing ' + raw);
+    const iosRaw = path.join(SHOTS, 'raw', lang, cap.file + '.png');
+    if (!fs.existsSync(iosRaw)) throw new Error('missing ' + iosRaw);
+    const androidRaw = path.join(SHOTS, 'raw-android', lang, cap.file + '.png');
     for (const [store, W] of Object.entries(STORES)) {
+      const raw = store === 'play' && fs.existsSync(androidRaw) ? androidRaw : iosRaw;
       const html = path.join(tmp, `${store}-${lang}-${cap.file}.html`);
       fs.writeFileSync(html, slideHtml({ W, lang, cap, raw, last: i === caps.length - 1 }));
       const outDir = path.join(SHOTS, store, lang);
