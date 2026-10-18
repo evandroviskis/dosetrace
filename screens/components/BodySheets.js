@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';
+import useSheetKeyboard from '../../components/useSheetKeyboard';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { CrossMark } from '../../components/CheckMark';
 
@@ -15,15 +16,22 @@ import { CrossMark } from '../../components/CheckMark';
 export function BottomSheet({ visible, onClose, children, footer = null, overlay = null }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const gap = useSheetGap(30); // A-136 (2)
+  const restGap = useSheetGap(30); // A-136 (2)
+  // Android (Fold folded, build 53, sheetKeyboard.test.js): edge to edge, the Modal is not
+  // resized and the KeyboardAvoidingView pads on iPhone only, so the keyboard covered the sheet.
+  // While the keyboard is up the sheet sits above it, capped to the room left (the ScrollView
+  // scrolls, the footer stays under it, above the keyboard), the focused field scrolled into
+  // view. iPhone unchanged.
+  const kb = useSheetKeyboard(Platform.OS === 'android' && !!visible);
+  const gap = kb.lift ? kb.lift.bottom : restGap;
   return (
     <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* KeyboardAvoidingView owns its bottom padding (the keyboard), so the sheet's own
           inset from the screen edge sits on the inner View. */}
-      <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined} onLayout={kb.onLayout}>
         <View style={[s.scrim, { paddingBottom: gap }]}>
-        <View style={s.sheet} accessibilityViewIsModal>
-          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+        <View style={[s.sheet, kb.sheetStyle]} accessibilityViewIsModal>
+          <ScrollView bounces={false} keyboardShouldPersistTaps="handled" {...kb.scrollProps} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
             {children}
           </ScrollView>
           {footer ? <View style={s.footer}>{footer}</View> : null}

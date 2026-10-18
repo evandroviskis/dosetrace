@@ -42,6 +42,7 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { pluralKey } from '../../lib/plural';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';
+import useSheetKeyboard from '../../components/useSheetKeyboard';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { MONO } from '../../lib/fonts';
 import {
@@ -1910,15 +1911,21 @@ function TargetScale({ start, goal, frac, colors, width, label }) {
 // A bottom sheet (prototype .scrim.bot + .sheet). Forms close only through their
 // own Cancel / Save (never a stray tap on the scrim) so typed values are not lost.
 function SheetModal({ visible, onClose, s, children }) {
-  const gap = useSheetGap(30); // A-136 (2)
+  const restGap = useSheetGap(30); // A-136 (2)
+  // Android (Fold folded, build 53, sheetKeyboard.test.js): edge to edge, the Modal is not
+  // resized and the KeyboardAvoidingView pads on iPhone only, so the keyboard covered the whole
+  // weigh-in sheet. While the keyboard is up the sheet sits above it, capped to the room left
+  // (its ScrollView scrolls), and the focused field is scrolled into view. iPhone unchanged.
+  const kb = useSheetKeyboard(Platform.OS === 'android' && !!visible);
+  const gap = kb.lift ? kb.lift.bottom : restGap;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* KeyboardAvoidingView owns its bottom padding (the keyboard height, 0 when closed), so
           the sheet's 30 pt inset sits on the View inside it (sheetInset.test.js). */}
-      <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined} onLayout={kb.onLayout}>
         <View style={[s.scrim, { paddingBottom: gap }]}>
-          <View style={s.sheet}>
-            <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.sheetBody}>
+          <View style={[s.sheet, kb.sheetStyle]}>
+            <ScrollView bounces={false} keyboardShouldPersistTaps="handled" {...kb.scrollProps} contentContainerStyle={s.sheetBody}>
               {children}
             </ScrollView>
           </View>

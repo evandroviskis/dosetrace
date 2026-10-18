@@ -58,7 +58,8 @@ const SHEETS = {
   'screens/components/FoodEntryEditor.js': [/<View style=\{\[s\.scrim, \{ paddingBottom: gap \}\]\}>/],
   'screens/components/FitExplainer.js': [/<Pressable style=\{\[s\.scrim, \{ paddingBottom: gap \}\]\}/],
   'screens/OnboardingFlowScreen.js': [/style=\{\[s\.langBackdrop, \{ paddingBottom: langGap \}\]\}/],
-  'screens/components/BodyMapModal.js': [/<View style=\{\[s\.sheet, \{ paddingBottom: sheetPad \}\]\}>/],
+  // + the Android keyboard cap (sheetKeyboard.test.js); sheetPad is the edge pad when the keyboard is down
+  'screens/components/BodyMapModal.js': [/<View style=\{\[s\.sheet, \{ paddingBottom: sheetPad \}, kb\.sheetStyle\]\}>/, /const restPad = useSheetEdgePad\(24\);/],
 };
 
 for (const [file, pats] of Object.entries(SHEETS)) {

@@ -51,6 +51,7 @@ import Svg, { Ellipse, Circle, Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { useSheetEdgePad } from '../../components/useSheetInset';
+import useSheetKeyboard from '../../components/useSheetKeyboard';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getCachedUser } from '../../lib/supabase';
 import {
@@ -122,7 +123,14 @@ export default function BodyMapModal({
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const sheetPad = useSheetEdgePad(24); // A-136 (2)
+  const restPad = useSheetEdgePad(24); // A-136 (2)
+  // Android (sheetKeyboard.test.js): edge to edge, the Modal is not resized and the
+  // KeyboardAvoidingView pads on iPhone only, so the keyboard covered the free-text site field
+  // and Save. While the keyboard is up the sheet sits on it, capped to the room left (the
+  // ScrollView scrolls; disclaimer and buttons stay above the keyboard), the focused field
+  // scrolled into view, and the navigation-bar pad (under the keyboard) drops. iPhone unchanged.
+  const kb = useSheetKeyboard(Platform.OS === 'android' && !!visible, { gap: 0, topRoom: 24 });
+  const sheetPad = kb.lift ? 24 : restPad;
   const { width: winW } = useWindowSize(); // the measured window: a fold re-sizes the map (A-129)
   // An older typed-in site ("left glute") has no spot: show the saved text itself so the
   // user sees what is stored; it is kept unless they pick a spot (A-55).
@@ -250,8 +258,8 @@ export default function BodyMapModal({
       animationType="slide"
       onRequestClose={onBack || onClose}
     >
-      <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[s.sheet, { paddingBottom: sheetPad }]}>
+      <KeyboardAvoidingView style={kb.lift ? [s.overlay, { paddingBottom: kb.lift.bottom }] : s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined} onLayout={kb.onLayout}>
+        <View style={[s.sheet, { paddingBottom: sheetPad }, kb.sheetStyle]}>
           <View style={s.header}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={s.title}>{t('bodymap_title')}</Text>
@@ -281,6 +289,7 @@ export default function BodyMapModal({
           />
 
           <ScrollView
+            {...kb.scrollProps}
             style={s.scroll}
             contentContainerStyle={s.scrollBody}
             showsVerticalScrollIndicator={false}
