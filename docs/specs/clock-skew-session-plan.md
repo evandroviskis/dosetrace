@@ -175,3 +175,8 @@ Before each step: app in the foreground, signed in, one dose logged offline as a
 1. Build: 1.3.0 (founder "concordo, inclui na 1.3.0").
 2. Pin `@supabase/supabase-js` / `auth-js` to 2.101.1: yes (done, CS-16).
 3. Offline with an expired token: fixed in the same item as A-140 (section 5b, CS-11…CS-15).
+
+
+## Device evidence 2026-10-17
+- Android (Fold, builds 51 and 53): +2 h cold start 1 refresh; +19 h cold start 1 refresh (build 49 made dozens and signed out); headless Mark-as-taken at +19 h synced on open; -2 h cold start no refresh, signed in; airplane + clock ahead cold start reached Today in 3-4 s (no sign-in screen), offline doses synced within seconds of the network returning; return to auto time fine; server session revoke → exactly one 400 refresh_token_not_found then sign-in screen, no storm; delete account offline (offline message) and online at -2 h (deleted, no push after).
+- iOS (founder iPhone, TestFlight build 72): +19 h, app killed and reopened → still signed in; edge_logs show exactly ONE /auth/v1/token POST from DoseTrace/72 at 02:00:13Z. (The storm at 01:43Z came from DoseTrace/66, an old TestFlight build still installed — not the fix.)
