@@ -1,5 +1,7 @@
 # DoseTrace — Project State
 
+**1.3.0 SUBMITTED TO BOTH STORES 2026-10-20 ~16:55 EDT:** App Store 1.3.0 (build 73) WAITING_FOR_REVIEW, AFTER_APPROVAL, no phased release. Google Play production = 1.3.0 (54), vc54, completed, 100%. Pending: Apple review outcome (watch asc-appstore-status.cjs); Play review publishes automatically. Next work: A-142…A-151 for 1.3.1; optionally rotate the appreview demo password after approval.
+
 **BUILD 54 / 73 READY 2026-10-17 ~23:10 EDT (commit c249164):** Android 54 on the internal track (production still 1.2.4 vc45); iOS 73 VALID + live on Early Birds; ASC version 1.3.0 on build 73 (AFTER_APPROVAL, no phased release, NOT submitted). Contains the Android keyboard fixes for every sheet/modal with fields (bc90559, 0488172, 4884c70, useKeyboardLift reset). Store screenshots: App Store ×6 uploaded; Google Play slides ×6 from real Android captures built (store/screenshots/play/<lang>), NOT uploaded yet. Next: founder updates the Fold to 54 → keyboard check in every sheet in both themes → upload Play screenshots → submit both stores (asc-create-and-submit.cjs --build 73 --submit; play-promote-production.cjs 54 --commit).
 
 **PAUSED 2026-10-17 ~18:45 EDT (founder left with the Fold). RESUME HERE:**

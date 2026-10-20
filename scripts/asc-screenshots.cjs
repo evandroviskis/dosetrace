@@ -57,13 +57,13 @@ async function uploadOne(setId, file) {
   const md5 = crypto.createHash('md5').update(bytes).digest('hex');
   must(await write('PATCH', `/v1/appScreenshots/${created.id}`, { data: { type: 'appScreenshots', id: created.id,
     attributes: { uploaded: true, sourceFileChecksum: md5 } } }), 'commit ' + file);
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 100; i++) {
     const s = must(await get(`/v1/appScreenshots/${created.id}`), 'state').data.attributes.assetDeliveryState;
     if (s && s.state === 'COMPLETE') return created.id;
     if (s && s.state === 'FAILED') { console.error(`✖ ${file} FAILED: ${JSON.stringify(s.errors)}`); process.exit(1); }
     await sleep(3000);
   }
-  console.error(`✖ ${file} not COMPLETE after 2 min`); process.exit(1);
+  console.error(`✖ ${file} not COMPLETE after 5 min`); process.exit(1);
 }
 
 (async () => {
