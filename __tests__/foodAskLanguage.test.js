@@ -41,9 +41,12 @@ function mapFrom(name) {
 function languageLine(lang) {
   const line = src.split('\n').find((l) => l.includes('The user writes in language code'));
   const tpl = line.slice(line.indexOf('`'), line.lastIndexOf('`') + 1);
-  return new Function('lang', 'LANG_NAME', 'BOILED', `return ${tpl};`)(lang, mapFrom('LANG_NAME'), mapFrom('BOILED'));
+  // A-151 added the unit example map (UNIT_EXAMPLE) to the same line.
+  return new Function('lang', 'LANG_NAME', 'BOILED', 'UNIT_EXAMPLE', `return ${tpl};`)(lang, mapFrom('LANG_NAME'), mapFrom('BOILED'), mapFrom('UNIT_EXAMPLE'));
 }
 const FOREIGN_EXAMPLES = ['cozido', 'hervido', 'bouilli', 'gekocht', 'bollito', 'cocido', 'cotto'];
+// A-151: the unit example each language gets (German capitalised); case-sensitive, so fr "tasse" is not de "Tasse".
+const UNIT_OWN = { es: 'taza', pt: 'xícara', fr: 'tasse', de: 'Tasse', it: 'tazza' };
 
 test('i18n review: the rendered language line names each app language', () => {
   const names = { en: 'English', es: 'Spanish', pt: 'Brazilian Portuguese', fr: 'French', de: 'German', it: 'Italian' };
@@ -64,5 +67,8 @@ test('i18n review: English gets no foreign example; es/pt/fr/de/it each get only
     const line = languageLine(lang);
     assert.ok(line.includes(`(for example "${word}", not "boiled")`), `${lang}: its own example "${word}"`);
     for (const w of FOREIGN_EXAMPLES.filter((x) => x !== word)) assert.ok(!line.includes(`"${w}"`), `${lang}: no "${w}"`);
+    assert.ok(line.includes(`writes it (for example "${UNIT_OWN[lang]}")`), `${lang}: its own unit example "${UNIT_OWN[lang]}"`);
+    for (const w of Object.values(UNIT_OWN).filter((x) => x !== UNIT_OWN[lang])) assert.ok(!line.includes(`"${w}"`), `${lang}: no unit "${w}"`);
   }
+  for (const w of Object.values(UNIT_OWN)) assert.ok(!en.includes(`"${w}"`), `en: no unit "${w}"`);
 });

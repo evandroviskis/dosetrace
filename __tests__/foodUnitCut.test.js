@@ -42,7 +42,8 @@ test('A-133 server: the unit cap fits "porção pequena (300 ml)" and is used ev
   assert.ok(m, 'UNIT_MAX constant');
   assert.ok(Number(m[1]) >= 'porção pequena (300 ml)'.length, 'cap fits the size with its ml');
   assert.doesNotMatch(server, /shortText\([^)]*unit, 16\)/, 'no unit is cut at 16 anymore');
-  assert.match(server, /unit: shortUnit\(it\.unit\)/, 'cleanItem uses shortUnit');
+  // A-151 wraps it in unitCase (German unit nouns capitalised); shortUnit still does the cut.
+  assert.match(server, /unit: (?:unitCase\()?shortUnit\(it\.unit\)/, 'cleanItem uses shortUnit');
 });
 
 test('A-133 server: shortUnit drops a dangling "(" fragment (same rule as the app)', () => {
