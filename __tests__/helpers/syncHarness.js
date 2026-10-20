@@ -134,8 +134,185 @@ function watermark(db, table, userId) {
   return row?.updated_at || null;
 }
 
+// ── A-119: the server's one-active-device rules, in memory ───────────
+// A model of supabase/migrations/20261021010000_one_active_device.sql over the fake cloud above:
+// account_devices (the active device + the session that claimed it), user_devices (each device's
+// last full send, replaced_at, the rebuild and notice owed), the guard on every synced table
+// (refuses reads and writes from a device that is not the active one with DT001, a request without
+// a device id once the account has a device with DT002, an old version with DT003 — never an
+// empty result), and the RPCs. cloud.as(deviceId, opts) is one phone's view: the same interface as
+// lib/sync.js's adapter plus rpc(). Holding writes (view.hold()) models a request in flight: its
+// check and its row land when released, in commit order (OD-3).
+function makeDeviceCloud(base = makeCloud()) {
+  const acc = new Map(); // userId -> { active, sess }
+  const devs = new Map(); // `${userId}|${deviceId}` -> row
+  const users = new Set();
+  const policy = { min: null };
+  let t = Date.parse('2026-10-15T12:00:00Z');
+  const now = () => new Date((t += 60000)).toISOString();
+  const dkey = (u, d) => `${u}|${d}`;
+  const crypto = require('node:crypto');
+  const hash = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+  const versionBelow = require('../../lib/deviceRules').versionBelow;
+  const err = (code, message) => ({ code, message });
+
+  function guard(userId, deviceId, version) {
+    if (!userId) return null;
+    if (policy.min && version && versionBelow(version, policy.min)) return err('DT003', 'update_required');
+    const a = acc.get(userId);
+    if (!deviceId) return a ? err('DT002', 'device_required') : null;
+    if (!a || a.active !== deviceId) return err('DT001', 'device_not_active');
+    return null;
+  }
+  function devRow(u, d) { return devs.get(dkey(u, d)) || null; }
+  function label(row) { return row ? { platform: row.platform || null, name: row.name || null, brand: row.brand || null } : null; }
+  function newSecret(row) { const s = crypto.randomBytes(12).toString('hex'); row.secret_hash = hash(s); return s; }
+
+  const rpcs = {
+    claim_device(ctx, a) {
+      const u = ctx.userId;
+      if (!users.has(u)) return { data: null, error: err('28000', 'not signed in') };
+      if (!['signin', 'use_here', 'silent'].includes(a.p_mode)) return { data: null, error: err('22023', 'bad mode') };
+      const at = now();
+      let account = acc.get(u);
+      if (!account) { account = { active: null, sess: null }; acc.set(u, account); }
+      let me = devRow(u, a.p_device);
+      if (!me) { me = { device_id: a.p_device, last_full_send_at: null, replaced_at: null, rebuild_owed: false, notice: null }; devs.set(dkey(u, a.p_device), me); }
+      Object.assign(me, { platform: a.p_platform, name: a.p_name, brand: a.p_brand, app_version: a.p_app_version, last_seen_at: at });
+      const sess = ctx.sessionCreatedAt || null;
+      if (account.active === a.p_device) {
+        if (sess && (!account.sess || sess > account.sess)) account.sess = sess;
+        return { data: { status: 'active', took_over: false, rebuild_owed: me.rebuild_owed, notice: me.notice, secret: newSecret(me), server_time: at }, error: null };
+      }
+      if (account.active == null) {
+        if (a.p_mode === 'silent' && me.replaced_at) return { data: { status: 'replaced', at: me.replaced_at, server_time: at }, error: null };
+        account.active = a.p_device; account.sess = sess || at;
+        Object.assign(me, { replaced_at: null, replaced_by: null, rebuild_owed: false, notice: null });
+        return { data: { status: 'active', took_over: false, rebuild_owed: false, notice: null, secret: newSecret(me), server_time: at }, error: null };
+      }
+      const prev = devRow(u, account.active);
+      if (a.p_mode === 'silent') {
+        if (me.replaced_at) return { data: { status: 'replaced', at: me.replaced_at, server_time: at }, error: null };
+        return { data: { status: 'in_use', device: label(prev), server_time: at }, error: null };
+      }
+      if (a.p_mode === 'signin' && sess && account.sess && sess < account.sess) {
+        me.replaced_at = me.replaced_at || at; me.replaced_by = account.active;
+        return { data: { status: 'superseded', at: me.replaced_at, server_time: at }, error: null };
+      }
+      const notice = { id: `n-${at}`, platform: prev ? prev.platform : null, name: prev ? prev.name : null, brand: prev ? prev.brand : null, last_full_send_at: prev ? prev.last_full_send_at : null };
+      if (prev) Object.assign(prev, { replaced_at: at, replaced_by: a.p_device, rebuild_owed: false, notice: null });
+      Object.assign(me, { replaced_at: null, replaced_by: null, rebuild_owed: true, notice });
+      account.active = a.p_device; account.sess = sess || at;
+      if (base._store.push_tokens) for (const [id, r] of base._store.push_tokens) if (r.user_id === u && r.device_id !== a.p_device) base._store.push_tokens.delete(id);
+      return { data: { status: 'active', took_over: true, rebuild_owed: true, notice, secret: newSecret(me), server_time: at }, error: null };
+    },
+    device_status(ctx, a) {
+      const u = ctx.userId;
+      const at = now();
+      if (!users.has(u)) return { data: { status: 'account_gone', server_time: at }, error: null };
+      const account = acc.get(u);
+      const me = devRow(u, a.p_device);
+      const extra = { min_version: policy.min, server_time: at };
+      if (account && account.active === a.p_device) return { data: { status: 'active', rebuild_owed: me.rebuild_owed, notice: me.notice, ...extra }, error: null };
+      if (me && me.replaced_at) return { data: { status: 'replaced', at: me.replaced_at, ...extra }, error: null };
+      if (!account || account.active == null) return { data: { status: 'none', ...extra }, error: null };
+      return { data: { status: 'in_use', device: label(devRow(u, account.active)), ...extra }, error: null };
+    },
+    release_device(ctx, a) {
+      const account = acc.get(ctx.userId);
+      const released = !!(account && account.active === a.p_device);
+      if (released) account.active = null;
+      return { data: { released }, error: null };
+    },
+    device_mark_sent(ctx, a) {
+      const account = acc.get(ctx.userId);
+      if (!account || account.active !== a.p_device) return { data: { status: 'not_active' }, error: null };
+      const at = now();
+      devRow(ctx.userId, a.p_device).last_full_send_at = at;
+      return { data: { status: 'active', at }, error: null };
+    },
+    device_ack(ctx, a) {
+      const account = acc.get(ctx.userId);
+      if (!account || account.active !== a.p_device) return { data: { ok: false }, error: null };
+      const me = devRow(ctx.userId, a.p_device);
+      if (a.p_what === 'rebuild') me.rebuild_owed = false;
+      if (a.p_what === 'notice') me.notice = null;
+      return { data: { ok: true }, error: null };
+    },
+    device_status_by_secret(_ctx, a) {
+      const h = hash(a.p_secret);
+      for (const [k, row] of devs) {
+        if (row.secret_hash !== h) continue;
+        const u = k.split('|')[0];
+        const account = acc.get(u);
+        if (row.replaced_at && !(account && account.active === row.device_id)) return { data: { status: 'replaced', at: row.replaced_at }, error: null };
+        if (account && account.active === row.device_id) return { data: { status: 'active' }, error: null };
+        return { data: { status: 'unknown' }, error: null };
+      }
+      return { data: { status: 'unknown' }, error: null };
+    },
+    account_exists(_ctx, a) { return { data: users.has(a.p_user), error: null }; },
+  };
+
+  const WRITES = new Set(['insert', 'update', 'delete']);
+  function as(deviceId, opts = {}) {
+    const ctx = { userId: opts.userId || null, sessionCreatedAt: opts.sessionCreatedAt || null, version: opts.version || null };
+    let holding = false;
+    const held = [];
+    const view = {
+      _ctx: ctx,
+      calls: [],
+      rpcDown: false,
+      offline: false,
+      setSession(userId, sessionCreatedAt) { ctx.userId = userId; ctx.sessionCreatedAt = sessionCreatedAt || ctx.sessionCreatedAt; },
+      async sessionUserId() { return ctx.userId; },
+      async rpc(name, args) {
+        view.calls.push(`rpc:${name}`);
+        if (view.offline || view.rpcDown) return { data: null, error: { message: 'Network request failed' } };
+        const fn = rpcs[name];
+        if (!fn) return { data: null, error: err('PGRST202', 'Could not find the function') };
+        return fn(ctx, args || {});
+      },
+      hold() { holding = true; },
+      async release() { holding = false; const list = held.splice(0); for (const h of list) await h(); },
+      rows: (table, userId) => base.rows(table, userId),
+    };
+    for (const m of ['delete', 'update', 'insert', 'fetchSince', 'fetchAll', 'fetchIds', 'fetchIn']) {
+      view[m] = async (...args) => {
+        view.calls.push(m);
+        if (view.offline) return { data: null, error: { message: 'Network request failed' } };
+        const run = async () => {
+          const e = guard(ctx.userId, deviceId, ctx.version);
+          if (e) return { data: null, error: e };
+          return base[m](...args);
+        };
+        if (holding && WRITES.has(m)) return new Promise((resolve) => { held.push(async () => resolve(await run())); });
+        return run();
+      };
+    }
+    return view;
+  }
+
+  return {
+    base,
+    _acc: acc,
+    _devs: devs,
+    policy,
+    addUser(u) { users.add(u); },
+    deleteAccount(u) {
+      users.delete(u);
+      acc.delete(u);
+      for (const k of [...devs.keys()]) if (k.startsWith(`${u}|`)) devs.delete(k);
+      for (const tname of Object.keys(base._store)) for (const [id, r] of base._store[tname]) if (r.user_id === u) base._store[tname].delete(id);
+    },
+    active(u) { const a = acc.get(u); return a ? a.active : null; },
+    device(u, d) { return devRow(u, d); },
+    as,
+  };
+}
+
 module.exports = {
-  makeDb, makeCloud,
+  makeDb, makeCloud, makeDeviceCloud,
   seedLocalProtocol, seedSyncedProtocol, editLocalProtocol,
   getProtocol, watermark,
 };
