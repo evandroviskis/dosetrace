@@ -2182,7 +2182,6 @@ export default function ProtocolsScreen() {
   const rtuProtocols = protocols.filter(p => p.type === 'rtu');
   const oralProtocols = protocols.filter(p => p.type === 'oral');
 
-  // Save an edited note straight from the card (inline), then refresh + sync.
   // A-121 (option A, SG-6): "Termina em" → the end-date wheel, opening on the saved date or a month on.
   function openEndDate(p) {
     const r = endDateRange(p, new Date());
@@ -2255,6 +2254,7 @@ export default function ProtocolsScreen() {
     clearLabel: t('end_clear'), onClear: endSheet.hasEnd ? clearEndDate : null,
   } : {};
 
+  // Save an edited note straight from the card (inline), then refresh + sync.
   function saveProtocolNote(id, note) {
     const trimmed = (note || '').trim();
     updateProtocol(id, { note: trimmed ? trimmed : null });
