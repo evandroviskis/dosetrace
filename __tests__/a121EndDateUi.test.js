@@ -256,3 +256,38 @@ test('both themes: the new parts use theme tokens only (no raw colours)', () => 
   assert.match(PROT, /rwValMuted: \{ fontWeight: '400', color: c\.ink2 \},/);
   assert.match(PARTS, /name: \{ fontSize: 17, fontWeight: '600', color: c\.ink \},/);
 });
+
+// ── SG-10: the course-end question waits for the session's first sync (A-122 gate) ────────────────
+test('SG-10: an end date cleared on the other phone arrives with the first sync — no "Ciclo concluído" from the half-synced phone', async () => {
+  const src = read('lib/stillGoingGate.js').replace(/^export\s+/gm, '');
+  // eslint-disable-next-line no-new-func
+  const { createFirstSyncGate } = new Function(`${src}\nreturn { createFirstSyncGate };`)();
+  let listeners = [];
+  const bus = { addSyncListener: (fn) => { listeners.push(fn); return () => {}; }, isOnlineNow: () => true };
+  const emit = (e) => listeners.forEach((fn) => fn(e));
+  const firstSyncGate = createFirstSyncGate(bus);
+  let rows = [{ id: 1, name: 'Goli', interval_days: 1, start_date: '2026-01-01', created_at: '2026-01-01T08:00:00.000Z', ends_on: '2026-02-01' }];
+  const shown = [];
+  const refs = {
+    bodyMapOpenRef: { current: false }, siteQueueRef: { current: [] }, logPopupOpenRef: { current: false },
+    inactivePromptOpenRef: { current: false }, vialPromptOpenRef: { current: false }, skipSheetOpenRef: { current: false },
+    todaySheetOpenRef: { current: false }, focusedRef: { current: true }, stillGoingWaitRef: { current: false },
+  };
+  const checkTreatmentStillActive = loadFn('screens/TodayScreen.js', 'async function checkTreatmentStillActive(', 'checkTreatmentStillActive', {
+    getCachedUser: async () => ({ id: 'u1' }), getActiveProtocols: () => rows,
+    getLogsSince: () => [{ protocol_id: 1, outcome: 'Taken', logged_at: new Date(Date.now() - 86400000).toISOString() }],
+    AsyncStorage: { getItem: async () => null, removeItem: async () => {} }, markProtocolStillGoing: () => false, requestSync: () => {},
+    nextTodayQuestion: require('../lib/protocolEnd').nextTodayQuestion,
+    ...refs, setInactiveProtocol: (p) => shown.push(p.name), setInactiveKind: () => {}, setInactiveStep: () => {}, setShowInactivePrompt: () => {},
+  });
+  const check = loadFn('screens/TodayScreen.js', 'function checkStillGoingWhenSynced(', 'checkStillGoingWhenSynced', {
+    firstSyncGate, firstShownRef: { current: { p: Promise.resolve() } }, checkTreatmentStillActive, ...refs,
+  });
+  check();
+  for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r));
+  assert.deepEqual(shown, [], 'not before the download');
+  rows = [{ ...rows[0], ends_on: null, still_going_at: new Date().toISOString() }]; // cleared on phone A ("Sem data de fim")
+  emit({ type: 'sync_complete' });
+  for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r));
+  assert.deepEqual(shown, [], 'the cleared date is never asked about');
+});

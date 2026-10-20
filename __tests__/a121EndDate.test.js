@@ -396,21 +396,37 @@ test('SG-19: before the migration a protocol push never fails; the end date stay
   assert.equal(row(db, id).optional_pending, null);
 });
 
-test('SG-19: a clear made before the migration is re-sent as NULL once the cloud accepts it', async () => {
+test('SG-19: a NULL pushed before the migration is never re-sent after it (it would erase a date another phone set since)', async () => {
   const cloud = makeCloud();
-  const db = makeDb();
-  const id = seed(db);
-  E.setPlannedEnd(db, id, '2027-01-15', { now: at(2026, 10, 15) });
-  await pushPending(db, cloud, USER); // migrated cloud: 2027-01-15 up
   let migrated = false;
+  const ins = cloud.insert.bind(cloud);
   const upd = cloud.update.bind(cloud);
-  cloud.update = async (t, rid, p) => (t === 'protocols' && !migrated && 'ends_on' in p ? missing('ends_on') : upd(t, rid, p));
-  E.setPlannedEnd(db, id, null, { now: at(2026, 10, 16) });
-  await pushPending(db, cloud, USER);
-  assert.equal(cloud.rows('protocols', USER)[0].ends_on, '2027-01-15', 'not sent yet');
+  const lacks = (p) => !migrated && ('ends_on' in p || 'still_going_at' in p);
+  cloud.insert = async (t, p) => (t === 'protocols' && lacks(p) ? missing('ends_on' in p ? 'ends_on' : 'still_going_at') : ins(t, p));
+  cloud.update = async (t, rid, p) => (t === 'protocols' && lacks(p) ? missing('ends_on' in p ? 'ends_on' : 'still_going_at') : upd(t, rid, p));
+  const B = makeDb();
+  const bid = seed(B); // no end date
+  await pushPending(B, cloud, USER);
+  assert.equal(row(B, bid).optional_pending, null, 'a NULL waits for nothing');
+  // A date set and then cleared before the migration: nothing to clear in the cloud either.
+  E.setPlannedEnd(B, bid, '2027-01-15', { now: at(2026, 10, 15) });
+  await pushPending(B, cloud, USER);
+  assert.equal(row(B, bid).optional_pending, 'ends_on', 'a value waits for the column');
+  E.setPlannedEnd(B, bid, null, { now: at(2026, 10, 16) });
+  await pushPending(B, cloud, USER);
+  assert.equal(row(B, bid).optional_pending, 'still_going_at', 'cleared before it ever went up: the end date waits for nothing (the clear\'s "Still going?" answer does)');
+  // The migration; phone A sets a date; phone B syncs (push, then pull) and keeps it.
   migrated = true;
-  await pushPending(db, cloud, USER);
-  assert.equal(cloud.rows('protocols', USER)[0].ends_on, null, 'the clear went up');
+  for (const r of cloud.rows('protocols', USER)) cloud._store.protocols.set(r.id, { ...r, ends_on: null, still_going_at: null });
+  const A = makeDb();
+  await fullImport(A, cloud, USER);
+  const aid = A.getFirstSync('SELECT id FROM protocols').id;
+  E.setPlannedEnd(A, aid, '2027-03-01', { now: at(2026, 10, 20) });
+  await pushPending(A, cloud, USER);
+  await pushPending(B, cloud, USER);
+  assert.equal(cloud.rows('protocols', USER)[0].ends_on, '2027-03-01', 'B never sent its old NULL');
+  await pullChanges(B, cloud, USER);
+  assert.equal(row(B, bid).ends_on, '2027-03-01');
 });
 
 test('SG-21: the tombstone push never carries the end date or the span', async () => {

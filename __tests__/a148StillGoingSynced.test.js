@@ -81,6 +81,17 @@ test('A-148: a pull never moves the answer back (another phone\'s older row)', a
   cloud._store.protocols.set(c.id, { ...c, still_going_at: null, updated_at: cloud._stamp() });
   await pullChanges(db, cloud, USER);
   assert.equal(row(db, id).still_going_at, t1);
+  // An OLDER answer in the cloud (another phone's, pushed late) never replaces a newer one here.
+  const older = new Date(Date.parse(t1) - 5 * DAY).toISOString();
+  const c2 = cloud.rows('protocols', USER)[0];
+  cloud._store.protocols.set(c2.id, { ...c2, still_going_at: older, updated_at: cloud._stamp() });
+  await pullChanges(db, cloud, USER);
+  assert.equal(row(db, id).still_going_at, t1, 'the later answer wins');
+  // A newer one does.
+  const newer = new Date(Date.parse(t1) + DAY).toISOString();
+  cloud._store.protocols.set(c2.id, { ...c2, still_going_at: newer, updated_at: cloud._stamp() });
+  await pullChanges(db, cloud, USER);
+  assert.equal(row(db, id).still_going_at, newer);
 });
 
 test('A-148: an answer kept on the device by an older version is carried into the synced column once (update over 1.3.0)', async () => {
