@@ -68,7 +68,7 @@ test('no new sign-in: the wipe runs, alone (never overlapping an import)', async
 
 test('App bumps the generation inline in SIGNED_IN and hands the runner to the wipe', () => {
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
-  const i = app.indexOf("if (_event === 'SIGNED_IN' && session?.user?.id) {");
+  const i = app.indexOf("const onSignedIn = (session) => {");
   assert.match(app.slice(i, app.indexOf('setTimeout(', i)), /bumpSignInGeneration\(\);/);
   assert.match(app, /runExclusive: runSyncExclusive,/);
   assert.match(app, /getSignInGeneration: signInGeneration,/);

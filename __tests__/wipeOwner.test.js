@@ -51,7 +51,7 @@ test('App: the marker names the owner, the cold start passes the owner, a sign-i
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
   assert.match(app, /getLocalOwner: \(\) => getLocalDataUserId\(\),/);
   assert.match(app, /localOwnerId: getLocalDataUserId\(\)/);
-  const i = app.indexOf("if (_event === 'SIGNED_IN' && session?.user?.id) {");
+  const i = app.indexOf("const onSignedIn = (session) => {");
   const block = app.slice(i, i + 1600);
   assert.match(block, /markerOnSignIn\(wipeDeps\(\), \{ sessionUserId: session\.user\.id \}\)/); // drops other markers (behaviour: coldStartRace.test.js)
 });

@@ -60,7 +60,7 @@ test('GB-4 (minor): the typed email and the stash never outlive a real sign-out'
 
 test('GB-5 (minor): the auth entry is reset when someone signs in', () => {
   const app = read('App.js');
-  const signedIn = app.slice(app.indexOf("if (_event === 'SIGNED_IN' && session?.user?.id) {"), app.indexOf("if (_event === 'SIGNED_IN' && session?.user?.id) {") + 900);
+  const signedIn = app.slice(app.indexOf("const onSignedIn = (session) => {"), app.indexOf("const onSignedIn = (session) => {") + 900);
   assert.match(signedIn, /setAuthEntry\(\{ mode: undefined, consent: false \}\);/);
   assert.match(signedIn, /clearAuthDraft\(\);/);
 });

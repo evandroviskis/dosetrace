@@ -71,7 +71,7 @@ test('a marker for another account: dropped by the sign-in, nothing wiped, the s
 
 test('App\'s deferred SIGNED_IN block uses markerOnSignIn (no unconditional removal) and the strict local sign-out', () => {
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
-  const i = app.indexOf("if (_event === 'SIGNED_IN' && session?.user?.id) {");
+  const i = app.indexOf("const onSignedIn = (session) => {");
   const block = app.slice(i, i + 1600);
   assert.doesNotMatch(block, /AsyncStorage\.removeItem\(WIPE_PENDING_KEY\)/);
   assert.match(block, /await markerOnSignIn\(wipeDeps\(\), \{ sessionUserId: session\.user\.id \}\)/);

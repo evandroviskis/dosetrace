@@ -29,7 +29,7 @@ test('council (1): App passes forgetTodayLayout in wipeDeps; onAuthStateChange i
   const block = app.slice(i, app.indexOf('});', i));
   assert.match(block, /\bforgetTodayLayout,/);
   const cbStart = app.indexOf('onAuthStateChange(');
-  const cb = app.slice(cbStart, cbStart + 6000);
+  const cb = app.slice(cbStart, app.indexOf('\n    });\n', cbStart)); // the callback itself
   assert.ok(!cb.includes('forgetTodayLayout'), 'nothing new inside onAuthStateChange');
 });
 

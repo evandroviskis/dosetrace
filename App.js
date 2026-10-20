@@ -12,6 +12,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, App
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
+import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
 import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
@@ -740,6 +741,69 @@ export default function App() {
       setLoading(false);
     });
 
+    // The sign-in work, one function for both paths (A-144, lib/signInWork): auth-js's SIGNED_IN below,
+    // and a session the password reset took that auth-js reported as TOKEN_REFRESHED (a phone ahead).
+    const onSignedIn = (session) => {
+      noteSignedIn(); // counted first: the reset helper then never runs it a second time
+      // A sign-in ends any pending wipe of the previous account (R1): plain counter write.
+      bumpSignInGeneration();
+      // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
+      // run inline in this callback.
+      setTimeout(async () => {
+        // Older wipe marker dropped (G2); deleted:<this account> finishes the deletion, once (H1).
+        try { if ((await markerOnSignIn(wipeDeps(), { sessionUserId: session.user.id })) === 'deleted') return; } catch { /* next start */ }
+        // A new sign-in starts clean: no leftover auth entry or typed address (Gate B).
+        setAuthEntry({ mode: undefined, consent: false });
+        clearAuthDraft();
+        // Discard any stale intentional-sign-out flag so it can NEVER survive a
+        // login boundary (a set-but-never-consumed flag would wrongly wipe on the
+        // next spurious sign-out — the exact bug this guard exists to prevent).
+        consumeIntentionalSignOut();
+        initPurchases(session.user.id, session?.user?.email).catch(() => {});
+        startSyncEngine();
+
+        // Write any stashed intro-flow answers (name/goal/activity/…) to the
+        // freshly-created account, then clear the stash. No-op for returning
+        // users with no stash. Deferred (never inline in onAuthStateChange).
+        applyPendingProfile(supabase).catch(() => {});
+
+        // Cross-account guard: if local data belongs to a DIFFERENT user (e.g. a
+        // spurious sign-out KEPT it, then a different account signed in on this
+        // device), wipe it before importing — one account's data must never bleed
+        // into another. No-op for the normal same-user re-auth.
+        try {
+          const localUid = getLocalDataUserId();
+          if (localUid && localUid !== session.user.id) {
+            clearLocalDatabase();
+            AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
+            await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
+            cancelAllNotifications().catch(() => {}); // don't let the prior user's dose reminders fire
+            clearAllDrafts(); // S-26 BK-14: typed-but-unsaved text stays with its account
+            resetAllSelections(); // S-26: no open right-page item from the other account
+            AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
+          }
+        } catch { /* ignore */ }
+
+        // Import from cloud on sign-in if local DB is empty
+        if (isLocalDBEmpty(session.user.id)) {
+          await fullImportFromCloud();
+        } else {
+          requestSync();
+        }
+
+        // One-time move of the open reality check + calculator inputs into the
+        // synced tables (S-03), after the import and BEFORE scheduling reminders.
+        await runRealityMigration().catch(() => {});
+
+        // Schedule reminders AFTER the import so they reflect the user's data
+        requestNotificationPermissions()
+          .then(() => syncAllNotifications())
+          .then(() => registerPushToken())
+          .catch(() => {});
+      }, 0);
+    };
+    setSignInHandler(onSignedIn);
+
     // IMPORTANT: keep this callback SYNCHRONOUS and update state FIRST, then defer
     // all side-effects. Supabase holds an internal lock while this runs, and doing
     // async work / calling supabase methods inline deadlocks the client — which is
@@ -758,64 +822,7 @@ export default function App() {
         setTimeout(() => { afterSignedOut(intentional, wipeDeps()).catch(() => {}); }, 0);
       }
 
-      if (_event === 'SIGNED_IN' && session?.user?.id) {
-        // A sign-in ends any pending wipe of the previous account (R1): plain counter write.
-        bumpSignInGeneration();
-        // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
-        // run inline in this callback.
-        setTimeout(async () => {
-          // Older wipe marker dropped (G2); deleted:<this account> finishes the deletion, once (H1).
-          try { if ((await markerOnSignIn(wipeDeps(), { sessionUserId: session.user.id })) === 'deleted') return; } catch { /* next start */ }
-          // A new sign-in starts clean: no leftover auth entry or typed address (Gate B).
-          setAuthEntry({ mode: undefined, consent: false });
-          clearAuthDraft();
-          // Discard any stale intentional-sign-out flag so it can NEVER survive a
-          // login boundary (a set-but-never-consumed flag would wrongly wipe on the
-          // next spurious sign-out — the exact bug this guard exists to prevent).
-          consumeIntentionalSignOut();
-          initPurchases(session.user.id, session?.user?.email).catch(() => {});
-          startSyncEngine();
-
-          // Write any stashed intro-flow answers (name/goal/activity/…) to the
-          // freshly-created account, then clear the stash. No-op for returning
-          // users with no stash. Deferred (never inline in onAuthStateChange).
-          applyPendingProfile(supabase).catch(() => {});
-
-          // Cross-account guard: if local data belongs to a DIFFERENT user (e.g. a
-          // spurious sign-out KEPT it, then a different account signed in on this
-          // device), wipe it before importing — one account's data must never bleed
-          // into another. No-op for the normal same-user re-auth.
-          try {
-            const localUid = getLocalDataUserId();
-            if (localUid && localUid !== session.user.id) {
-              clearLocalDatabase();
-              AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
-              await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
-              cancelAllNotifications().catch(() => {}); // don't let the prior user's dose reminders fire
-              clearAllDrafts(); // S-26 BK-14: typed-but-unsaved text stays with its account
-              resetAllSelections(); // S-26: no open right-page item from the other account
-              AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
-            }
-          } catch { /* ignore */ }
-
-          // Import from cloud on sign-in if local DB is empty
-          if (isLocalDBEmpty(session.user.id)) {
-            await fullImportFromCloud();
-          } else {
-            requestSync();
-          }
-
-          // One-time move of the open reality check + calculator inputs into the
-          // synced tables (S-03), after the import and BEFORE scheduling reminders.
-          await runRealityMigration().catch(() => {});
-
-          // Schedule reminders AFTER the import so they reflect the user's data
-          requestNotificationPermissions()
-            .then(() => syncAllNotifications())
-            .then(() => registerPushToken())
-            .catch(() => {});
-        }, 0);
-      }
+      if (_event === 'SIGNED_IN' && session?.user?.id) onSignedIn(session);
     });
 
     // Sign in with Apple: if the user revokes our app's access from iOS Settings →
@@ -841,6 +848,7 @@ export default function App() {
 
     return () => {
       subscription.unsubscribe();
+      setSignInHandler(null);
       stopSyncEngine();
       if (notifResponseSub) notifResponseSub.remove();
       if (appleRevokeSub) appleRevokeSub.remove();

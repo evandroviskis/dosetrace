@@ -32,7 +32,7 @@ test('PA-76: the link session is isolated; only a saved password signs the app i
   assert.match(link, /storage: memoryStorage\(seed\)/, 'the link session never touches the Keychain session');
   assert.match(link, /autoRefreshToken: false/);
   const save = link.slice(link.indexOf('export async function saveRecoveryPassword'), link.indexOf('export async function signOutCurrentForRecovery'));
-  assert.ok(save.indexOf('temp.auth.updateUser({ password })') < save.indexOf('supabase.auth.setSession('), 'password first, then the app session');
+  assert.ok(save.indexOf('temp.auth.updateUser({ password })') < save.indexOf('setSessionSignedIn(supabase.auth,'), 'password first, then the app session (A-144: through the helper)');
   assert.doesNotMatch(link.slice(0, link.indexOf('export async function saveRecoveryPassword')), /supabase\.auth\.(setSession|exchangeCodeForSession|updateUser)/, 'opening the link never changes the app session');
   const reset = read('screens', 'ResetPasswordScreen.js');
   assert.match(reset, /saveRecoveryPassword\(recovery, newPasswordValue\(password\)\)/);
@@ -51,7 +51,7 @@ test('PA-76: killing the app on Reset password: the pending recovery brings the 
   const app = read('App.js');
   assert.match(app, /loadPendingRecovery\(\)\.then\(\(p\) => \{ if \(p && !cancelled\) routeRecovery\(p\); \}\)/, 'cold start reopens it');
   assert.match(app, /if \(!\(await loadPendingRecovery\(\)\)\) setLinkFailed\('reset'\);/, 're-tapping the used link while it is pending shows no failure');
-  assert.match(read('lib', 'recoveryLink.js'), /await discardPendingRecovery\(\);\n[\s\S]{0,300}supabase\.auth\.setSession/, 'cleared once the password is saved');
+  assert.match(read('lib', 'recoveryLink.js'), /await discardPendingRecovery\(\);\n[\s\S]{0,400}setSessionSignedIn\(supabase\.auth,/, 'cleared once the password is saved');
 });
 
 test('PA-75: links are parsed without the React Native URL getters; each link is handled once', () => {
