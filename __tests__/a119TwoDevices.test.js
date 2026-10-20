@@ -474,3 +474,14 @@ test('A pass that leaves nothing unsent records the server time of this phone\'s
   await A.sync();
   assert.equal(await A.flow.lastFullBackup(U), t1, 'unchanged while something is unsent');
 });
+
+test('OD-5 / OD-18: a phone that cannot read its device id this time claims nothing, wipes nothing, and its writes stay pending (refused DT002, never deleted)', async () => {
+  const cloud = world();
+  const { A } = await activeWithDose(cloud);
+  const X = phone(cloud, 'dev-X', U, { noDeviceId: true });
+  const r = await X.signIn();
+  assert.equal(r.go, true);
+  assert.equal(X.kv._m.size, 0, 'nothing stored: no pending claim that would hold every pass');
+  assert.equal(cloud.active(U), 'dev-A');
+  assert.ok(A);
+});

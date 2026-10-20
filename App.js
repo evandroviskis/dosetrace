@@ -698,7 +698,8 @@ export default function App() {
       // A-119 OD-4: the active-device check is the first server call of every foreground (a background
       // verdict, or one that came while the app slept, shows screen 2 now).
       // Not throttled; the sync pass below asks again first, and a stored verdict schedules nothing.
-      reloadDevice();
+      // OD-6: a verdict shown again counts what the phone holds now (a notification "Taken" since).
+      deviceFlow().refreshVerdict().then(reloadDevice).catch(reloadDevice);
       supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? deviceGate('foreground') : null)).catch(() => null);
       const nowTs = Date.now();
       // At most once a minute, with the first-sync gate's own rule: a clock moved back is stale too
