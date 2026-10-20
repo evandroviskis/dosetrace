@@ -41,7 +41,9 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol, getVialsForProtocol,
+  setProtocolPlannedEnd,
 } from '../lib/database';
+import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import T from '../lib/trashSelection';
 import { tabBarStyle, TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
@@ -60,7 +62,7 @@ import { supplyState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { frequencyLabelFor } from '../lib/schedule';
+import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
@@ -71,7 +73,7 @@ import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
-import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler, StepGlyph, RULER, rulerX } from './components/ProtocolParts';
+import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler, StepGlyph, RULER, rulerX, EndDateSheet } from './components/ProtocolParts';
 import { dateColumns, dateAfter, timeColumns, timeAfter } from '../lib/wheelPick';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
@@ -307,18 +309,28 @@ function ReadValue({ s, text }) {
 }
 
 function RowsBlock({ s, title, rows, style }) {
+  const { colors: c } = useTheme();
   const shown = rows.filter(Boolean);
   if (!shown.length) return null;
   return (
     <View style={style || s.blk}>
       {title ? <Text style={s.secth}>{title}</Text> : null}
       <View style={s.rows}>
-        {shown.map((r, i) => (
+        {shown.map((r, i) => (r.onPress ? (
+          // A-121 "Termina em": a row that opens something — the value, then the row arrow.
+          <TouchableOpacity key={`${i}-${r.label}`} style={[s.rw, s.rwTap, i > 0 && s.rwSep]} onPress={r.onPress} accessibilityRole="button" accessibilityLabel={`${r.label}, ${r.value}`}>
+            <Text style={s.rwKey}>{r.label}</Text>
+            <View style={s.rwTapEnd}>
+              <Text style={[s.rwVal, r.muted && s.rwValMuted]}>{r.value}</Text>
+              <RowChevron color={c.tick} />
+            </View>
+          </TouchableOpacity>
+        ) : (
           <View key={`${i}-${r.label}`} style={[s.rw, i > 0 && s.rwSep]}>
             <Text style={s.rwKey}>{r.label}</Text>
             <Text style={[s.rwVal, r.mono && s.rwValMono]}>{r.value}</Text>
           </View>
-        ))}
+        )))}
       </View>
     </View>
   );
@@ -728,7 +740,9 @@ export function noteDraftKey(id) {
 // Also Today's right page on the Fold (A-115), with deleteProtocol null (no Delete next to the doses);
 // there `notice` (the why-no-supply box) sits under the name and tags, and withoutVial (a lyophilized
 // protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null }) {
+// A-121 (option A, docs/design/a121-telas/4-*): onEndDate(p) — the "Termina em" row under Schedule & reminders on
+// every ACTIVE protocol (the planned end in the app language's format, or "Sem data"); null = no row.
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -759,10 +773,19 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   const vialShown = blocks.vialBlock && (supplyState(vial, p).capacity != null
     || dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }) != null
     || vialDaysLeftFor(p, vial) != null);
+  // SG-6 / SG-25: only on an active protocol (never Ended or Recently deleted).
+  const plannedEnd = courseState(p).plannedEnd;
+  const endRow = onEndDate && p.active === 1 && !p.deleted_at ? {
+    label: t('protocols_ends_on'),
+    value: plannedEnd ? formatDate(plannedEnd, language, 'dayMonthYear') : t('protocols_no_end_date'),
+    muted: !plannedEnd,
+    onPress: () => onEndDate(p),
+  } : null;
   const scheduleRows = [
     { label: t('protocols_frequency'), value: p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—') },
     { label: t('protocols_reminder'), value: (p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  '), mono: true },
     p.schedule_total ? { label: t('protocols_total_doses_schedule'), value: String(p.schedule_total), mono: true } : null,
+    endRow,
     goals.length ? { label: t('protocols_goal'), value: goals.map(g => t(g) || g).join(', ') } : null,
   ];
   let doseRows = [];
@@ -952,6 +975,10 @@ export default function ProtocolsScreen() {
   // only once the add/edit sheet is fully gone); wizSheet + scanChoice live inside it.
   const [screenSheet, setScreenSheet] = useState(null);
   const [wizSheet, setWizSheet] = useState(null);
+  // A-121: the end-date wheel — { mode: 'page' (the "Termina em" row) | 'startAfter' (the start-after-end
+  // notice inside the edit sheet), id, name, iso, minKey, hasEnd, startKey }. Held by the screen, so a
+  // fold / unfold never closes it (SG-30, as the syringe zoom, BK-10).
+  const [endSheet, setEndSheet] = useState(null);
   const [scanChoice, setScanChoice] = useState(null);
   const [wizardPresented, setWizardPresented] = useState(false);
   // Set when the add/edit sheet closes: the form resets only once the sheet is fully gone,
@@ -1942,6 +1969,10 @@ export default function ProtocolsScreen() {
       // Did the timing actually move? Only then should we clear already-delivered
       // banners (a rename or color change must NOT drop a still-pending reminder).
       const scheduleChanged = ['reminder_time', 'doses_per_day', 'interval_days', 'start_date'].some(k => k in patch);
+      // A-121 SG-14 / DL-111: a start date after the saved end date is never saved silently.
+      const stored = patch.start_date ? getProtocolById(editingId) : null;
+      const clash = stored ? startAfterEnd(stored, patch.start_date) : null;
+      if (clash) { setSaving(false); showStartAfterEnd(stored, patch.start_date, clash.endKey); return; }
       if (Object.keys(patch).length) updateProtocol(editingId, patch);
 
       // RTU vial: only the vial fields the edit changed; a vial is created only when the
@@ -2151,6 +2182,78 @@ export default function ProtocolsScreen() {
   const rtuProtocols = protocols.filter(p => p.type === 'rtu');
   const oralProtocols = protocols.filter(p => p.type === 'oral');
 
+  // A-121 (option A, SG-6): "Termina em" → the end-date wheel, opening on the saved date or a month on.
+  function openEndDate(p) {
+    const r = endDateRange(p, new Date());
+    setEndSheet({ mode: 'page', id: p.id, name: p.compound_id ? t(p.compound_id) : p.name, iso: r.openKey, minKey: r.minKey, hasEnd: !!courseState(p).plannedEnd });
+  }
+  function endDateWritten() {
+    fetchProtocols();
+    notifyDataChanged('protocol'); // Today (and the Fold's right page) read it at once
+    requestSync();
+  }
+  // "Salvar data de fim". From the start-after-end notice the end date is written first, then the edit
+  // is saved with its new start (both together, a121-start-after-end.html step 2).
+  function saveEndDate() {
+    const e = endSheet;
+    if (!e || !e.iso) return;
+    if (!setProtocolPlannedEnd(e.id, e.iso, { startKey: e.startKey || null })) return; // the wheel cannot show an earlier day
+    setEndSheet(null);
+    endDateWritten();
+    if (e.mode === 'startAfter') saveProtocol();
+  }
+  // "Sem data de fim": the date goes and the "Still going?" span restarts from now (DL-113).
+  function clearEndDate() {
+    const e = endSheet;
+    if (!e) return;
+    setProtocolPlannedEnd(e.id, null);
+    setEndSheet(null);
+    endDateWritten();
+    if (e.mode === 'startAfter') saveProtocol();
+  }
+  // "Voltar": nothing saved; from the notice's wheel, back to the notice (step 1).
+  function backFromEndDate() {
+    const e = endSheet;
+    setEndSheet(null);
+    if (e && e.mode === 'startAfter') {
+      const p = getProtocolById(e.id);
+      if (p) setTimeout(() => showStartAfterEnd(p, e.startKey, e.endKey), Platform.OS === 'ios' ? 450 : 0);
+    }
+  }
+  // SG-14 / DL-111 (a121-start-after-end.html step 1): Save stopped, nothing written.
+  function showStartAfterEnd(p, startKey, endKey) {
+    const name = p.compound_id ? t(p.compound_id) : p.name;
+    setWizSheet({
+      icon: 'warning',
+      title: t('start_after_end_title'),
+      body: t('start_after_end_body').replace('{name}', name)
+        .replace('{start}', formatDate(startKey, language, 'dayMonthYear')).replace('{end}', formatDate(endKey, language, 'dayMonthYear')),
+      // DTSheet stacks two long buttons with the primary on top: "Mudar a data de fim", then "Voltar".
+      buttons: [
+        { label: t('back'), kind: 'secondary' },
+        {
+          label: t('start_after_end_change'), kind: 'primary',
+          onPress: () => {
+            const r = endDateRange(p, new Date(), { startKey });
+            setEndSheet({ mode: 'startAfter', id: p.id, name, iso: r.openKey, minKey: r.minKey, hasEnd: true, startKey, endKey });
+          },
+        },
+      ],
+    });
+  }
+  // The wheel's props for both places it opens (the screen, the edit sheet).
+  const endSheetProps = endSheet ? {
+    title: t('end_until_title'),
+    name: endSheet.mode === 'page' ? endSheet.name : null,
+    body: endSheet.mode === 'startAfter' ? t('end_until_from_start').replace('{date}', formatDate(endSheet.startKey, language, 'dayMonthYear')) : t('end_until_body'),
+    iso: endSheet.iso, minKey: endSheet.minKey,
+    monthLabels: MONTHS_SHORT[language] || MONTHS_SHORT.en,
+    onChange: (iso) => setEndSheet((prev) => (prev ? { ...prev, iso } : prev)),
+    saveLabel: t('end_save'), onSave: saveEndDate,
+    backLabel: t('back'), onBack: backFromEndDate,
+    clearLabel: t('end_clear'), onClear: endSheet.hasEnd ? clearEndDate : null,
+  } : {};
+
   // Save an edited note straight from the card (inline), then refresh + sync.
   function saveProtocolNote(id, note) {
     const trimmed = (note || '').trim();
@@ -2225,6 +2328,7 @@ export default function ProtocolsScreen() {
       key={p.id}
       p={p} vial={vialsByProtocol[p.id]}
       openEdit={inBook ? (q, st) => { claimBookProtocol(q.id); openEdit(q, st); } : openEdit}
+      onEndDate={inBook ? (q) => { claimBookProtocol(q.id); openEndDate(q); } : openEndDate}
       deleteProtocol={deleteProtocol}
       onSaveNote={saveProtocolNote} onRefill={askRefillBottle} onRefillVial={askRefillVial}
       onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
@@ -2604,6 +2708,8 @@ export default function ProtocolsScreen() {
 
       {/* The enlarged syringe, held here so a fold or unfold never closes it (BK-10). */}
       <SyringeZoomSheet p={zoomProtocol} visible={zoom.open} onClose={() => setZoom(z => ({ ...z, open: false }))} t={t} />
+      {/* A-121: the "Termina em" wheel, held here so a fold or unfold never closes it (SG-30). */}
+      <EndDateSheet visible={!showModal && !!endSheet && endSheet.mode === 'page'} onClose={() => setEndSheet(null)} {...endSheetProps} />
 
       <Modal
         visible={showModal}
@@ -3384,6 +3490,8 @@ export default function ProtocolsScreen() {
           {/* Popups inside the add/edit sheet: notices, the photo choice, and the
               iPhone wheels in a DoseTrace bottom sheet. */}
           <DTSheet config={wizSheet} onClose={() => setWizSheet(null)} />
+          {/* A-121 SG-14: the start-after-end notice's "Mudar a data de fim" (inside the edit sheet). */}
+          <EndDateSheet visible={showModal && !!endSheet && endSheet.mode === 'startAfter'} onClose={backFromEndDate} {...endSheetProps} />
           <DTActionSheet config={scanChoice} onClose={() => setScanChoice(null)} />
           {iosPicker && (
             <DTPickerSheet visible={showModal && showStartPicker} title={t('protocols_start_date')} doneLabel={t('done')} onDone={() => setShowStartPicker(false)}>
@@ -3576,6 +3684,10 @@ const protocolsGraduated = (c) => ({
   // at 60% of the row, where a long value wraps at its spaces; the label takes the rest.
   rwVal: { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'right', flexShrink: 0, maxWidth: '60%' },
   rwValMono: { fontFamily: MONO['500'], fontWeight: undefined, fontSize: 17 },
+  // A-121: the tappable "Termina em" row (prototype row with the arrow): value + chevron at the end.
+  rwTap: { alignItems: 'center' },
+  rwTapEnd: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0, maxWidth: '60%' },
+  rwValMuted: { fontWeight: '400', color: c.ink2 },
   noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
   noteWellOn: { borderColor: c.ink },
   acts2: { flexDirection: 'row', gap: 10 },

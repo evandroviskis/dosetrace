@@ -20,6 +20,8 @@ test('Today re-dates on resume (any layout) and at midnight', () => {
   const src = read('screens/TodayScreen.js');
   assert.match(src, /function refreshIfNewDay\(\)/);
   assert.match(src, /if \(dayKeyAt\(Date\.now\(\)\) === shownDayRef\.current\) return;/);
-  assert.match(src, /if \(st === 'active' && focusedRef\.current\) refreshIfNewDay\(\);/);
+  // A-121 SG-27: through onTodayForeground, which re-dates first and then asks the protocol question.
+  assert.match(src, /if \(st === 'active' && focusedRef\.current\) onTodayForeground\(\);/);
+  assert.match(src, /function onTodayForeground\(\) \{\n\s+refreshIfNewDay\(\);/);
   assert.match(src, /setTimeout\(tick, msUntilNextLocalMidnight\(Date\.now\(\)\) \+ 1000\)/);
 });

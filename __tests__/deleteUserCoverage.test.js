@@ -59,3 +59,10 @@ test('clearLocalDatabase deletes every synced table (shared-device leak guard)',
     `clearLocalDatabase is missing synced tables (prior user's rows would leak on a shared device): ${missing.join(', ')}`,
   );
 });
+
+// A-121 Gate B 5: the local-only sync notes (local_meta, e.g. the protocols pull rewind) belong to the
+// account that was signed in: wiped on sign-out with the data, never carried to the next account.
+test('clearLocalDatabase also wipes local_meta (sync notes of the signed-out account)', () => {
+  assert.ok(clearFn, 'could not find clearLocalDatabase in lib/database.js');
+  assert.match(clearFn[1], /DELETE FROM local_meta/);
+});

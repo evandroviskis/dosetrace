@@ -124,16 +124,22 @@ function makeToday({ sync, logs, firstShown }) {
   const refs = {
     bodyMapOpenRef: { current: false }, siteQueueRef: { current: [] }, logPopupOpenRef: { current: false },
     inactivePromptOpenRef: { current: false }, focusedRef: { current: true }, stillGoingWaitRef: { current: false },
+    // A-121 SG-22: nor over any other Today popup.
+    vialPromptOpenRef: { current: false }, skipSheetOpenRef: { current: false }, todaySheetOpenRef: { current: false },
   };
   const firstShownRef = { current: firstShown || { p: Promise.resolve() } };
   const checkTreatmentStillActive = loadFn('screens/TodayScreen.js', 'async function checkTreatmentStillActive(', 'checkTreatmentStillActive', {
     getCachedUser: async () => ({ id: 'u1' }),
     getActiveProtocols: () => [goli],
-    getTakenLogsSince: () => { calls.reads++; return logs.slice(); },
-    AsyncStorage: { getItem: async () => null },
+    // A-121: the logs of every outcome (the course-end question counts Taken / Skipped), decided by
+    // the real lib/protocolEnd nextTodayQuestion.
+    getLogsSince: () => { calls.reads++; return logs.slice(); },
+    nextTodayQuestion: require('../lib/protocolEnd').nextTodayQuestion,
+    markProtocolStillGoing: () => false, requestSync: () => {},
+    AsyncStorage: { getItem: async () => null, removeItem: async () => {} },
     ...refs,
     setInactiveProtocol: (p) => shown.push(p && p.name),
-    setShowInactivePrompt: () => {},
+    setShowInactivePrompt: () => {}, setInactiveKind: () => {}, setInactiveStep: () => {},
   });
   const checkStillGoingWhenSynced = loadFn('screens/TodayScreen.js', 'function checkStillGoingWhenSynced(', 'checkStillGoingWhenSynced', {
     firstSyncGate, firstShownRef, checkTreatmentStillActive, ...refs,
@@ -250,7 +256,7 @@ test('A-122 (4): Today runs "Still going?" only through the first-sync gate', ()
   assert.match(focus, /checkStillGoingWhenSynced\(\);/);
   // The check itself still reads the logs when it runs and keeps the snooze key.
   const check = sliceBlock(today, 'async function checkTreatmentStillActive(');
-  assert.match(check, /getTakenLogsSince\(user\.id, since\.toISOString\(\)\)/);
+  assert.match(check, /getLogsSince\(user\.id, since\.toISOString\(\)\)/);
   assert.match(check, /dosetrace_tx_check_\$\{p\.id\}/);
   assert.match(check, /if \(inactivePromptOpenRef\.current\) return;/);
 });

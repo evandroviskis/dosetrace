@@ -167,10 +167,11 @@ test('BK-10, BK-11: every sheet sits outside the book switch, so a fold or unfol
     : c.type === 'JSXExpressionContainer' && c.expression.type === 'LogicalExpression' && c.expression.right.type === 'JSXElement' ? jsxName(c.expression.right) : null);
   const after = rootKids.slice(rootKids.indexOf(bookSwitch) + 1).map(kidName).filter(Boolean);
   // + the free-feature explainer (Today redesign part 18), a sheet like the others.
-  assert.deepEqual(after, ['DTSheet', 'FeatureExplainerGate', 'SyringeZoomSheet', 'Modal'], 'delete/limit sheet, explainer, enlarged syringe, add/edit wizard');
+  // + the A-121 end-date wheel ("Termina em"), held by the screen like the enlarged syringe (SG-30).
+  assert.deepEqual(after, ['DTSheet', 'FeatureExplainerGate', 'SyringeZoomSheet', 'EndDateSheet', 'Modal'], 'delete/limit sheet, explainer, enlarged syringe, end-date wheel, add/edit wizard');
   assert.equal(rootKids.indexOf(bookSwitch), 0, 'the switch is the first child, so the sheets keep their place');
   for (const branch of [bookBranch, phoneBranch]) {
-    assert.doesNotMatch(branch, /<Modal\b|<DTSheet\b|<DTPickerSheet\b|<DTActionSheet\b|<SyringeZoomSheet\b/);
+    assert.doesNotMatch(branch, /<Modal\b|<DTSheet\b|<DTPickerSheet\b|<DTActionSheet\b|<SyringeZoomSheet\b|<EndDateSheet\b/);
   }
   // The wizard (Edit, + Add, its pickers and popups) opens as today: a page sheet.
   const wizard = rootKids.find((c) => c.type === 'JSXElement' && jsxName(c) === 'Modal');
@@ -178,6 +179,7 @@ test('BK-10, BK-11: every sheet sits outside the book switch, so a fold or unfol
   assert.match(w, /visible=\{showModal\}/);
   assert.match(w, /presentationStyle="pageSheet"/);
   assert.match(w, /<DTSheet config=\{wizSheet\}/);
+  assert.match(w, /<EndDateSheet visible=\{showModal && !!endSheet && endSheet\.mode === 'startAfter'\}/, 'A-121 SG-14: the notice\'s wheel opens inside the edit sheet');
   assert.match(w, /<DTPickerSheet visible=\{showModal && showStartPicker\}/);
   assert.match(w, /<DTPickerSheet visible=\{showModal && showTimePicker\}/);
   // The enlarged syringe left the protocol screen (it remounts on a fold) for the screen.

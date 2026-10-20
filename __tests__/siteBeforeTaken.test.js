@@ -227,7 +227,9 @@ test('FX-22: one modal at a time — a question waits for the vial prompt AND th
   assert.match(open, /focusedRef\.current/, 'never over another tab');
   const chk = fnBody(src, 'async function checkTreatmentStillActive(');
   assert.match(chk, /bodyMapOpenRef\.current \|\| siteQueueRef\.current\.length/);
-  assert.match(fnBody(src, 'async function snoozeInactiveProtocol('), /openNextQuestion/);
+  // A-121: every answer closes through closeProtocolQuestion, which opens the next question.
+  assert.match(fnBody(src, 'async function snoozeInactiveProtocol('), /closeProtocolQuestion\(\)/);
+  assert.match(fnBody(src, 'function closeProtocolQuestion('), /setTimeout\(openNextQuestion, 450\)/);
   assert.match(fnBody(src, 'function closeVialPrompt('), /clearTimeout\(vialTimerRef\.current\)/, 'a late timer never reopens a closed prompt');
 });
 

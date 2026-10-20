@@ -69,6 +69,8 @@ function makeCloud() {
       const after = store[table].get(remoteId);
       // lib/sync.js returns a protocol's status with the stamp (A-87).
       const status = table === 'protocols' ? { active: after.active, deleted_at: after.deleted_at ?? null, ended_at: after.ended_at ?? null } : {};
+      // A-121 Gate B 1 / 2: also the planned end and the "Still going?" answer, when the cloud has them.
+      if (table === 'protocols') for (const c of ['ends_on', 'still_going_at']) if (c in after) status[c] = after[c] ?? null;
       return { data: [{ id: remoteId, updated_at, ...status }], error: null };
     },
     async insert(table, payload) {

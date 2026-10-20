@@ -10,7 +10,7 @@ import { useSheetGap } from '../../components/useSheetInset';
 import { MONO } from '../../lib/fonts';
 import FeatureIcon from '../../components/FeatureIcon';
 import { vialCells } from '../../lib/todayFormat';
-import { wheelSettle } from '../../lib/wheelPick';
+import { wheelSettle, dateColumns, dateAfter } from '../../lib/wheelPick';
 
 // A button's action runs only after the sheet is gone: presenting the camera, the
 // photo library or another sheet while this one is still animating out fails on iOS.
@@ -234,6 +234,59 @@ export function DTWheel({ columns, onChange }) {
   );
 }
 
+// A-121 (docs/design/a121-still-going-end-date.html step 2, a121-start-after-end.html step 2): the
+// end-date step — "Até quando?", the protocol, one line, the app's date wheel from its first valid day
+// to 5 years ahead (SG-8 / SG-13: it cannot settle on an earlier day), the optional "Sem data de fim"
+// link, then "Salvar data de fim" and "Voltar". Drawn inside Today's question box (the same box) and
+// in EndDateSheet (the protocol page, the start-after-end notice). Theme tokens only.
+export const END_YEARS_AHEAD = 5;
+export function EndDateStep({ title, name, body, iso, minKey, monthLabels, onChange, saveLabel, onSave, backLabel, onBack, clearLabel, onClear }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => sheetStyles(c), [c]);
+  const opts = { minISO: minKey, yearsAhead: END_YEARS_AHEAD };
+  const now = new Date();
+  return (
+    <>
+      <Text style={s.title} accessibilityRole="header">{title}</Text>
+      {name ? <Text style={s.name}>{name}</Text> : null}
+      {body ? <Text style={s.body}>{body}</Text> : null}
+      <DTWheel columns={dateColumns(iso, now, monthLabels, opts)} onChange={(col, i) => onChange(dateAfter(iso, now, col, i, opts))} />
+      {onClear ? (
+        <TouchableOpacity style={s.link} onPress={onClear} accessibilityRole="button">
+          <Text style={s.linkText}>{clearLabel}</Text>
+        </TouchableOpacity>
+      ) : null}
+      <View style={s.btnStack}>
+        <TouchableOpacity style={[s.btn, s.btn_primary]} onPress={onSave} accessibilityRole="button">
+          <Text style={[s.btnText, s.btnText_primary]}>{saveLabel}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.btn, s.btn_secondary]} onPress={onBack} accessibilityRole="button">
+          <Text style={[s.btnText, s.btnText_secondary]}>{backLabel}</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+}
+
+// The end-date step as its own centred sheet (the protocol page's "Termina em", the
+// start-after-end notice's "Mudar a data de fim"). A tap outside / Android back = onClose (nothing saved).
+export function EndDateSheet({ visible, onClose, ...step }) {
+  const { colors: c } = useTheme();
+  const s = useMemo(() => sheetStyles(c), [c]);
+  const centerGap = useSheetGap(16); // A-136 (2): clear the system bottom bar (Android)
+  const last = useRef(step); // keep the content on screen while the sheet fades out
+  if (visible) last.current = step;
+  return (
+    <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={[s.scrim, { paddingBottom: centerGap }]} onPress={onClose} accessibilityRole="button">
+        <Pressable style={s.sheet} onPress={() => {}} accessibilityViewIsModal>
+          {last.current && last.current.iso ? <EndDateStep {...last.current} /> : null}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // The diluent stepper's − / + (My Protocols part 16): the prototype's drawn icons, 20 pt,
 // stroke 1.8 on the 24 grid, round caps — never a text glyph. Colour is a theme token.
 export function StepGlyph({ plus, color }) {
@@ -308,6 +361,7 @@ const sheetStyles = (c) => StyleSheet.create({
   icon: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28 },
   body: { fontSize: 17, lineHeight: 22, color: c.ink2 },
+  name: { fontSize: 17, fontWeight: '600', color: c.ink }, // the protocol under the title (A-121, Today's promptProtocolName)
   bodyMore: { marginTop: -4 }, // prototype .sb + .sb: 10 between two paragraphs (gap 14)
   spinner: { transform: [{ scale: 1.4 }] }, // prototype .spin.big: 28 pt (small draws 20)
   note: { fontSize: 13, lineHeight: 18, color: c.ink3 },
