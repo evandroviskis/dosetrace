@@ -18,7 +18,7 @@ test('PA-75: a reset link for another account than the one signed in asks first;
   const app = read('App.js');
   assert.match(app, /if \(decision === 'ask'\) setSwitchAsk\(\{ pending, current: cur\?\.user\?\.email \|\| '' \}\);/);
   assert.match(app, /t\('reset_switch_msg'\)\.replace\('\{link\}', switchAsk\.pending\.email \|\| ''\)\.split\('\{current\}'\)\.join\(switchAsk\.current \|\| ''\)/, 'the sheet names both accounts');
-  assert.match(app, /\.then\(\(\) => signOutCurrentForRecovery\(\)\)[\s\S]{0,600}setRecovery\(p\);/, 'Continue: the deliberate sign-out first, then the reset');
+  assert.match(app, /signOut: \(opts\) => signOutCurrentForRecovery\(opts\)[\s\S]{0,700}if \(o === 'done'\) setRecovery\(p\);/, 'Continue: the deliberate sign-out first, then the reset (A-119: never blocked, one sheet)');
   assert.match(app, /onSwitchCancel=\{\(\) => \{ discardPendingRecovery\(\); \}\}/, 'Cancel drops the link');
   const so = read('lib', 'accountActions.js'); // the one deliberate sign-out the reset flow uses
   assert.match(so, /signOutCore\(/, 'the one deliberate sign-out (order behaviour-tested in signOutOffline.test.js)');

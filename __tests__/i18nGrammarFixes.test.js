@@ -72,7 +72,6 @@ const OLD = [
   ["en","ap_q_count_month","In how many doses a month do you take the {dose} {unit}?"],
   ["en","ap_q_spacing_other","Type every how many days."],
   ["en","ap_fit_fact_powder","mixed can't change now."],
-  ["es","reset_switch_notbacked","oseTrace no cerró tu sesión. "],
   ["es","paywall_start_trial_months","s de {n} mes(es)"],
   ["es","auth_link_failed_title","e enlace no funcionó"],
   ["es","reset_pw_link_expired","ado o ya se usó. En la pant"],
@@ -310,6 +309,7 @@ const OLD = [
   ["it","fx_s4_title","{dose} {dunit} è quanto prendi in tutta la"],
 ];
 
+// es.reset_switch_notbacked left with the blocked sign-out (A-119 OD-9, rebuild = replace).
 test('the 290 grammar fixes of 2026-10-15 stay fixed (6 languages)', () => {
   const back = [];
   for (const [lang, key, old] of OLD) {

@@ -56,14 +56,16 @@ test('GB2-5: Continue on the other-account sheet never wipes changes that are no
   const broken = { getAllSync: () => { throw new Error('no such table'); } };
   assert.throws(() => R.unsyncedCount(broken, 'u1', ['x'], pend), 'an unreadable table is never 0 (Gate B F6, unsyncedCheck.test.js)');
   // Since 2026-10-03 (Gate B round 3) the reset flow uses the one deliberate sign-out.
-  assert.match(read('lib', 'recoveryLink.js'), /return signOutIntended\(\);/);
+  assert.match(read('lib', 'recoveryLink.js'), /return signOutIntended\(opts\);/); // A-119: "Sign out anyway" passes force
   // The check-before-sign-out order is a behaviour test now (__tests__/signOutOffline.test.js,
   // Gate B 2026-10-03 F7); App never opens the reset while still signed in.
   assert.match(read('lib', 'accountActions.js'), /signOutCore\(/);
-  // What the reset link shows when the sign-out did not happen: behaviour in signOutOutcome.test.js.
-  assert.match(read('App.js'), /if \(o\.kind !== 'done'\) \{ setLinkFailed\(o\.link\); return; \}/);
+  // A-119 OD-9: the reset opens only after a sign-out that really happened; otherwise the one sign-out
+  // sheet (a119SignOutNeverBlocked.test.js) or "Couldn't sign out".
+  assert.match(read('App.js'), /\.then\(\(o\) => \{ if \(o === 'done'\) setRecovery\(p\); \}\)/);
+  assert.match(read('App.js'), /const proceed = \(r\) => \{ if \(r && r\.blocked === false && !r\.failed\) setRecovery\(p\); \};/);
   const i18n = read('i18n', 'translations.js');
-  assert.equal((i18n.match(/\n\s+reset_switch_offline: /g) || []).length, 6);
+  assert.equal((i18n.match(/\n\s+reset_switch_offline: /g) || []).length, 0, 'A-119 OD-9: the one sign-out sheet replaced the blocked words');
 });
 
 test('GB2-6: unticking a confirmation is written as no consent (the stash never keeps an old "true")', () => {

@@ -1,9 +1,10 @@
 'use strict';
 // A-46 extension / Settings part 3 and Gate B 2026-10-03 (F1, F3, F4, F7): Settings' Sign out,
 // as behaviour (lib/settingsSignOut with fakes; no source pins). Pushed first; if anything is still
-// not in the cloud nobody is signed out and the sheet offers the two choices with the words for
-// the cause; "Sign out anyway" signs out on the user's explicit choice; a sign-out the phone could
-// not complete says so; a second tap while one runs does nothing.
+// not in the cloud nobody is signed out yet and the one sheet (A-119 OD-9, lib/deviceCopy signOutSheet,
+// a119SignOutNeverBlocked.test.js) gets the facts — offline or not, what and how many, the last full
+// backup — with "Sign out anyway"; a sign-out the phone could not complete says so; a second tap
+// while one runs does nothing.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -28,21 +29,22 @@ test('everything backed up: one sign-out, nothing shown', async () => {
   assert.deepEqual(h.shown, []);
 });
 
-test('offline with changes not backed up: the connect-first sheet; Sign out anyway forces it', async () => {
-  const h = harness([{ blocked: true, offline: true }, { blocked: false }]);
+test('offline with changes not backed up: the sheet gets the facts; Sign out anyway forces it', async () => {
+  const summary = { count: 2, byKind: { dose: 2 }, from: '2026-10-12', to: '2026-10-12', refused: 0 };
+  const h = harness([{ blocked: true, offline: true, summary, lastBackup: null }, { blocked: false }]);
   assert.equal(await runSignOut(h.deps), 'blocked');
-  const { copy, anyway } = h.shown[0];
-  assert.equal(copy.settingsBody, 'settings_signout_unsynced_body');
-  assert.equal(copy.stay, 'settings_signout_connect_first');
+  const { copy: r, anyway } = h.shown[0];
+  assert.equal(r.offline, true);
+  assert.deepEqual(r.summary, summary);
   assert.deepEqual(await anyway(), { blocked: false });
   assert.deepEqual(h.calls, [{}, { force: true }]);
 });
 
-test('online but a change could not be backed up: no internet wording', async () => {
-  const h = harness([{ blocked: true, offline: false }]);
+test('online but a change could not be backed up: the sheet is told it is online', async () => {
+  const h = harness([{ blocked: true, offline: false, summary: null, lastBackup: null }]);
   await runSignOut(h.deps);
-  assert.equal(h.shown[0].copy.settingsBody, 'settings_signout_notbacked_body');
-  assert.equal(h.shown[0].copy.stay, 'settings_signout_stay');
+  assert.equal(h.shown[0].copy.offline, false);
+  assert.equal(h.shown[0].copy.summary, null, 'could not count: screen 5b');
 });
 
 test('the phone could not sign out (first try or Sign out anyway): "Couldn\'t sign out"', async () => {
@@ -76,8 +78,8 @@ test('Settings uses the flow', () => {
 test('the strings exist in six languages and Sign out anyway says what it removes', () => {
   const removes = { en: /removes them/, es: /se borrarán/, pt: /serão apagadas/, fr: /seront supprimées/, de: /gelöscht/, it: /verranno eliminate/ };
   for (const l of Object.keys(removes)) {
-    assert.match(tr[l].settings_signout_unsynced_body, removes[l], l);
-    assert.match(tr[l].settings_signout_notbacked_body, removes[l], l);
+    assert.match(tr[l].so_removes_many, removes[l], l); // A-119: the one sheet's words
+    assert.match(tr[l].so_unknown_removes, /./, l);
     for (const k of ['settings_signout_connect_first', 'settings_signout_anyway', 'settings_signout_stay']) assert.ok(tr[l][k], `${l} ${k}`);
   }
   assert.equal(tr.en.settings_signout_anyway, 'Sign out anyway');

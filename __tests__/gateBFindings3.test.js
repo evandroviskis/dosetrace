@@ -32,13 +32,13 @@ test('GB3-2: after a deletion, closing the Apple note any way still runs the loc
 test('GB3-3: Sign out on the 18+ sheet asks first and never wipes changes that are not backed up', () => {
   const scr = read('screens', 'AgeConfirmScreen.js');
   assert.match(scr, /settings_signout_confirm_local/);
-  assert.match(scr, /const o = signOutOutcome\(/); // blocked → nothing signed out (signOutOutcome.test.js)
+  assert.match(scr, /runSignOut\(\{/); // A-119 OD-9: the one flow and the one sheet (a119SignOutNeverBlocked.test.js)
   // Order (check, then push token, then the intent flag, then sign-out): behaviour-tested in
   // __tests__/signOutOffline.test.js (Gate B 2026-10-03 F7).
   assert.match(read('lib', 'accountActions.js'), /signOutCore\(/);
-  assert.match(read('lib', 'recoveryLink.js'), /return signOutIntended\(\);/, 'the reset flow uses the same sign-out (one fewer copy)');
+  assert.match(read('lib', 'recoveryLink.js'), /return signOutIntended\(opts\);/, 'the reset flow uses the same sign-out (one fewer copy)');
   const i18n = read('i18n', 'translations.js');
-  assert.equal((i18n.match(/\n\s+auth_signout_unsynced: /g) || []).length, 6);
+  assert.equal((i18n.match(/\n\s+auth_signout_unsynced: /g) || []).length, 0, 'A-119: replaced by the one sign-out sheet');
 });
 
 test('GB3-4: the Apple client secret (≤ 6 months) can be made again and its expiry is tracked', () => {

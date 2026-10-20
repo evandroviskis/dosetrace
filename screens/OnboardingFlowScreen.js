@@ -16,9 +16,10 @@ import { useSheetGap } from '../components/useSheetInset';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, loadOnboarding, markSeenOnboarding, markStashFresh, isStashFresh, clearOnboarding } from '../lib/onboardingStore';
 import { supabase, missingProfileFields } from '../lib/supabase';
-import { signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
-import { orphanedSheet } from '../lib/orphanedPending';
-import { signOutOutcome } from '../lib/signOutCore';
+import { signOutIntended } from '../lib/accountActions';
+import { signOutSheet } from '../lib/deviceCopy';
+import { runSignOut } from '../lib/settingsSignOut';
+import { createBusyGuard } from '../lib/busyGuard';
 import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { PRIVACY_URL } from '../lib/legalLinks';
@@ -95,7 +96,7 @@ const MONTH_KEYS = [
 export default function OnboardingFlowScreen({ onDone, session }) {
   // A-152: the name and birth year fields stay above the keyboard (iPhone and Android).
   const kb = useKeyboardLift();
-  const { t, language, setLanguage, LANGUAGES } = useLanguage();
+  const { t, language, setLanguage, LANGUAGES, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowSize();
@@ -106,7 +107,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const meta = (session && session.user && session.user.user_metadata) || {};
   const [saving, setSaving] = useState(false);
   const [sheet, setSheet] = useState(null);
-  const signOutBusy = useRef(false); // one sign-out at a time (G1)
+  const signOutGuard = useMemo(() => createBusyGuard(), []); // one sign-out at a time (G1)
 
   // The form. Signed-in: from the account. Pre-account: from the stash (loaded below).
   const [d, setD] = useState(() => formFrom(signedIn ? meta : {}));
@@ -289,22 +290,16 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   // Escape hatch for a signed-in user who doesn't want to finish the profile —
   // otherwise they'd be trapped on the gate with no way to the app or out.
-  // Final Gate B G1: the one deliberate sign-out (lib/accountActions signOutIntended: push first,
-  // nothing signed out while changes are not backed up, the phone signs out even offline, never
-  // success while still signed in) and its words (lib/signOutCore signOutOutcome), as on the 18+ sheet.
+  // Final Gate B G1: the one deliberate sign-out (lib/accountActions signOutIntended: push first, the
+  // phone signs out even offline, never success while still signed in), through the one flow
+  // (lib/settingsSignOut runSignOut) and the one sheet (A-119 OD-9: never blocked — "Sign out anyway").
   async function handleSignOut() {
-    if (signOutBusy.current) return;
-    signOutBusy.current = true;
-    try {
-      const o = signOutOutcome(await signOutIntended().catch(() => ({ failed: true })));
-      // Blocked by entries of a protocol deleted forever on another device (lib/orphanedPending):
-      // no "Sign out anyway" here, so offer to discard only those, then try again.
-      const n = o.kind === 'blocked' ? await orphanedPendingCount() : 0;
-      if (n) setSheet(orphanedSheet({ t, count: n, title: t(o.title), prefix: t(o.body), onKeep: () => {}, onDiscard: () => { discardOrphaned().then(() => handleSignOut()).catch(() => {}); } }));
-      else if (o.kind !== 'done') setSheet({ icon: 'alert', title: t(o.title), body: t(o.body), buttons: [{ label: t('ok'), kind: 'primary' }] });
-    } finally {
-      signOutBusy.current = false;
-    }
+    await runSignOut({
+      signOut: (opts) => signOutIntended(opts),
+      guard: signOutGuard,
+      onFailed: () => setSheet({ icon: 'alert', title: t('settings_signout_failed_title'), body: t('settings_signout_failed_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }),
+      onBlocked: (r, anyway) => setSheet(signOutSheet({ t, language, timeFormat, offline: r.offline, summary: r.summary, lastBackup: r.lastBackup, onAnyway: anyway, onStay: () => {} })),
+    });
   }
 
   // "Never miss a dose": iOS asks for notifications, then Create account (both buttons go

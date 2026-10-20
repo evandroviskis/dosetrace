@@ -151,7 +151,7 @@ test('PA-65: Reset password — two fields with the eye, sheets for every messag
 
 test('PA-66: email links: confirmed and failed both show a DoseTrace sheet', () => {
   assert.match(APP, /if \(!ok\) \{[\s\S]{0,160}setLinkFailed\('confirm'\);/);
-  assert.match(APP, /<DTSheet config=\{linkSheet\} onClose=\{closeLinkSheet\} \/>/);
+  assert.match(APP, /<DTSheet config=\{deviceSheet \|\| linkSheet\} onClose=\{deviceSheet \? closeDeviceSheet : closeLinkSheet\} \/>/); // A-119: the device sheets come first
   assert.doesNotMatch(APP, /Alert\./);
   for (const k of ['auth_link_failed_title', 'auth_link_failed_msg']) assert.equal(valuesOf(k).length, 6, k);
 });
@@ -207,7 +207,7 @@ test('PA-41: Finish setup writes only the shown steps and reports a failed save 
   assert.match(ONB, /refreshForm\(cur, meta, touched\.current\)/);
   assert.match(ONB, /friendlyError\(error, t, 'error_save_failed'\)/);
   assert.match(ONB, /t\('ob_finish_setup'\)/);
-  assert.match(ONB, /async function handleSignOut\(\) \{[\s\S]{0,200}signOutIntended\(\)/, 'the sign-out escape is the one deliberate sign-out (behaviour: signOutSinglePath.test.js)');
+  assert.match(ONB, /async function handleSignOut\(\) \{[\s\S]{0,200}signOutIntended\(/, 'the sign-out escape is the one deliberate sign-out (behaviour: signOutSinglePath.test.js)');
 });
 
 test('PA-68: Gate B invariants kept — onAuthStateChange stays synchronous; the wipe needs an intended sign-out', () => {

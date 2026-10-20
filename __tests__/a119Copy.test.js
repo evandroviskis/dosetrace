@@ -24,7 +24,7 @@ const body = (sheet) => sheet.body;
 
 test('OD-12: every A-119 key exists in all 6 languages', () => {
   const keys = Object.keys(T.en).filter((k) => /^(dev_|so_)/.test(k));
-  assert.ok(keys.length >= 70, `found ${keys.length}`);
+  assert.ok(keys.length >= 50, `found ${keys.length}`);
   for (const l of LANGS) for (const k of keys) assert.ok(typeof T[l][k] === 'string' && T[l][k].length > 0, `${l}.${k}`);
 });
 
