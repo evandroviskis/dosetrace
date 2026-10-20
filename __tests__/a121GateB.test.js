@@ -243,3 +243,77 @@ test('Gate B 9 / SG-16: "Sim, terminou" goes through the one End (vials off, Mis
   assert.match(h, /endProtocolAtLastDose\(p\.id\);/);
   assert.doesNotMatch(h, /dismissDeliveredDoseReminders/);
 });
+
+// ── Round 3 (Gate B re-review) ───────────────────────────────────────────────────────────────────
+const missing = (col) => ({ data: null, error: { code: 'PGRST204', message: `Could not find the '${col}' column of 'protocols' in the schema cache` } });
+// R1 / P6 (scratchpad probe3.test.cjs): a date saved while the cloud lacks the column survives the
+// migration and an unrelated edit afterwards — by the push reply and by the pending-row pull alike.
+for (const mode of ['push', 'pull']) {
+  test(`Round 3 R1 / P6 (${mode}): an end date set before the migration is never wiped by an unrelated edit after it`, async () => {
+    const cloud = makeCloud();
+    let migrated = false;
+    const ins = cloud.insert.bind(cloud);
+    const upd = cloud.update.bind(cloud);
+    const lacks = (p) => !migrated && ('ends_on' in p || 'still_going_at' in p);
+    cloud.insert = async (t, p) => (t === 'protocols' && lacks(p) ? missing('ends_on' in p ? 'ends_on' : 'still_going_at') : ins(t, p));
+    cloud.update = async (t, rid, p) => (t === 'protocols' && lacks(p) ? missing('ends_on' in p ? 'ends_on' : 'still_going_at') : upd(t, rid, p));
+    const A = makeDb();
+    const id = seed(A);
+    await pushPending(A, cloud, USER);
+    E.setPlannedEnd(A, id, '2027-01-15', { now: new Date(2026, 9, 15) });
+    await pushPending(A, cloud, USER);
+    assert.match(one(A, 'optional_pending'), /ends_on/, 'waits for the column');
+    migrated = true; // the column appears, NULL on every row
+    for (const r of cloud.rows('protocols', USER)) cloud._store.protocols.set(r.id, { ...r, ends_on: null, still_going_at: null, updated_at: cloud._stamp() });
+    A.runSync(`UPDATE protocols SET units_taken = 1, updated_at = '999999', sync_status = 'pending' WHERE id = ?`, [id]);
+    if (mode === 'pull') await pullChanges(A, cloud, USER); // the pending row meets the cloud's NULL
+    await pushPending(A, cloud, USER); // reply carries the cloud's NULL; then the waiting value is re-sent
+    assert.equal(one(A, 'ends_on'), '2027-01-15', 'the local date stays');
+    assert.equal(cloud.rows('protocols', USER)[0].ends_on, '2027-01-15', 'and goes up once the cloud accepts it');
+    assert.equal(one(A, 'optional_pending'), null);
+  });
+}
+
+// R2: the phone whose clock was ahead keeps no future answer of its own once its clock is back — the
+// cloud's (server-capped) answer is taken, so "Still going?" does not come back at once.
+test('Round 3 R2: a local answer from the future gives way to the cloud\'s real one (pull and push reply)', async () => {
+  const { cloud, A, id, B, bid } = await twoPhones();
+  const real = new Date(Date.now() - 2 * 3600000).toISOString(); // the server-capped value
+  const future = new Date(Date.now() + 19 * DAY).toISOString(); // what the phone stored while ahead
+  // Synced row (applyOptionalColumns) — B pulls.
+  B.runSync(`UPDATE protocols SET still_going_at = ? WHERE id = ?`, [future, bid]);
+  const c = cloud.rows('protocols', USER)[0];
+  cloud._store.protocols.set(c.id, { ...c, still_going_at: real, updated_at: cloud._stamp() });
+  await pullChanges(B, cloud, USER);
+  assert.equal(one(B, 'still_going_at'), real, 'synced pull');
+  // Pending row (takeCloudPlanned) — A, its own edit waiting, pulls and then pushes.
+  A.runSync(`UPDATE protocols SET still_going_at = ?, units_taken = 1, updated_at = '999999', sync_status = 'pending' WHERE id = ?`, [future, id]);
+  await pullChanges(A, cloud, USER);
+  assert.equal(one(A, 'still_going_at'), real, 'pending pull');
+  const p = A.getFirstSync('SELECT * FROM protocols');
+  assert.equal(E.inactivityDue(p, { now: new Date() }), false, 'not asked again at once');
+  // A trusted later answer still wins (forward only).
+  const later = new Date(Date.now() - 600000).toISOString();
+  B.runSync(`UPDATE protocols SET still_going_at = ? WHERE id = ?`, [later, bid]);
+  cloud._store.protocols.set(c.id, { ...cloud._store.protocols.get(c.id), still_going_at: real, updated_at: cloud._stamp() });
+  await pullChanges(B, cloud, USER);
+  assert.equal(one(B, 'still_going_at'), later);
+});
+
+// R3: an intermediate build had ends_on without the marker — a pending date is marked, so it still goes up.
+test('Round 3 R3: adding ends_on_changed to a database that already has ends_on marks the pending dates', () => {
+  const db = makeDb();
+  db.execSync('ALTER TABLE protocols DROP COLUMN ends_on_changed;');
+  const a = seed(db);
+  db.runSync(`UPDATE protocols SET ends_on = '2027-01-15', updated_at = '2026-10-15T10:00:00.000Z' WHERE id = ?`, [a]);
+  const b = seed(db);
+  db.runSync(`UPDATE protocols SET ends_on = '2027-02-01', sync_status = 'synced' WHERE id = ?`, [b]);
+  const c = seed(db); // pending, no date
+  E.addPlannedEndColumns(db);
+  const mark = (id) => db.getFirstSync('SELECT ends_on_changed FROM protocols WHERE id = ?', [id]).ends_on_changed;
+  assert.equal(mark(a), '2026-10-15T10:00:00.000Z');
+  assert.equal(mark(b), null, 'a synced row is the cloud\'s');
+  assert.equal(mark(c), null);
+  E.addPlannedEndColumns(db);
+  assert.equal(mark(a), '2026-10-15T10:00:00.000Z', 'once');
+});
