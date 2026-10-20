@@ -9,7 +9,7 @@
 // The AI (edge function protocol-assistant) only turns a typed answer into structured values,
 // which lib/assistantSchema validates again before anything is used. Graduated tokens only.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet, Platform, KeyboardAvoidingView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
@@ -189,7 +189,9 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
         </View>
         <View style={s.headSide} />
       </View>
-      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
+      {/* The editor around it keeps the composer on the keyboard on iPhone and Android
+          (ProtocolsScreen editorKb, A-152): no keyboard padding of its own here. */}
+      <View style={s.flex}>
         <ScrollView ref={scrollRef} style={s.flex} contentContainerStyle={s.list} keyboardShouldPersistTaps="handled" onContentSizeChange={() => scrollRef.current && scrollRef.current.scrollToEnd({ animated: true })}>
           {phase === 'starting' && (
             <View style={s.app}><View style={s.row}><ActivityIndicator size="small" color={c.ink2} /><Text style={s.appText}>{t('ap_starting')}</Text></View></View>
@@ -255,7 +257,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
           </View>
         )}
         <Text style={s.caveat}>{t('ap_caveat')}</Text>
-      </KeyboardAvoidingView>
+      </View>
 
       <DTActionSheet config={photoChoice} onClose={() => setPhotoChoice(null)} />
       <DTPickerSheet

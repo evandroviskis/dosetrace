@@ -27,11 +27,15 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { validateNewPassword, newPasswordValue, authErrorMessage } from '../lib/authFlow';
 import { saveRecoveryPassword, discardPendingRecovery } from '../lib/recoveryLink';
 import AuthField from '../components/AuthField';
+import useKeyboardLift from '../components/useKeyboardLift';
 import { DTSheet } from './components/ProtocolParts';
 
 // recovery: the link's pending session (lib/recoveryLink). The account the app may be signed
 // in to is untouched until the new password is saved (PA-76).
 export default function ResetPasswordScreen({ recovery, onDone }) {
+  // A-152: the focused field stays above the keyboard on Android too (the KeyboardAvoidingView pads
+  // on iPhone only; the app draws edge to edge on Android, so nothing moved there).
+  const kb = useKeyboardLift();
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -87,6 +91,7 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          {...kb.scrollProps}
           style={s.flex}
           contentContainerStyle={s.body}
           keyboardShouldPersistTaps="handled"
@@ -97,6 +102,7 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
 
           <AuthField
             label={t('reset_pw_new')}
+            inputProps={kb.fieldProps('new')}
             value={password}
             onChangeText={setPassword}
             password
@@ -107,6 +113,7 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
           />
           <AuthField
             label={t('reset_pw_confirm')}
+            inputProps={kb.fieldProps('confirm')}
             value={confirm}
             onChangeText={setConfirm}
             password
@@ -131,6 +138,7 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
           <TouchableOpacity style={s.linkBtn} onPress={notNow} disabled={loading} accessibilityRole="button">
             <Text style={s.linkText}>{t('ob_not_now')}</Text>
           </TouchableOpacity>
+          {kb.spacer}
         </ScrollView>
       </KeyboardAvoidingView>
       <DTSheet config={sheet} onClose={closeSheet} />

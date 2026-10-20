@@ -162,7 +162,7 @@ test('PO-17: only a weight the user changed and left creates it — never on ope
   assert.match(fn[0], /d\.kind === 'first'/);
   assert.match(fn[0], /weightFocusRef\.current/, 'compared with the value the field had when it was entered');
   assert.match(fn[0], /applyWeightEdit\('first', /);
-  assert.match(src, /onFocus=\{\(\) => \{ weightFocusRef\.current = weightField; \}\}/);
+  assert.match(src, /pageLift\.fieldProps\('weight', \{ onFocus: \(\) => \{ weightFocusRef\.current = weightField; \} \}\)/); // A-152: through the keyboard lift
   const load = src.match(/async function load\(\) \{[\s\S]*?\n  \}\n/)[0];
   assert.doesNotMatch(load, /applyWeightEdit|weightEditWrite/, 'load never writes a weigh-in');
 });

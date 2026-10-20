@@ -109,7 +109,7 @@ test('PA-55: the Google button follows Google\'s branding (Google Sans Medium, c
 test('PA-50 / PA-51: Create account and Sign in views per the prototype (eye, example address, both links)', () => {
   assert.match(AUTH, /placeholder=\{t\('auth_email_ph'\)\}/);
   assert.equal((AUTH.match(/<AuthField/g) || []).length, 2);
-  assert.match(AUTH, /password\n\s+autoComplete=\{isSignIn \? 'current-password' : 'new-password'\}/);
+  assert.match(AUTH, /password\n\s+inputProps=\{kb\.fieldProps\('password'\)\}\n\s+autoComplete=\{isSignIn \? 'current-password' : 'new-password'\}/); // A-152: the keyboard lift between
   assert.match(read('components', 'AuthField.js'), /secureTextEntry=\{password && !shown\}/);
   assert.match(AUTH, /onboarding_ready_title/);
   assert.match(AUTH, /onboarding_signin_title/);

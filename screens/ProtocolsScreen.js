@@ -11,7 +11,6 @@ import {
   Platform,
   Keyboard,
   Linking,
-  KeyboardAvoidingView,
   ActivityIndicator,
 } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
@@ -933,11 +932,15 @@ export default function ProtocolsScreen() {
   const [pendingYest, setPendingYest] = useState([]); // A-42: yesterday's open slots (A-40), as Today shows them
   const [vialsByProtocol, setVialsByProtocol] = useState({});
   const [showModal, setShowModal] = useState(false);
-  // Android (edge to edge, the page sheet is never resized; build 54): the editor's footer
-  // (Back / Next / Save) and the assistant's composer sit on the keyboard, and the focused wizard
-  // field is scrolled into view. iPhone: the KeyboardAvoidingViews below, as before.
-  const editorKb = useSheetKeyboard(Platform.OS === 'android' && showModal, { gap: 0, topRoom: 0 });
+  // The editor's footer (Back / Next / Save) and the assistant's composer sit on the keyboard, and
+  // the focused wizard field is scrolled into view — iPhone and Android (A-152). Android (edge to
+  // edge, the page sheet is never resized) since build 54; iPhone since the founder found the notes
+  // field and the footer under the keyboard (2026-10-20): in this page sheet the
+  // KeyboardAvoidingViews made no room at all (simulator, iPhone 17 Pro Max), so they are gone.
+  const editorKb = useSheetKeyboard(showModal, { gap: 0, topRoom: 0 });
   const editorScrollRef = useCallback((n) => { modalScrollRef.current = n; if (editorKb.scrollProps.ref) editorKb.scrollProps.ref(n); }, [editorKb.scrollProps]);
+  // iPhone: the keyboard's height counts the home bar, which the SafeAreaView already keeps free.
+  const editorLiftBottom = editorKb.lift ? Math.max(0, editorKb.lift.bottom - (Platform.OS === 'ios' ? insets.bottom : 0)) : 0;
   const [step, setStep] = useState(1);
   // The protocol screen (prototype protocol()): a tapped card opens it over the list.
   const [openId, setOpenId] = useState(null);
@@ -2619,7 +2622,7 @@ export default function ProtocolsScreen() {
         }}
       >
         <SafeAreaView style={s.modal}>
-          <View style={editorKb.lift ? [EDITOR_FLEX, { paddingBottom: editorKb.lift.bottom }] : EDITOR_FLEX} onLayout={editorKb.onLayout}>
+          <View style={editorKb.lift ? [EDITOR_FLEX, { paddingBottom: editorLiftBottom }] : EDITOR_FLEX} onLayout={editorKb.onLayout}>
           {assistant ? (
             <ProtocolAssistant
               key={assistant.door}
@@ -2634,7 +2637,7 @@ export default function ProtocolsScreen() {
               onFinish={finishAssistant}
             />
           ) : (
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={EDITOR_FLEX}>
           {/* Cancel top-left, the title, Save top-right while editing (approved 2026-09-29). */}
           <View style={s.wnav}>
             <TouchableOpacity style={s.wnavSide} onPress={cancelWizard} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
@@ -3354,7 +3357,7 @@ export default function ProtocolsScreen() {
               </TouchableOpacity>
             )}
           </View>
-          </KeyboardAvoidingView>
+          </View>
           )}
           </View>
 

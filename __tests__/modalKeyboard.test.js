@@ -179,16 +179,19 @@ test('modal keyboard: Edit profile lifts the focused field above the Android key
 });
 
 // ── Protocols: the editor (wizard + assistant) ─────────────────────────────────────────────
-test('modal keyboard: the protocol editor\'s footer and composer sit above the Android keyboard; iPhone unchanged', () => {
+// A-152 (founder, iPhone 2026-10-20): the same on iPhone — its KeyboardAvoidingView made no room in
+// this page sheet (notes and footer under the keyboard); a152KeyboardFields.test.js.
+test('modal keyboard: the protocol editor\'s footer and composer sit above the keyboard (Android, and iPhone since A-152)', () => {
   const src = read('screens/ProtocolsScreen.js');
   assert.match(src, /import useSheetKeyboard from '\.\.\/components\/useSheetKeyboard';/);
-  assert.match(src, /const editorKb = useSheetKeyboard\(Platform\.OS === 'android' && showModal, \{ gap: 0, topRoom: 0 \}\);/);
+  assert.match(src, /const editorKb = useSheetKeyboard\(showModal, \{ gap: 0, topRoom: 0 \}\);/);
   assert.match(src, /const editorScrollRef = useCallback\(\(n\) => \{ modalScrollRef\.current = n; if \(editorKb\.scrollProps\.ref\) editorKb\.scrollProps\.ref\(n\); \}, \[editorKb\.scrollProps\]\);/, 'one scroll view, both refs');
   const start = src.indexOf('onDismiss={() => setWizardPresented(false)}');
   const body = src.slice(start, src.indexOf('</Modal>', start));
-  assert.match(body, /<SafeAreaView style=\{s\.modal\}>\s*<View style=\{editorKb\.lift \? \[EDITOR_FLEX, \{ paddingBottom: editorKb\.lift\.bottom \}\] : EDITOR_FLEX\} onLayout=\{editorKb\.onLayout\}>\s*\{assistant \? \(/, 'one wrapper around the assistant and the form');
-  assert.match(body, new RegExp(`<KeyboardAvoidingView style=\\{\\{ flex: 1 \\}\\} ${esc(KAV_IOS)}>`), 'iPhone: the old padding');
+  assert.match(body, /<SafeAreaView style=\{s\.modal\}>\s*<View style=\{editorKb\.lift \? \[EDITOR_FLEX, \{ paddingBottom: editorLiftBottom \}\] : EDITOR_FLEX\} onLayout=\{editorKb\.onLayout\}>\s*\{assistant \? \(/, 'one wrapper around the assistant and the form');
+  assert.doesNotMatch(body, /<KeyboardAvoidingView/, 'no KeyboardAvoidingView: the wrapper lifts on both platforms');
+  assert.match(body, /\) : \(\n\s+<View style=\{EDITOR_FLEX\}>/, 'the form is a plain flex view');
   assert.match(body, /<ScrollView \{\.\.\.editorKb\.scrollProps\} ref=\{editorScrollRef\} style=\{s\.modalBody\}/);
-  assert.match(body, /<\/KeyboardAvoidingView>\s*\)\}\s*<\/View>/, 'the wrapper closes after the form');
+  assert.match(body, /<\/View>\s*\)\}\s*<\/View>/, 'the wrapper closes after the form');
   assert.match(src, /const EDITOR_FLEX = \{ flex: 1 \};/);
 });

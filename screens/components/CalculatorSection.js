@@ -91,6 +91,7 @@ import { loadFoodAccess, ensureFreeStart } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
 import LearnBlock from './LearnBlock';
+import useKeyboardLift from '../../components/useKeyboardLift';
 
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
 const todayISO = () => localISO();
@@ -1030,6 +1031,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }, [plan, scoreCheck, sex]);
 
   const scrollRef = useRef(null);
+  // A-152: the page's own fields (Your numbers) stay above the keyboard, iPhone and Android.
+  const pageLift = useKeyboardLift(scrollRef);
   // focus = 'reality' (Today's reality-check alert, m6): once the card is laid out, scroll to
   // the reality check, one time per open.
   const [rcY, setRcY] = useState(null);
@@ -1335,17 +1338,17 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
-          <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} onFocus={() => { weightFocusRef.current = weightField; }} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
+          <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} {...pageLift.fieldProps('weight', { onFocus: () => { weightFocusRef.current = weightField; } })} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
-          <TextInput style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder={eg(ex.height)} placeholderTextColor={colors.ink3} />
+          <TextInput {...pageLift.fieldProps('height')} style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder={eg(ex.height)} placeholderTextColor={colors.ink3} />
         </View>
       </View>
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_age')}</Text>
-          <TextInput style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder={eg('38')} placeholderTextColor={colors.ink3} />
+          <TextInput {...pageLift.fieldProps('age')} style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder={eg('38')} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_sex')}</Text>
@@ -1360,11 +1363,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_bodyfat')} (%) · {t('cal_optional')}</Text>
-          <TextInput style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder={eg(ex.bodyFat)} placeholderTextColor={colors.ink3} />
+          <TextInput {...pageLift.fieldProps('bodyFat')} style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder={eg(ex.bodyFat)} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
-          <TextInput style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder={eg(ex.waist)} placeholderTextColor={colors.ink3} />
+          <TextInput {...pageLift.fieldProps('waist')} style={s.input} value={waist} onChangeText={setWaist} keyboardType="decimal-pad" placeholder={eg(ex.waist)} placeholderTextColor={colors.ink3} />
         </View>
       </View>
       <Text style={s.fieldHint}>{t('cal_waist_hint')}</Text>
@@ -1628,7 +1631,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const screenParts = { card: cardEl, plan: planEl, rc: rcEl };
 
   return (
-    <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
+    <ScrollView {...pageLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
       {header}
       {/* The one card, then the daily plan (with a daily burn) and the reality check (PO-1 / PO-9).
           Keyed, so a part that moves when the daily burn appears keeps its state (no remount).
@@ -1637,6 +1640,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
 
       {/* The disclaimer qualifies every number on this screen. */}
       <Text style={s.disclaimer}>{t('cal_disclaimer')}</Text>
+      {pageLift.spacer}
 
       {/* Understand the numbers + Sources & references (shared with the Journey dashboard). */}
       <LearnBlock />

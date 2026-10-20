@@ -24,7 +24,8 @@ function Eye({ off, color }) {
   );
 }
 
-export default function AuthField({ label, value, onChangeText, password = false, email = false, placeholder, showLabel, hideLabel, autoComplete, textContentType }) {
+// inputProps: spread on the TextInput (the page's keyboard lift: ref, onFocus — A-152).
+export default function AuthField({ label, value, onChangeText, password = false, email = false, placeholder, showLabel, hideLabel, autoComplete, textContentType, inputProps }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [shown, setShown] = useState(false);
@@ -33,6 +34,7 @@ export default function AuthField({ label, value, onChangeText, password = false
       <Text style={s.label}>{label}</Text>
       <View style={s.wrap}>
         <TextInput
+          {...inputProps}
           style={[s.input, password && s.inputPw]}
           accessibilityLabel={label}
           value={value}

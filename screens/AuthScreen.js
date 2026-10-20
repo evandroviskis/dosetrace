@@ -24,6 +24,7 @@ import {
 } from '../lib/authFlow';
 import Svg, { Path } from 'react-native-svg';
 import FeatureIcon from '../components/FeatureIcon';
+import useKeyboardLift from '../components/useKeyboardLift';
 import CheckMark from '../components/CheckMark';
 import AuthField from '../components/AuthField';
 import LegalModal from '../components/LegalModal';
@@ -302,6 +303,8 @@ export default function AuthScreen({ onBack, initialMode }) {
     Linking.openURL(url).catch(() => Linking.openURL('mailto:').catch(() => {}));
   }
 
+  // A-152: the email and password fields stay above the keyboard (iPhone and Android).
+  const kb = useKeyboardLift();
   const switchMode = (m) => { setMode(m); setPassword(''); };
 
   // ---- Views ---- (Graduated: docs/design/prototype.html authScreen())
@@ -368,7 +371,7 @@ export default function AuthScreen({ onBack, initialMode }) {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView {...kb.scrollProps} style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {onBack ? backRow(() => onBack(mode)) : null}
         {!isSignIn ? (
           <View style={s.head}>
@@ -406,6 +409,7 @@ export default function AuthScreen({ onBack, initialMode }) {
           onChangeText={setEmail}
           email
           placeholder={t('auth_email_ph')}
+          inputProps={kb.fieldProps('email')}
           autoComplete="email"
           textContentType="emailAddress"
         />
@@ -414,6 +418,7 @@ export default function AuthScreen({ onBack, initialMode }) {
           value={password}
           onChangeText={setPassword}
           password
+          inputProps={kb.fieldProps('password')}
           autoComplete={isSignIn ? 'current-password' : 'new-password'}
           textContentType={isSignIn ? 'password' : 'newPassword'}
           showLabel={t('auth_show_password')}
@@ -459,6 +464,7 @@ export default function AuthScreen({ onBack, initialMode }) {
         </TouchableOpacity>
 
         <View style={{ height: 32 }} />
+        {kb.spacer}
       </ScrollView>
       {sheets}
     </SafeAreaView>

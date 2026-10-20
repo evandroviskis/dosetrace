@@ -3,8 +3,10 @@
 // put onLayout on the Modal's root view, use lift.bottom as the sheet's bottom padding (or the
 // root's), sheetStyle on the sheet (the height cap) and spread scrollProps on its ScrollView.
 // While the keyboard is up the sheet sits above it, capped to the room left, and the focused
-// field is scrolled into the sheet's visible part. enabled = false (iPhone, or the sheet is
-// closed): no listeners, lift null, no props — the sheet renders exactly as before.
+// field is scrolled into the sheet's visible part, also while a multiline field grows. enabled =
+// false (iPhone, or the sheet is closed): no listeners, lift null, no props — the sheet renders
+// exactly as before. The protocol editor uses it on iPhone too (A-152: its page sheet's
+// KeyboardAvoidingView made no room).
 // Rules: lib/sheetKeyboard (sheetKeyboard.test.js).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, TextInput } from 'react-native';
@@ -17,17 +19,19 @@ export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}
   const [rootHeight, setRootHeight] = useState(0);
   const scroll = useRef(null);
   const scrollY = useRef(0);
+  const kbRef = useRef(null); // the keyboard now, for the scroll view's own callbacks
 
   useEffect(() => {
     if (!enabled) {
+      kbRef.current = null;
       setKb(null);
       return undefined;
     }
-    const apply = (ec) => setKb(ec && ec.height > 0 ? { kbTop: ec.screenY, kbHeight: ec.height } : null);
+    const apply = (ec) => { const next = ec && ec.height > 0 ? { kbTop: ec.screenY, kbHeight: ec.height } : null; kbRef.current = next; setKb(next); };
     // A sheet opened while the keyboard is already up lifts at once.
     try { if (Keyboard.isVisible()) apply(Keyboard.metrics()); } catch (e) { /* older RN: wait for the event */ }
     const show = Keyboard.addListener('keyboardDidShow', (e) => apply(e && e.endCoordinates));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKb(null));
+    const hide = Keyboard.addListener('keyboardDidHide', () => { kbRef.current = null; setKb(null); });
     return () => { show.remove(); hide.remove(); };
   }, [enabled]);
 
@@ -36,25 +40,29 @@ export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}
     [enabled, kb, rootHeight, gap, topRoom],
   );
 
+  // Bring the focused field into the sheet's visible part.
+  function focusScroll() {
+    try {
+      const input = TextInput.State.currentlyFocusedInput();
+      const sv = scroll.current;
+      const k = kbRef.current;
+      if (!input || !sv || !k || !input.measureInWindow || !sv.measureInWindow) return;
+      sv.measureInWindow((sx, sy, sw, sh) => {
+        input.measureInWindow((fx, fy, fw, fh) => {
+          const y = sheetFocusScrollY({
+            fieldTop: fy, fieldBottom: fy + fh, viewTop: sy, viewBottom: sy + sh,
+            kbTop: k.kbTop, scrollY: scrollY.current,
+          });
+          if (y != null) sv.scrollTo({ y, animated: true });
+        });
+      });
+    } catch (e) { /* nothing focused / unmounted: leave the sheet as it is */ }
+  }
+
   // Once the lifted, capped sheet has laid out, bring the focused field into its visible part.
   useEffect(() => {
     if (!lift) return undefined;
-    const timer = setTimeout(() => {
-      try {
-        const input = TextInput.State.currentlyFocusedInput();
-        const sv = scroll.current;
-        if (!input || !sv || !input.measureInWindow || !sv.measureInWindow) return;
-        sv.measureInWindow((sx, sy, sw, sh) => {
-          input.measureInWindow((fx, fy, fw, fh) => {
-            const y = sheetFocusScrollY({
-              fieldTop: fy, fieldBottom: fy + fh, viewTop: sy, viewBottom: sy + sh,
-              kbTop: kb ? kb.kbTop : null, scrollY: scrollY.current,
-            });
-            if (y != null) sv.scrollTo({ y, animated: true });
-          });
-        });
-      } catch (e) { /* nothing focused / unmounted: leave the sheet as it is */ }
-    }, 80);
+    const timer = setTimeout(focusScroll, 80);
     return () => clearTimeout(timer);
   }, [lift && lift.bottom, lift && lift.maxHeight]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -62,7 +70,9 @@ export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}
     ref: (n) => { scroll.current = n; },
     onScroll: (e) => { scrollY.current = e.nativeEvent.contentOffset.y; },
     scrollEventThrottle: 32,
-  }), []);
+    // A multiline field that grows while typing (A-152, the protocol notes): follow it.
+    onContentSizeChange: () => { if (kbRef.current) focusScroll(); },
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     lift,

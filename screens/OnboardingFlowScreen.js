@@ -36,6 +36,7 @@ import { readReminderHealth } from '../lib/notifications';
 import { setupSteps } from '../lib/reminderHealth';
 import { markSetupSeen } from '../lib/reminderSetup';
 import CheckMark from '../components/CheckMark';
+import useKeyboardLift from '../components/useKeyboardLift';
 import SegmentedBar from '../components/SegmentedBar';
 import LegalModal from '../components/LegalModal';
 import { DTSheet } from './components/ProtocolParts';
@@ -92,6 +93,8 @@ const MONTH_KEYS = [
 ];
 
 export default function OnboardingFlowScreen({ onDone, session }) {
+  // A-152: the name and birth year fields stay above the keyboard (iPhone and Android).
+  const kb = useKeyboardLift();
   const { t, language, setLanguage, LANGUAGES } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -338,7 +341,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
       )}
 
       <Animated.View style={[{ flex: 1 }, stepStyle]}>
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+        <ScrollView {...kb.scrollProps} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
           {cur === 'splash' && (
             <View style={s.splashWrap}>
@@ -435,6 +438,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_name')}<Text style={s.req}> *</Text></Text>
                 <TextInput
+                  {...kb.fieldProps('name')}
                   style={s.input}
                   placeholder={t('profile_name_placeholder')}
                   placeholderTextColor={colors.ink3}
@@ -457,6 +461,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_birth_year')}<Text style={s.req}> *</Text></Text>
                 <TextInput
+                  {...kb.fieldProps('birthYear')}
                   style={s.input}
                   placeholder={t('profile_birth_year_ph')}
                   placeholderTextColor={colors.ink3}
@@ -594,6 +599,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             </View>
           )}
 
+          {kb.spacer}
         </ScrollView>
       </Animated.View>
 
