@@ -257,6 +257,43 @@ test('both themes: the new parts use theme tokens only (no raw colours)', () => 
   assert.match(PARTS, /name: \{ fontSize: 17, fontWeight: '600', color: c\.ink \},/);
 });
 
+// ── SG-17 (spec audit 6): the question right after the cycle's last dose is logged — oral included ──
+test('SG-17: after a Taken dose (any type) the course-end check runs once that take\'s Undo bar has closed', () => {
+  const take = sliceBlock(TODAY, 'async function markTaken(');
+  assert.ok(take.indexOf('courseAskRef.current = true;') > take.indexOf('saved = true;'), 'only after the write succeeded');
+  const pend = sliceBlock(TODAY, 'function writePending(');
+  assert.ok(pend.indexOf('courseAskRef.current = true;') > pend.indexOf('if (res && res.logId) {'));
+  assert.match(TODAY, /useEffect\(\(\) => \{ if \(!undoData\) askCourseEndAfterLog\(\); \}, \[undoData\]\);/);
+  // Behaviour of the real function.
+  const timers = [];
+  const ref = { current: true };
+  const ask = loadFn('screens/TodayScreen.js', 'function askCourseEndAfterLog(', 'askCourseEndAfterLog', {
+    courseAskRef: ref, checkStillGoingWhenSynced: () => 'check', setTimeout: (fn, ms) => timers.push([fn(), ms]),
+  });
+  ask();
+  assert.deepEqual(timers, [['check', 450]], 'asked once the bar has gone');
+  ask();
+  assert.equal(timers.length, 1, 'once per logged dose');
+});
+
+test('SG-17: a Skip (no Undo bar) asks right after its write', () => {
+  const skip = sliceBlock(TODAY, 'function skipDose(');
+  const w = skip.slice(skip.indexOf('const write = () => {'));
+  assert.ok(w.indexOf('setTimeout(checkStillGoingWhenSynced, 450);') > w.indexOf("Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });"));
+});
+
+// ── SG-27 (spec audit 7): back from the background, also many days later ──────────────────────────
+test('SG-27: returning to Today from the background (and a new day while open) runs the protocol question', () => {
+  assert.match(TODAY, /if \(st === 'active' && focusedRef\.current\) onTodayForeground\(\);/);
+  assert.match(TODAY, /const tick = \(\) => \{ if \(focusedRef\.current\) onTodayForeground\(\);/);
+  const calls = [];
+  const fg = loadFn('screens/TodayScreen.js', 'function onTodayForeground(', 'onTodayForeground', {
+    refreshIfNewDay: () => calls.push('redate'), checkStillGoingWhenSynced: () => calls.push('ask'),
+  });
+  fg();
+  assert.deepEqual(calls, ['redate', 'ask']);
+});
+
 // ── SG-10: the course-end question waits for the session's first sync (A-122 gate) ────────────────
 test('SG-10: an end date cleared on the other phone arrives with the first sync — no "Ciclo concluído" from the half-synced phone', async () => {
   const src = read('lib/stillGoingGate.js').replace(/^export\s+/gm, '');

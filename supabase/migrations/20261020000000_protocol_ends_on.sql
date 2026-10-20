@@ -36,3 +36,20 @@ $$;
 drop trigger if exists protocols_blank_purged on public.protocols;
 create trigger protocols_blank_purged before insert or update on public.protocols
   for each row execute function public.protocols_blank_purged();
+
+-- 4) A-148 (Gate B 2 / 3): the "Still going?" answer only moves forward and never ahead of the server
+--    clock — a phone whose answer is older (pushed late, offline) never moves it back, and a phone
+--    whose clock was ahead never stores a moment from the future. A purge is left to the blanking
+--    trigger above (this one runs after it: triggers fire in name order).
+create or replace function public.protocols_still_going_forward()
+returns trigger language plpgsql security invoker set search_path = public, pg_temp as $$
+begin
+  if new.purged_at is not null then return new; end if;
+  if new.still_going_at is not null then new.still_going_at := least(new.still_going_at, now()); end if;
+  if tg_op = 'UPDATE' then new.still_going_at := greatest(old.still_going_at, new.still_going_at); end if;
+  return new;
+end;
+$$;
+drop trigger if exists protocols_still_going_forward on public.protocols;
+create trigger protocols_still_going_forward before insert or update on public.protocols
+  for each row execute function public.protocols_still_going_forward();

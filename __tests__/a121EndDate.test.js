@@ -512,7 +512,8 @@ test('SG-28: the rewind waits while the cloud lacks the column (it would bring n
 test('SG-11: ends_on appears only in its owners (reader, writer, schema, database, sync, the protocol page)', () => {
   const ROOT = path.join(__dirname, '..');
   const allowed = new Set([
-    'lib/schedule.js', 'lib/protocolEnd.js', 'lib/schema.js', 'lib/database.js', 'lib/syncMappers.js', 'lib/syncCore.js',
+    // + lib/sync.js, the Supabase adapter (the reply to a protocol push, Gate B 1): the spec's "sync" owners.
+    'lib/schedule.js', 'lib/protocolEnd.js', 'lib/schema.js', 'lib/database.js', 'lib/syncMappers.js', 'lib/syncCore.js', 'lib/sync.js',
     'screens/ProtocolsScreen.js',
   ]);
   const hits = [];

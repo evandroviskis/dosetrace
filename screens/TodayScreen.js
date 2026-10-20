@@ -326,6 +326,7 @@ export default function TodayScreen() {
   const vialTimerRef = useRef(null); // the delayed open of the vial prompt (cancelled when it closes)
   const inactivePromptOpenRef = useRef(false); // the "still going?" prompt is up
   const stillGoingWaitRef = useRef(false); // A-122: a check is waiting for the first sync
+  const courseAskRef = useRef(false); // A-121 SG-17: a dose was logged — ask once its Undo bar has gone
   const focusedRef = useRef(false); // questions open only on Today, never over another tab
   const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
   const takeNoticeT = useRef(null);
@@ -422,6 +423,9 @@ export default function TodayScreen() {
   // A-141 (5): a vial prompt waiting behind the Undo bar opens once the bar has closed.
   useEffect(() => { undoDataRef.current = undoData; }, [undoData]);
   useEffect(() => { if (!undoData) releasePendingVial(); }, [undoData]);
+  // A-121 SG-17: the course-end question right after the cycle's last dose (oral too), once the take's
+  // Undo bar has closed (an undone dose is then no longer there to count).
+  useEffect(() => { if (!undoData) askCourseEndAfterLog(); }, [undoData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -477,6 +481,12 @@ export default function TodayScreen() {
   // and the tracker are read again for the new day.
   const shownDayRef = useRef(dayKeyAt(Date.now()));
   const [, setDayTick] = useState(0);
+  // A-121 SG-27: back from the background (also days later) or past midnight on Today: re-date, then
+  // the protocol question (it waits for the foreground sync through the first-sync gate).
+  function onTodayForeground() {
+    refreshIfNewDay();
+    checkStillGoingWhenSynced();
+  }
   function refreshIfNewDay() {
     if (dayKeyAt(Date.now()) === shownDayRef.current) return;
     shownDayRef.current = dayKeyAt(Date.now());
@@ -491,10 +501,10 @@ export default function TodayScreen() {
   }
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
-      if (st === 'active' && focusedRef.current) refreshIfNewDay();
+      if (st === 'active' && focusedRef.current) onTodayForeground();
     });
     let timer = null;
-    const tick = () => { if (focusedRef.current) refreshIfNewDay(); timer = setTimeout(tick, msUntilNextLocalMidnight(Date.now()) + 1000); };
+    const tick = () => { if (focusedRef.current) onTodayForeground(); timer = setTimeout(tick, msUntilNextLocalMidnight(Date.now()) + 1000); };
     timer = setTimeout(tick, msUntilNextLocalMidnight(Date.now()) + 1000);
     return () => { sub.remove(); if (timer) clearTimeout(timer); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -662,6 +672,13 @@ export default function TodayScreen() {
       setInactiveStep('ask');
       setShowInactivePrompt(true);
     } catch { /* ignore */ }
+  }
+
+  // A-121 SG-17: once per logged dose, after its Undo bar has gone.
+  function askCourseEndAfterLog() {
+    if (!courseAskRef.current) return;
+    courseAskRef.current = false;
+    setTimeout(checkStillGoingWhenSynced, 450);
   }
 
   // The box closes after an answer; the data changed (fetch + sync) and the next question — a site
@@ -876,6 +893,7 @@ export default function TodayScreen() {
     const { toastText, ...write } = writeOpts; // the toast line is not part of the write
     const res = recordDoseTaken(protocolId, write);
     if (res && res.logId) {
+      courseAskRef.current = true; // A-121 SG-17
       const timer = null; // armed by the Undo bar effect (lib/undoBar.js)
       const record = {
         logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, protocolId, pending: true, extraDeleteIds,
@@ -1049,6 +1067,7 @@ export default function TodayScreen() {
       }
       const logId = res.logId;
       saved = true;
+      courseAskRef.current = true; // A-121 SG-17: maybe the cycle's last dose
 
       // The day's real Taken count from the write, not the screen's count (which
       // is stale if the banner already logged a dose).
@@ -1368,6 +1387,7 @@ export default function TodayScreen() {
         fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line
         syncAllDoseReminders().catch(() => {}); // A-141 (6) (DL-08): a skipped slot is never reminded
         Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
+        setTimeout(checkStillGoingWhenSynced, 450); // A-121 SG-17: a Skip also answers the last slot
         requestSync();
       } catch (err) {
         todayError(friendlyError(err, t, 'error_save_failed'));
