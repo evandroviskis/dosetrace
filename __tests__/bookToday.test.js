@@ -211,8 +211,9 @@ test('BK-20: Today\'s site question, vial prompt and "still going?" wait while t
   const open = TODAY.slice(TODAY.indexOf('async function openNextQuestion('), TODAY.indexOf('function commitQuestion('));
   // + the Skip sheet (Today redesign part 14): one popup at a time.
   assert.match(open, /if \(!focusedRef\.current \|\| bodyMapOpenRef\.current \|\| vialPromptOpenRef\.current \|\| inactivePromptOpenRef\.current \|\| logPopupOpenRef\.current \|\| skipSheetOpenRef\.current \|\| todaySheetOpenRef\.current\) return;/);
-  assert.match(open, /if \(!q\) \{ runLogPopupWaiter\(\); return; \}/, 'with no question left, a waiting Log editor opens');
-  assert.match(TODAY, /if \(bodyMapOpenRef\.current \|\| siteQueueRef\.current\.length \|\| logPopupOpenRef\.current\) return;/, '"still going?" never over the editor');
+  // A-121 SG-29: then the next protocol question (it guards itself against every open popup).
+  assert.match(open, /if \(!q\) \{ runLogPopupWaiter\(\); checkStillGoingWhenSynced\(\); return; \}/, 'with no question left, a waiting Log editor opens');
+  assert.match(TODAY, /if \(bodyMapOpenRef\.current \|\| siteQueueRef\.current\.length \|\| logPopupOpenRef\.current\s*\|\| vialPromptOpenRef\.current \|\| skipSheetOpenRef\.current \|\| todaySheetOpenRef\.current\) return;/, '"still going?" never over the editor (A-121 SG-22: nor over any other Today popup)');
   const vp = code(TODAY, fnDecl(todayAst, 'showVialPromptFor'));
   assert.match(vp, /if \(logPopupOpenRef\.current\) \{ vialDeferredRef\.current = true; return; \}/, 'the vial prompt waits for the editor');
   assert.ok(vp.indexOf('vialPromptOpenRef.current = true') < vp.indexOf('if (logPopupOpenRef.current)'), 'the prompt still counts as open, so questions keep waiting');

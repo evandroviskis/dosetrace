@@ -35,7 +35,7 @@ test('part 14: Skip dose? is the DoseTrace sheet, not the iOS alert; Skip in ink
   assert.doesNotMatch(sk, /Alert\.alert\(\s*t\('today_skip_title'\)/, 'the iOS alert is gone');
   assert.match(sk, /setSkipAsk\(/);
   assert.match(sk, /const res = recordSkipToday\(protocol\.id, \{ slotMs: slot \? slot\.slotMs : null \}\);/, 'the A-78 write is unchanged');
-  assert.match(TODAY, /import \{ DTSheet, VialCells \} from '\.\/components\/ProtocolParts';/);
+  assert.match(TODAY, /import \{ DTSheet, VialCells(, EndDateStep)? \} from '\.\/components\/ProtocolParts';/); // A-121 adds the end-date step
   assert.match(TODAY, /<DTSheet config=\{skipSheet\} onClose=\{closeSkipAsk\} \/>/);
   assert.match(TODAY, /title: t\('today_skip_title'\)/);
   assert.match(TODAY, /\{ label: t\('cancel'\), kind: 'secondary' \}/);

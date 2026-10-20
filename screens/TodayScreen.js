@@ -28,13 +28,14 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, syncAllDoseReminders, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
+import { syncVialAlerts, scheduleDoseReminder, syncAllDoseReminders, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, endProtocol, endProtocolAtLastDose, getHistoryProtocols, deactivateVialsByProtocol,
+  markProtocolStillGoing, setProtocolPlannedEnd, continueProtocolCourse, endProtocolNow,
   getBiomarkers,
   getDB, getLocalDataUserId,
 } from '../lib/database';
@@ -62,7 +63,7 @@ import { newVialRecords } from '../lib/newVial';
 import { supplyState } from '../lib/supplyLow';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
-import { formatDate, decimalText, unitText } from '../lib/localeFormat';
+import { formatDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
 import useSheetKeyboard from '../components/useSheetKeyboard';
 import { friendlyError } from '../lib/friendlyError';
@@ -78,7 +79,7 @@ import { paneWidths } from '../lib/bookLayout';
 import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
 import useKeyboardLift from '../components/useKeyboardLift';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
-import { DTSheet, VialCells } from './components/ProtocolParts';
+import { DTSheet, VialCells, EndDateStep } from './components/ProtocolParts';
 import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
 import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
@@ -144,7 +145,9 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
 }
 import {
   sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor, upcomingAgenda,
+  courseState, endDateRange,
 } from '../lib/schedule';
+import { nextTodayQuestion } from '../lib/protocolEnd';
 import CheckMark from '../components/CheckMark';
 import { pluralKey } from '../lib/plural';
 import { protocolDisplayName } from '../lib/protocolName';
@@ -348,6 +351,11 @@ export default function TodayScreen() {
   // Inactivity nudge: a protocol with no doses logged for a while → "still going?"
   const [inactiveProtocol, setInactiveProtocol] = useState(null);
   const [showInactivePrompt, setShowInactivePrompt] = useState(false);
+  // A-121: which question the box asks ('still_going' | 'course_end'), its step ('ask' | 'date':
+  // "Até quando?" in the same box) and the day the end-date wheel shows ('YYYY-MM-DD').
+  const [inactiveKind, setInactiveKind] = useState('still_going');
+  const [inactiveStep, setInactiveStep] = useState('ask');
+  const [endPick, setEndPick] = useState(null);
   const [newVialDoses, setNewVialDoses] = useState('');
   const [newVialMonth, setNewVialMonth] = useState(new Date().getMonth());
   const [newVialDay, setNewVialDay] = useState(String(new Date().getDate()));
@@ -614,45 +622,61 @@ export default function TodayScreen() {
     });
   }
 
+  // A-121 / A-148: the protocol questions of Today, one at a time (SG-22 / SG-29): "Ciclo concluído —
+  // encerrar {name}?" on and after a planned end (or a legacy total's last day), once that day's
+  // doses are answered (SG-17), else "Still going?" (lib/protocolEnd nextTodayQuestion; the planned
+  // end is read only by lib/schedule courseState). Never over another of Today's popups; each answer
+  // asks again (openNextQuestion → checkStillGoingWhenSynced), so a second protocol comes next.
   async function checkTreatmentStillActive() {
     if (inactivePromptOpenRef.current) return; // one modal at a time: already asking
     try {
       const user = await getCachedUser();
       if (!user) return;
-      const protocols = getActiveProtocols(user.id) || [];
+      let protocols = getActiveProtocols(user.id) || [];
       if (protocols.length === 0) return;
+      // A-148: an answer an older version kept on this phone only (wiped on sign-out, keyed by the
+      // local id) moves once to the protocol's synced still_going_at.
+      let moved = false;
+      for (const p of protocols) {
+        const key = `dosetrace_tx_check_${p.id}`;
+        let kept = null;
+        try { kept = await AsyncStorage.getItem(key); } catch { kept = null; }
+        if (!kept) continue;
+        if (Number.isFinite(Date.parse(kept)) && markProtocolStillGoing(p.id, kept)) moved = true;
+        AsyncStorage.removeItem(key).catch(() => {});
+      }
+      if (moved) { protocols = getActiveProtocols(user.id) || []; requestSync(); }
       const since = new Date();
       since.setDate(since.getDate() - 90);
-      const logs = getTakenLogsSince(user.id, since.toISOString()) || [];
-      const lastLog = {};
-      for (const l of logs) {
-        if (!lastLog[l.protocol_id] || l.logged_at > lastLog[l.protocol_id]) {
-          lastLog[l.protocol_id] = l.logged_at;
-        }
-      }
-      const now = Date.now();
-      for (const p of protocols) {
-        // Not started yet → don't nudge.
-        if (p.start_date && new Date(p.start_date + 'T00:00:00').getTime() > now) continue;
-        const thresholdDays = Math.max(7, (p.interval_days || 1) * 3);
-        const refIso = lastLog[p.id] || p.created_at || p.start_date;
-        if (!refIso) continue;
-        const daysSince = (now - new Date(refIso).getTime()) / 86400000;
-        if (daysSince < thresholdDays) continue;
-        // Skip if snoozed within the last threshold window.
-        const snoozedAt = await AsyncStorage.getItem(`dosetrace_tx_check_${p.id}`);
-        if (snoozedAt && (now - new Date(snoozedAt).getTime()) / 86400000 < thresholdDays) continue;
-        // One modal at a time: a site question goes first; this prompt comes on a later open.
-        // BK-20: nor over the embedded Dose log's site editor.
-        if (bodyMapOpenRef.current || siteQueueRef.current.length || logPopupOpenRef.current) return;
-        inactivePromptOpenRef.current = true;
-        setInactiveProtocol(p);
-        setShowInactivePrompt(true);
-        return; // one at a time
-      }
+      const logs = getLogsSince(user.id, since.toISOString()) || [];
+      const q = nextTodayQuestion(protocols, logs, new Date());
+      if (!q) return;
+      // One modal at a time: a site question goes first; this prompt comes after it (openNextQuestion).
+      // BK-20: nor over the embedded Dose log's site editor; DV-202: nor over any other Today popup.
+      if (bodyMapOpenRef.current || siteQueueRef.current.length || logPopupOpenRef.current
+        || vialPromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
+      if (inactivePromptOpenRef.current) return;
+      inactivePromptOpenRef.current = true;
+      setInactiveProtocol(q.p);
+      setInactiveKind(q.kind);
+      setInactiveStep('ask');
+      setShowInactivePrompt(true);
     } catch { /* ignore */ }
   }
 
+  // The box closes after an answer; the data changed (fetch + sync) and the next question — a site
+  // question that waited, else the next protocol (SG-29) — opens once this one has faded out.
+  function closeProtocolQuestion() {
+    setShowInactivePrompt(false);
+    setInactiveProtocol(null);
+    setInactiveStep('ask');
+    inactivePromptOpenRef.current = false;
+    fetchProtocols();
+    requestSync();
+    setTimeout(openNextQuestion, 450);
+  }
+
+  // "Sim, terminou".
   async function endInactiveProtocol() {
     const p = inactiveProtocol;
     if (!p) return;
@@ -663,22 +687,64 @@ export default function TodayScreen() {
     deactivateVialsByProtocol(p.id);
     cancelDoseReminder(p.id).catch(() => {});
     AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
-    setShowInactivePrompt(false);
-    setInactiveProtocol(null);
-    inactivePromptOpenRef.current = false;
-    fetchProtocols();
-    requestSync();
-    setTimeout(openNextQuestion, 450);
+    closeProtocolQuestion();
   }
 
+  // "Continua": A-148 — kept on the protocol and synced (still_going_at), so a sign-in or another
+  // phone never asks again before max(7, 3 × interval) days.
   async function snoozeInactiveProtocol() {
     const p = inactiveProtocol;
-    if (p) AsyncStorage.setItem(`dosetrace_tx_check_${p.id}`, new Date().toISOString()).catch(() => {});
-    setShowInactivePrompt(false);
-    setInactiveProtocol(null);
-    inactivePromptOpenRef.current = false;
-    setTimeout(openNextQuestion, 450);
+    if (p) markProtocolStillGoing(p.id, new Date().toISOString());
+    requestSync();
+    closeProtocolQuestion();
   }
+
+  // "Continua até uma data…" → "Até quando?" in the same box (SG-2), the wheel on its opening day.
+  function openUntilDate() {
+    const p = inactiveProtocol;
+    if (!p) return;
+    setEndPick(endDateRange(p, new Date()).openKey);
+    setInactiveStep('date');
+  }
+  // "Salvar data de fim": saved only from the first valid day on (the wheel cannot show an earlier one).
+  function saveUntilDate() {
+    const p = inactiveProtocol;
+    if (!p || !endPick) return;
+    if (!setProtocolPlannedEnd(p.id, endPick)) return;
+    closeProtocolQuestion();
+  }
+
+  // "Encerrar" (SG-16): the one End — Ended, dated by the course rules (DL-99 / DL-110), vials off;
+  // every reminder of it cancelled and the delivered banners cleared.
+  function endCourse() {
+    const p = inactiveProtocol;
+    if (!p) return;
+    endProtocolNow(p.id);
+    cancelDoseReminder(p.id).catch(() => {});
+    dismissDeliveredDoseReminders(p.id).catch(() => {});
+    AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
+    closeProtocolQuestion();
+  }
+  // "Continuar": the end date (and a legacy total) go, the span restarts (DL-113); a cleared total
+  // brings its reminders back.
+  function continueCourse() {
+    const p = inactiveProtocol;
+    if (!p) return;
+    continueProtocolCourse(p.id);
+    const fresh = getProtocolById(p.id);
+    if (fresh) scheduleDoseReminder(fresh).catch(() => {});
+    closeProtocolQuestion();
+  }
+  // The course-end text: the approved one on the end date; the date itself when asked later or for a
+  // legacy total (DL-116: the app language's date format).
+  function courseEndBody(p) {
+    const cs = courseState(p, new Date());
+    const date = cs.endKey ? formatDate(cs.endKey, language, 'dayMonthYear') : '';
+    if (cs.kind === 'total') return t('today_course_end_body_total').replace('{date}', date);
+    if (cs.after) return t('today_course_end_body_late').replace('{date}', date);
+    return t('today_course_end_body');
+  }
+
 
   // Build last-site recall map: most recent log with an injection_site, per protocol.
   // Used by DoseCard to show "Last: Abdomen · 3d ago". This is a recall of the
@@ -1110,7 +1176,9 @@ export default function TodayScreen() {
     // site editor; the question waits and opens when that editor closes.
     if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
     const q = siteQueueRef.current.shift();
-    if (!q) { runLogPopupWaiter(); return; }
+    // No site question waits: the embedded Log's editor, else the next protocol question (A-121
+    // SG-22 / SG-29: one at a time, after any other popup has closed; the check guards itself).
+    if (!q) { runLogPopupWaiter(); checkStillGoingWhenSynced(); return; }
     // Paused / deleted, or already logged (another device, a banner): nothing to ask.
     if (isDoseAlreadyLogged(q.protocolId, commitOpts(q))) {
       dropQuestion(AsyncStorage, q.key);
@@ -1985,6 +2053,7 @@ export default function TodayScreen() {
             withoutVial={sn === 'vial'}
             notice={noticeEl}
             openEdit={toProtocol}
+            onEndDate={toProtocol}
             deleteProtocol={null}
             onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={toProtocol} onZoom={toProtocol}
             draft={getDraft(noteDraftKey(p.id))}
@@ -2603,26 +2672,71 @@ export default function TodayScreen() {
         <DTSheet config={vialSheet} onClose={() => setVialSheet(null)} />
       </Modal>
 
-      {/* Inactivity nudge: "is this protocol finished?" */}
-      <Modal visible={showInactivePrompt} transparent animationType="fade">
+      {/* "Ainda em andamento?" (A-121: + "Continua até uma data…", and "Até quando?" in the same box)
+          and "Ciclo concluído — encerrar {name}?" — one protocol at a time
+          (docs/design/a121-still-going-end-date.html, steps 1–3). */}
+      <Modal
+        visible={showInactivePrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (inactiveStep === 'date') setInactiveStep('ask'); }}
+      >
         <View style={s.promptOverlay}>
-          <View style={s.promptCard}>
-            <Text style={s.promptTitle}>{t('today_tx_over_title')}</Text>
-            {inactiveProtocol && (
-              <Text style={s.promptProtocolName}>
-                {inactiveProtocol.compound_id ? t(inactiveProtocol.compound_id) : inactiveProtocol.name}
+          {inactiveProtocol && inactiveKind === 'course_end' ? (
+            <View style={s.promptCard}>
+              <Text style={s.promptTitle} accessibilityRole="header">
+                {t('today_course_end_title').replace('{name}', inactiveProtocol.compound_id ? t(inactiveProtocol.compound_id) : inactiveProtocol.name)}
               </Text>
-            )}
-            <Text style={s.promptSub}>{t('today_tx_over_body')}</Text>
-            <View style={s.promptActions}>
-              <TouchableOpacity style={s.promptBtnSecondary} onPress={snoozeInactiveProtocol}>
-                <Text style={s.promptBtnSecondaryText}>{t('today_tx_over_keep')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.promptBtnPrimary} onPress={endInactiveProtocol}>
-                <Text style={s.promptBtnPrimaryText}>{t('today_tx_over_end')}</Text>
-              </TouchableOpacity>
+              <Text style={s.promptSub}>{courseEndBody(inactiveProtocol)}</Text>
+              <View style={s.promptActions}>
+                <TouchableOpacity style={s.promptBtnSecondary} onPress={continueCourse} accessibilityRole="button">
+                  <Text style={s.promptBtnSecondaryText}>{t('today_course_end_continue')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.promptBtnPrimary} onPress={endCourse} accessibilityRole="button">
+                  <Text style={s.promptBtnPrimaryText}>{t('today_course_end_end')}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          ) : inactiveProtocol && inactiveStep === 'date' && endPick ? (
+            <View style={s.promptCard}>
+              <EndDateStep
+                title={t('end_until_title')}
+                name={inactiveProtocol.compound_id ? t(inactiveProtocol.compound_id) : inactiveProtocol.name}
+                body={t('end_until_body')}
+                iso={endPick}
+                minKey={endDateRange(inactiveProtocol, new Date()).minKey}
+                monthLabels={MONTHS_SHORT[language] || MONTHS_SHORT.en}
+                onChange={setEndPick}
+                saveLabel={t('end_save')}
+                onSave={saveUntilDate}
+                backLabel={t('back')}
+                onBack={() => setInactiveStep('ask')}
+              />
+            </View>
+          ) : (
+            <View style={s.promptCard}>
+              <Text style={s.promptTitle} accessibilityRole="header">{t('today_tx_over_title')}</Text>
+              {inactiveProtocol && (
+                <Text style={s.promptProtocolName}>
+                  {inactiveProtocol.compound_id ? t(inactiveProtocol.compound_id) : inactiveProtocol.name}
+                </Text>
+              )}
+              <Text style={s.promptSub}>{t('today_tx_over_body')}</Text>
+              <Text style={s.promptSub}>{t('today_tx_over_body2')}</Text>
+              {/* Three choices stacked (two side by side no longer fit), top to bottom (SG-1). */}
+              <View style={s.promptStack}>
+                <TouchableOpacity style={[s.promptBtnPrimary, s.promptStackBtn]} onPress={endInactiveProtocol} accessibilityRole="button">
+                  <Text style={s.promptBtnPrimaryText}>{t('today_tx_over_end')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.promptBtnSecondary, s.promptStackBtn]} onPress={openUntilDate} accessibilityRole="button">
+                  <Text style={s.promptBtnSecondaryText}>{t('today_tx_over_until')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[s.promptBtnSecondary, s.promptStackBtn]} onPress={snoozeInactiveProtocol} accessibilityRole="button">
+                  <Text style={s.promptBtnSecondaryText}>{t('today_tx_over_keep')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       </Modal>
 
@@ -2790,6 +2904,9 @@ const legacyStyles = (c) => ({
   promptBtnSecondaryText: { fontSize: 15, fontWeight: '700', color: c.ink, textAlign: 'center' },
   promptBtnPrimary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   promptBtnPrimaryText: { fontSize: 15, fontWeight: '700', color: c.onAct, textAlign: 'center' },
+  // A-121: the three stacked choices of "Ainda em andamento?" (full width, 8 apart).
+  promptStack: { gap: 8 },
+  promptStackBtn: { flex: 0, alignSelf: 'stretch' },
   // Yesterday / Today shortcut pills
   yesterdayRow: { flexDirection: 'row', gap: 8 },
   yesterdayPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1, borderColor: c.line },
