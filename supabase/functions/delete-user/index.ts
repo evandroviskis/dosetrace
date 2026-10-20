@@ -155,11 +155,10 @@ Deno.serve(async (req) => {
       // Per-user reminder-send ledger (server push); cascades too, listed for the
       // same provable-erasure reason. Tolerated if the table doesn't exist yet.
       'notification_sends',
-      // A-119: the account's devices (which one is active, each one's last send). Both cascade with
-      // the auth user too; listed so nothing about the account or its devices is kept (DL-93).
-      'user_devices',
-      'account_devices',
     ];
+    // A-119: the account's devices (which one is active, each one's last send) are removed AFTER the
+    // auth user (below): until then the active-device guard keeps refusing a replaced phone (Gate B).
+    const deviceTables = ['user_devices', 'account_devices'];
 
     for (const table of userDataTables) {
       const { error: rowError } = await adminClient.from(table).delete().eq('user_id', user.id);
@@ -194,6 +193,13 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Both cascade with the auth user; deleted explicitly so nothing about the account or its
+    // devices is kept (DL-93). Tolerated: already gone by the cascade, or not migrated yet.
+    for (const table of deviceTables) {
+      const { error: devError } = await adminClient.from(table).delete().eq('user_id', user.id);
+      if (devError && !tableMissing(devError)) console.error(`[delete-user] after-delete cleanup "${table}":`, devError.code, devError.message);
     }
 
     return new Response(JSON.stringify({ success: true, appleRevoked, appleManualRevokeNeeded }), {

@@ -49,7 +49,8 @@ test('OD-7 / DL-105 / OD-17: the guard refuses with distinct codes, never an emp
   assert.match(g, /errcode = 'DT003'/);
   assert.match(g, /if v_uid is null or coalesce\(auth\.role\(\), ''\) = 'service_role' then return; end if;/);
   assert.match(g, /if p_lock then\s+select active_device into v_active from public\.account_devices where user_id = v_uid for share;/, 'OD-3: writes wait for a takeover in progress');
-  assert.match(g, /if v_dev is null then\s+if v_found then raise exception using errcode = 'DT002'/, 'OD-17: no device id → only while the account has no device');
+  assert.match(g, /if v_dev is null then\s+if v_found and v_legacy is not null and now\(\) >= v_legacy then raise exception using errcode = 'DT002'/, 'DL-105 amended: no device id → refused only after the founder\'s cutoff');
+  assert.match(sql, /legacy_until timestamptz/);
 });
 
 test('OD-7: reads AND writes of every synced table are checked before the query (PostgREST pre-request), writes again in statement triggers', () => {
@@ -58,7 +59,8 @@ test('OD-7: reads AND writes of every synced table are checked before the query 
   assert.match(p, /perform public\.dt_require_active_device\(v_method not in \('GET', 'HEAD'\)\)/);
   assert.match(sql, /alter role authenticator set pgrst\.db_pre_request to 'public\.dt_pre_request';/);
   assert.match(sql, /notify pgrst, 'reload config';/);
-  assert.match(sql, /grant execute on function public\.dt_pre_request\(\) to anon, authenticated;/);
+  assert.match(sql, /grant execute on function public\.dt_pre_request\(\) to anon, authenticated, service_role;/, 'Gate B M3');
+  assert.match(raw, /NEVER drop or rename public\.dt_pre_request while pgrst\.db_pre_request names it/);
   const arr = /foreach t in array array\[([^\]]+)\]/.exec(sql);
   assert.ok(arr, 'the trigger loop');
   for (const t of [...TABLES, 'push_tokens']) assert.match(arr[1], new RegExp(`'${t}'`), t);
@@ -74,7 +76,8 @@ test('OD-3 / OD-14 / DL-102 / DL-103 / DL-104 / OD-16: claim_device', () => {
   assert.match(c, /'superseded'/);
   assert.match(c, /'in_use'/, 'a silent claim never takes over another device (DL-103)');
   assert.match(c, /delete from public\.push_tokens where user_id = v_uid and device_id is distinct from p_device;/, 'OD-16');
-  assert.match(c, /rebuild_owed = true/);
+  assert.match(c, /rebuild_owed = true, rebuild_mode = 'takeover'/);
+  assert.match(c, /v_stale := v_acc\.last_device is not null and v_acc\.last_device <> p_device;/, 'Gate B M2: a stale copy owes a rebuild');
   assert.match(c, /perform set_config\('dt\.in_claim', '1', true\);/);
   assert.match(c, /extensions\.digest\(v_secret, 'sha256'\)/);
 });
@@ -89,13 +92,14 @@ test('device_status (account gone, replaced, in use, none), release, mark sent, 
   assert.match(fn('account_exists'), /select exists \(select 1 from auth\.users where id = p_user\)/);
   assert.match(sql, /grant execute on function public\.claim_device\(text, text, text, text, text, text\), public\.device_status\(text\), public\.release_device\(text\), public\.device_mark_sent\(text\), public\.device_ack\(text, text\) to authenticated;/);
   assert.match(sql, /grant execute on function public\.device_status_by_secret\(text\), public\.account_exists\(uuid\) to anon, authenticated;/);
+  assert.match(sql, /public\.device_ack\(text, text\) from anon;/, 'Gate B M3: anon revoked explicitly');
+  assert.match(fn('device_status_by_secret'), /'user_id', v_me\.user_id/, 'Gate B LOW');
 });
 
 test('delete-user (not deployed): removes the device rows (DL-93 list) and refuses a phone that is no longer the account\'s (409)', () => {
   const src = fs.readFileSync(path.join(__dirname, '../supabase/functions/delete-user/index.ts'), 'utf8');
-  const list = /userDataTables\s*=\s*\[([\s\S]*?)\]/.exec(src)[1];
-  assert.match(list, /'user_devices'/);
-  assert.match(list, /'account_devices'/);
+  assert.match(src, /const deviceTables = \['user_devices', 'account_devices'\];/);
+  assert.ok(src.indexOf('for (const table of deviceTables)') > src.indexOf('adminClient.auth.admin.deleteUser(user.id)'), 'Gate B LOW: the device rows go after the auth user (the guard holds until then)');
   assert.match(src, /'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-dt-device, x-dt-app-version'/);
   assert.match(src, /const device = req\.headers\.get\('x-dt-device'\);/);
   assert.match(src, /JSON\.stringify\(\{ error: 'device_not_active' \}\), \{\s*status: 409/);

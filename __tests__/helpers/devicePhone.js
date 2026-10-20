@@ -36,7 +36,8 @@ function phone(cloud, deviceId, userId, opts = {}) {
     store: kv,
     secret: { get: async () => p.secret, set: async (v) => { p.secret = v; }, remove: async () => { p.secret = null; } },
     summarize: async (uid) => summarizeUnsent(db, [uid]),
-    rebuild: async (uid) => rebuildFromCloud(db, view, uid),
+    rebuild: async (uid, o) => rebuildFromCloud(db, view, uid, { keep: o && o.keep }),
+    requestPass: () => { p.passesAsked = (p.passesAsked || 0) + 1; },
     stopSync: () => { p.stopped += 1; },
     cancelReminders: async () => { p.cancelled += 1; },
     onChange: () => { p.changes += 1; },
@@ -49,7 +50,15 @@ function phone(cloud, deviceId, userId, opts = {}) {
     pendingCount: () => summarizeUnsent(db, [userId]).count,
     markSent: () => p.flow.markSent(userId),
   });
-  p.signIn = () => p.flow.afterExplicitSignIn(userId);
+  // A sign-in the person makes; a rebuild it owes runs in the next pass (Gate B M1), as App asks.
+  const thenPass = async (r) => {
+    if (!(r && r.reason === 'rebuild_queued')) return r;
+    const pass = await p.sync();
+    return { go: !!pass.ran, outcome: pass.ran ? 'rebuilt' : pass.reason, reason: pass.reason };
+  };
+  p.signIn = async () => thenPass(await p.flow.afterExplicitSignIn(userId));
+  p.useHere = async () => thenPass(await p.flow.useHere(userId));
+  p.gate = async (ctx) => thenPass(await p.flow.gate(userId, ctx));
   p.state = () => p.flow.load();
   return p;
 }

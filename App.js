@@ -17,6 +17,7 @@ import { consumeExplicitSignIn, beginExplicitSignIn, endExplicitSignIn } from '.
 import { deviceFlow, deviceGate, subscribeDevice, readDeviceState, continueAfterVerdict, checkAccountGoneFor } from './lib/deviceRuntime';
 import { noticeSheet, verdictSheet, askSheet, signOutSheet } from './lib/deviceCopy';
 import { runSignOut } from './lib/settingsSignOut';
+import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
 import { createBusyGuard } from './lib/busyGuard';
 import { signOutIntended } from './lib/accountActions';
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
@@ -302,14 +303,16 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   //   screen 1 / 1b — the takeover notice: once, on Main only (after the 18+ and profile steps).
   const onMain = !!session && !recovery && isProfileComplete(session.user) && !needsAdultConfirmation(session.user && session.user.user_metadata);
   const dev = device || {};
+  // The one sign-out sheet (the reset-link switch, screen 4's "Sign out of this phone") comes before
+  // screen 4 itself, which shows again when the person stays.
   const deviceSheet = deviceHeld ? null
     : dev.verdict ? verdictSheet({ t, language, timeFormat, verdict: dev.verdict, onContinue: onVerdictContinue })
-      : dev.ask && session && dev.ask.userId === session.user.id ? askSheet({ t, ask: dev.ask, onUseHere, onSignOut: onAskSignOut })
-        : switchSignOut ? signOutSheet({ t, language, timeFormat, offline: switchSignOut.r.offline, summary: switchSignOut.r.summary, lastBackup: switchSignOut.r.lastBackup, onAnyway: switchSignOut.onAnyway, onStay: switchSignOut.onStay })
+      : switchSignOut ? signOutSheet({ t, language, timeFormat, offline: switchSignOut.r.offline, summary: switchSignOut.r.summary, lastBackup: switchSignOut.r.lastBackup, onAnyway: switchSignOut.onAnyway, onStay: switchSignOut.onStay })
+        : dev.ask && session && dev.ask.userId === session.user.id ? askSheet({ t, language, timeFormat, ask: dev.ask, onUseHere, onSignOut: onAskSignOut })
           : dev.notice && onMain && dev.notice.userId === session.user.id ? noticeSheet({ t, language, timeFormat, notice: dev.notice, onOk: onNoticeSeen })
             : null;
   const closeDeviceSheet = () => {
-    if (switchSignOut && !dev.verdict && !(dev.ask && session)) onSwitchSignOutClose && onSwitchSignOutClose();
+    if (switchSignOut && !dev.verdict) onSwitchSignOutClose && onSwitchSignOutClose();
     else onDeviceSheetClose && onDeviceSheetClose();
   };
 
@@ -773,19 +776,11 @@ export default function App() {
 
         // A-119: the active-device check before the import (OD-4: a phone the server says was replaced
         // never pulls; DL-103: an updated phone becomes active silently, or asks when another device
-        // holds the account; OD-14: a restored session never takes over).
-        let dev = { go: true };
-        try { dev = await deviceGate('startup'); } catch { dev = { go: true }; }
-        const held = !!dev && dev.go === false && (dev.reason === 'verdict' || dev.reason === 'ask');
-        if (!held) {
-          // If local DB is empty, import all data from cloud (first launch / new device)
-          if (dev.go !== false && isLocalDBEmpty(session.user.id)) {
-            await fullImportFromCloud();
-          } else {
-            // Otherwise trigger a background sync to push/pull changes
-            requestSync();
-          }
-
+        // holds the account; OD-14: a restored session never takes over). lib/signInDevice: if the
+        // local DB is empty, import all data from cloud (first launch / new device); otherwise a
+        // background sync pushes / pulls changes.
+        const step = await startupDeviceStep({ gate: deviceGate, userId: session.user.id, isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync });
+        if (!step.held) {
           // One-time move of the open reality check + calculator inputs into the
           // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
           await runRealityMigration().catch(() => {});
@@ -814,6 +809,7 @@ export default function App() {
     const onSignedIn = (session) => {
       noteSignedIn(); // counted first: the reset helper then never runs it a second time
       const explicit = consumeExplicitSignIn(); // A-119 DL-102 (pure)
+      if (explicit) deviceFlow().noteExplicitSignIn(session.user.id); // in memory: a pass first claims
       // A sign-in ends any pending wipe of the previous account (R1): plain counter write.
       bumpSignInGeneration();
       // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
@@ -829,7 +825,7 @@ export default function App() {
         // next spurious sign-out — the exact bug this guard exists to prevent).
         consumeIntentionalSignOut();
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
-        startSyncEngine();
+        // (A-119: the sync engine starts after the device step below — lib/signInDevice.)
 
         // Cross-account guard: if local data belongs to a DIFFERENT user (e.g. a
         // spurious sign-out KEPT it, then a different account signed in on this
@@ -848,28 +844,20 @@ export default function App() {
           }
         } catch { /* ignore */ }
 
-        // A-119 one active device: a sign-in the person made takes the account over (DL-102; the
-        // takeover is committed before the first import, OD-3; after another device was active the
-        // copy is rebuilt from the account and this phone's own unsent rows are named, DL-104); any
-        // other SIGNED_IN only checks (OD-14). Never blocks the sign-in (OD-1).
-        let dev = { go: true };
-        try { dev = explicit ? await deviceFlow().afterExplicitSignIn(session.user.id) : await deviceGate('signin'); } catch { dev = { go: true }; }
-        reloadDevice();
+        // A-119 one active device (lib/signInDevice): a sign-in the person made takes the account over
+        // (DL-102; committed before the first import, OD-3; a rebuild it owes runs in the next pass);
+        // any other SIGNED_IN only checks (OD-14). The sync engine starts after it (auditor race).
+        // Never blocks the sign-in (OD-1). Screen 2 / screen 4: nothing imported, nothing scheduled.
+        const step = await signInDeviceStep({
+          explicit, userId: session.user.id, flow: deviceFlow(), gate: deviceGate, startSync: startSyncEngine,
+          isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync, reload: reloadDevice,
+        });
 
         // Write any stashed intro-flow answers (name/goal/activity/…) to the
         // freshly-created account, then clear the stash. No-op for returning
         // users with no stash. Deferred (never inline in onAuthStateChange).
         applyPendingProfile(supabase).catch(() => {});
-
-        // Screen 2 / screen 4: nothing imported, nothing scheduled.
-        if (dev && dev.go === false && (dev.reason === 'verdict' || dev.reason === 'ask')) return;
-
-        // Import from cloud on sign-in if local DB is empty (a rebuild after a takeover already did)
-        if (dev.go !== false && dev.outcome !== 'rebuilt' && isLocalDBEmpty(session.user.id)) {
-          await fullImportFromCloud();
-        } else {
-          requestSync();
-        }
+        if (step.held) return;
 
         // One-time move of the open reality check + calculator inputs into the
         // synced tables (S-03), after the import and BEFORE scheduling reminders.
@@ -1032,9 +1020,15 @@ export default function App() {
                   .finally(() => { setDeviceHeld(false); reloadDevice(); });
               }}
               onAskSignOut={() => {
-                // Screen 4 "Sign out of this phone": nothing changes on the other device (no release).
-                signOutIntended({ force: true })
-                  .then((r) => { if (r && r.failed) setLinkFailed('signout_failed'); })
+                // Screen 4 "Sign out of this phone" (Gate B H1): the deliberate sign-out with its count —
+                // anything unsent opens the one sign-out sheet ("Sign out anyway" or stay; staying shows
+                // screen 4 again). Nothing changes on the other device (this phone is not active: no release).
+                runSignOut({
+                  signOut: (opts) => signOutIntended(opts),
+                  guard: switchGuard.current,
+                  onFailed: () => setLinkFailed('signout_failed'),
+                  onBlocked: (r, anyway) => setSwitchSignOut({ r, onAnyway: () => { anyway().catch(() => {}).finally(reloadDevice); }, onStay: () => {} }),
+                })
                   .catch(() => setLinkFailed('signout_failed'))
                   .finally(() => { setDeviceHeld(false); reloadDevice(); });
               }}

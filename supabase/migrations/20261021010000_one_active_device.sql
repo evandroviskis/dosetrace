@@ -2,12 +2,23 @@
 -- OD-1..OD-18; DL-102..DL-108; plan docs/specs/one-active-device-plan.md section 1).
 --
 -- NOT APPLIED. Apply only with the founder's "pode aplicar", before any build with A-119 reaches a
--- phone (a build without this migration keeps working: its device calls answer "function not
--- found" = unknown, never a verdict). Rehearse on a Supabase branch or a local stack first.
+-- phone. A build with A-119 and WITHOUT this migration keeps working as 1.3.0 did: its device calls
+-- answer "function not found" (PGRST202), which the app treats as "no device rules here" — never a
+-- verdict, never a pass held back (lib/deviceFlow errorKind; __tests__/a119GateB.test.js "H2
+-- (brick.cjs)"). Rehearsed on supabase/postgres 15.8 + PostgREST 12.2 (scripts/a119-pg-rehearsal.cjs).
 --
 -- BEFORE applying, check that no other pre-request function is set (this migration sets one):
 --   select rolconfig from pg_roles where rolname = 'authenticator';
 -- If a pgrst.db_pre_request is already there, call it from public.dt_pre_request instead.
+--
+-- NEVER drop or rename public.dt_pre_request while pgrst.db_pre_request names it: a missing
+-- pre-request function makes EVERY PostgREST call fail (every table, every RPC, every app version).
+-- Reset the setting first (see ROLLBACK), reload, then drop.
+--
+-- DL-105 as amended 2026-10-20 (Gate B, by logic from "never lose user-entered data"): requests
+-- WITHOUT a device id (1.3.0 installs) keep working until the founder sets
+-- device_policy.legacy_until; after that moment they are refused with DT002 (their rows stay pending
+-- on the phone, nothing is deleted).
 --
 -- What it does (additive; no existing row is changed or removed):
 --   1. account_devices — per account: the ONE active device and the session that claimed it.
@@ -50,7 +61,10 @@ create table if not exists public.account_devices (
   user_id uuid primary key references auth.users(id) on delete cascade,
   active_device text,
   since timestamptz not null default now(),
-  session_created_at timestamptz
+  session_created_at timestamptz,
+  -- Gate B M2: the device that was active last (kept when the account is released): a different
+  -- device that becomes active later holds a stale copy and owes a rebuild.
+  last_device text
 );
 
 create table if not exists public.user_devices (
@@ -67,6 +81,9 @@ create table if not exists public.user_devices (
   replaced_at timestamptz,
   replaced_by text,
   rebuild_owed boolean not null default false,
+  -- 'takeover' (DL-104: unsent rows from before this phone's own sign-in are discarded and named) or
+  -- 'stale' (M2: this phone becomes active with no other phone holding the account: unsent rows kept).
+  rebuild_mode text check (rebuild_mode is null or rebuild_mode in ('takeover', 'stale')),
   notice jsonb,
   primary key (user_id, device_id)
 );
@@ -74,7 +91,9 @@ create index if not exists user_devices_secret_hash on public.user_devices (secr
 
 create table if not exists public.device_policy (
   id boolean primary key default true check (id),
-  min_app_version text check (min_app_version is null or min_app_version ~ '^[0-9]+(\.[0-9]+)*$')
+  min_app_version text check (min_app_version is null or min_app_version ~ '^[0-9]+(\.[0-9]+)*$'),
+  -- DL-105 amended: requests without a device id work until this moment (null = no cutoff yet).
+  legacy_until timestamptz
 );
 insert into public.device_policy (id) values (true) on conflict (id) do nothing;
 
@@ -110,13 +129,14 @@ declare
   v_dev text := public.dt_header('x-dt-device');
   v_ver text := public.dt_header('x-dt-app-version');
   v_min text;
+  v_legacy timestamptz;
   v_active text;
   v_found boolean;
 begin
   if v_uid is null or coalesce(auth.role(), '') = 'service_role' then return; end if;
   -- claim_device's own writes (it removes the other devices' push tokens).
   if coalesce(current_setting('dt.in_claim', true), '') = '1' then return; end if;
-  select min_app_version into v_min from public.device_policy where id;
+  select min_app_version, legacy_until into v_min, v_legacy from public.device_policy where id;
   if v_min is not null and v_ver is not null and public.dt_version_below(v_ver, v_min) then
     raise exception using errcode = 'DT003', message = 'update_required', hint = v_min;
   end if;
@@ -126,8 +146,9 @@ begin
     select active_device into v_active from public.account_devices where user_id = v_uid;
   end if;
   v_found := found;
+  -- DL-105 amended: an older version (no device id) keeps working until the founder's cutoff.
   if v_dev is null then
-    if v_found then raise exception using errcode = 'DT002', message = 'device_required'; end if;
+    if v_found and v_legacy is not null and now() >= v_legacy then raise exception using errcode = 'DT002', message = 'device_required'; end if;
     return;
   end if;
   if not v_found or v_active is distinct from v_dev then
@@ -153,7 +174,7 @@ begin
 end;
 $$;
 revoke all on function public.dt_pre_request() from public;
-grant execute on function public.dt_pre_request() to anon, authenticated;
+grant execute on function public.dt_pre_request() to anon, authenticated, service_role;
 alter role authenticator set pgrst.db_pre_request to 'public.dt_pre_request';
 notify pgrst, 'reload config';
 
@@ -192,6 +213,7 @@ declare
   v_prev public.user_devices;
   v_secret text;
   v_notice jsonb;
+  v_stale boolean;
 begin
   if v_uid is null then raise exception using errcode = '28000', message = 'not signed in'; end if;
   if p_device is null or char_length(p_device) not between 8 and 128 then raise exception using errcode = '22023', message = 'bad device'; end if;
@@ -213,19 +235,28 @@ begin
   if v_acc.active_device = p_device then
     update public.account_devices set session_created_at = greatest(coalesce(session_created_at, v_sess), coalesce(v_sess, session_created_at)) where user_id = v_uid;
     update public.user_devices set secret_hash = encode(extensions.digest(v_secret, 'sha256'), 'hex') where user_id = v_uid and device_id = p_device;
-    return jsonb_build_object('status', 'active', 'took_over', false, 'rebuild_owed', v_me.rebuild_owed, 'notice', v_me.notice, 'secret', v_secret, 'server_time', v_now);
+    return jsonb_build_object('status', 'active', 'took_over', false, 'rebuild_owed', v_me.rebuild_owed, 'rebuild_mode', v_me.rebuild_mode, 'notice', v_me.notice, 'secret', v_secret, 'server_time', v_now);
   end if;
 
   -- No device active (never registered, or the last one signed out normally — DL-108): this one,
   -- data kept, no notice. A replaced device's cold start never takes the account back (OD-14).
+  -- Gate B M2: if ANOTHER device held the account after this one, this copy is stale: a rebuild is
+  -- owed ('stale': its unsent rows are kept and re-sent, DL-103 "data kept").
   if v_acc.active_device is null then
     if p_mode = 'silent' and v_me.replaced_at is not null then
       return jsonb_build_object('status', 'replaced', 'at', v_me.replaced_at, 'server_time', v_now);
     end if;
-    update public.account_devices set active_device = p_device, since = v_now, session_created_at = coalesce(v_sess, v_now) where user_id = v_uid;
-    update public.user_devices set replaced_at = null, replaced_by = null, rebuild_owed = false, notice = null,
+    v_stale := v_acc.last_device is not null and v_acc.last_device <> p_device;
+    update public.account_devices set active_device = p_device, last_device = p_device, since = v_now, session_created_at = coalesce(v_sess, v_now) where user_id = v_uid;
+    -- A rebuild this device still owes (not done before it released the account) stays owed.
+    v_stale := v_stale or coalesce(v_me.rebuild_owed, false);
+    update public.user_devices set replaced_at = null, replaced_by = null, rebuild_owed = v_stale,
+      rebuild_mode = case when v_stale then 'stale' end, notice = null,
       secret_hash = encode(extensions.digest(v_secret, 'sha256'), 'hex') where user_id = v_uid and device_id = p_device;
-    return jsonb_build_object('status', 'active', 'took_over', false, 'rebuild_owed', false, 'notice', null, 'secret', v_secret, 'server_time', v_now);
+    -- Gate B LOW: tokens of other devices and of 1.3.0 installs (no device id) go too.
+    delete from public.push_tokens where user_id = v_uid and device_id is distinct from p_device;
+    return jsonb_build_object('status', 'active', 'took_over', false, 'rebuild_owed', v_stale, 'rebuild_mode', case when v_stale then 'stale' end,
+      'notice', null, 'secret', v_secret, 'server_time', v_now);
   end if;
 
   select * into v_prev from public.user_devices where user_id = v_uid and device_id = v_acc.active_device;
@@ -251,11 +282,11 @@ begin
     'last_full_send_at', v_prev.last_full_send_at);
   update public.user_devices set replaced_at = v_now, replaced_by = p_device, rebuild_owed = false, notice = null
     where user_id = v_uid and device_id = v_acc.active_device;
-  update public.user_devices set replaced_at = null, replaced_by = null, rebuild_owed = true, notice = v_notice,
+  update public.user_devices set replaced_at = null, replaced_by = null, rebuild_owed = true, rebuild_mode = 'takeover', notice = v_notice,
     secret_hash = encode(extensions.digest(v_secret, 'sha256'), 'hex') where user_id = v_uid and device_id = p_device;
-  update public.account_devices set active_device = p_device, since = v_now, session_created_at = coalesce(v_sess, v_now) where user_id = v_uid;
+  update public.account_devices set active_device = p_device, last_device = p_device, since = v_now, session_created_at = coalesce(v_sess, v_now) where user_id = v_uid;
   delete from public.push_tokens where user_id = v_uid and device_id is distinct from p_device;
-  return jsonb_build_object('status', 'active', 'took_over', true, 'rebuild_owed', true, 'notice', v_notice, 'secret', v_secret, 'server_time', v_now);
+  return jsonb_build_object('status', 'active', 'took_over', true, 'rebuild_owed', true, 'rebuild_mode', 'takeover', 'notice', v_notice, 'secret', v_secret, 'server_time', v_now);
 end;
 $$;
 
@@ -280,7 +311,7 @@ begin
   select * into v_me from public.user_devices where user_id = v_uid and device_id = p_device;
   if v_acc.user_id is not null and v_acc.active_device = p_device then
     update public.user_devices set last_seen_at = v_now where user_id = v_uid and device_id = p_device;
-    return jsonb_build_object('status', 'active', 'rebuild_owed', coalesce(v_me.rebuild_owed, false), 'notice', v_me.notice, 'min_version', v_min, 'server_time', v_now);
+    return jsonb_build_object('status', 'active', 'rebuild_owed', coalesce(v_me.rebuild_owed, false), 'rebuild_mode', v_me.rebuild_mode, 'notice', v_me.notice, 'min_version', v_min, 'server_time', v_now);
   end if;
   if v_me.replaced_at is not null then
     return jsonb_build_object('status', 'replaced', 'at', v_me.replaced_at, 'min_version', v_min, 'server_time', v_now);
@@ -329,7 +360,7 @@ declare v_uid uuid := auth.uid(); v_n int;
 begin
   if v_uid is null then raise exception using errcode = '28000', message = 'not signed in'; end if;
   if p_what = 'rebuild' then
-    update public.user_devices d set rebuild_owed = false where d.user_id = v_uid and d.device_id = p_device
+    update public.user_devices d set rebuild_owed = false, rebuild_mode = null where d.user_id = v_uid and d.device_id = p_device
       and exists (select 1 from public.account_devices a where a.user_id = v_uid and a.active_device = p_device);
   elsif p_what = 'notice' then
     update public.user_devices d set notice = null where d.user_id = v_uid and d.device_id = p_device
@@ -351,8 +382,9 @@ begin
   select * into v_me from public.user_devices where secret_hash = encode(extensions.digest(p_secret, 'sha256'), 'hex') limit 1;
   if v_me.user_id is null then return jsonb_build_object('status', 'unknown'); end if;
   select active_device into v_active from public.account_devices where user_id = v_me.user_id;
-  if v_active = v_me.device_id then return jsonb_build_object('status', 'active'); end if;
-  if v_me.replaced_at is not null then return jsonb_build_object('status', 'replaced', 'at', v_me.replaced_at); end if;
+  -- Gate B LOW: the answer names its account; the phone acts only when it is its own.
+  if v_active = v_me.device_id then return jsonb_build_object('status', 'active', 'user_id', v_me.user_id); end if;
+  if v_me.replaced_at is not null then return jsonb_build_object('status', 'replaced', 'at', v_me.replaced_at, 'user_id', v_me.user_id); end if;
   return jsonb_build_object('status', 'unknown');
 end;
 $$;
@@ -365,6 +397,9 @@ returns boolean language sql stable security definer set search_path = public, p
 $$;
 
 revoke all on function public.dt_header(text), public.dt_version_below(text, text), public.dt_require_active_device(boolean), public.dt_device_guard() from public, anon, authenticated;
+-- Gate B M3: Supabase grants EXECUTE on new public functions to anon / authenticated / service_role by
+-- default privileges, so a revoke from public alone removes nothing: anon is revoked explicitly.
 revoke all on function public.claim_device(text, text, text, text, text, text), public.device_status(text), public.release_device(text), public.device_mark_sent(text), public.device_ack(text, text), public.device_status_by_secret(text), public.account_exists(uuid) from public;
+revoke all on function public.claim_device(text, text, text, text, text, text), public.device_status(text), public.release_device(text), public.device_mark_sent(text), public.device_ack(text, text) from anon;
 grant execute on function public.claim_device(text, text, text, text, text, text), public.device_status(text), public.release_device(text), public.device_mark_sent(text), public.device_ack(text, text) to authenticated;
 grant execute on function public.device_status_by_secret(text), public.account_exists(uuid) to anon, authenticated;

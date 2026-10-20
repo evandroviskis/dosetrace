@@ -151,7 +151,10 @@ test('OD-12: in every language every sheet is fully filled (no braces, no "undef
       check(C.signOutSheet({ t, language: l, offline: false, summary: s, lastBackup: at(2026, 10, 1, 7, 0), now: NOW }), 'signout');
       check(C.noticeSheet({ t, language: l, notice: { device: iPhone, lastSentAt: null, own: s }, now: NOW }), 'notice own');
     }
-    check(C.verdictSheet({ t, language: l, verdict: { kind: 'replaced', at: null, summary: null, unknown: true }, now: NOW }), 'replaced unknown');
+    assert.equal(C.verdictSheet({ t, language: l, verdict: { kind: 'replaced', at: null, summary: null, unknown: true }, now: NOW }), null, 'never a wipe without a count');
+    check(C.verdictSheet({ t, language: l, verdict: { kind: 'replaced', at: null, summary: sums[1] }, now: NOW }), 'replaced no date');
+    for (const s of sums) check(C.askSheet({ t, language: l, ask: { device: iPhone, summary: s }, now: NOW }), 'ask with count');
+    check(C.askSheet({ t, language: l, ask: { device: iPhone, summary: null, unknown: true }, now: NOW }), 'ask count unknown');
     check(C.verdictSheet({ t, language: l, verdict: { kind: 'gone' } }), 'gone');
     check(C.signOutSheet({ t, language: l, offline: true, summary: null, lastBackup: null, now: NOW }), 'signout unknown');
   }

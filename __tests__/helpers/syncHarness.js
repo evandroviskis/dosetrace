@@ -147,7 +147,10 @@ function makeDeviceCloud(base = makeCloud()) {
   const acc = new Map(); // userId -> { active, sess }
   const devs = new Map(); // `${userId}|${deviceId}` -> row
   const users = new Set();
-  const policy = { min: null };
+  // min: the minimum app version (DT003). legacyUntil: DL-105 as amended 2026-10-20 — requests
+  // without a device id (1.3.0 installs) keep working until this founder-set cutoff (null = none yet).
+  const policy = { min: null, legacyUntil: null };
+  const legacyAllowed = () => policy.legacyUntil == null || Date.now() < Date.parse(policy.legacyUntil);
   let t = Date.parse('2026-10-15T12:00:00Z');
   const now = () => new Date((t += 60000)).toISOString();
   const dkey = (u, d) => `${u}|${d}`;
@@ -160,7 +163,7 @@ function makeDeviceCloud(base = makeCloud()) {
     if (!userId) return null;
     if (policy.min && version && versionBelow(version, policy.min)) return err('DT003', 'update_required');
     const a = acc.get(userId);
-    if (!deviceId) return a ? err('DT002', 'device_required') : null;
+    if (!deviceId) return a && !legacyAllowed() ? err('DT002', 'device_required') : null;
     if (!a || a.active !== deviceId) return err('DT001', 'device_not_active');
     return null;
   }
@@ -184,11 +187,16 @@ function makeDeviceCloud(base = makeCloud()) {
         if (sess && (!account.sess || sess > account.sess)) account.sess = sess;
         return { data: { status: 'active', took_over: false, rebuild_owed: me.rebuild_owed, notice: me.notice, secret: newSecret(me), server_time: at }, error: null };
       }
+      const dropTokens = () => { if (base._store.push_tokens) for (const [id, r] of base._store.push_tokens) if (r.user_id === u && r.device_id !== a.p_device) base._store.push_tokens.delete(id); };
       if (account.active == null) {
         if (a.p_mode === 'silent' && me.replaced_at) return { data: { status: 'replaced', at: me.replaced_at, server_time: at }, error: null };
-        account.active = a.p_device; account.sess = sess || at;
-        Object.assign(me, { replaced_at: null, replaced_by: null, rebuild_owed: false, notice: null });
-        return { data: { status: 'active', took_over: false, rebuild_owed: false, notice: null, secret: newSecret(me), server_time: at }, error: null };
+        // Gate B M2: another device held the account after this one: this copy is stale — rebuilt,
+        // keeping its unsent rows (no other phone holds the account now; DL-103 "data kept").
+        const stale = (account.last != null && account.last !== a.p_device) || !!me.rebuild_owed;
+        account.active = a.p_device; account.last = a.p_device; account.sess = sess || at;
+        Object.assign(me, { replaced_at: null, replaced_by: null, rebuild_owed: stale, rebuild_mode: stale ? 'stale' : null, notice: null });
+        dropTokens(); // Gate B LOW: legacy tokens (no device id) go too
+        return { data: { status: 'active', took_over: false, rebuild_owed: stale, rebuild_mode: me.rebuild_mode, notice: null, secret: newSecret(me), server_time: at }, error: null };
       }
       const prev = devRow(u, account.active);
       if (a.p_mode === 'silent') {
@@ -201,10 +209,10 @@ function makeDeviceCloud(base = makeCloud()) {
       }
       const notice = { id: `n-${at}`, platform: prev ? prev.platform : null, name: prev ? prev.name : null, brand: prev ? prev.brand : null, last_full_send_at: prev ? prev.last_full_send_at : null };
       if (prev) Object.assign(prev, { replaced_at: at, replaced_by: a.p_device, rebuild_owed: false, notice: null });
-      Object.assign(me, { replaced_at: null, replaced_by: null, rebuild_owed: true, notice });
-      account.active = a.p_device; account.sess = sess || at;
-      if (base._store.push_tokens) for (const [id, r] of base._store.push_tokens) if (r.user_id === u && r.device_id !== a.p_device) base._store.push_tokens.delete(id);
-      return { data: { status: 'active', took_over: true, rebuild_owed: true, notice, secret: newSecret(me), server_time: at }, error: null };
+      Object.assign(me, { replaced_at: null, replaced_by: null, rebuild_owed: true, rebuild_mode: 'takeover', notice });
+      account.active = a.p_device; account.last = a.p_device; account.sess = sess || at;
+      dropTokens();
+      return { data: { status: 'active', took_over: true, rebuild_owed: true, rebuild_mode: 'takeover', notice, secret: newSecret(me), server_time: at }, error: null };
     },
     device_status(ctx, a) {
       const u = ctx.userId;
@@ -213,7 +221,7 @@ function makeDeviceCloud(base = makeCloud()) {
       const account = acc.get(u);
       const me = devRow(u, a.p_device);
       const extra = { min_version: policy.min, server_time: at };
-      if (account && account.active === a.p_device) return { data: { status: 'active', rebuild_owed: me.rebuild_owed, notice: me.notice, ...extra }, error: null };
+      if (account && account.active === a.p_device) return { data: { status: 'active', rebuild_owed: me.rebuild_owed, rebuild_mode: me.rebuild_mode || null, notice: me.notice, ...extra }, error: null };
       if (me && me.replaced_at) return { data: { status: 'replaced', at: me.replaced_at, ...extra }, error: null };
       if (!account || account.active == null) return { data: { status: 'none', ...extra }, error: null };
       return { data: { status: 'in_use', device: label(devRow(u, account.active)), ...extra }, error: null };
@@ -245,8 +253,8 @@ function makeDeviceCloud(base = makeCloud()) {
         if (row.secret_hash !== h) continue;
         const u = k.split('|')[0];
         const account = acc.get(u);
-        if (row.replaced_at && !(account && account.active === row.device_id)) return { data: { status: 'replaced', at: row.replaced_at }, error: null };
-        if (account && account.active === row.device_id) return { data: { status: 'active' }, error: null };
+        if (row.replaced_at && !(account && account.active === row.device_id)) return { data: { status: 'replaced', at: row.replaced_at, user_id: u }, error: null };
+        if (account && account.active === row.device_id) return { data: { status: 'active', user_id: u }, error: null };
         return { data: { status: 'unknown' }, error: null };
       }
       return { data: { status: 'unknown' }, error: null };

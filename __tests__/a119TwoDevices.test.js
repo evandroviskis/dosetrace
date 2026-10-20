@@ -29,9 +29,10 @@ async function activeWithDose(cloud, deviceId = 'dev-A', opts = {}) {
 }
 
 // ── OD-7 / DL-105: an older client gets a distinct refusal and loses nothing ──────────────────
-test('OD-7: a client of an earlier version (no device id) is refused with DT002 once the account has a device; today\'s syncCore keeps every row and deletes nothing', async () => {
+test('OD-7: after the founder\'s cutoff (DL-105 amended) a client of an earlier version (no device id) is refused with DT002; today\'s syncCore keeps every row and deletes nothing', async () => {
   const cloud = world();
   const { A } = await activeWithDose(cloud);
+  cloud.policy.legacyUntil = '2026-01-01T00:00:00.000Z'; // the cutoff has passed
   // The old phone: synced copy of the protocol and dose, one new dose pending, one dose deletion pending,
   // one synced lab value (fullImport's absence rule would delete it on an empty reply).
   const old = makeDb();
@@ -58,7 +59,7 @@ test('OD-7: a client of an earlier version (no device id) is refused with DT002 
   assert.ok(A);
 });
 
-test('OD-17: a write without a device id is accepted only while the account has no registered device', async () => {
+test('OD-17 / DL-105 amended: a write without a device id (1.3.0) keeps working until the founder-set cutoff, also after a device registered; then DT002', async () => {
   const cloud = world();
   const old = cloud.as(null, { userId: U });
   const w1 = await old.insert('biomarkers', { user_id: U, marker: 'TSH', value: '2' });
@@ -66,7 +67,12 @@ test('OD-17: a write without a device id is accepted only while the account has 
   const A = phone(cloud, 'dev-A', U);
   await A.signIn();
   const w2 = await old.insert('biomarkers', { user_id: U, marker: 'TSH', value: '3' });
-  assert.equal(w2.error.code, 'DT002');
+  assert.equal(w2.error, null, 'no cutoff yet: 1.3.0 installs keep syncing (never lose user-entered data)');
+  cloud.policy.legacyUntil = new Date(Date.now() + 3600e3).toISOString();
+  assert.equal((await old.insert('biomarkers', { user_id: U, marker: 'TSH', value: '4' })).error, null, 'before the cutoff');
+  cloud.policy.legacyUntil = new Date(Date.now() - 1000).toISOString();
+  const w2b = await old.insert('biomarkers', { user_id: U, marker: 'TSH', value: '5' });
+  assert.equal(w2b.error.code, 'DT002', 'after the cutoff');
   cloud.policy.min = '1.3.2';
   const w3 = await cloud.as('dev-A', { userId: U, version: '1.3.1' }).fetchAll('biomarkers', U);
   assert.equal(w3.error.code, 'DT003', 'below the minimum version: a distinct refusal a future build can turn into "please update"');
@@ -96,7 +102,8 @@ test('OD-8 / DV-182: a dose deleted on the active phone never comes back; the re
   await A.sync();
   assert.equal(cloud.base.rows('dose_logs', U).length, 0, 'A deleted X in the account');
   // B (replaced, does not know yet) edits X; its pass asks the server first and never pushes.
-  B.db.runSync(`UPDATE dose_logs SET outcome = 'Skipped', updated_at = 'L9', sync_status = 'pending'`);
+  // An edit made before B's own sign-in below: part of the old copy (DL-104).
+  B.db.runSync(`UPDATE dose_logs SET outcome = 'Skipped', updated_at = '2026-10-15T00:00:00.000Z', sync_status = 'pending'`);
   const r = await B.sync();
   assert.equal(r.ran, false);
   assert.equal(cloud.base.rows('dose_logs', U).length, 0, 'X never came back');
@@ -406,7 +413,7 @@ test('OD-10: a phone updated from an earlier version becomes active silently wit
   B.view.calls.length = 0;
   await B.sync();
   assert.ok(!B.view.calls.some((c) => !c.startsWith('rpc:')), 'no push or pull while it asks');
-  const r = await B.flow.useHere(U);
+  const r = await B.useHere();
   assert.equal(r.go, true);
   assert.equal(cloud.active(U), 'dev-B');
   const n = (await B.state()).notice;
@@ -482,6 +489,7 @@ test('OD-5 / OD-18: a phone that cannot read its device id this time claims noth
   const r = await X.signIn();
   assert.equal(r.go, true);
   assert.equal(X.kv._m.size, 0, 'nothing stored: no pending claim that would hold every pass');
+  assert.equal((await X.sync()).ran, true, 'the passes run (the server refuses what needs an id)');
   assert.equal(cloud.active(U), 'dev-A');
   assert.ok(A);
 });

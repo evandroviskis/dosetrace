@@ -9,6 +9,10 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
+    dev_ask_unsent_one: "This phone has 1 change not backed up yet: {what}. It isn't in your account, and either choice removes it from this phone.",
+    dev_ask_unsent_many: "This phone has {n} changes not backed up yet: {what}. They aren't in your account, and either choice removes them from this phone.",
+    settings_delete_device_wait: "This phone isn't confirmed as your account's phone yet, so nothing was deleted. Check your connection and try again in a moment.",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} at {time}",
     dev_named_in: "on the {name}",
@@ -2440,6 +2444,10 @@ export const translations = {
   },
 
   'es': {
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
+    dev_ask_unsent_one: "Este teléfono tiene 1 cambio aún sin copia de seguridad: {what}. No está en tu cuenta, y con cualquiera de las dos opciones se borra de este teléfono.",
+    dev_ask_unsent_many: "Este teléfono tiene {n} cambios aún sin copia de seguridad: {what}. No están en tu cuenta, y con cualquiera de las dos opciones se borran de este teléfono.",
+    settings_delete_device_wait: "Este teléfono aún no está confirmado como el de tu cuenta, así que no se eliminó nada. Revisa tu conexión y vuelve a intentarlo en un momento.",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} a las {time}",
     dev_named_in: "en el {name}",
@@ -4871,6 +4879,10 @@ export const translations = {
   },
 
   'pt': {
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
+    dev_ask_unsent_one: "Este celular tem 1 alteração ainda sem backup: {what}. Ela não está na sua conta, e as duas opções a apagam deste celular.",
+    dev_ask_unsent_many: "Este celular tem {n} alterações ainda sem backup: {what}. Elas não estão na sua conta, e as duas opções as apagam deste celular.",
+    settings_delete_device_wait: "Este celular ainda não foi confirmado como o aparelho da sua conta, então nada foi excluído. Confira sua conexão e tente de novo daqui a pouco.",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} às {time}",
     dev_named_in: "no {name}",
@@ -7301,6 +7313,10 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
+    dev_ask_unsent_one: "Ce téléphone a 1 modification pas encore sauvegardée : {what}. Elle n'est pas dans votre compte, et les deux choix la suppriment de ce téléphone.",
+    dev_ask_unsent_many: "Ce téléphone a {n} modifications pas encore sauvegardées : {what}. Elles ne sont pas dans votre compte, et les deux choix les suppriment de ce téléphone.",
+    settings_delete_device_wait: "Ce téléphone n'est pas encore confirmé comme celui de votre compte, donc rien n'a été supprimé. Vérifiez votre connexion et réessayez dans un instant.",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} à {time}",
     dev_named_in: "sur votre {name}",
@@ -9731,6 +9747,10 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
+    dev_ask_unsent_one: "Auf diesem Handy ist 1 Änderung noch nicht gesichert: {what}. Sie ist nicht in deinem Konto, und bei beiden Optionen wird sie von diesem Handy gelöscht.",
+    dev_ask_unsent_many: "Auf diesem Handy sind {n} Änderungen noch nicht gesichert: {what}. Sie sind nicht in deinem Konto, und bei beiden Optionen werden sie von diesem Handy gelöscht.",
+    settings_delete_device_wait: "Dieses Handy ist noch nicht als Gerät deines Kontos bestätigt, deshalb wurde nichts gelöscht. Prüfe deine Verbindung und versuche es gleich noch einmal.",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} um {time}",
     dev_named_in: "auf deinem {name}",
@@ -12162,6 +12182,10 @@ export const translations = {
   },
 
   'it': {
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
+    dev_ask_unsent_one: "Su questo telefono c'è 1 modifica non ancora nel backup: {what}. Non è nel tuo account, e con entrambe le scelte viene eliminata da questo telefono.",
+    dev_ask_unsent_many: "Su questo telefono ci sono {n} modifiche non ancora nel backup: {what}. Non sono nel tuo account, e con entrambe le scelte vengono eliminate da questo telefono.",
+    settings_delete_device_wait: "Questo telefono non è ancora confermato come quello del tuo account, quindi non è stato eliminato nulla. Controlla la connessione e riprova tra poco.",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} alle {time}",
     dev_named_in: "sul tuo {name}",

@@ -54,58 +54,66 @@ test('OD-6 / OD-9: the count on screen is the count at risk — summarizeUnsent 
   assert.throws(() => summarizeUnsent({ getAllSync: () => { throw new Error('locked'); } }, ['u1']));
 });
 
-test('OD-15 (no deadlock): a takeover found by a sync pass rebuilds inside that pass; outside a pass it waits for the runner', async () => {
+test('OD-15 / Gate B M1 (no deadlock, once): an owed rebuild runs inside a sync pass; a check outside a pass only asks for one', async () => {
   let runner;
   const calls = [];
+  let owed = true;
   const rebuildNow = loadFn('lib/sync.js', 'export async function rebuildFromCloudNow(', 'rebuildFromCloudNow', {
     _runner: { runExclusive: (job) => runner.runExclusive(job) },
     notifyListeners: (e) => calls.push(e.type),
     notifyDataChanged: () => calls.push('data_changed'),
-    rebuildFromCloud: async () => ({ ok: true }),
+    rebuildFromCloud: async (_db, _c, _u, o) => { calls.push(`rebuild:${JSON.stringify(o.keep)}`); return { ok: true, discarded: null }; },
     getDB: () => null,
     trackedCloud: null,
+    require: () => ({ syncAllNotifications: async () => calls.push('reminders') }),
   });
   const flow = createDeviceFlow({
-    rpc: async (name) => (name === 'device_status' ? { data: { status: 'active', rebuild_owed: true, notice: null }, error: null } : { data: { ok: true }, error: null }),
+    rpc: async (name) => {
+      if (name === 'device_status') return { data: { status: 'active', rebuild_owed: owed, notice: null }, error: null };
+      if (name === 'device_ack') owed = false;
+      return { data: { ok: true }, error: null };
+    },
     deviceId: async () => 'dev-B', deviceInfo: () => null, store: memKv(),
-    summarize: async () => ({ count: 0, byKind: {}, from: null, to: null, refused: 0 }),
     rebuild: (uid, o) => rebuildNow(uid, o),
+    requestPass: () => calls.push('pass asked'),
   });
   runner = createSyncRunner(() => runSyncPass({ gate: (ctx) => flow.gate('u1', ctx), push: async () => calls.push('push'), pull: async () => calls.push('pull') }));
   const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('deadlock')), 1000));
-  await Promise.race([runner.run(), timeout]);
-  assert.deepEqual(calls, ['import_start', 'import_complete', 'data_changed', 'push', 'pull']);
+  const fg = await Promise.race([flow.gate('u1', 'foreground'), timeout]);
+  assert.equal(fg.reason, 'rebuild_queued');
+  assert.deepEqual(calls, ['pass asked'], 'outside a pass: no rebuild');
   calls.length = 0;
-  await Promise.race([flow.gate('u1', 'foreground'), timeout]);
-  assert.deepEqual(calls.slice(0, 2), ['import_start', 'import_complete'], 'outside a pass: through the runner');
+  await Promise.race([runner.run(), timeout]);
+  assert.deepEqual(calls, ['import_start', 'rebuild:{"since":null}', 'import_complete', 'data_changed', 'reminders', 'push', 'pull'], 'inside the pass, then the reminders are planned again');
+  calls.length = 0;
+  await Promise.race([runner.run(), timeout]);
+  assert.deepEqual(calls, ['push', 'pull'], 'acknowledged: never twice');
   assert.match(read('lib/deviceRuntime.js'), /rebuild: \(uid, o\) => require\('\.\/sync'\)\.rebuildFromCloudNow\(uid, o\)/);
 });
 
-test('OD-6: nothing is discarded without a count — an unreadable database leaves the takeover\'s rebuild owed and the local rows as they are', async () => {
+test('OD-6: nothing is discarded without a count — an unreadable count inside the rebuild rolls it back; the server keeps it owed; it runs once the count can be read', async () => {
   const cloud = makeDeviceCloud();
   cloud.addUser('u1');
   const A = phone(cloud, 'dev-A', 'u1');
   await A.signIn();
-  const db = makeDb();
-  const pid = addProtocol(db, 'u1');
-  addDose(db, 'u1', pid);
+  const raw = makeDb();
+  const pid = addProtocol(raw, 'u1');
+  addDose(raw, 'u1', pid);
+  raw.runSync(`UPDATE protocols SET updated_at = '2020-01-01T00:00:00.000Z'`);
+  raw.runSync(`UPDATE dose_logs SET updated_at = '2020-01-01T00:00:00.000Z'`);
   let readable = false;
-  const view = cloud.as('dev-B', { userId: 'u1', sessionCreatedAt: '2026-10-15T09:00:00.000Z' });
-  const B = createDeviceFlow({
-    rpc: (n, a) => view.rpc(n, a), deviceId: async () => 'dev-B', deviceInfo: () => null, store: memKv(),
-    summarize: async (uid) => { if (!readable) throw new Error('locked'); return summarizeUnsent(db, [uid]); },
-    rebuild: (uid) => rebuildFromCloud(db, view, uid),
-  });
-  const r = await B.afterExplicitSignIn('u1');
+  const db = { ...raw, getAllSync: (sql, p) => { if (!readable && /sync_status = 'pending' OR sync_status = 'deleted'/.test(sql)) throw new Error('locked'); return raw.getAllSync(sql, p); } };
+  const B = phone(cloud, 'dev-B', 'u1', { db, session: '2026-10-15T09:00:00.000Z' });
+  const r = await B.signIn();
   assert.equal(r.go, false);
   assert.equal(r.reason, 'unreadable');
-  assert.equal(doses(db, 'u1').length, 1, 'kept');
+  assert.equal(doses(raw, 'u1').length, 1, 'kept');
   assert.equal(cloud.device('u1', 'dev-B').rebuild_owed, true, 'the server keeps the rebuild owed');
   readable = true;
-  const r2 = await B.gate('u1', 'foreground');
-  assert.equal(r2.go, true);
-  assert.equal(doses(db, 'u1').length, 0, 'rebuilt once it could count');
-  assert.equal((await B.load()).notice.own.count, 2, 'and the count is in the notice');
+  const r2 = await B.sync();
+  assert.equal(r2.ran, true);
+  assert.equal(doses(raw, 'u1').length, 0, 'rebuilt once it could count');
+  assert.equal((await B.state()).notice.own.count, 2, 'and the count is in the notice');
 });
 
 test('OD-7: the profile / user_metadata check — refused after the verdict or with the screen-4 question; allowed while this phone\'s own sign-in settles; unknown never blocks', async () => {
@@ -168,17 +176,14 @@ test('OD-4 / OD-16: with a verdict stored nothing is scheduled again (cold start
   assert.deepEqual(log, ['categories'], 'without a verdict: as before');
 });
 
-test('App: the device check comes before the import at a cold start and at a sign-in; screen 2 / 4 import and schedule nothing; the notice waits for Main', () => {
+test('App wires the device steps (their behaviour: a119GateB "auditor race"): cold start and sign-in through lib/signInDevice, the sign-in after the cross-account guard; screen 2 first, screen 1 only on Main', () => {
   const app = read('App.js');
   const cold = app.slice(app.indexOf("supabase.auth.getSession().then(async ({ data: { session: firstSession } }) => {"), app.indexOf('// The sign-in work, one function for both paths'));
-  assert.ok(cold.indexOf("deviceGate('startup')") > 0 && cold.indexOf("deviceGate('startup')") < cold.indexOf('fullImportFromCloud()'), 'cold start: check, then import');
-  assert.match(cold, /const held = !!dev && dev\.go === false && \(dev\.reason === 'verdict' \|\| dev\.reason === 'ask'\);\n\s+if \(!held\) \{/);
+  assert.match(cold, /const step = await startupDeviceStep\(\{ gate: deviceGate, userId: session\.user\.id, isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync \}\);\n\s+if \(!step\.held\) \{/);
   const i = app.indexOf('const onSignedIn = (session) => {');
   const signin = app.slice(i, app.indexOf('setSignInHandler(onSignedIn);'));
-  assert.ok(signin.indexOf("afterExplicitSignIn(session.user.id)") > signin.indexOf('Cross-account guard'), 'after the cross-account guard');
-  assert.ok(signin.indexOf("afterExplicitSignIn(session.user.id)") < signin.indexOf('await fullImportFromCloud();'), 'the takeover before the first import (OD-3)');
-  assert.match(signin, /explicit \? await deviceFlow\(\)\.afterExplicitSignIn\(session\.user\.id\) : await deviceGate\('signin'\)/);
-  assert.match(signin, /if \(dev && dev\.go === false && \(dev\.reason === 'verdict' \|\| dev\.reason === 'ask'\)\) return;/);
+  assert.ok(signin.indexOf('signInDeviceStep({') > signin.indexOf('Cross-account guard'), 'after the cross-account guard');
+  assert.match(signin, /if \(step\.held\) return;/);
   assert.match(app, /: dev\.notice && onMain && dev\.notice\.userId === session\.user\.id \? noticeSheet\(/, 'screen 1 only on Main (after the 18+ and profile steps)');
   assert.match(app, /const deviceSheet = deviceHeld \? null\s*: dev\.verdict \? verdictSheet\(/, 'screen 2 first, on any route');
   assert.match(app, /forgetDeviceState: \(\) => deviceFlow\(\)\.clearOnSignOut\(\)/);
