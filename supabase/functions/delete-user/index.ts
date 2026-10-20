@@ -3,7 +3,7 @@ import { getAppleConfig, revokeRefreshToken } from '../_shared/apple.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-dt-device, x-dt-app-version',
 };
 
 Deno.serve(async (req) => {
@@ -40,6 +40,24 @@ Deno.serve(async (req) => {
     }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // A-119 OD-10 (one active device per account): a phone that is no longer the account's active
+    // device cannot delete it — it gets the replaced answer instead (409) and nothing is deleted. A
+    // request without a device id (an older app version) is allowed, as before.
+    const device = req.headers.get('x-dt-device');
+    if (device) {
+      const { data: acc, error: accError } = await adminClient
+        .from('account_devices')
+        .select('active_device')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!accError && acc && acc.active_device && acc.active_device !== device) {
+        return new Response(JSON.stringify({ error: 'device_not_active' }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // ── Sign in with Apple: revoke the credential (Apple 5.1.1(v) / TN3194) ──
     // BEST-EFFORT AND NEVER FAIL-CLOSED. GDPR Art. 17 says a deletion the user
@@ -137,6 +155,10 @@ Deno.serve(async (req) => {
       // Per-user reminder-send ledger (server push); cascades too, listed for the
       // same provable-erasure reason. Tolerated if the table doesn't exist yet.
       'notification_sends',
+      // A-119: the account's devices (which one is active, each one's last send). Both cascade with
+      // the auth user too; listed so nothing about the account or its devices is kept (DL-93).
+      'user_devices',
+      'account_devices',
     ];
 
     for (const table of userDataTables) {
