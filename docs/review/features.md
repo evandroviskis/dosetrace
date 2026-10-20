@@ -375,7 +375,7 @@ Built from the ledger, not re-asked: every item the founder approved and deferre
 - A-121 "Still going?" with an end date (picture + SG-1..SG-30 signed 2026-10-15; column protocols.ends_on).
 - A-127 In-app update notice + one push per version (picture + UN-1..UN-7 signed).
 - A-132 Expired lyophilized vial with doses left can start a new vial (founder "2 sim" 2026-10-16; picture first).
-- AD-87 B Server-sent iPhone reminders (DV-097, DV-145, A-62): its own project inside 1.3.1.
+- AD-87 B Server-sent iPhone reminders (DV-097, DV-145, A-62): its own project inside 1.3.1. Spec docs/specs/server-reminders.md SR-1..SR-24 (signature pending; one founder question: names in server-sent texts).
 - AD-96 B Curve past = completed doses only, after the pharmacometrics review (DV-072).
 - AD-99 / AD-100 Used-scans count and "Change this lab's date" (DV-110; pictures first).
 
@@ -390,6 +390,12 @@ Built from the ledger, not re-asked: every item the founder approved and deferre
 - A-151 German food units capitalised (parse-food prompt; deploy on the founder's go).
 - A-152 Keyboard covers the field being typed in (founder 2026-10-20): every screen with fields, iPhone and Android.
 - A-154 Confirm-email link with tokens on a phone ahead (same cause as A-144).
+
+**A2. Approved for 1.3.0 but found NOT built on 2026-10-20 (owed now, approved → next build)**
+- Curve: DV-005 dated dose versions (AD-95), DV-068 no 6 h grid snap, DV-069 the user's own dose times (DL-31), DV-072 C hollow ticks — found by the pharmacometrics review (docs/specs/curve-logged-doses.md); they come before AD-96 B.
+- AD-87 A: the reminder window's last notification "Open DoseTrace to keep getting your reminders" + a Today warning (iPhone) — found by the server-reminders spec work; picture first.
+- The full audit of the ~210 DIVERGENCES rows targeted 1.3.0 is running; every NOT FIXED row joins this group.
+- Gate S: 95 spec rows "partial" without device evidence (book-layout 22, clock-skew 12, …): rows proven in the guided Fold sessions get their evidence recorded; the rest go into the pre-build device pass.
 
 **C. Hygiene with a written 1.3.1 target (DIVERGENCES, AD-78)**
 - Code: DV-119, DV-115, DV-121, DV-128, DV-138, DV-143, DV-147, DV-157, DV-161, DV-167, DV-171, DV-174, DV-195.
