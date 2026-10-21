@@ -56,6 +56,54 @@ test('dense 365 + 90 days: dose visits stay within 1.25x of the plain 6 h grid, 
   assert.ok(samples <= 4 * (ls[0].nSteps + 1) + 2 * PLOT_PX + 4, `samples ${samples}`);
 });
 
+// ── Curve fixes 2 + 3 (1.3.1): the full look-back (spec R15) and the drawing samples ───────────
+// Each line is now also sampled on the pixel edges of its fast falls, at the bottom of each pixel
+// (merged windows, and every dose dip of a long rise) — lib/serumModel curveDecaySamples /
+// curveTroughInstants — and scans 365 days + 6 half-lives back (capped 600). The level at the samples
+// is carried in one pass (lib/curveSampling, the model's own amountFraction): the work is doses +
+// samples, not samples × the doses of the last 30 half-lives.
+function realLines(pastDays, futureDays) {
+  const start = M.curveGridStart(now, pastDays);
+  const end = now + futureDays * 864e5;
+  const nSteps = Math.round((end - start) / stepMs);
+  const ctx = { start, stepMs, nSteps, now, plotPx: PLOT_PX, extraTimes: [] };
+  const grid = Array.from({ length: nSteps + 1 }, (_, i) => start + i * stepMs);
+  return DENSE.map((p) => {
+    const entry = H.getHalfLifeEntry(M.matchName(p));
+    const doses = M.scheduledDoses(p, entry, start, end, now);
+    return { p, entry, doses, grid, nSteps, ctx };
+  });
+}
+function countExp(fn) {
+  const exp = Math.exp;
+  let n = 0;
+  Math.exp = (x) => { n++; return exp(x); };
+  try { return { out: fn(), calls: n }; } finally { Math.exp = exp; }
+}
+
+for (const [pastDays, futureDays] of [[3, 7], [30, 7], [90, 30], [365, 90]]) {
+  const dense = pastDays === 365;
+  test(`dense ${pastDays} + ${futureDays} days, the real samples: ${dense ? 'dose visits within 1.25x of the 6 h grid, ' : ''}≤ 3 extra samples per plot pixel, work = one pass`, () => {
+    const ls = realLines(pastDays, futureDays);
+    let vNew = 0, vGrid = 0, items = 0;
+    const { calls } = countExp(() => {
+      for (const l of ls) l.s = M.lineSamples(l.doses, 1, l.entry, l.ctx, H.amountFraction);
+    });
+    for (const l of ls) {
+      vNew += visits(l.doses, l.entry, l.s.times);
+      vGrid += visits(l.doses, l.entry, l.grid);
+      items += l.doses.length + l.s.times.length;
+      assert.ok(l.s.times.length <= l.nSteps + 1 + 3 * PLOT_PX + 2, `${l.p.name}: ${l.s.times.length} samples`);
+    }
+    // the review's budget, on the review's dense case, now with every real sample (it counts what
+    // the old moving window would visit — an upper bound on the one pass)
+    if (dense) assert.ok(vNew <= 1.25 * vGrid, `dose visits ${vNew} vs grid ${vGrid}`);
+    // one pass: at most 2 exponentials per dose or sample (fall + rise), plus the per-pixel dip choice
+    assert.ok(calls <= 4 * items, `Math.exp calls ${calls} vs ${items} doses + samples`);
+    assert.ok(calls < 60000, `Math.exp calls ${calls}`);
+  });
+}
+
 test('a compound with a modeled rise adds no dose instants; a fast one keeps them', () => {
   for (const l of lines(3, 7)) {
     if (l.entry.tmaxHours) assert.equal(l.instants.length, 0, l.p.name);
@@ -101,15 +149,36 @@ function member(p, ctx, af) {
   return { doses, doseMg: 1, entry, ...M.lineSamples(doses, 1, entry, ctx, af) };
 }
 
-test('combined total of two rise-time esters (365 + 90 days): no second sampling pass, the sum of the member lines', () => {
+test('combined total of two rise-time esters (365 + 90 days) sampled at the same moments: no second sampling pass, the sum of the member lines', () => {
+  const ctx = ctxFor(365, 90);
+  // UPDATED 1.3.1 (curve fix 3): a long rise now samples its dose dips, so two esters share their
+  // sample moments when they share their dose times (here two daily 07:30 protocols).
+  const cyp = [mk('Testosterone Cypionate', '07:30'), mk('Testosterone Cypionate', '07:30')].map((p, i) => ({ ...p, id: 'c' + i, doses_per_day: 1 }));
+  const members = cyp.map((p) => member(p, ctx));
+  assert.deepEqual(members[0].times, members[1].times);
+  const af = countingAf();
+  const c = M.combinedLine(members, ctx, af);
+  assert.equal(af.calls, 0, 'no re-sampling when the members share their sample moments');
+  assert.deepEqual(c.xs, members[0].xs);
+  for (let i = 0; i < c.points.length; i += 97) assert.equal(c.points[i], members[0].points[i] + members[1].points[i]);
+});
+
+test('combined total of two rise-time esters at different times (07:30 / 19:30): each member is computed only at the moments it lacks', () => {
   const ctx = ctxFor(365, 90);
   const cyp = [mk('Testosterone Cypionate', '07:30'), mk('Testosterone Cypionate', '19:30')].map((p, i) => ({ ...p, id: 'c' + i, doses_per_day: 1 }));
   const members = cyp.map((p) => member(p, ctx));
   const af = countingAf();
   const c = M.combinedLine(members, ctx, af);
-  assert.equal(af.calls, 0, 'no re-sampling when no member has dose instants');
-  assert.deepEqual(c.xs, members[0].xs);
-  for (let i = 0; i < c.points.length; i += 97) assert.equal(c.points[i], members[0].points[i] + members[1].points[i]);
+  // the union of the members' moments, every member counted at each — exact
+  assert.deepEqual(c.times, [...new Set([...members[0].times, ...members[1].times])].sort((a, b) => a - b));
+  for (let i = 0; i < c.times.length; i += 37) {
+    const exact = members.reduce((s, m) => s + M.levelAt(m.doses, 1, m.entry, c.times[i]), 0);
+    assert.ok(Math.abs(c.points[i] - exact) <= 1e-9 * Math.max(1, exact), `sample ${i}`);
+  }
+  // a full second pass (every member at every moment) would cost this much
+  const full = countingAf();
+  for (const m of members) sampleLevelsAt(m.doses, 1, m.entry, c.times, full);
+  assert.ok(af.calls <= 0.25 * full.calls, `${af.calls} vs a full pass ${full.calls}`);
 });
 
 test('combined total of members with instants is sampled at their instants together, once', () => {

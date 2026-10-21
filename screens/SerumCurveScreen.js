@@ -30,7 +30,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_MAX_PAST_DAYS,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
@@ -344,11 +344,12 @@ export default function SerumCurveScreen({ embedded = false }) {
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(userId) || [];
     const labDates = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
-    // DV-072 C: the Dose log over the longest window the chart can show (read only; the level
-    // stays the planned schedule — the rows only mark which planned ticks are hollow).
+    // DV-072 C: the Dose log over the longest window (367 days; the 967-day read of spec PK-15 ships
+    // with AD-96 B in 1.3.2). Read only; the level stays the planned schedule — the rows only mark
+    // which planned ticks are hollow.
     let doseLogs = [];
     try {
-      doseLogs = getLogsSince(userId, new Date(Date.now() - (CURVE_MAX_PAST_DAYS + 2) * 24 * 3600 * 1000).toISOString()) || [];
+      doseLogs = getLogsSince(userId, new Date(Date.now() - CURVE_LOG_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString()) || [];
     } catch { doseLogs = []; }
     return { protocols, notCharted: { iu, noData, noDose }, doseLogs, labDates };
   }
@@ -578,9 +579,10 @@ export default function SerumCurveScreen({ embedded = false }) {
   const readoutT = readoutMoment(readoutISO, todayISO(), model ? model.now : now);
   // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
   const levelAtDate = (ser, T) => levelAt(ser.doses, ser.doseMg, ser.entry, T);
-  // The same for a chosen date past the projection: its own scheduled doses up to that date.
-  const readoutLevel = (ser, T) => (T <= winEnd || !model ? levelAtDate(ser, T)
-    : levelAt(scheduledDoses(ser.p, ser.entry, model.start, T, model.now), ser.doseMg, ser.entry, T));
+  // The date estimate (lib/serumModel levelOnDate): the drawn doses inside the longest window; a
+  // date past the projection or before that window uses its own scheduled doses up to that date,
+  // with the full history before it (curve fix 2).
+  const readoutLevel = (ser, T) => (model ? levelOnDate(ser.p, ser.entry, ser.doseMg, ser.doses, T, model.now, winEnd) : 0);
   // Part 19: the next three days with a scheduled dose, as chips.
   const upcoming = useMemo(
     () => upcomingDoseDays(protocols.filter(p => selectedIds.includes(p.id)), Date.now(), 3),

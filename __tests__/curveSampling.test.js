@@ -46,3 +46,34 @@ test('a 365-day window with 3 doses a day stays fast', () => {
   assert.ok(calls < 200000, `calls ${calls}`);
   assert.ok(Date.now() - t0 < 500);
 });
+
+// Curve fixes 2 + 3 (1.3.1): with the model's own amountFraction the levels are carried in one pass
+// (a sum of exponentials). Same numbers as the plain sum over every dose, for every table entry
+// (first-order falls and the four modeled rises), at unsorted-input doses, duplicate dose instants and
+// samples that sit exactly on doses.
+test('one pass with the model amountFraction = the plain sum over every dose (every half-life in the table)', () => {
+  const HL = require('../lib/halfLives');
+  const { sampleLevelsAt } = require('../lib/curveSampling');
+  const seen = new Set();
+  for (const name of Object.keys(HL.HALF_LIVES)) {
+    const e = HL.HALF_LIVES[name];
+    const key = e.hours + ':' + (e.tmaxHours || 0);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const doses = [];
+    for (let t = 0; t < 120 * 24 * H; t += 11 * H) doses.push(t + 7 * H);
+    doses.push(doses[5]); // two doses at one instant
+    doses.reverse();
+    const times = [];
+    for (let t = 0; t < 130 * 24 * H; t += 5 * H) times.push(t);
+    times.push(doses[3], doses[3] + 1);
+    times.sort((a, b) => a - b);
+    const b = sampleLevelsAt(doses, 2.5, e, times, HL.amountFraction);
+    times.forEach((ts, i) => {
+      let level = 0, before = 0;
+      for (const d of doses) { if (d > ts) continue; const c = 2.5 * HL.amountFraction(e, (ts - d) / H); level += c; if (d < ts) before += c; }
+      assert.ok(Math.abs(b.points[i] - level) <= 1e-9 * Math.max(1, level), `${name} point ${i}: ${b.points[i]} vs ${level}`);
+      assert.ok(Math.abs(b.pre[i] - before) <= 1e-9 * Math.max(1, before), `${name} pre ${i}`);
+    });
+  }
+});
