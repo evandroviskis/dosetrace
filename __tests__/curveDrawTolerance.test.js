@@ -19,8 +19,12 @@ const STEP = M.STEP_HOURS * 3600e3;
 const PX = 330;
 const now = new Date(2026, 9, 20, 13, 7).getTime();
 const sd = new Date(now - 500 * DAY).toISOString().slice(0, 10);
-const mk = (name, dpd, times, interval = 1) => ({ id: name, name, type: 'recon', dose: '1', dose_unit: 'mg', doses_per_day: dpd, interval_days: interval, start_date: sd, reminder_time: times, created_at: new Date(now - 400 * DAY).toISOString() });
+const mk = (name, dpd, times, interval = 1, startDaysAgo = null) => ({ id: name, name, type: 'recon', dose: '1', dose_unit: 'mg', doses_per_day: dpd, interval_days: interval, start_date: startDaysAgo == null ? sd : new Date(now - startDaysAgo * DAY).toISOString().slice(0, 10), reminder_time: times, created_at: new Date(now - 400 * DAY).toISOString() });
 const SCHEDULES = [[1, '08:00', 1], [2, '08:00,20:00', 1], [4, '07:00,11:00,15:00,19:00', 1], [1, '10:30', 7]];
+// Pharmacometrics review 2026-10-20 (PK-1): sparse depot dosing ON the 6 h grid (06:00 every 14 and
+// 21 days) and a first-ever dose (06:00, two days ago): a modeled rise (Sustanon, t½ 7 d, Tmax 36 h)
+// climbs over its first hours, and one chord across that climb drew the peak ~3 % low.
+const SPARSE = [[1, '06:00', 14], [1, '06:00', 21], [1, '06:00', 21, 2]];
 const WINDOWS = [[3, 7], [30, 7], [90, 30], [365, 90]];
 const TOL = 0.02;
 
@@ -103,7 +107,7 @@ function worstFor(name, [past, fut]) {
   // Every schedule for a fast fall (t½ < 12 h). A slower one draws from the 6 h grid, its doses and
   // dips: 4 a day (the merged-pixel dips) and weekly. A modeled rise: daily and weekly (its dips are
   // deepest when the doses are far apart) — the dense ones cost seconds for no new case.
-  const list = entry.tmaxHours ? [SCHEDULES[0], SCHEDULES[3]] : entry.hours >= 12 ? [SCHEDULES[2], SCHEDULES[3]] : SCHEDULES;
+  const list = [...(entry.tmaxHours ? [SCHEDULES[0], SCHEDULES[3]] : entry.hours >= 12 ? [SCHEDULES[2], SCHEDULES[3]] : SCHEDULES), ...SPARSE];
   for (const s of list) {
     const doses = M.scheduledDoses(mk(name, ...s), entry, start, start + nSteps * STEP, now);
     worst = Math.max(worst, columnError(doses, entry, ctx));
@@ -113,6 +117,13 @@ function worstFor(name, [past, fut]) {
 
 test('the tolerance is 2 % of the chart top', () => {
   assert.equal(M.DRAW_TOLERANCE, TOL);
+});
+
+test('PK-1: Sustanon (Tmax 36 h) dosed at 06:00 every 14 / 21 days and its first-ever dose: each pixel column within 2 % on every window', () => {
+  for (const w of WINDOWS) {
+    const e = worstFor('Sustanon 250', w);
+    assert.ok(e <= TOL, `${w.join('+')}: ${(100 * e).toFixed(2)} %`);
+  }
 });
 
 test('BPC-157 and TB-500 on the default window (3 + 7 days): each pixel column within 2 %', () => {

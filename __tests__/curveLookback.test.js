@@ -56,14 +56,13 @@ test('PK-15: Testosterone Undecanoate 1000 mg dosed 300 days ago contributes 100
   assert.equal(M.levelAt(s.doses, 1000, entry, T), 1000 * H.amountFraction(entry, (T - doseAt) / 3600e3));
 });
 
-test('PK-15: the look-back reaches ≥ 540 days for Undecanoate (540 before the longest window) and the Dose log read reaches ≥ 540 days', () => {
+// The Dose log read part of PK-15 (≥ 540 days of logged rows) ships with AD-96 B in 1.3.2, when the
+// level reads logged rows (engineering review ENG-2; curveReviewFixes.test.js): 1.3.1 reads 367 days.
+test('PK-15: the dose look-back reaches ≥ 540 days for Undecanoate (540 before the longest window)', () => {
   const tu = H.getHalfLifeEntry('Testosterone Undecanoate');
   assert.equal(M.LOOKBACK_CAP_DAYS, 600);
   assert.equal(M.curveHistoryDays(tu), 540);
   assert.equal(M.curveLookbackDays(tu), M.CURVE_MAX_PAST_DAYS + 2 + 540);
-  assert.equal(M.CURVE_LOG_LOOKBACK_DAYS, M.CURVE_MAX_PAST_DAYS + 2 + 600, 'the longest look-back of any compound');
-  const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /getLogsSince\(userId, new Date\(Date\.now\(\) - CURVE_LOG_LOOKBACK_DAYS \* 24 \* 3600 \* 1000\)\.toISOString\(\)\)/);
   // a weekly Undecanoate protocol started 2 years ago: every dose of the last 540+ days is scanned
   const p = { id: 'tu2', type: 'rtu', name: 'Testosterone Undecanoate', dose: '1000', dose_unit: 'mg', interval_days: 70, doses_per_day: 1, reminder_time: '09:00', start_date: iso(now - 730 * DAY), created_at: new Date(now - 730 * DAY).toISOString() };
   const doses = M.scheduledDoses(p, tu, M.curveGridStart(now, 3), now, now);
@@ -89,6 +88,7 @@ test('R15: every charted compound — history before the earliest instant = max(
 
 // A 7-day half-life (CJC-1295 with DAC, first-order decay), weekly 2 mg, started 400 days ago.
 const cjc = { id: 'cjc', type: 'recon', name: 'CJC-1295 with DAC', dose: '2', dose_unit: 'mg', interval_days: 7, doses_per_day: 1, reminder_time: '08:00', start_date: iso(now - 400 * DAY), created_at: new Date(now - 400 * DAY).toISOString() };
+const CJC_BOUND = Math.pow(2, -(42 - 7) / 7); // PK-2: 2^(−(H − τ)/t½) with H = 42 d, τ = 7 d
 // The full history: every weekly dose since the start date (calendar days, local 08:00).
 function fullLevel(T) {
   const e = H.getHalfLifeEntry('CJC-1295 with DAC');
@@ -106,8 +106,8 @@ test('a 90-day window of a 7-day half-life: Journey tile == screen, exactly', ()
   assert.equal(H.getHalfLifeEntry('CJC-1295 with DAC').hours, 168);
   const tile = M.defaultCurveLevel([cjc], now).value;
   for (const w of [3, 30, 90, 365]) assert.equal(screen(cjc, w).nowLevel, tile, `${w}-day window`);
-  // within the 6-half-life residual of the full history (2^−6 of the steady level)
-  assert.ok(Math.abs(tile / fullLevel(now) - 1) < 1 / 64, `${tile} vs ${fullLevel(now)}`);
+  // weekly doses, H = 42 d: what the rule leaves out is below 2^(−(H − τ)/t½) = 2^−5 of the level (PK-2)
+  assert.ok(Math.abs(tile / fullLevel(now) - 1) < CJC_BOUND, `${tile} vs ${fullLevel(now)}`);
 });
 
 test('a 90-day window of a 7-day half-life: the window start and a date estimate 89 days back have their earlier doses', () => {
@@ -115,10 +115,10 @@ test('a 90-day window of a 7-day half-life: the window start and a date estimate
   const edge = s.line.points[0];
   assert.equal(s.line.times[0], s.start);
   const full = fullLevel(s.start);
-  assert.ok(Math.abs(edge / full - 1) < 1 / 64, `left edge ${edge} vs full history ${full}`);
+  assert.ok(Math.abs(edge / full - 1) < CJC_BOUND, `left edge ${edge} vs full history ${full}`);
   const T = M.readoutMoment(iso(now - 89 * DAY), iso(now), now);
   const est = M.levelAt(s.doses, 2, s.entry, T);
-  assert.ok(Math.abs(est / fullLevel(T) - 1) < 1 / 64, `date estimate ${est} vs ${fullLevel(T)}`);
+  assert.ok(Math.abs(est / fullLevel(T) - 1) < CJC_BOUND, `date estimate ${est} vs ${fullLevel(T)}`);
 });
 
 test('every charted compound, a daily protocol started 2 years ago: tile == screen at 3, 30, 90 and 365 days', () => {
@@ -132,52 +132,74 @@ test('every charted compound, a daily protocol started 2 years ago: tile == scre
   }
 });
 
-// A long-term Undecanoate user: 1000 mg every 70 days for 4 years (the full history, hand-built).
-const tuLong = { id: 'tuL', type: 'rtu', name: 'Testosterone Undecanoate', dose: '1000', dose_unit: 'mg', interval_days: 70, doses_per_day: 1, reminder_time: '09:00', start_date: iso(now - 1460 * DAY), created_at: new Date(now - 1460 * DAY).toISOString() };
-// The spec rule keeps 6 half-lives before the earliest instant: what it leaves out is at most 2^−6
-// (1.56 %) of the level there (a steady 70-day Undecanoate user: 1.3 % at the left edge of a 365-day
-// window; was 19.8 % low with the cap counted from Now). Now has 367 + 540 days: well inside 1 %.
-const RESIDUAL = 1 / 64;
-function tuFull(T) {
-  const e = H.getHalfLifeEntry('Testosterone Undecanoate');
-  const sd = new Date(tuLong.start_date + 'T00:00:00');
+// A long-term Undecanoate user: 1000 mg every τ days for 4 years (the full history, hand-built).
+// What the rule leaves out (pharmacometrics review 2026-10-20, PK-2): with H = 6 × t½ of history
+// before the earliest instant and a dose every τ, the first left-out dose is between H and H + τ
+// before it, so the share left out is between 2^(−(H+τ)/t½) and 2^(−(H−τ)/t½) of the level there,
+// depending on where that instant falls in the dosing interval — NOT a flat 2^−6. Undecanoate
+// (t½ 90 d, H 540 d): every 70 days ≤ 2^(−470/90) ≈ 2.7 %, every 84 days ≤ 2^(−456/90) ≈ 3.0 %. The
+// signed R15 rule (6 × t½, cap 600 d) stays; the test sweeps Now across one full dosing interval.
+const TU = H.getHalfLifeEntry('Testosterone Undecanoate');
+const tuPlan = (tau, base) => ({ id: 'tu' + tau, type: 'rtu', name: 'Testosterone Undecanoate', dose: '1000', dose_unit: 'mg', interval_days: tau, doses_per_day: 1, reminder_time: '09:00', start_date: iso(base - 1460 * DAY), created_at: new Date(base - 1460 * DAY).toISOString() });
+function tuFull(p, T) {
+  const sd = new Date(p.start_date + 'T00:00:00');
   let lv = 0;
-  for (let k = 0; ; k += 70) {
+  for (let k = 0; ; k += p.interval_days) {
     const d = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + k, 9, 0).getTime();
     if (d > T) break;
-    lv += 1000 * H.amountFraction(e, (T - d) / 3600e3);
+    lv += 1000 * H.amountFraction(TU, (T - d) / 3600e3);
   }
   return lv;
 }
+const upperBound = (tau) => Math.pow(2, -(M.curveHistoryDays(TU) - tau) / 90) * 1.05; // 5 %: the modeled rise
+function sweep(tau, check) {
+  for (let k = 0; k <= tau; k += 3) {
+    const nowK = now + k * DAY + (k % 7) * 3600e3;
+    check(nowK, tuPlan(tau, now));
+  }
+}
 
-test('Undecanoate, long-term user, 365-day window: the left edge reads within the 6-half-life residual (≤ 1.56 %) of the full history (the cap counts from that edge)', () => {
-  const s = screen(tuLong, 365);
-  assert.equal(s.line.times[0], s.start);
-  const full = tuFull(s.start);
-  assert.ok(Math.abs(s.line.points[0] / full - 1) < RESIDUAL, `left edge ${s.line.points[0]} vs full history ${full}`);
-  assert.ok(Math.abs(s.nowLevel / tuFull(now) - 1) < 0.01, 'and Now');
-});
+for (const tau of [70, 84]) {
+  test(`Undecanoate every ${tau} days, Now swept over one dosing interval: the 365-day left edge and a date a year back are low by less than 2^(−(H − τ)/t½)`, () => {
+    let worst = 0;
+    sweep(tau, (nowK, p) => {
+      const start = M.curveGridStart(nowK, 365);
+      const end = nowK + 7 * DAY;
+      const doses = M.scheduledDoses(p, TU, start, end, nowK);
+      const ctx = { start, stepMs: STEP, nSteps: Math.round((end - start) / STEP), now: nowK, plotPx: 330, extraTimes: [] };
+      const line = M.lineSamples(doses, 1000, TU, ctx, H.amountFraction);
+      assert.equal(line.times[0], start);
+      const low = 1 - line.points[0] / tuFull(p, start);
+      assert.ok(low >= 0 && low < upperBound(tau), `left edge ${(100 * low).toFixed(2)} % low, Now ${new Date(nowK).toISOString()}`);
+      worst = Math.max(worst, low);
+      const T = M.readoutMoment(iso(nowK - 365 * DAY), iso(nowK), nowK);
+      const est = M.levelOnDate(p, TU, 1000, doses, T, nowK, end);
+      const lowT = 1 - est / tuFull(p, T);
+      assert.ok(lowT >= 0 && lowT < upperBound(tau), `a year back ${(100 * lowT).toFixed(2)} % low`);
+      // a date before the longest window has its own history before it (the same bound)
+      const T3 = M.readoutMoment(iso(nowK - 3 * 365 * DAY), iso(nowK), nowK);
+      const low3 = 1 - M.levelOnDate(p, TU, 1000, doses, T3, nowK, end) / tuFull(p, T3);
+      assert.ok(low3 >= 0 && low3 < upperBound(tau), `3 years back ${(100 * low3).toFixed(2)} % low`);
+      // Now has 367 + 540 days behind it, and a date past the projection its own doses
+      assert.ok(Math.abs(M.levelAt(doses, 1000, TU, nowK) / tuFull(p, nowK) - 1) < 0.01, 'Now');
+      const Tf = nowK + 60 * DAY;
+      assert.ok(Math.abs(M.levelOnDate(p, TU, 1000, doses, Tf, nowK, end) / tuFull(p, Tf) - 1) < 0.01, 'after the projection');
+    });
+    assert.ok(worst > 0.005, `the sweep reaches the real residual (${(100 * worst).toFixed(2)} %)`);
+  });
+}
 
-test('Undecanoate, long-term user: a date estimate 365 days back, and one 3 years back, within the 6-half-life residual of the full history', () => {
-  const s = screen(tuLong, M.curveWindowDays(iso(now - 365 * DAY), iso(now)));
-  const winEnd = now + 7 * DAY;
-  const T = M.readoutMoment(iso(now - 365 * DAY), iso(now), now);
-  assert.ok(T >= s.start, 'inside the 365-day window');
-  const est = M.levelOnDate(tuLong, s.entry, 1000, s.doses, T, now, winEnd);
-  assert.equal(est, M.levelAt(s.doses, 1000, s.entry, T), 'inside the window: the drawn doses');
-  assert.ok(Math.abs(est / tuFull(T) - 1) < RESIDUAL, `${est} vs ${tuFull(T)}`);
-  // before the longest window (the picker allows 10 years back): its own history before that date
-  const T3 = M.readoutMoment(iso(now - 3 * 365 * DAY), iso(now), now);
-  const est3 = M.levelOnDate(tuLong, s.entry, 1000, s.doses, T3, now, winEnd);
-  assert.ok(Math.abs(est3 / tuFull(T3) - 1) < RESIDUAL, `3 years back: ${est3} vs ${tuFull(T3)}`);
-  // after the projection: unchanged rule (its own scheduled doses up to that date)
-  const Tf = now + 60 * DAY;
-  assert.ok(Math.abs(M.levelOnDate(tuLong, s.entry, 1000, s.doses, Tf, now, winEnd) / tuFull(Tf) - 1) < 0.01);
+test('R15 invariant: every half-life in the table has 6 × t½ within the 600-day cap (the rule is never cut short)', () => {
+  for (const [name, e] of Object.entries(H.HALF_LIVES)) {
+    assert.ok(6 * e.hours / 24 <= M.LOOKBACK_CAP_DAYS, `${name}: 6 × t½ = ${6 * e.hours / 24} d`);
+    assert.equal(M.curveHistoryDays(e), Math.max(16, Math.ceil(6 * e.hours / 24)), name);
+  }
 });
 
 test('Undecanoate, long-term user: Journey tile == screen at 3, 90 and 365 days, exactly', () => {
-  const tile = M.defaultCurveLevel([tuLong], now).value;
-  for (const w of [3, 90, 365]) assert.equal(screen(tuLong, w).nowLevel, tile, `${w}-day window`);
+  const p = tuPlan(70, now);
+  const tile = M.defaultCurveLevel([p], now).value;
+  for (const w of [3, 90, 365]) assert.equal(screen(p, w).nowLevel, tile, `${w}-day window`);
 });
 
 test('the screen reads every date estimate through levelOnDate', () => {
