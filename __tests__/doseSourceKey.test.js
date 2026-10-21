@@ -10,7 +10,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Database = require('better-sqlite3');
 const { makeDb, makeCloud, seedSyncedProtocol } = require('./helpers/syncHarness');
-const { loadFn } = require('./helpers/extractFn');
+const { loadFn, read } = require('./helpers/extractFn');
 const { markTakenDay, planMarkTaken } = require('../lib/markTaken');
 const { toCloudPayload } = require('../lib/syncMappers');
 const { pushPending, pullChanges } = require('../lib/syncCore');
@@ -22,7 +22,7 @@ function app(db) {
   const getDB = () => db;
   const fromDb = (name, header = `export function ${name}(`) => loadFn('lib/database.js', header, name, { getDB });
   const f = {};
-  for (const n of ['getProtocolById', 'getActiveVials', 'insertDoseLog', 'updateDoseLog', 'deleteDoseLog', 'updateVial', 'getLogsSince', 'doseLogBySourceKey', 'withImmediateTransaction']) f[n] = fromDb(n);
+  for (const n of ['getProtocolById', 'getActiveVials', 'insertDoseLog', 'updateDoseLog', 'deleteDoseLog', 'updateVial', 'getLogsSince', 'doseLogBySourceKey', 'withImmediateTransaction', 'recordDoseTapKey', 'clearLocalDatabase']) f[n] = fromDb(n);
   f.updateProtocol = () => {};
   const make = (over = {}) => loadFn('lib/doseActions.js', 'export function recordDoseTaken(', 'recordDoseTaken', { ...f, markTakenDay, planMarkTaken, ...over });
   return { ...f, recordDoseTaken: make(), make };
@@ -122,4 +122,73 @@ test('C: upgrade over an older install - the column and the unique index are add
   assert.match(ix.sql, /UNIQUE INDEX[\s\S]*source_key[\s\S]*WHERE source_key IS NOT NULL/);
   const { read } = require('./helpers/extractFn');
   assert.match(read('lib/database.js'), /upgradeDoseLogsSourceKey\(db\);/, 'initDatabase runs it');
+  // Tap ledger: an install from 1.3.0 gets the dose_tap_keys table from the same createSchema.
+  assert.ok(raw.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'dose_tap_keys'`).get(), 'dose_tap_keys created on the old database');
+  assert.match(read('lib/database.js'), /pruneDoseTapKeys\(db, Date\.now\(\)\)/, 'initDatabase prunes the ledger');
+});
+
+// ── Tap ledger (dose_tap_keys): the last double-log path ────────────────────────────────────────
+// An Undo that is pushed hard-deletes the dose row (and its source_key with it); a late replay of the
+// tap then found nothing. Every tap that wrote a dose is also kept in the local-only dose_tap_keys,
+// in the same BEGIN IMMEDIATE as the write, so the replay still finds it.
+
+test('Ledger: Undo, push (the row is hard-deleted), late replay -> no row', async () => {
+  const db = makeDb(); const a = app(db); const pid = protocol(db);
+  const cloud = makeCloud();
+  cloud._store.protocols.set('p-1', { id: 'p-1', user_id: USER, name: 'X', updated_at: '000001' });
+  const { logId } = a.recordDoseTaken(pid, { atNow: true, sourceKey: KEY });
+  await pushPending(db, cloud, USER);                       // the dose reached the cloud
+  a.deleteDoseLog(logId);                                   // Undo
+  await pushPending(db, cloud, USER);                       // cloud delete, then the local hard delete
+  assert.equal(db.getAllSync('SELECT * FROM dose_logs').length, 0, 'the row and its source_key are gone');
+  const replay = a.recordDoseTaken(pid, { atNow: true, sourceKey: KEY });
+  assert.equal(replay.logId, null);
+  assert.equal(replay.sameTap, true);
+  assert.equal(db.getAllSync('SELECT * FROM dose_logs').length, 0, 'the Undo stands');
+  // An Undo of a dose never pushed (no remote id) is hard-deleted at once by the next push: same.
+  const K2 = KEY + '-2';
+  const r2 = a.recordDoseTaken(pid, { atNow: true, sourceKey: K2 });
+  a.deleteDoseLog(r2.logId);
+  await pushPending(db, cloud, USER);
+  assert.equal(a.recordDoseTaken(pid, { atNow: true, sourceKey: K2 }).sameTap, true);
+});
+
+test('Ledger: written in the same transaction as the dose (a failed write leaves no key); never synced', () => {
+  const db = makeDb(); const a = app(db); const pid = protocol(db);
+  const failing = a.make({ insertDoseLog: (data) => { a.insertDoseLog(data); throw new Error('disk I/O'); } });
+  assert.throws(() => failing(pid, { atNow: true, sourceKey: KEY }));
+  assert.equal(db.getAllSync('SELECT * FROM dose_tap_keys').length, 0, 'rolled back with the dose');
+  a.recordDoseTaken(pid, { atNow: true, sourceKey: KEY });
+  assert.deepEqual(db.getAllSync('SELECT key FROM dose_tap_keys').map((r) => r.key), [KEY]);
+  a.recordDoseTaken(pid, { atNow: true });
+  assert.equal(db.getAllSync('SELECT * FROM dose_tap_keys').length, 1, 'an app tap (no key) adds nothing');
+  const { TABLES } = require('../lib/syncCore');
+  assert.ok(!TABLES.includes('dose_tap_keys'), 'not a synced table');
+});
+
+test('Ledger: pruned at start to the last 14 days and at most 500 keys', () => {
+  const db = makeDb();
+  const { pruneDoseTapKeys } = require('../lib/schema');
+  const now = Date.parse('2026-10-20T12:00:00Z');
+  const day = 86400000;
+  for (let i = 0; i < 600; i++) db.runSync('INSERT INTO dose_tap_keys (key, at) VALUES (?, ?)', [`k${i}`, new Date(now - (i % 10) * day - i * 1000).toISOString()]);
+  for (let i = 0; i < 5; i++) db.runSync('INSERT INTO dose_tap_keys (key, at) VALUES (?, ?)', [`old${i}`, new Date(now - (15 + i) * day).toISOString()]);
+  pruneDoseTapKeys(db, now);
+  const rows = db.getAllSync('SELECT key, at FROM dose_tap_keys');
+  assert.equal(rows.length, 500);
+  assert.ok(!rows.some((r) => r.key.startsWith('old')), 'nothing older than 14 days');
+  const kept = new Set(rows.map((r) => r.key));
+  const all = Array.from({ length: 600 }, (_, i) => ({ key: `k${i}`, at: now - (i % 10) * day - i * 1000 })).sort((x, y) => y.at - x.at);
+  assert.ok(all.slice(0, 500).every((r) => kept.has(r.key)), 'the newest 500 are kept');
+  pruneDoseTapKeys(db, now);
+  assert.equal(db.getAllSync('SELECT * FROM dose_tap_keys').length, 500, 'idempotent');
+});
+
+test('Ledger: cleared with the local database (intended sign-out, cross-account discard)', () => {
+  const db = makeDb(); const a = app(db); const pid = protocol(db);
+  a.recordDoseTaken(pid, { atNow: true, sourceKey: KEY });
+  a.clearLocalDatabase();
+  assert.equal(db.getAllSync('SELECT * FROM dose_tap_keys').length, 0);
+  // The cross-account discard (lib/accountGuard) runs the same clearLocalDatabase.
+  assert.match(read('lib/accountGuard.js'), /d\.clearLocalDatabase/);
 });
