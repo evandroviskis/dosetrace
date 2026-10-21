@@ -16,6 +16,7 @@
 // Counts only in the logs — never a token, a user id or an address.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { versionMessages, pushCandidates, deadTokens, versionBelow, sentKey } from './plan.js';
+import { selectWithOptionalLanguage } from '../_shared/pushLanguage.js';
 
 const EXPO_BATCH = 100;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -28,6 +29,13 @@ Deno.serve(async (req) => {
   const cronSecret = Deno.env.get('CRON_SECRET') || '';
   const auth = req.headers.get('Authorization') || '';
   if (!(auth === `Bearer ${serviceKey}` || (cronSecret && auth === `Bearer ${cronSecret}`))) {
+    // Review round 2, item 6: the hourly call builds its header from the Vault secret; a missing
+    // secret sends no usable header and every run would be refused in silence. Said loudly (never
+    // the header or a secret).
+    const bare = !auth || /^Bearer\s*(null|undefined)?\s*$/i.test(auth);
+    if (bare) console.error('[version-notice] refused: no Authorization header — is the Vault secret dosetrace_cron_secret missing? (see the migration header)');
+    else if (!cronSecret) console.error('[version-notice] refused: the function secret CRON_SECRET is not set');
+    else console.error('[version-notice] refused: the Authorization header does not match CRON_SECRET (Vault dosetrace_cron_secret and CRON_SECRET differ?)');
     return json({ error: 'unauthorized' }, 401);
   }
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey);
@@ -43,12 +51,14 @@ Deno.serve(async (req) => {
     const releases = ((rels || []) as Release[]).filter((r) => r.latest_version);
     if (!releases.length) return json({ ok: true, releases: 0, sent: 0 });
 
-    // Phones that report a version (paged: the API returns at most 1000 rows per read).
+    // Phones that report a version (paged: the API returns at most 1000 rows per read). The language
+    // column (migration 20261021230000_push_tokens_language.sql) is optional: without it, English.
     const tokens: Token[] = [];
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await admin.from('push_tokens')
-        .select('user_id, expo_token, platform, timezone, app_version, language, updated_at')
-        .not('app_version', 'is', null).order('expo_token').range(from, from + 999);
+      const { data, error } = await selectWithOptionalLanguage(
+        (cols: string) => admin.from('push_tokens').select(cols).not('app_version', 'is', null).order('expo_token').range(from, from + 999),
+        'user_id, expo_token, platform, timezone, app_version, updated_at',
+      );
       if (error) throw error;
       tokens.push(...((data || []) as Token[]));
       if (!data || data.length < 1000) break;

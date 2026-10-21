@@ -21,7 +21,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // A-156: the push language is on the token row (the app never writes user_metadata.language).
-import { tokenLanguage } from '../_shared/pushLanguage.js';
+import { tokenLanguage, selectWithOptionalLanguage } from '../_shared/pushLanguage.js';
 import {
   dueDateKeys, reminderSlots, morningSummaryPlan, localParts, foodNudgeDays,
   type Protocol,
@@ -103,10 +103,12 @@ Deno.serve(async (req) => {
     // 1. Every registered ANDROID device. iOS is intentionally local-only
     //    (usesServerPush() is Android-only on the client), so sending server pushes
     //    to iOS tokens would DOUBLE-FIRE against the local schedule. Filter here.
-    const { data: tokens, error: tokErr } = await admin
-      .from('push_tokens')
-      .select('user_id, expo_token, platform, timezone, language') // language: migration 20261022000000_app_releases.sql (apply it before deploying this)
-      .eq('platform', 'android');
+    //    The language column (A-156, migration 20261021230000_push_tokens_language.sql) is optional:
+    //    before that migration the read goes again without it and the pushes are in English.
+    const { data: tokens, error: tokErr } = await selectWithOptionalLanguage(
+      (cols: string) => admin.from('push_tokens').select(cols).eq('platform', 'android'),
+      'user_id, expo_token, platform, timezone',
+    );
     if (tokErr) throw tokErr;
     if (!tokens || tokens.length === 0) {
       return json({ ok: true, tokens: 0, sent: 0, dry: DRY_RUN });

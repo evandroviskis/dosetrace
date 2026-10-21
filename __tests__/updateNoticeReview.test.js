@@ -215,7 +215,8 @@ test('3 send-reminders reads the language from the token row too (the shared rul
   assert.equal(L.tokenLanguage(null), 'en');
   const sr = read('supabase/functions/send-reminders/index.ts');
   assert.match(sr, /from '\.\.\/_shared\/pushLanguage\.js'/);
-  assert.match(sr, /select\('user_id, expo_token, platform, timezone, language'\)/);
+  // Round 2 item 2: through the optional-column read (the column may not be there yet).
+  assert.match(sr, /selectWithOptionalLanguage\(/);
   assert.match(sr, /const lang = tokenLanguage\(tok\)/);
   assert.doesNotMatch(sr, /meta\.language/);
   const vn = read('supabase/functions/version-notice/index.ts');
@@ -232,7 +233,8 @@ test('3 the token row carries the app language (stored choice, else the phone\'s
   const lc = read('i18n/LanguageContext.js');
   const set = lc.slice(lc.indexOf('function setLanguage('), lc.indexOf('function setTimeFormat('));
   assert.match(set, /registerPushToken\(\{ prompt: false \}\)/);
-  assert.match(read('supabase/migrations/20261022000000_app_releases.sql'), /alter table public\.push_tokens add column if not exists language text check \(language is null or language in \('en', 'es', 'pt', 'fr', 'de', 'it'\)\)/);
+  // Round 2 item 2: its own migration (applies independently of app_releases).
+  assert.match(read('supabase/migrations/20261021230000_push_tokens_language.sql'), /alter table public\.push_tokens add column if not exists language text check \(language is null or language in \('en', 'es', 'pt', 'fr', 'de', 'it'\)\)/);
 });
 
 // ── 5. The push waits 24 h after latest_version changed ───────────────────────────────────────
@@ -255,7 +257,8 @@ test('5 the version push goes out only 24 h after latest_version was set (an ear
 test('6 the token row (app version, language) is re-written on every foreground with a session, without a permission prompt', () => {
   const app = read('App.js');
   const fg = app.slice(app.indexOf("const appStateSub = AppState.addEventListener('change'"), app.indexOf('// A-106:'));
-  assert.match(fg, /registerPushToken\(\{ prompt: false \}\)/);
+  // Round 2 item 3: only when something on the row changed (or once a day).
+  assert.match(fg, /registerPushToken\(\{ prompt: false, ifChanged: true \}\)/);
 });
 
 // ── 7. The sender needs the cron secret ───────────────────────────────────────────────────────
@@ -311,4 +314,172 @@ test('11 the Android "news" channel is named in the app language (the Settings s
   assert.match(src, /settings_version_news/);
   const lc = read('i18n/LanguageContext.js');
   assert.match(lc.slice(lc.indexOf('function setLanguage('), lc.indexOf('function setTimeFormat(')), /nameNewsChannel\(code\)/);
+});
+
+// ══ Review round 2 (coordinator 2026-10-20, re-verification items 2-6) ═════════════════════════
+
+// ── 2. Deploy order: push_tokens.language has its own migration; the senders survive without it ──
+test('R2-2 push_tokens.language is its own small migration (applies without app_releases); app_releases no longer adds it', () => {
+  const dir = path.join(ROOT, 'supabase/migrations');
+  const f = fs.readdirSync(dir).find((x) => /push_tokens_language\.sql$/.test(x));
+  assert.ok(f, 'a separate migration file');
+  const sql = fs.readFileSync(path.join(dir, f), 'utf8');
+  assert.match(sql, /alter table public\.push_tokens add column if not exists language text check \(language is null or language in \('en', 'es', 'pt', 'fr', 'de', 'it'\)\)/);
+  assert.doesNotMatch(sql.replace(/^--.*$/gm, ''), /app_releases/, 'no statement on A-127\'s release tables');
+  assert.match(sql, /NOT APPLIED/);
+  assert.doesNotMatch(read('supabase/migrations/20261022000000_app_releases.sql'), /add column if not exists language/);
+});
+
+test('R2-2 both senders read the tokens with the language column and retry without it on 42703 / PGRST204 (English then); any other error stays an error', async () => {
+  const L = await langMod();
+  const calls = [];
+  const missing = (code) => async (cols) => { calls.push(cols); return /language/.test(cols) ? { data: null, error: { code, message: 'column push_tokens.language does not exist' } } : { data: [{ user_id: 'u', expo_token: 'T' }], error: null }; };
+  for (const code of ['42703', 'PGRST204']) {
+    calls.length = 0;
+    const r = await L.selectWithOptionalLanguage(missing(code), 'user_id, expo_token');
+    assert.deepEqual(calls, ['user_id, expo_token, language', 'user_id, expo_token'], code);
+    assert.equal(r.error, null);
+    assert.equal(r.withLanguage, false);
+    assert.equal(L.tokenLanguage(r.data[0]), 'en', 'no language column: English');
+  }
+  calls.length = 0;
+  const ok = await L.selectWithOptionalLanguage(async (cols) => { calls.push(cols); return { data: [{ language: 'pt' }], error: null }; }, 'user_id');
+  assert.deepEqual(calls, ['user_id, language']);
+  assert.equal(ok.withLanguage, true);
+  const other = await L.selectWithOptionalLanguage(async () => ({ data: null, error: { code: '57014', message: 'timeout' } }), 'user_id');
+  assert.equal(other.error.code, '57014', 'a real failure is not hidden');
+  const sr = read('supabase/functions/send-reminders/index.ts');
+  assert.match(sr, /selectWithOptionalLanguage\(/);
+  assert.doesNotMatch(sr, /select\('user_id, expo_token, platform, timezone, language'\)/, 'never a hard dependency on the column');
+  const vn = read('supabase/functions/version-notice/index.ts');
+  assert.match(vn, /selectWithOptionalLanguage\(/);
+});
+
+// ── 3. The foreground re-write only when something changed (or once a day) ────────────────────
+test('R2-3 the push row is written only when token / app version / language / time zone / device / account changed, or once a day; a forced write always goes', () => {
+  const { pushRowDue, pushRowPrint } = require('../lib/pushRow');
+  const base = { userId: 'u1', appVersion: '1.3.2', language: 'pt', timezone: 'America/Sao_Paulo', deviceId: 'd1' };
+  const now = 1_000_000_000_000;
+  const prev = { print: pushRowPrint(base), token: 'T', at: now - 3600e3 };
+  assert.equal(pushRowDue({ prev, cheap: base, now, force: false }), false, 'same, 1 h ago: no exp.host call, no upsert');
+  assert.equal(pushRowDue({ prev, cheap: { ...base, appVersion: '1.3.3' }, now, force: false }), true, 'store auto-update');
+  assert.equal(pushRowDue({ prev, cheap: { ...base, language: 'de' }, now, force: false }), true);
+  assert.equal(pushRowDue({ prev, cheap: { ...base, timezone: 'Europe/Lisbon' }, now, force: false }), true);
+  assert.equal(pushRowDue({ prev, cheap: { ...base, deviceId: 'd2' }, now, force: false }), true);
+  assert.equal(pushRowDue({ prev, cheap: { ...base, userId: 'u2' }, now, force: false }), true, 'another account');
+  assert.equal(pushRowDue({ prev: { ...prev, at: now - 24 * 3600e3 }, cheap: base, now, force: false }), true, 'the daily heartbeat (a new token shows up there)');
+  assert.equal(pushRowDue({ prev: { ...prev, at: now + 3 * 24 * 3600e3 }, cheap: base, now, force: false }), true, 'a stamp from a clock that was ahead');
+  assert.equal(pushRowDue({ prev: null, cheap: base, now, force: false }), true);
+  assert.equal(pushRowDue({ prev, cheap: base, now, force: true }), true, 'sign-in / language change / version news yes');
+  // Wiring: the check runs before getExpoPushTokenAsync; the print is stored only after a write that worked.
+  const src = read('lib/notifications.js');
+  const fn = src.slice(src.indexOf('export async function registerPushToken'), src.indexOf('export async function removePushToken'));
+  assert.ok(fn.indexOf('pushRowDue(') > 0 && fn.indexOf('pushRowDue(') < fn.indexOf('getExpoPushTokenAsync'), 'checked before exp.host');
+  assert.match(fn, /force: opts\.ifChanged !== true/, 'every caller but the foreground forces the write');
+  assert.match(fn, /if \(!lastError\)/);
+  const app = read('App.js');
+  const fg = app.slice(app.indexOf("const appStateSub = AppState.addEventListener('change'"), app.indexOf('// A-106:'));
+  assert.match(fg, /registerPushToken\(\{ prompt: false, ifChanged: true \}\)/);
+});
+
+// ── 4. The drift guard covers every way to reach React Native's Modal ─────────────────────────
+function rnModalUses(code) {
+  const { parse } = require('@babel/parser');
+  const traverse = require('@babel/traverse').default;
+  const ast = parse(code, { sourceType: 'module', plugins: ['jsx', 'typescript'] });
+  const out = [];
+  const ns = new Set(); // namespace / default imports and require bindings of react-native
+  const isRNRequire = (n) => n && n.type === 'CallExpression' && n.callee.type === 'Identifier' && n.callee.name === 'require' && n.arguments[0] && n.arguments[0].value === 'react-native';
+  const propName = (n) => n.property && (n.property.name || n.property.value);
+  traverse(ast, {
+    ImportDeclaration(p) {
+      if (p.node.source.value !== 'react-native') return;
+      for (const s of p.node.specifiers) {
+        if (s.type === 'ImportSpecifier' && (s.imported.name || s.imported.value) === 'Modal') out.push(`import { Modal${s.local.name !== 'Modal' ? ' as ' + s.local.name : ''} }`);
+        if (s.type === 'ImportNamespaceSpecifier' || s.type === 'ImportDefaultSpecifier') ns.add(s.local.name);
+      }
+    },
+    ExportNamedDeclaration(p) {
+      if (p.node.source && p.node.source.value === 'react-native' && p.node.specifiers.some((s) => s.local && s.local.name === 'Modal')) out.push("export { Modal } from 'react-native'");
+    },
+    VariableDeclarator(p) {
+      if (!isRNRequire(p.node.init)) return;
+      if (p.node.id.type === 'Identifier') ns.add(p.node.id.name);
+      if (p.node.id.type === 'ObjectPattern' && p.node.id.properties.some((q) => q.key && (q.key.name || q.key.value) === 'Modal')) out.push("const { Modal } = require('react-native')");
+    },
+  });
+  traverse(ast, {
+    MemberExpression(p) {
+      if (propName(p.node) !== 'Modal') return;
+      if (isRNRequire(p.node.object)) out.push("require('react-native').Modal");
+      else if (p.node.object.type === 'Identifier' && ns.has(p.node.object.name)) out.push(`${p.node.object.name}.Modal`);
+    },
+    JSXMemberExpression(p) {
+      if (p.node.property.name === 'Modal' && p.node.object.type === 'JSXIdentifier' && ns.has(p.node.object.name)) out.push(`<${p.node.object.name}.Modal>`);
+    },
+  });
+  return out;
+}
+test('R2-4 no app code reaches React Native\'s Modal except components/PresenceModal.js (named, aliased, namespace, default or require)', () => {
+  // The guard catches every form (synthetic code first).
+  assert.equal(rnModalUses("import { Modal as M } from 'react-native';").length, 1);
+  assert.equal(rnModalUses("import * as RN from 'react-native'; const x = <RN.Modal />;").length, 1);
+  assert.equal(rnModalUses("import RN from 'react-native'; const M = RN.Modal;").length, 1);
+  assert.equal(rnModalUses("const { Modal } = require('react-native');").length, 1);
+  assert.equal(rnModalUses("const RN = require('react-native'); RN.Modal;").length, 1);
+  assert.equal(rnModalUses("const M = require('react-native').Modal;").length, 1);
+  assert.equal(rnModalUses("export { Modal } from 'react-native';").length, 1);
+  assert.equal(rnModalUses("import Modal from '../components/PresenceModal'; import { View } from 'react-native';").length, 0);
+  // The app code.
+  const files = ['App.js', 'index.js'];
+  const walkAll = (dir) => {
+    for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) { if (e.name !== 'node_modules') walkAll(p); } else if (/\.(js|jsx|ts|tsx)$/.test(e.name)) files.push(p);
+    }
+  };
+  for (const d of ['lib', 'screens', 'components', 'i18n', 'modules']) if (fs.existsSync(path.join(ROOT, d))) walkAll(d);
+  const bad = [];
+  for (const f of files) {
+    if (f === 'components/PresenceModal.js') continue;
+    let uses;
+    try { uses = rnModalUses(fs.readFileSync(path.join(ROOT, f), 'utf8')); } catch (e) { bad.push(`${f}: unparsable (${e.message})`); continue; }
+    for (const u of uses) bad.push(`${f}: ${u}`);
+  }
+  assert.ok(files.length > 100, `scanned ${files.length} files`);
+  assert.deepEqual(bad, []);
+  assert.equal(rnModalUses(read('components/PresenceModal.js')).length, 1, 'the wrapper is the one place');
+});
+
+// ── 5. An older overlapping required check never wins ─────────────────────────────────────────
+test('R2-5 evalRequired: when two checks overlap, the newer answer stands even if the older one arrives last', async () => {
+  const answers = [];
+  const shown = [];
+  const gate = createUpdateGate({
+    flow: { state: () => new Promise((r) => answers.push(r)), inviteCandidate: async () => null, recordShown: async () => {}, flushPending: async () => {} },
+    sheets: { count: P.openSheetCount, subscribe: P.onSheetsChange },
+    rootState: () => tabs,
+    ctx: () => ({ uid: 'u1', onMain: true }),
+    onRequired: (r) => shown.push(r),
+    onInvite: () => {},
+    setTimer: () => 1, clearTimer: () => {},
+  });
+  const older = gate.evalRequired(); // e.g. the cached row, still required
+  const newer = gate.evalRequired(); // the server lowered the minimum
+  answers[1]({ required: null });
+  await newer;
+  answers[0]({ required: { reason: 'old' } });
+  await older;
+  assert.deepEqual(shown, [null], 'the stale "required" is dropped');
+  gate.dispose();
+});
+
+// ── 6. A missing Vault secret is loud ─────────────────────────────────────────────────────────
+test('R2-6 version-notice logs a refused call without the header loudly (missing Vault secret), never the secret; the migration header says how to check', () => {
+  const ts = read('supabase/functions/version-notice/index.ts');
+  assert.match(ts, /console\.error\('\[version-notice\] refused: no Authorization header/);
+  assert.match(ts, /dosetrace_cron_secret/);
+  assert.doesNotMatch(ts, /console\.[a-z]+\([^)]*(cronSecret|serviceKey|auth\b)/, 'never the secret or the header in a log');
+  const sql = read('supabase/migrations/20261022000000_app_releases.sql');
+  assert.match(sql, /select count\(\*\) from vault\.decrypted_secrets where name = 'dosetrace_cron_secret'/);
 });

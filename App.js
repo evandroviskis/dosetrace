@@ -728,7 +728,7 @@ export default function App() {
       supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? deviceGate('foreground') : null)).catch(() => null);
       // A-127 / A-156: every foreground re-writes this phone's push row (app version after a store
       // auto-update, the language) — one upsert, never a permission prompt.
-      supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? registerPushToken({ prompt: false }) : null)).catch(() => null);
+      supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? registerPushToken({ prompt: false, ifChanged: true }) : null)).catch(() => null);
       const nowTs = Date.now();
       // At most once a minute, with the first-sync gate's own rule: a clock moved back is stale too
       // (a negative difference never asked for a sync again — council fix 1, 2026-10-16).

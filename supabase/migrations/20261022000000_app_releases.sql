@@ -5,15 +5,20 @@
 -- migration behaves as before: its read of app_releases answers "table not found" (PostgREST 12.2:
 -- HTTP 404 with code 42P01), which the app treats as "nothing to say" — no invitation, no required
 -- screen (lib/updateFlow refresh keeps its cache on any error; __tests__/updateNotice.test.js "a
--- missing table"). Its push_tokens upsert without app_version / language retries without the column
+-- missing table"). Its push_tokens upsert without app_version retries without the column
 -- named in the error (lib/notifications registerPushToken).
--- send-reminders (not deployed) reads push_tokens.language from this migration: apply it first.
+-- push_tokens.language (A-156) is its own migration, 20261021230000_push_tokens_language.sql; the
+-- senders read the tokens without it if it is not there yet (English).
 --
 -- BEFORE applying, create the cron secret in Vault and give the function the same value (the hourly
 -- call sends it; version-notice refuses a call without it):
 --   select vault.create_secret('<a long random value>', 'dosetrace_cron_secret');
 --   supabase secrets set CRON_SECRET=<the same value>
 --   supabase functions deploy version-notice --no-verify-jwt
+-- CHECK after applying (a missing secret makes the hourly header empty and every run a refused 401;
+-- the function logs "[version-notice] refused: no Authorization header" when that happens):
+--   select count(*) from vault.decrypted_secrets where name = 'dosetrace_cron_secret';   -- must be 1
+--   then, after the next :05, the version-notice function log has no "refused" line.
 -- Needs A-119's migration (20261021010000_one_active_device.sql) only for push_tokens.device_id,
 -- which registerPushToken already handles missing.
 --
@@ -45,7 +50,7 @@
 --   drop function if exists public.claim_version_notice();
 --   drop table if exists public.app_release_pushes, public.version_notice_runs, public.app_releases;
 --   drop function if exists public.app_releases_touch();
---   (push_tokens.app_version / language may stay: nullable, unused by older builds.)
+--   (push_tokens.app_version may stay: nullable, unused by older builds.)
 
 -- ── UN-1: the release row per platform ──────────────────────────────────────────────────────
 create table if not exists public.app_releases (
@@ -93,8 +98,6 @@ grant select on table public.app_releases to anon, authenticated;
 
 -- ── UN-6: the app version on the device row ─────────────────────────────────────────────────
 alter table public.push_tokens add column if not exists app_version text check (app_version is null or char_length(app_version) <= 20);
--- A-156: the app language (the phone keeps it; user_metadata never has it), for every server push.
-alter table public.push_tokens add column if not exists language text check (language is null or language in ('en', 'es', 'pt', 'fr', 'de', 'it'));
 
 -- One push per person per version (the sender claims a row before sending; a failed send releases it).
 create table if not exists public.app_release_pushes (
