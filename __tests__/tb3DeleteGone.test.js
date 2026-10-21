@@ -70,8 +70,32 @@ test('R1: a 401 whose refresh is refused as an invalid refresh token → the acc
   assert.deepEqual(calls, ['pause', 'post', 'settled']);
 });
 
-test('R1: a quick network failure (offline before the request left) still resumes + offline', async () => {
-  const { del, calls } = load({ deleteUser: async () => { throw new TypeError('Network request failed'); }, userCheck: async () => { throw new Error('not asked'); } });
+// DV-009 lost-response half (Gate B 2, 1.3.1): a network error does not tell "never left" from "the
+// answer was lost after the server deleted". The account is checked first; only then offline.
+test('R1: a quick network failure (offline before the request left) still resumes + offline, after asking', async () => {
+  const { del, calls } = load({ deleteUser: async () => { throw new TypeError('Network request failed'); }, userCheck: async () => { throw new TypeError('Network request failed'); } });
   assert.deepEqual(await del(), { offline: true });
-  assert.deepEqual(calls, ['pause', 'post', 'resume']);
+  assert.deepEqual(calls, ['pause', 'post', 'check', 'resume']);
+});
+
+test('DV-009: the delete answer was lost on the network, the server says the user is gone → ok (teardown), never "failed"', async () => {
+  const { del, calls } = load({ deleteUser: async () => { throw new TypeError('Network request failed'); }, userCheck: async () => json({ code: 'user_not_found', msg: 'User from sub claim in JWT does not exist' }, 403) });
+  assert.deepEqual(await del(), { ok: true, appleManualRevokeNeeded: false });
+  assert.ok(!calls.includes('resume'));
+  assert.deepEqual(calls, ['pause', 'post', 'check', 'settled']);
+});
+
+test('DV-009: the network failed and the account still exists → resume + offline (the person may retry)', async () => {
+  const { del, calls } = load({ deleteUser: async () => { throw new TypeError('Network request failed'); }, userCheck: async () => json({ id: 'u1' }) });
+  assert.deepEqual(await del(), { offline: true });
+  assert.deepEqual(calls, ['pause', 'post', 'check', 'resume']);
+});
+
+test('DV-009: a 5xx from delete-user after the account was already deleted → ok; still there → the failure, sync resumed', async () => {
+  const gone = load({ deleteUser: async () => json({ error: 'boom' }, 500), userCheck: async () => json({ code: 'user_not_found' }, 403) });
+  assert.deepEqual(await gone.del(), { ok: true, appleManualRevokeNeeded: false });
+  assert.deepEqual(gone.calls, ['pause', 'post', 'check', 'settled']);
+  const there = load({ deleteUser: async () => json({ error: 'boom' }, 500), userCheck: async () => json({ id: 'u1' }) });
+  await assert.rejects(there.del(), /boom/);
+  assert.deepEqual(there.calls, ['pause', 'post', 'check', 'resume']);
 });
