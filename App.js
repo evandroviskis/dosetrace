@@ -13,11 +13,18 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
+import { consumeExplicitSignIn, beginExplicitSignIn, endExplicitSignIn } from './lib/explicitSignIn';
+import { deviceFlow, deviceGate, subscribeDevice, readDeviceState, continueAfterVerdict, checkAccountGoneFor } from './lib/deviceRuntime';
+import { noticeSheet, verdictSheet, askSheet, signOutSheet } from './lib/deviceCopy';
+import { runSignOut } from './lib/settingsSignOut';
+import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
+import { createBusyGuard } from './lib/busyGuard';
+import { signOutIntended } from './lib/accountActions';
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
 import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
-import { signOutOutcome, completeLocalSignOut } from './lib/signOutCore';
+import { completeLocalSignOut } from './lib/signOutCore';
 import { tabBarStyle } from './lib/tabBarStyle';
 import { setStrictRemoval } from './lib/secureStore';
 import { onSignedOutNow, afterSignedOut, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
@@ -254,9 +261,9 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onVerdictRetry, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose }) {
   const { colors, isDark } = useTheme();
-  const { t } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
 
   // Signup confirmation came back through the deep link — the user has no other way to
   // know it worked, so say so; an emailed link that could not be used (expired, used, or
@@ -275,13 +282,38 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
     : justConfirmed
       ? { icon: 'check', title: t('confirm_email_done_title'), body: t('confirm_email_done_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
       : linkFailed
-        ? { icon: 'alert', title: t(linkFailed === 'offline' || linkFailed === 'notbacked' ? 'reset_switch_title' : 'auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : linkFailed === 'offline' ? 'reset_switch_offline' : linkFailed === 'notbacked' ? 'reset_switch_notbacked' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+        ? (linkFailed === 'signout_failed'
+          // The reset-link account switch could not sign the other account out: "Couldn't sign out".
+          ? { icon: 'alert', title: t('settings_signout_failed_title'), body: t('settings_signout_failed_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+          : { icon: 'alert', title: t('auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] })
         : null;
   // Closing a sheet only hides it; the buttons carry the actions (DTSheet runs them after).
   const closeLinkSheet = () => {
     if (switchAsk) onSwitchClose && onSwitchClose();
     else if (justConfirmed) onConfirmedShown && onConfirmedShown();
     else onLinkFailedShown && onLinkFailedShown();
+  };
+
+  // A-119 (approved pictures docs/design/a119-*.html): the account's device sheets, before any other.
+  //   screen 2 / 2b / account deleted — the server confirmed this phone lost the account: locked, on
+  //     any route, signed in or not (the verdict was stored before anything was wiped);
+  //   screen 4 — another device holds the account and this phone never signed in while it did:
+  //     locked, while signed in;
+  //   the sign-out sheet of the reset-link account switch (screens 3 / 3b / 5a / 5b);
+  //   screen 1 / 1b — the takeover notice: once, on Main only (after the 18+ and profile steps).
+  const onMain = !!session && !recovery && isProfileComplete(session.user) && !needsAdultConfirmation(session.user && session.user.user_metadata);
+  const dev = device || {};
+  // The one sign-out sheet (the reset-link switch, screen 4's "Sign out of this phone") comes before
+  // screen 4 itself, which shows again when the person stays.
+  const deviceSheet = deviceHeld ? null
+    : dev.verdict ? verdictSheet({ t, language, timeFormat, verdict: dev.verdict, onContinue: onVerdictContinue, onRetry: onVerdictRetry })
+      : switchSignOut ? signOutSheet({ t, language, timeFormat, offline: switchSignOut.r.offline, summary: switchSignOut.r.summary, lastBackup: switchSignOut.r.lastBackup, onAnyway: switchSignOut.onAnyway, onStay: switchSignOut.onStay })
+        : dev.ask && session && dev.ask.userId === session.user.id ? askSheet({ t, language, timeFormat, ask: dev.ask, onUseHere, onSignOut: onAskSignOut })
+          : dev.notice && onMain && dev.notice.userId === session.user.id ? noticeSheet({ t, language, timeFormat, notice: dev.notice, onOk: onNoticeSeen })
+            : null;
+  const closeDeviceSheet = () => {
+    if (switchSignOut && !dev.verdict) onSwitchSignOutClose && onSwitchSignOutClose();
+    else onDeviceSheetClose && onDeviceSheetClose();
   };
 
   const navTheme = navThemeFor(colors, isDark);
@@ -335,7 +367,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
           <Stack.Screen name="Main" component={MainStack} />
         )}
       </Stack.Navigator>
-      <DTSheet config={linkSheet} onClose={closeLinkSheet} />
+      <DTSheet config={deviceSheet || linkSheet} onClose={deviceSheet ? closeDeviceSheet : closeLinkSheet} />
     </NavigationContainer>
   );
 }
@@ -417,7 +449,23 @@ export default function App() {
   const [recovery, setRecovery] = useState(null);
   const [switchAsk, setSwitchAsk] = useState(null); // { pending, current } — a link for another account
   const [justConfirmed, setJustConfirmed] = useState(false);
-  const [linkFailed, setLinkFailed] = useState(false); // false | 'reset' | 'confirm' | 'offline' | 'notbacked'
+  const [linkFailed, setLinkFailed] = useState(false); // false | 'reset' | 'confirm' | 'signout_failed'
+  // A-119 one active device: the device state (lib/deviceRuntime) — the verdict, the screen-4
+  // question, the takeover notice — read at once at start (a stored verdict needs no network) and
+  // again whenever it changes. deviceHeld hides the sheet while its button's action runs.
+  const [device, setDevice] = useState(null);
+  const [deviceHeld, setDeviceHeld] = useState(false);
+  const [switchSignOut, setSwitchSignOut] = useState(null); // the reset-link switch's sign-out sheet
+  const switchGuard = useRef(null);
+  if (!switchGuard.current) switchGuard.current = createBusyGuard();
+  const reloadDevice = useCallback(() => { readDeviceState().then(setDevice).catch(() => {}); }, []);
+  useEffect(() => {
+    const unsub = subscribeDevice(reloadDevice);
+    reloadDevice();
+    // OD-6: a verdict shown again counts what this phone holds now (a notification "Taken" since).
+    deviceFlow().refreshVerdict().then(reloadDevice).catch(() => {});
+    return unsub;
+  }, [reloadDevice]);
   const seenLinks = useRef(new Set()); // emailed links already being handled in this run
   // How the auth screen opens: Create account (from the last onboarding step, with the
   // consent box ticked by the four confirmations just made) or Sign in (from the welcome
@@ -463,6 +511,7 @@ export default function App() {
     resetAllSelections, // S-26: the next account starts with no open right-page items
     clearAllDrafts, // S-26 BK-14: typed-but-unsaved drafts stay with their account
     forgetTodayLayout, // A-135 council: Today's layout memory (keyed by the user id) goes with the account
+    forgetDeviceState: () => deviceFlow().clearOnSignOut(), // A-119: screen-4 question, pending takeover, notice, secret
   });
 
   registerWipe(wipeDeps); // account deletion wipes at once with the same steps (lib/accountActions)
@@ -573,7 +622,9 @@ export default function App() {
         if (hasSession) { rememberLink(key); return; }
         const p = parseAppleReturn(u);
         if (!p.code) { rememberLink(key); return; }
-        const { error } = await supabase.auth.exchangeCodeForSession(p.code);
+        // A-119 DL-102: the person's own Apple sign-in (the app was killed on Apple's page).
+        beginExplicitSignIn();
+        const { error } = await supabase.auth.exchangeCodeForSession(p.code).finally(endExplicitSignIn);
         if (cancelled) return;
         if (error && isTransientLinkError(error)) forgetInMemory(); else rememberLink(key);
         return;
@@ -647,6 +698,12 @@ export default function App() {
     const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') supabase.auth.startAutoRefresh(); else supabase.auth.stopAutoRefresh();
       if (state !== 'active') return;
+      // A-119 OD-4: the active-device check is the first server call of every foreground (a background
+      // verdict, or one that came while the app slept, shows screen 2 now).
+      // Not throttled; the sync pass below asks again first, and a stored verdict schedules nothing.
+      // OD-6: a verdict shown again counts what the phone holds now (a notification "Taken" since).
+      deviceFlow().refreshVerdict().then(reloadDevice).catch(reloadDevice);
+      supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? deviceGate('foreground') : null)).catch(() => null);
       const nowTs = Date.now();
       // At most once a minute, with the first-sync gate's own rule: a clock moved back is stale too
       // (a negative difference never asked for a sync again — council fix 1, 2026-10-16).
@@ -717,24 +774,30 @@ export default function App() {
           }
         } catch { /* ignore */ }
 
-        // If local DB is empty, import all data from cloud (first launch / new device)
-        if (isLocalDBEmpty(session.user.id)) {
-          await fullImportFromCloud();
-        } else {
-          // Otherwise trigger a background sync to push/pull changes
-          requestSync();
+        // A-119: the active-device check before the import (OD-4: a phone the server says was replaced
+        // never pulls; DL-103: an updated phone becomes active silently, or asks when another device
+        // holds the account; OD-14: a restored session never takes over). lib/signInDevice: if the
+        // local DB is empty, import all data from cloud (first launch / new device); otherwise a
+        // background sync pushes / pulls changes.
+        const step = await startupDeviceStep({ gate: deviceGate, userId: session.user.id, isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync });
+        if (!step.held) {
+          // One-time move of the open reality check + calculator inputs into the
+          // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
+          await runRealityMigration().catch(() => {});
+
+          // Schedule reminders AFTER the initial import — otherwise fresh
+          // installs sync notifications against an empty local DB.
+          requestNotificationPermissions()
+            .then(() => syncAllNotifications())
+            .then(() => registerPushToken())
+            .catch(() => {});
         }
-
-        // One-time move of the open reality check + calculator inputs into the
-        // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
-        await runRealityMigration().catch(() => {});
-
-        // Schedule reminders AFTER the initial import — otherwise fresh
-        // installs sync notifications against an empty local DB.
-        requestNotificationPermissions()
-          .then(() => syncAllNotifications())
-          .then(() => registerPushToken())
-          .catch(() => {});
+      } else {
+        // OD-10 / DL-85: no session but an account's data on the phone (a session that ended on its
+        // own): if the server says that account no longer exists, the deletion notice and the wipe.
+        let owner = null;
+        try { owner = getLocalDataUserId(); } catch { owner = null; }
+        if (owner) checkAccountGoneFor(owner).catch(() => {});
       }
       setLoading(false);
     }).catch(() => {
@@ -745,6 +808,8 @@ export default function App() {
     // and a session the password reset took that auth-js reported as TOKEN_REFRESHED (a phone ahead).
     const onSignedIn = (session) => {
       noteSignedIn(); // counted first: the reset helper then never runs it a second time
+      const explicit = consumeExplicitSignIn(); // A-119 DL-102 (pure)
+      if (explicit) deviceFlow().noteExplicitSignIn(session.user.id); // in memory: a pass first claims
       // A sign-in ends any pending wipe of the previous account (R1): plain counter write.
       bumpSignInGeneration();
       // Deferred: fullImportFromCloud() calls supabase, which would deadlock if
@@ -760,12 +825,7 @@ export default function App() {
         // next spurious sign-out — the exact bug this guard exists to prevent).
         consumeIntentionalSignOut();
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
-        startSyncEngine();
-
-        // Write any stashed intro-flow answers (name/goal/activity/…) to the
-        // freshly-created account, then clear the stash. No-op for returning
-        // users with no stash. Deferred (never inline in onAuthStateChange).
-        applyPendingProfile(supabase).catch(() => {});
+        // (A-119: the sync engine starts after the device step below — lib/signInDevice.)
 
         // Cross-account guard: if local data belongs to a DIFFERENT user (e.g. a
         // spurious sign-out KEPT it, then a different account signed in on this
@@ -784,12 +844,20 @@ export default function App() {
           }
         } catch { /* ignore */ }
 
-        // Import from cloud on sign-in if local DB is empty
-        if (isLocalDBEmpty(session.user.id)) {
-          await fullImportFromCloud();
-        } else {
-          requestSync();
-        }
+        // A-119 one active device (lib/signInDevice): a sign-in the person made takes the account over
+        // (DL-102; committed before the first import, OD-3; a rebuild it owes runs in the next pass);
+        // any other SIGNED_IN only checks (OD-14). The sync engine starts after it (auditor race).
+        // Never blocks the sign-in (OD-1). Screen 2 / screen 4: nothing imported, nothing scheduled.
+        const step = await signInDeviceStep({
+          explicit, userId: session.user.id, flow: deviceFlow(), gate: deviceGate, startSync: startSyncEngine,
+          isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync, reload: reloadDevice,
+        });
+
+        // Write any stashed intro-flow answers (name/goal/activity/…) to the
+        // freshly-created account, then clear the stash. No-op for returning
+        // users with no stash. Deferred (never inline in onAuthStateChange).
+        applyPendingProfile(supabase).catch(() => {});
+        if (step.held) return;
 
         // One-time move of the open reality check + calculator inputs into the
         // synced tables (S-03), after the import and BEFORE scheduling reminders.
@@ -803,6 +871,12 @@ export default function App() {
       }, 0);
     };
     setSignInHandler(onSignedIn);
+
+    const checkGoneAfterSpurious = () => {
+      let owner = null;
+      try { owner = getLocalDataUserId(); } catch { owner = null; }
+      if (owner) checkAccountGoneFor(owner).catch(() => {});
+    };
 
     // IMPORTANT: keep this callback SYNCHRONOUS and update state FIRST, then defer
     // all side-effects. Supabase holds an internal lock while this runs, and doing
@@ -819,7 +893,9 @@ export default function App() {
         });
         // Deferred: stop sync; intentional → wait for a running sync, then the full wipe (the
         // anti-cross-account-leak guard). Spurious → keep local data (cloud-backed, same user).
-        setTimeout(() => { afterSignedOut(intentional, wipeDeps()).catch(() => {}); }, 0);
+        // A-119 OD-10 / DL-85: a session that ended on its own (not intended) while the phone holds the
+        // account's data — if the server says the account no longer exists, the deletion notice and wipe.
+        setTimeout(() => { afterSignedOut(intentional, wipeDeps()).catch(() => {}); if (!intentional) checkGoneAfterSpurious(); }, 0);
       }
 
       if (_event === 'SIGNED_IN' && session?.user?.id) onSignedIn(session);
@@ -903,19 +979,64 @@ export default function App() {
                 const p = switchAsk && switchAsk.pending;
                 if (!p) return;
                 // Sign out of the current account the deliberate way (push, then wipe), then
-                // set the new password for the link's account.
+                // set the new password for the link's account. Never blocked (A-119 OD-9): with
+                // changes not backed up, the one sign-out sheet — "Sign out anyway" or stay (which
+                // drops the link). Never open the reset while the other account is still signed
+                // in (Gate B F1): only a sign-out that really happened opens it.
                 // The sheet's close dropped the pending link; Continue keeps it (kill-safe).
+                const proceed = (r) => { if (r && r.blocked === false && !r.failed) setRecovery(p); };
                 savePendingRecovery(p)
-                  .then(() => signOutCurrentForRecovery())
-                  .then((r) => {
-                    // Not signed out (changes not backed up, or the phone could not sign out):
-                    // never open the reset while the other account is still signed in (Gate B F1).
-                    const o = signOutOutcome(r);
-                    if (o.kind !== 'done') { setLinkFailed(o.link); return; }
-                    setRecovery(p);
-                  })
-                  .catch(() => setLinkFailed('offline'));
+                  .then(() => runSignOut({
+                    signOut: (opts) => signOutCurrentForRecovery(opts),
+                    guard: switchGuard.current,
+                    onFailed: () => setLinkFailed('signout_failed'),
+                    onBlocked: (r, anyway) => setSwitchSignOut({ r, onAnyway: () => { anyway().then(proceed).catch(() => {}); }, onStay: () => { discardPendingRecovery(); } }),
+                  }))
+                  .then((o) => { if (o === 'done') setRecovery(p); })
+                  .catch(() => setLinkFailed('signout_failed'));
               }}
+              switchSignOut={switchSignOut}
+              onSwitchSignOutClose={() => setSwitchSignOut(null)}
+              device={device}
+              deviceHeld={deviceHeld}
+              onDeviceSheetClose={() => setDeviceHeld(true)}
+              onVerdictContinue={() => {
+                // Screen 2 / account deleted: wipe and sign out like an intentional sign-out; on a
+                // failure the screen comes back (the verdict stays until it worked).
+                continueAfterVerdict().catch(() => {}).finally(() => { setDeviceHeld(false); reloadDevice(); });
+              }}
+              onVerdictRetry={() => {
+                // The count could not be read: try again (no wipe until it is read; Gate B round 2).
+                deviceFlow().refreshVerdict().catch(() => {}).finally(() => { setDeviceHeld(false); reloadDevice(); });
+              }}
+              onUseHere={() => {
+                const uid = session && session.user && session.user.id;
+                if (!uid) { setDeviceHeld(false); return; }
+                // Screen 4 "Use here": the takeover (then screen 1 / 1b); offline the question stays.
+                deviceFlow().useHere(uid)
+                  .then((r) => {
+                    if (r && r.go) {
+                      requestSync();
+                      requestNotificationPermissions().then(() => syncAllNotifications()).then(() => registerPushToken()).catch(() => {});
+                    }
+                  })
+                  .catch(() => {})
+                  .finally(() => { setDeviceHeld(false); reloadDevice(); });
+              }}
+              onAskSignOut={() => {
+                // Screen 4 "Sign out of this phone" (Gate B H1): the deliberate sign-out with its count —
+                // anything unsent opens the one sign-out sheet ("Sign out anyway" or stay; staying shows
+                // screen 4 again). Nothing changes on the other device (this phone is not active: no release).
+                runSignOut({
+                  signOut: (opts) => signOutIntended(opts),
+                  guard: switchGuard.current,
+                  onFailed: () => setLinkFailed('signout_failed'),
+                  onBlocked: (r, anyway) => setSwitchSignOut({ r, onAnyway: () => { anyway().catch(() => {}).finally(reloadDevice); }, onStay: () => {} }),
+                })
+                  .catch(() => setLinkFailed('signout_failed'))
+                  .finally(() => { setDeviceHeld(false); reloadDevice(); });
+              }}
+              onNoticeSeen={() => { deviceFlow().dismissNotice().catch(() => {}).finally(() => { setDeviceHeld(false); reloadDevice(); }); }}
               justConfirmed={justConfirmed}
               onConfirmedShown={() => setJustConfirmed(false)}
               seenOnboarding={seenOnboarding}

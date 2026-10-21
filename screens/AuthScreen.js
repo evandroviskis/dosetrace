@@ -18,6 +18,7 @@ import { useFonts } from 'expo-font';
 import { getAuthDraft, setAuthDraft } from '../lib/authDraft';
 import { appleWebAvailable } from '../lib/appleWeb';
 import { normalizeActivityLevel } from '../lib/activityLevels';
+import { beginExplicitSignIn, endExplicitSignIn } from '../lib/explicitSignIn';
 import {
   validateCredentials, signupNext, authErrorMessage, isNotConfirmed, consentParts,
   socialConsentPatch, initialAuthMode, initialConsent,
@@ -193,6 +194,8 @@ export default function AuthScreen({ onBack, initialMode }) {
     const prior = stash ? { consent_accepted: !!stash.consent_accepted, consent_date: stash.consent_date || null } : { consent_accepted: false, consent_date: null };
     if (patch) await saveOnboarding(patch);
     setLoading(true);
+    // A-119 DL-102: a sign-in the person makes on this phone takes the account over (App's sign-in work).
+    beginExplicitSignIn();
     try {
       const { error, canceled } = await fn();
       if (canceled || error) { if (patch) await saveOnboarding(prior); }
@@ -202,6 +205,7 @@ export default function AuthScreen({ onBack, initialMode }) {
       if (patch) await saveOnboarding(prior);
       errorSheet(authErrorMessage(e, t, 'signin'));
     } finally {
+      endExplicitSignIn();
       busyRef.current = false;
       setLoading(false);
     }
@@ -237,12 +241,13 @@ export default function AuthScreen({ onBack, initialMode }) {
   async function handleAuth() {
     if (busyRef.current) return;
     busyRef.current = true;
-    try { await doAuth(); } finally { busyRef.current = false; }
+    try { await doAuth(); } finally { endExplicitSignIn(); busyRef.current = false; }
   }
 
   async function doAuth() {
     const bad = validateCredentials({ mode: isSignIn ? 'signin' : 'create', email, password, consent: consentGiven });
     if (bad) { errorSheet(t(bad.key)); return; }
+    beginExplicitSignIn(); // A-119 DL-102 (ended by handleAuth)
     setLoading(true);
     let result;
     if (isSignIn) {

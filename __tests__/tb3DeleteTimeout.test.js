@@ -45,7 +45,7 @@ test('TB3-3: a delete-user request that never answers is aborted → offline; no
 
 test('TB3-3: the default timeouts are 20 s (request, idle wait) and 8 s (the account check)', () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'accountActions.js'), 'utf8');
-  assert.match(src, /export async function requestAccountDeletion\(\{ timeoutMs = 20000, idleWaitMs = 20000, checkTimeoutMs = 8000 \} = \{\}\)/);
+  assert.match(src, /export async function requestAccountDeletion\(\{ timeoutMs = 20000, idleWaitMs = 20000, checkTimeoutMs = 8000, retried = false \} = \{\}\)/); // A-119 Gate B M4: one retry after the device check
 });
 
 test('TB3-3: a deletion that answers clears both timers (the idle race and the request)', async () => {

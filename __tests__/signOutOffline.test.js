@@ -96,9 +96,9 @@ test('every caller handles { failed: true }: Settings, the 18+ sheet and the res
   // Settings: lib/settingsSignOut (behaviour-tested in settingsSignOutUnsynced.test.js) → showSignOutFailed.
   assert.match(read('screens/SettingsScreen.js'), /onFailed: showSignOutFailed/);
   assert.match(read('screens/SettingsScreen.js'), /settings_signout_failed_body/);
-  // The 18+ sheet and the reset link: signOutOutcome (behaviour in signOutOutcome.test.js).
-  assert.match(read('screens/AgeConfirmScreen.js'), /signOutOutcome\(/);
-  assert.match(read('App.js'), /signOutOutcome\(r\)/);
+  // The 18+ sheet and the reset link: the one flow (lib/settingsSignOut runSignOut, A-119 OD-9).
+  assert.match(read('screens/AgeConfirmScreen.js'), /onFailed: \(\) => ok\(t\('settings_signout_failed_title'\), t\('settings_signout_failed_body'\)\)/);
+  assert.match(read('App.js'), /onFailed: \(\) => setLinkFailed\('signout_failed'\)/);
   const src = read('i18n/translations.js');
   const mod = { exports: {} };
   new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);

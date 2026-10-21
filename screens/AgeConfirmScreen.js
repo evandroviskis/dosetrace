@@ -18,20 +18,23 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
 import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
-import { orphanedSheet } from '../lib/orphanedPending';
-import { signOutOutcome } from '../lib/signOutCore';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
+import { signOutSheet } from '../lib/deviceCopy';
+import { runSignOut } from '../lib/settingsSignOut';
+import { createBusyGuard } from '../lib/busyGuard';
 import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
 import FeatureIcon from '../components/FeatureIcon';
 import { DTSheet, DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import FoldChevron from '../components/FoldChevron';
 
 export default function AgeConfirmScreen({ session }) {
-  const { t } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [busy, setBusy] = useState(null); // 'confirm' | 'export' | 'delete' | 'signout'
   const [sheet, setSheet] = useState(null);
+  // One sign-out at a time; the Sign out link spins while it runs.
+  const signOutGuard = useMemo(() => createBusyGuard((b) => setBusy(b ? 'signout' : null)), []);
   const tornDown = useRef(false);
   // After the server deleted the account, the phone is cleared and signed out exactly once —
   // whether the note is closed with OK, the scrim or Android back (Gate B).
@@ -118,6 +121,8 @@ export default function AgeConfirmScreen({ session }) {
       // A sync pass still running is not "offline" (Delete account UI, founder 2026-10-17, 2).
       if (result.syncBusy) { setBusy(null); ok(t('settings_delete_syncbusy_title'), t('settings_delete_syncbusy_body'), 'refresh'); return; }
       if (result.offline) { setBusy(null); ok(t('error'), t('settings_delete_offline')); return; }
+      if (result.replaced) { setBusy(null); return; } // A-119 OD-10: screen 2 takes over, nothing was deleted
+      if (result.deviceWait) { setBusy(null); ok(t('error'), t('settings_delete_device_wait')); return; } // Gate B M4
       if (result.appleManualRevokeNeeded) {
         setBusy(null);
         setSheet({
@@ -146,20 +151,16 @@ export default function AgeConfirmScreen({ session }) {
       buttons: [{ label: t('cancel'), kind: 'secondary' }, { label: t('settings_signout'), kind: 'primary', onPress: doSignOut }],
     });
   }
+  // The one flow (lib/settingsSignOut runSignOut) and the one sheet (A-119 OD-9): never blocked —
+  // with changes not backed up, the sheet says what and offers "Sign out anyway"; "Couldn't sign out"
+  // when the phone could not complete it.
   async function doSignOut() {
-    setBusy('signout');
-    // lib/signOutCore signOutOutcome: "Couldn't sign out" (settings_signout_failed_body) or the
-    // words for why nothing was signed out; nothing when it worked.
-    const o = signOutOutcome(await signOutIntended().catch(() => ({ failed: true })));
-    setBusy(null);
-    // Blocked by entries of a protocol deleted forever on another device (lib/orphanedPending): this
-    // sheet has no "Sign out anyway", so it offers to discard only those, then tries again.
-    const n = o.kind === 'blocked' ? await orphanedPendingCount() : 0;
-    if (n) {
-      setSheet(orphanedSheet({ t, count: n, title: t(o.title), prefix: t(o.body), onKeep: () => {}, onDiscard: () => { discardOrphaned().then(() => doSignOut()).catch(() => {}); } }));
-      return;
-    }
-    if (o.kind !== 'done') ok(t(o.title), t(o.body));
+    await runSignOut({
+      signOut: (opts) => signOutIntended(opts),
+      guard: signOutGuard,
+      onFailed: () => ok(t('settings_signout_failed_title'), t('settings_signout_failed_body')),
+      onBlocked: (r, anyway) => setSheet(signOutSheet({ t, language, timeFormat, offline: r.offline, summary: r.summary, lastBackup: r.lastBackup, onAnyway: anyway, onStay: () => {} })),
+    });
   }
 
   const spin = (k) => (busy === k ? <ActivityIndicator color={k === 'confirm' ? colors.onAct : colors.ink} /> : null);

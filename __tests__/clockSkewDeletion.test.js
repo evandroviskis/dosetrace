@@ -33,6 +33,7 @@ return { startSyncEngine, stopSyncEngine, requestSync, pauseSyncForDeletion, res
     sessionNetworkBack: () => {},
     pushPendingChanges: async () => { counts.pushes += 1; },
     pullCloudChanges: async () => {},
+    runSyncPass: require('../lib/syncPassCore').runSyncPass, passDevice: () => ({}), // A-119: the pass runs through lib/syncPassCore
     setTimeout: (fn) => { fn(); return 1; },
     clearTimeout: () => {},
     console: { warn: () => {} },

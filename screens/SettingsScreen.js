@@ -56,8 +56,8 @@ import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
 import { scanMissedDoses } from '../lib/doseActions';
 import { DTSheet } from './components/ProtocolParts';
-import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
-import { orphanedSheet } from '../lib/orphanedPending';
+import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
+import { signOutSheet } from '../lib/deviceCopy';
 import { protocolDisplayName } from '../lib/protocolName';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
@@ -578,27 +578,15 @@ export default function SettingsScreen({ navigation }) {
   }
 
   // The one deliberate sign-out (lib/settingsSignOut → accountActions): push first; if anything
-  // is STILL not in the cloud nobody is signed out (never lose data) and the user decides. When
-  // entries of a protocol deleted forever on another device are among them (lib/orphanedPending),
-  // the sheet says so and offers to discard only those, then tries again.
+  // is STILL not backed up, the one sheet (A-119 OD-9, lib/deviceCopy signOutSheet) says what really
+  // happened, what and how many (records the server will never accept included), the last full
+  // backup, and that signing in on the new phone is enough — "Sign out anyway" or stay. Never blocked.
   function startSignOut() {
     return runSignOut({
       signOut: (opts) => signOutIntended(opts),
       guard: signOutGuard,
       onFailed: showSignOutFailed,
-      onBlocked: (copy, anyway) => {
-        const stay = { label: t(copy.stay), kind: 'secondary' };
-        const force = { label: t('settings_signout_anyway'), kind: 'danger', onPress: anyway };
-        const plain = { icon: 'warning', title: t('settings_signout'), body: t(copy.settingsBody), buttons: [stay, force] };
-        orphanedPendingCount().then((n) => {
-          const o = orphanedSheet({
-            t, count: n, title: t('settings_signout'), prefix: t(copy.settingsBody),
-            onKeep: () => {},
-            onDiscard: () => { discardOrphaned().then(() => startSignOut()).catch(showSignOutFailed); },
-          });
-          setSheet(o ? { ...o, buttons: [stay, o.buttons[1], force] } : plain);
-        }).catch(() => setSheet(plain));
-      },
+      onBlocked: (r, anyway) => setSheet(signOutSheet({ t, language, timeFormat, offline: r.offline, summary: r.summary, lastBackup: r.lastBackup, onAnyway: anyway, onStay: () => {} })),
     });
   }
 
@@ -643,6 +631,10 @@ export default function SettingsScreen({ navigation }) {
       if (result.noSession) { errorSheet(t('error_no_session')); return; }
       if (result.syncBusy) { setSheet(deleteSyncBusySheet(t)); return; } // 2: not "offline"
       if (result.offline) { errorSheet(t('settings_delete_offline')); return; }
+      // A-119 OD-10: this phone is no longer the account's; nothing was deleted and screen 2 takes over.
+      if (result.replaced) { setSheet(null); return; }
+      // Gate B M4: this phone's own takeover is not confirmed yet — nothing was deleted; say so.
+      if (result.deviceWait) { errorSheet(t('settings_delete_device_wait')); return; }
 
       // The account + data are deleted. If the user signed in with Apple but we
       // had no stored token to auto-revoke (a pre-feature account, or a transient

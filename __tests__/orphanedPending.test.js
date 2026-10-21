@@ -89,17 +89,18 @@ test('the strings exist in six languages, natural, with {n} in the plural', () =
   assert.equal(mod.exports.translations.en.orphaned_body_many, '{n} entries couldn’t be saved: their protocol was deleted forever on another device. Discard removes only these entries from this phone.');
 });
 
-test('wired: Today asks once on focus; Settings, the 18+ sheet and the profile gate offer it when sign-out is blocked', () => {
+test('wired: Today asks once on focus; the sign-out sheet names them (A-119 OD-9: no separate discard sheet there)', () => {
   const today = read('screens/TodayScreen.js');
   assert.match(today, /checkOrphans\(\);/);
   assert.match(today, /function checkOrphans\(\)[\s\S]{0,900}shouldPromptOrphans\([\s\S]{0,900}orphanedSheet\(/);
   assert.match(today, /todayPopupBusy\(\)/);
   for (const f of ['screens/SettingsScreen.js', 'screens/AgeConfirmScreen.js', 'screens/OnboardingFlowScreen.js']) {
     const s = read(f);
-    assert.match(s, /orphanedPendingCount\(\)/, f);
-    assert.match(s, /discardOrphaned\(\)/, f);
-    assert.match(s, /orphanedSheet\(\{/, f);
+    assert.doesNotMatch(s, /orphanedSheet\(\{/, f);
+    assert.match(s, /signOutSheet\(\{/, f);
   }
+  // The refused rows are counted in the one sheet (lib/unsentSummary refused → so_refused_*).
+  assert.match(read('lib/unsentSummary.js'), /countOrphanedPending\(db, ids\)/);
   const acts = read('lib/accountActions.js');
   assert.match(acts, /export async function orphanedPendingCount\(\)/);
   assert.match(acts, /export async function discardOrphaned\(\)/);

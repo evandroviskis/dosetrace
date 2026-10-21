@@ -51,7 +51,7 @@ test('PA-104: not confirmed → only export, delete (the existing two-step flow)
   assert.match(scr, /exportMyData\(/, 'the existing export');
   assert.match(scr, /requestAccountDeletion\(\)/, 'the existing delete (delete-user)');
   assert.match(scr, /settings_delete_permanent_msg[\s\S]{0,600}settings_delete_final_msg/, 'the two confirmations, in order');
-  assert.match(scr, /signOutIntended\(\)/);
+  assert.match(scr, /signOutIntended\(/); // A-119: through the one flow (signOutIntended(opts), force on "Sign out anyway")
   assert.doesNotMatch(scr.slice(0, scr.indexOf('function askDelete')), /requestAccountDeletion\(\)/, 'deletion only behind the confirmations');
   assert.doesNotMatch(read('App.js'), /requestAccountDeletion|delete-user/, 'the app never deletes on its own');
   const acts = read('lib', 'accountActions.js');
