@@ -178,7 +178,7 @@ test('DV-052: pull with a Taken row for today → the sync reports dose_logs and
   // Wiring: the pass reports the tables, the event carries them, App.js re-plans on them.
   assert.match(read('lib/syncPassCore.js'), /return \{ ran: true, changed \};/);
   assert.match(read('lib/sync.js'), /\{ type: 'sync_complete', changed: \(r && r\.changed\) \|\| \[\], refused:/);
-  assert.match(read('App.js'), /if \(syncEventNeedsResync\(e\)\) syncAllNotifications\(\)\.catch/);
+  assert.match(read('App.js'), /if \(syncTouchesReminders\(e, openChanged\)\) syncAllNotifications\(\)\.catch/); // final review: rem132DirectCancel
 });
 
 // ── DV-053: iPhone's 64 cap — the TOTAL of every kind, soonest first ───────────────────────────

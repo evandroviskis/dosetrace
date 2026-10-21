@@ -86,7 +86,7 @@ test('TB3-2: the Dose log made-complete path and Today\'s afterLogChange re-plan
   const { read } = require('./helpers/extractFn');
   const { sliceBlock } = require('./helpers/extractFn');
   const log = read('screens/LogScreen.js');
-  assert.match(log, /import \{ syncAllNotifications \} from '\.\.\/lib\/notifications';/);
+  assert.match(log, /import \{ syncAllNotifications, cancelTodaysDoseReminders \} from '\.\.\/lib\/notifications';/);
   const mark = sliceBlock(log, 'function markRowTaken(row, site) {');
   assert.ok(mark.indexOf('syncAllNotifications().catch(() => {});') > mark.indexOf('recordDoseTaken('), 'after the take');
   let called = 0;

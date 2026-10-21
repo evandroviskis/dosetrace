@@ -35,8 +35,8 @@ import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { registerReminderRefresh } from './lib/backgroundTasks';
 import { initNotifications, askPermissionForArrivedProtocols, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, RC_START_KEY } from './lib/notifications';
-import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
-import { notifTapTarget, responseKey, syncEventNeedsResync } from './lib/notificationPlan';
+import { getRealityStart, runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
+import { notifTapTarget, responseKey } from './lib/notificationPlan';
 import { readAppLanguage } from './lib/appLanguage';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -63,6 +63,17 @@ const ERROR_BOUNDARY_STRINGS = {
   de: { title: 'Etwas ist schiefgelaufen', message: 'Die App ist auf einen unerwarteten Fehler gestoßen. Bitte starte DoseTrace neu.', retry: 'Erneut versuchen' },
   it: { title: 'Qualcosa è andato storto', message: "L'app ha riscontrato un errore imprevisto. Riavvia DoseTrace.", retry: 'Riprova' },
 };
+
+// Final review 2026-10-20: does this sync event change what the reminders are planned from? An
+// import always does; a pass only when it pulled dose logs, protocols, vials or food logs, or the open
+// reality check changed (openCheckChanged).
+function syncTouchesReminders(e, openCheckChanged) {
+  const REMINDER_TABLES = ['dose_logs', 'protocols', 'vials', 'food_logs'];
+  if (!e) return false;
+  if (e.type === 'import_complete') return true;
+  if (e.type !== 'sync_complete') return false;
+  return !!openCheckChanged || (Array.isArray(e.changed) && e.changed.some((t) => REMINDER_TABLES.includes(t)));
+}
 
 class ErrorBoundary extends React.Component {
   state = { hasError: false, lang: 'en' };
@@ -726,25 +737,32 @@ export default function App() {
     // A sync can bring in food logs from another device — re-plan the 20:00
     // food nudge so a day logged on the iPad doesn't still ping the phone, and so
     // the backoff doesn't count it as ignored (journey-review F7). Throttled.
-    let lastFoodResync = 0;
     let lastPermissionAsk = 0;
-    const unsubSyncForFood = addSyncListener((e) => {
+    // The open reality check as last seen here (its start day, '' = none, null = not read yet): the
+    // table is pulled in full every pass, so a Stop or a new check from another device shows as a
+    // change of this key, not in the pull's changed tables.
+    let lastOpenCheck = null;
+    // Baseline before the first pull of this session, so a change that first pull brings counts.
+    getRealityStart({ strict: true }).then((s) => { if (lastOpenCheck === null) lastOpenCheck = s && s.date ? String(s.date) : ''; }).catch(() => {});
+    const unsubSyncForFood = addSyncListener(async (e) => {
       if (e?.type !== 'sync_complete' && e?.type !== 'import_complete') return;
-      // DV-052 (TRD H-9): a pull that brought another device's dose logs, protocols or vials re-plans
-      // every reminder (a dose taken on phone A stops reminding on phone B). Never throttled away:
-      // calls made during a resync share one follow-up run (lib/notifications).
-      if (syncEventNeedsResync(e)) syncAllNotifications().catch(() => {});
+      let openChanged = false;
+      try {
+        const s = await getRealityStart({ strict: true });
+        const key = s && s.date ? String(s.date) : '';
+        openChanged = lastOpenCheck !== null && key !== lastOpenCheck;
+        lastOpenCheck = key;
+      } catch { /* unknown: judged by the changed tables alone */ }
+      // DV-052 (TRD H-9) / final review 2026-10-20: the full resync (serialized, the iPhone 64 guard)
+      // runs only when the pull changed something reminders read — another device's dose logs,
+      // protocols, vials or food logs, or the open check (the 8 PM question, the day-21 weigh-in,
+      // FX-9) — never on every sync.
+      if (syncTouchesReminders(e, openChanged)) syncAllNotifications().catch(() => {});
       const nowTs = Date.now();
       // AD-88 (DV-054): this account's protocols with a reminder time arrived on the phone → the
       // permission is asked while the phone's answer is undecided (Gate B F3: never after a pass
       // the server refused — a replaced phone — and at most once a minute).
       if (!e.refused && nowTs - lastPermissionAsk > 60000) { lastPermissionAsk = nowTs; askPermissionForArrivedProtocols().catch(() => {}); }
-      if (nowTs - lastFoodResync < 30000) return;
-      lastFoodResync = nowTs;
-      // The 8 PM food question and (a Stop or new check pulled from another device) the day-21
-      // weigh-in are re-planned here, not only on the next cold start (FX-9) — through the one full
-      // resync (R1, 2026-10-20: serialized, the iPhone 64 guard).
-      syncAllNotifications().catch(() => {});
     });
 
     // Resolve the first-launch intro flag; the loading gate holds until it's
