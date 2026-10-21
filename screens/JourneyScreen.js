@@ -31,6 +31,7 @@ import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
 import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
+import { curveReloadOnSync } from '../lib/curveReload';
 import { getCachedUser } from '../lib/supabase';
 import { getActiveProtocols, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
@@ -128,6 +129,9 @@ export default function JourneyScreen() {
   useEffect(() => addSyncListener((e) => {
     if (e && e.type === 'data_changed' && e.what === 'curve' && premium === true) loadLevel().catch(() => {});
   }), [premium, loadLevel]);
+  // PK-16 (1.3.1 review): and the protocols a sync, an import or a dose / protocol change brings,
+  // debounced (lib/curveReload, the same events as the Curve screen).
+  useEffect(() => curveReloadOnSync(addSyncListener, () => { if (premium === true) loadLevel().catch(() => {}); }), [premium, loadLevel]);
   // Named as the Curve screen names its line (a blend component: "Blend · Component (est.)").
   const lp = level ? level.protocol : null;
   const levelName = !lp ? null

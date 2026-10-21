@@ -83,3 +83,92 @@ test('the numbers stay exact: Now is a sample and carries the Est. level', () =>
     assert.ok(Math.abs(points[k] - exact) <= 1e-6 * Math.max(1, exact), `${l.p.name}`);
   }
 });
+
+// ── Re-review 2026-10-20 ──────────────────────────────────────────────────────────────────────
+const ctxFor = (pastDays, futureDays, extraTimes = []) => {
+  const start = M.curveGridStart(now, pastDays);
+  const nSteps = Math.round((now + futureDays * 864e5 - start) / stepMs);
+  return { start, stepMs, nSteps, now, plotPx: PLOT_PX, extraTimes };
+};
+function countingAf() {
+  const af = (e, dt) => { af.calls++; return H.amountFraction(e, dt); };
+  af.calls = 0;
+  return af;
+}
+function member(p, ctx, af) {
+  const entry = H.getHalfLifeEntry(M.matchName(p));
+  const doses = M.scheduledDoses(p, entry, ctx.start, ctx.start + ctx.nSteps * stepMs, now);
+  return { doses, doseMg: 1, entry, ...M.lineSamples(doses, 1, entry, ctx, af) };
+}
+
+test('combined total of two rise-time esters (365 + 90 days): no second sampling pass, the sum of the member lines', () => {
+  const ctx = ctxFor(365, 90);
+  const cyp = [mk('Testosterone Cypionate', '07:30'), mk('Testosterone Cypionate', '19:30')].map((p, i) => ({ ...p, id: 'c' + i, doses_per_day: 1 }));
+  const members = cyp.map((p) => member(p, ctx));
+  const af = countingAf();
+  const c = M.combinedLine(members, ctx, af);
+  assert.equal(af.calls, 0, 'no re-sampling when no member has dose instants');
+  assert.deepEqual(c.xs, members[0].xs);
+  for (let i = 0; i < c.points.length; i += 97) assert.equal(c.points[i], members[0].points[i] + members[1].points[i]);
+});
+
+test('combined total of members with instants is sampled at their instants together, once', () => {
+  const ctx = ctxFor(3, 7);
+  const fast = [mk('BPC-157', '08:00'), mk('BPC-157', '20:00')].map((p, i) => ({ ...p, id: 'b' + i, doses_per_day: 1 }));
+  const members = fast.map((p) => member(p, ctx));
+  const c = M.combinedLine(members, ctx);
+  for (const m of members) for (const d of m.instants) assert.ok(c.times.includes(d));
+  const k = c.times.indexOf(members[0].instants[1]);
+  const exact = M.levelAt(members[0].doses, 1, members[0].entry, c.times[k]) + M.levelAt(members[1].doses, 1, members[1].entry, c.times[k]);
+  assert.ok(Math.abs(c.points[k] - exact) < 1e-9);
+});
+
+test('the screen computes the combined totals only while Combined is shown', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /const combined = !showCombined \? \[\] : Object\.entries\(bySubstance\)/);
+  assert.match(src, /combinedLine\(members, ctx, amountFraction\)/);
+  assert.match(src, /lineSamples\(doses, doseMg, entry, ctx, amountFraction\)/);
+  // the Combined toggle itself still shows while the total is off (a same-substance group exists)
+  assert.match(src, /\{model && model\.hasGroups && \(/);
+  assert.match(src, /const hasGroups = Object\.values\(bySubstance\)\.some\(members => members\.length >= 2\);/);
+});
+
+test('only a LONG rise (≥ 36 h) skips the dose instants; a short rise still samples them', () => {
+  const s = M.curveGridStart(now, 3), e = now + 7 * 864e5;
+  const doses = [now - 864e5, now - 3600e3];
+  assert.deepEqual(M.curveDoseInstants(doses, { hours: 4, tmaxHours: 2 }, s, e, PLOT_PX), doses);
+  assert.deepEqual(M.curveDoseInstants(doses, { hours: 4, tmaxHours: 35.9 }, s, e, PLOT_PX), doses);
+  assert.deepEqual(M.curveDoseInstants(doses, { hours: 192, tmaxHours: 36 }, s, e, PLOT_PX), []);
+  assert.equal(M.LONG_RISE_HOURS, 36);
+});
+
+test('per-pixel thinning keeps the dose with the HIGHEST level in each pixel (TB-500 08:00 / 08:30)', () => {
+  const ctx = ctxFor(365, 90);
+  const p = { ...mk('TB-500', '08:00,08:30'), doses_per_day: 2 };
+  const entry = H.getHalfLifeEntry(M.matchName(p));
+  const end = ctx.start + ctx.nSteps * stepMs;
+  const doses = M.scheduledDoses(p, entry, ctx.start, end, now);
+  const kept = M.curveDoseInstants(doses, entry, ctx.start, end, PLOT_PX);
+  const px = (end - ctx.start) / PLOT_PX;
+  const bucket = (d) => Math.min(PLOT_PX - 1, Math.floor((d - ctx.start) / px));
+  const inWin = doses.filter((d) => d >= ctx.start && d <= end);
+  for (const k of kept) {
+    const lk = M.levelAt(doses, 1, entry, k);
+    for (const d of inWin) if (bucket(d) === bucket(k)) assert.ok(lk >= M.levelAt(doses, 1, entry, d) - 1e-9, new Date(k).toString());
+  }
+  // the 08:30 dose (on top of the 08:00 one) is the one kept
+  assert.ok(kept.filter((d) => new Date(d).getMinutes() === 30).length > kept.length / 2);
+});
+
+test('the date estimate is a sample, so its dot sits on the drawn line (across 2026-11-01)', () => {
+  const T = M.readoutMoment('2026-11-01', '2026-11-06', new Date(2026, 10, 6, 9).getTime());
+  const ctx = { ...ctxFor(10, 20), extraTimes: [T] }; // the window runs across the US clock change
+  for (const p of [{ ...mk('Semaglutide', '09:05'), doses_per_day: 1 }, { ...mk('TB-500', '10:10'), doses_per_day: 1 }]) {
+    const m = member(p, ctx);
+    const k = m.times.indexOf(T);
+    assert.ok(k >= 0, `${p.name}: the readout moment is a sample`);
+    assert.ok(Math.abs(m.points[k] - M.levelAt(m.doses, 1, m.entry, T)) < 1e-6, p.name);
+  }
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /extraTimes: \[readoutAt\]/);
+});

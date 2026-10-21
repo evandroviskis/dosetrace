@@ -108,7 +108,7 @@ test('DV-072 C: a blend component reads the blend protocol\'s own rows', () => {
 });
 
 test('DV-072 C review: ticks are matched per planned dose (by position), never by timestamp', () => {
-  // Two planned doses that share an instant (defensive: the model spreads them now) and one Taken row:
+  // Two planned doses that share an instant ("08:00,08:00" × 2 — one double spike, as planned) and one Taken row:
   // one tick solid, one hollow — a timestamp-keyed set marked both solid.
   const p = daily({ start_date: '2026-10-19', created_at: iso(at(19, 6)) });
   const ticks = M.doseTicks(p, [at(19, 9), at(19, 9)], [row(5, 'Taken', at(19, 9, 5))], at(19, 12));

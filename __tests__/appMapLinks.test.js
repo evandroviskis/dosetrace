@@ -63,15 +63,17 @@ test('L-10: Today calls it with the day\'s real Taken count after a dose is writ
 // ── L-14: My Body lab dates → the curve's blood-draw readout ───────────────────────────────
 test('L-14: the curve lists each lab report date once, newest first, from My Body\'s biomarkers', () => {
   const src = read('screens/SerumCurveScreen.js');
-  assert.match(src, /const marks = getBiomarkers\(user\.id\) \|\| \[\];/);
-  const line = src.match(/const uniq = (\[\.\.\.new Set\(marks\.map\(m => m\.report_date\)\.filter\(Boolean\)\)\]\.sort\(\)\.reverse\(\));/);
+  // 1.3.1 review: read in readCurveData(userId) (shared by the focus read and the sync reload).
+  assert.match(src, /const marks = getBiomarkers\(userId\) \|\| \[\];/);
+  const line = src.match(/const labDates = (\[\.\.\.new Set\(marks\.map\(m => m\.report_date\)\.filter\(Boolean\)\)\]\.sort\(\)\.reverse\(\));/);
   assert.ok(line, 'the dedupe line');
   // eslint-disable-next-line no-new-func
   const uniq = new Function('marks', `return ${line[1]};`)([
     { report_date: '2026-05-01' }, { report_date: '2026-09-10' }, { report_date: '2026-05-01' }, { report_date: null },
   ]);
   assert.deepEqual(uniq, ['2026-09-10', '2026-05-01']);
-  assert.match(src, /setLabDates\(uniq\);/);
+  assert.match(src, /setLabDates\(d\.labDates\);/);
+  assert.match(src, /if \('labDates' in patch\) setLabDates\(patch\.labDates\);/);
 });
 
 // ── L-15: last lab date → Today's "bloodwork due" alert → My Body › Labs ───────────────────

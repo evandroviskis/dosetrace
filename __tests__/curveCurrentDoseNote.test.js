@@ -28,6 +28,12 @@ test('the interim note and the hollow-tick legend exist in all 6 languages, nati
   assert.match(translations.en.curve_current_dose_note, /even if you changed/);
   assert.doesNotMatch(translations.en.curve_current_dose_note, /before you changed/);
   assert.match(translations.pt.curve_current_dose_note, /mesmo que você/);
+  // Re-review: the legend says the spec's sense, "Planned, not logged as taken" — never that the dose
+  // was not done (fr "non effectuées" said that).
+  assert.equal(translations.en.curve_lg_not_taken, 'planned, not logged as taken');
+  assert.match(translations.pt.curve_lg_not_taken, /não marcadas como tomadas/);
+  assert.doesNotMatch(translations.fr.curve_lg_not_taken, /effectu/);
+  for (const l of LANGS) assert.ok(translations[l].curve_lg_not_taken.includes(','), `${l}: planned, + not logged`);
 });
 
 test('descriptive only: no advice words in the new curve strings', () => {
@@ -40,6 +46,12 @@ test('the curve screen shows the note in its notes card and a hollow tick in the
   assert.match(src, /t\('curve_current_dose_note'\)/);
   assert.match(src, /<View style=\{s\.lgTickHollow\} \/><Text style=\{s\.legendKeyText\}>\{t\('curve_lg_not_taken'\)\}<\/Text>/);
   assert.match(src, /lgTickHollow: \{[^}]*borderColor: c\.data/);
+  // Re-review: the legend marks are the chart marks scaled by one factor (TICK_LEGEND_SCALE), so the
+  // hollow tick in the legend reads as the same mark as under the axis.
+  assert.match(src, /const TICK = \{ w: 1\.4, h: 5, hollowW: 3, hollowStroke: 1 \};/);
+  assert.match(src, /lgTick: \{ width: TICK\.w \* TICK_LEGEND_SCALE, height: TICK\.h \* TICK_LEGEND_SCALE, backgroundColor: c\.data \}/);
+  assert.match(src, /lgTickHollow: \{ width: TICK\.hollowW \* TICK_LEGEND_SCALE, height: TICK\.h \* TICK_LEGEND_SCALE, borderWidth: TICK\.hollowStroke \* TICK_LEGEND_SCALE, borderColor: c\.data \}/);
+  assert.match(src, /width=\{TICK\.hollowW\} height=\{TICK\.h\}/);
   // the note sits after the per-compound notes, before the disclaimer
   const note = src.indexOf("t('curve_current_dose_note')");
   assert.ok(note > src.indexOf("t('blend_curve_caveat')") && note < src.indexOf("t('curve_disclaimer')"));

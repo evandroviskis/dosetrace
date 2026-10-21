@@ -96,24 +96,56 @@ test('DL-77: a protocol without reminder times is placed at 08:00', () => {
   for (const d of doses) assert.equal(new Date(d).toTimeString().slice(0, 5), '08:00');
 });
 
-test('DV-069 review: more doses a day than reminder times never stack on one instant (distinct times, one rule)', () => {
+// Re-review 2026-10-20 (ledger DL-06 one slot list everywhere, DL-77 08:00 everywhere, spec R5): the
+// curve never moves a user's time. An extra dose goes where Today puts it — the protocol's first
+// time (08:00 without times) — so "08:00,08:00" × 2 is two doses at 08:00: one double spike, as
+// planned. The count of each day always equals Today's slots (lib/dosePageState daySlots).
+const { daySlots, cardPlan } = require('../lib/dosePageState');
+const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function curveDay(p, day, now) {
+  const doses = M.scheduledDoses(p, entryOf(p), M.curveGridStart(now, 5), now + 2 * 864e5, now);
+  return doses.filter((d) => dayKey(new Date(d)) === dayKey(day));
+}
+
+test('DV-069 re-review: more doses a day than times stay at the user\'s own time (one slot list, DL-06 / DL-77)', () => {
   const now = new Date(2026, 9, 20, 13, 0).getTime();
+  const day = new Date(2026, 9, 19);
   const at = (h, m = 0) => new Date(2026, 9, 19, h, m).getTime();
-  const dayOf = (p) => {
-    const e = entryOf(p);
-    return M.scheduledDoses(p, e, M.curveGridStart(now, 3), now, now).filter((d) => new Date(d).getDate() === 19);
-  };
-  // Legacy rows: 2 a day with no times, 2 a day with one time, the same time picked twice, 3 a day with one time.
-  assert.deepEqual(dayOf(bpc({ reminder_time: null, doses_per_day: 2 })), [at(8), at(16)]);
-  assert.deepEqual(dayOf(bpc({ reminder_time: '08:00', doses_per_day: 2 })), [at(8), at(16)]);
-  assert.deepEqual(dayOf(bpc({ reminder_time: '08:00,08:00', doses_per_day: 2 })), [at(8), at(16)]);
-  assert.deepEqual(dayOf(bpc({ reminder_time: '20:00', doses_per_day: 3 })), [at(20), at(21, 20), at(22, 40)]);
-  // The rule never moves the user's own distinct times.
-  assert.deepEqual(dayOf(bpc({ reminder_time: '07:15,19:45', doses_per_day: 2 })), [at(7, 15), at(19, 45)]);
-  // The level counts each dose once at its own instant (no double-height spike).
+  assert.deepEqual(curveDay(bpc({ reminder_time: '08:00,08:00', doses_per_day: 2 }), day, now), [at(8), at(8)]);
+  assert.deepEqual(curveDay(bpc({ reminder_time: '08:00', doses_per_day: 2 }), day, now), [at(8), at(8)], 'legacy: one time, 2 a day');
+  assert.deepEqual(curveDay(bpc({ reminder_time: null, doses_per_day: 2 }), day, now), [at(8), at(8)], 'no times: 08:00 (DL-77)');
+  assert.deepEqual(curveDay(bpc({ reminder_time: '20:00', doses_per_day: 3 }), day, now), [at(20), at(20), at(20)]);
+  assert.deepEqual(curveDay(bpc({ reminder_time: '07:15,19:45', doses_per_day: 2 }), day, now), [at(7, 15), at(19, 45)]);
+  // Two doses at one instant draw one double-height spike (that is the plan): 2 × 0.25 mg, 1 h later.
   const p = bpc({ reminder_time: '08:00,08:00', doses_per_day: 2 });
-  const doses = M.scheduledDoses(p, entryOf(p), M.curveGridStart(now, 3), now, now);
-  assert.equal(doses.length, new Set(doses).size, 'no two doses at one instant');
+  assert.ok(Math.abs(M.estimatedLevelNow(p, at(9)).value - 2 * 0.25 * Math.pow(2, -2)) < 1e-9);
+});
+
+test('DV-069 re-review: 23:59 × 2 keeps both doses; the count matches Today', () => {
+  const now = new Date(2026, 9, 20, 13, 0).getTime();
+  const day = new Date(2026, 9, 19);
+  const p = bpc({ reminder_time: '23:59,23:59', doses_per_day: 2 });
+  assert.equal(curveDay(p, day, now).length, 2);
+  assert.equal(curveDay(p, day, now).length, daySlots({ protocol: p, dayKey: dayKey(day) }).length);
+});
+
+test('DV-069 re-review: spring forward (New York 2026-03-08) with 02:00,03:00 — the count matches Today', () => {
+  const p = bpc({ reminder_time: '02:00,03:00', doses_per_day: 2, start_date: '2026-03-01', created_at: '2026-03-01T00:00:00' });
+  const day = new Date(2026, 2, 8);
+  const now = new Date(2026, 2, 9, 12, 0).getTime();
+  assert.equal(curveDay(p, day, now).length, daySlots({ protocol: p, dayKey: '2026-03-08' }).length);
+  assert.equal(curveDay(p, day, now).length, 2);
+});
+
+test('DV-072 C re-review: one Taken at 16:00:10 on a legacy 08:00 × 2 day — the ticks agree with Today\'s cardPlan', () => {
+  const p = bpc({ id: 7, reminder_time: '08:00', doses_per_day: 2 });
+  const nowMs = new Date(2026, 9, 19, 23, 0).getTime();
+  const logs = [{ id: 1, protocol_id: 7, outcome: 'Taken', logged_at: new Date(2026, 9, 19, 16, 0, 10).toISOString(), sync_status: 'synced' }];
+  const doses = curveDay(p, new Date(2026, 9, 19), nowMs);
+  const ticks = M.doseTicks(p, doses, logs, nowMs);
+  const plan = cardPlan({ protocol: p, logs, nowMs });
+  assert.deepEqual(ticks.map((k) => k.hollow), plan.slots.map((s) => !(s.row && s.row.outcome === 'Taken')));
+  assert.deepEqual(ticks.map((k) => k.hollow), [false, true]);
 });
 
 test('DV-069 review: on the end day an extra dose is never placed after the end', () => {

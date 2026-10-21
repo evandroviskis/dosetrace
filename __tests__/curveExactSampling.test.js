@@ -61,8 +61,10 @@ test('a BPC-157 dose at 10:30 draws its full spike at 10:30 (level includes it, 
 
 test('the curve screen draws on these samples: x = the exact time, Now = its exact sample, ticks hollow per log', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /curveSampleTimes\(/);
-  assert.match(src, /sampleLevelsAt\(/);
+  // since the review: the per-line samples come from lib/serumModel lineSamples / combinedLine
+  // (curveSampleTimes + sampleLevelsAt inside)
+  assert.match(src, /lineSamples\(/);
+  assert.match(src, /combinedLine\(/);
   assert.match(src, /doseTicks\(/);
   assert.match(src, /readoutMoment\(/);
   assert.doesNotMatch(src, /Math\.round\(\(readoutRaw - model\.start\) \/ stepMs\) \* stepMs/, 'no readout snap');

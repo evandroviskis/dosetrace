@@ -58,6 +58,16 @@ test('R14 Berlin: across the spring forward (2027-03-28) a twice-daily 08:00 / 2
   assert.equal(mar28.length, 2);
 });
 
+test('DV-069 re-review Berlin: spring forward (2026-03-29) with 02:00,03:00 — the count matches Today', () => {
+  const { daySlots } = require('../lib/dosePageState');
+  const p = bpc({ reminder_time: '02:00,03:00', doses_per_day: 2, start_date: '2026-03-20', created_at: '2026-03-20T00:00:00' });
+  const now = new Date(2026, 2, 30, 12, 0).getTime();
+  const doses = M.scheduledDoses(p, entryOf(p), M.curveGridStart(now, 5), now, now)
+    .filter((d) => new Date(d).getDate() === 29 && new Date(d).getMonth() === 2);
+  assert.equal(doses.length, daySlots({ protocol: p, dayKey: '2026-03-29' }).length);
+  assert.equal(doses.length, 2);
+});
+
 test('DV-068 Berlin: a past date estimate reads at local noon of that date', () => {
   const now = new Date(2026, 9, 30, 9, 0).getTime();
   for (const iso of ['2026-10-24', '2026-10-25', '2026-10-26']) {

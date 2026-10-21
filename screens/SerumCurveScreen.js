@@ -27,11 +27,10 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { getHistoryProtocols, getBiomarkers, getLogsSince } from '../lib/database';
 import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
-import { sampleLevelsAt } from '../lib/curveSampling';
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, curveDoseInstants, curveSampleTimes, doseTicks, readoutMoment, CURVE_MAX_PAST_DAYS,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_MAX_PAST_DAYS,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
@@ -53,6 +52,7 @@ import { paneWidths } from '../lib/bookLayout';
 import { restoreCurveView, FUTURE_PRESETS } from '../lib/curveView';
 import { loadCurveView, saveCurveView } from '../lib/curveViewStore';
 import { notifyDataChanged, addSyncListener } from '../lib/sync';
+import { curveReloadOnSync, curveReloadPatch } from '../lib/curveReload';
 
 const APath = Animated.createAnimatedComponent(Path);
 const AG = Animated.createAnimatedComponent(G);
@@ -200,22 +200,10 @@ function DoseDrop({ clock, hit, x, y, color, showDrop }) {
 // The schedule → dose → level math lives in lib/serumModel.js (shared with the
 // Journey tile, so both always show the same Est. level).
 
-// 1.3.1 review (DV-072 C): the ticks read the Dose log, so the focused curve reads again when a
-// sync / import finishes or doses / protocols change (the A-146 FoodLogHero pattern), debounced
-// (a burst reloads once, waitMs after the last). Its own view saves ('curve') and unrelated data
-// do not reload it. Returns the unsubscribe, which also drops a reload still waiting.
-function curveReloadOnSync(addListener, reload, waitMs = 300) {
-  const skip = ['curve', 'food_logs', 'calc'];
-  let timer = null;
-  const off = addListener((e) => {
-    if (!e) return;
-    const data = e.type === 'data_changed' && !skip.includes(e.what);
-    if (e.type !== 'import_complete' && e.type !== 'sync_complete' && !data) return;
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => { timer = null; reload(); }, waitMs);
-  });
-  return () => { if (timer) clearTimeout(timer); timer = null; off(); };
-}
+// The scheduled-dose ticks under the axis (px). The legend draws the same marks scaled by one
+// factor, so the hollow tick in the legend reads as the same mark as under the axis.
+const TICK = { w: 1.4, h: 5, hollowW: 3, hollowStroke: 1 };
+const TICK_LEGEND_SCALE = 1.6;
 
 // Estimated level (mg or IU) from the summed dose model — not "amount in the body"
 // not a serum concentration — the disclaimer says so.
@@ -326,7 +314,7 @@ export default function SerumCurveScreen({ embedded = false }) {
           }
           return;
         }
-        if (isMounted) { readRef.current = fetchData; fetchData(); }
+        if (isMounted) { readRef.current = reloadData; fetchData(); }
       })();
       return () => { isMounted = false; readRef.current = null; };
     }, [navigation, embedded])
@@ -336,43 +324,69 @@ export default function SerumCurveScreen({ embedded = false }) {
   useEffect(() => curveReloadOnSync(addSyncListener, () => { if (readRef.current) readRef.current().catch(() => {}); }), []);
 
   const userIdRef = useRef(null);
-  async function fetchData() {
-    const user = await getCachedUser();
-    if (!user) return;
-    userIdRef.current = user.id;
-    const savedView = await loadCurveView(user.id);
+  // The data the chart is built from, read from the database (no view, no selection).
+  function readCurveData(userId) {
     // Blends (Wolverine/Glow/KLOW) are expanded into one virtual protocol per
     // component, its dose split from the logged blend dose by the common ratio
     // (lib/compounds BLEND_RATIOS); each component charts its own line. IU-dosed
     // mass compounds, compounds without reliable half-life data and protocols with
     // no dose are NAMED on screen, never dropped silently (lib/serumModel).
-    const entryOf = (p) => getHalfLifeEntry(matchName(p));
     // A-83: active protocols first, then the ones ended inside the longest past window — their
     // past only (lib/schedule stops at the end), named "· ended".
-    const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(user.id)), t);
+    const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(userId)), t);
     const { iu, noData, noDose } = split;
-    const active = split.active.map((p) => (isEnded(p)
+    const protocols = split.active.map((p) => (isEnded(p)
       ? { ...p, __label: `${p.__label || (p.compound_id ? t(p.compound_id) : p.name)} · ${t('curve_ended_marker')}` }
       : p));
-    setNotCharted({ iu, noData, noDose });
-    setProtocols(active);
+    // Distinct blood-exam dates (most recent first) to cross-reference against.
+    const marks = getBiomarkers(userId) || [];
+    const labDates = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
+    // DV-072 C: the Dose log over the longest window the chart can show (read only; the level
+    // stays the planned schedule — the rows only mark which planned ticks are hollow).
+    let doseLogs = [];
+    try {
+      doseLogs = getLogsSince(userId, new Date(Date.now() - (CURVE_MAX_PAST_DAYS + 2) * 24 * 3600 * 1000).toISOString()) || [];
+    } catch { doseLogs = []; }
+    return { protocols, notCharted: { iu, noData, noDose }, doseLogs, labDates };
+  }
+
+  // On focus: the data AND the view exactly as the user left it.
+  async function fetchData() {
+    const user = await getCachedUser();
+    if (!user) return;
+    userIdRef.current = user.id;
+    const savedView = await loadCurveView(user.id);
+    const d = readCurveData(user.id);
+    const entryOf = (p) => getHalfLifeEntry(matchName(p));
+    setNotCharted(d.notCharted);
+    setProtocols(d.protocols);
     // Opens exactly as the user left it (lib/curveView, founder 2026-10-02): the remembered
     // compounds still on the chart (one unit per chart), Combined and the horizon; nothing
     // remembered or valid → the first compound. Reading the view writes nothing.
-    const u = (id) => { const p = active.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
-    const view = restoreCurveView({ saved: savedView, active, unitOf: u });
+    const u = (id) => { const p = d.protocols.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
+    const view = restoreCurveView({ saved: savedView, active: d.protocols, unitOf: u });
     setSelectedIds(view.selectedIds);
     setShowCombined(view.showCombined);
     setFutureDays(view.futureDays);
-    // Distinct blood-exam dates (most recent first) to cross-reference against.
-    const marks = getBiomarkers(user.id) || [];
-    const uniq = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
-    setLabDates(uniq);
-    // DV-072 C: the Dose log over the longest window the chart can show (read only; the level
-    // stays the planned schedule — the rows only mark which planned ticks are hollow).
-    try {
-      setDoseLogs(getLogsSince(user.id, new Date(Date.now() - (CURVE_MAX_PAST_DAYS + 2) * 24 * 3600 * 1000).toISOString()) || []);
-    } catch { setDoseLogs([]); }
+    setLabDates(d.labDates);
+    setDoseLogs(d.doseLogs);
+  }
+
+  // What the chart shows now, for a reload (a ref: the listener outlives renders).
+  const curRef = useRef(null);
+  curRef.current = { protocols, notCharted, doseLogs, labDates, selectedIds };
+  // On a sync / dose / protocol event: the data only. The selection stays exactly as it is (minus
+  // protocols that are gone — founder rule, the curve keeps the last selection); the saved view is
+  // never restored here; unchanged data sets no state (lib/curveReload curveReloadPatch).
+  async function reloadData() {
+    const user = await getCachedUser();
+    if (!user || !curRef.current) return;
+    const patch = curveReloadPatch(curRef.current, readCurveData(user.id));
+    if ('notCharted' in patch) setNotCharted(patch.notCharted);
+    if ('protocols' in patch) setProtocols(patch.protocols);
+    if ('selectedIds' in patch) setSelectedIds(patch.selectedIds);
+    if ('labDates' in patch) setLabDates(patch.labDates);
+    if ('doseLogs' in patch) setDoseLogs(patch.doseLogs);
   }
 
   // One muted line per reason a compound isn't on the curve.
@@ -456,19 +470,17 @@ export default function SerumCurveScreen({ embedded = false }) {
       // scheduledDoses, DV-069), not from hand-logged doses (1.3.1 keeps the planned curve).
       return { p, entry, doses: scheduledDoses(p, entry, start, end, now) };
     });
-    // Each line is sampled at the grid, Now and ONLY its own dose instants (none for a modeled
-    // rise; merged to the plot's pixels past 30 days) — lib/serumModel curveDoseInstants.
-    const winEnd = start + nSteps * stepMs;
-    const plotPx = plotRight - plotLeft;
+    // Each line is sampled at the grid, Now, the date estimate (its dot sits on the line) and ONLY
+    // its own dose instants (none for a long rise; merged to the plot's pixels past 30 days) —
+    // lib/serumModel lineSamples / curveDoseInstants.
+    const readoutAt = readoutMoment(readoutDate || todayISO(), todayISO(), now);
+    const ctx = { start, stepMs, nSteps, now, plotPx: plotRight - plotLeft, extraTimes: [readoutAt] };
 
     const series = base.map(({ p, entry, doses }) => {
       const doseMg = doseInCurveUnit(parseDecimal(p.dose), p.dose_unit, entry) || 0;
       const halfLifeMs = entry.hours * 3600 * 1000;
-      const instants = curveDoseInstants(doses, entry, start, winEnd, plotPx);
-      const times = curveSampleTimes(start, stepMs, nSteps, [instants], now);
-      const xs = times.map(ts => (ts - start) / stepMs);
       // A-93: sorted doses in a moving window (same numbers, far fewer calls — lib/curveSampling).
-      const { points, pre } = sampleLevelsAt(doses, doseMg, entry, times, amountFraction);
+      const { points, pre, xs, times, instants } = lineSamples(doses, doseMg, entry, ctx, amountFraction);
       // Exact level at this moment, for the numbers.
       const nowLevel = levelAt(doses, doseMg, entry, now);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
@@ -482,6 +494,7 @@ export default function SerumCurveScreen({ embedded = false }) {
         points,
         pre,
         xs,
+        times,
         instants,
         nowLevel,
         dosesInWindow,
@@ -504,18 +517,12 @@ export default function SerumCurveScreen({ embedded = false }) {
       if (!sub) continue;
       (bySubstance[sub] ||= []).push(ser);
     }
-    const combined = Object.entries(bySubstance)
+    // Computed only while Combined is shown (re-review: it was re-sampled even when hidden).
+    const combined = !showCombined ? [] : Object.entries(bySubstance)
       .filter(([, members]) => members.length >= 2)
       .map(([sub, members]) => {
-        // The total is sampled at its members' instants together (point by point).
-        const times = curveSampleTimes(start, stepMs, nSteps, members.map(m => m.instants), now);
-        const xs = times.map(ts => (ts - start) / stepMs);
-        const points = new Array(times.length).fill(0);
-        const pre = new Array(times.length).fill(0);
-        for (const ser of members) {
-          const lv = sampleLevelsAt(ser.doses, ser.doseMg, ser.entry, times, amountFraction);
-          for (let i = 0; i < times.length; i++) { points[i] += lv.points[i]; pre[i] += lv.pre[i]; }
-        }
+        // Point by point; no second pass when no member has dose instants (lib/serumModel).
+        const { points, pre, xs } = combinedLine(members, ctx, amountFraction);
         const nowLevel = members.reduce((sum, m) => sum + m.nowLevel, 0);
         return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points, pre, xs, nowLevel };
       });
@@ -532,8 +539,10 @@ export default function SerumCurveScreen({ embedded = false }) {
     const nowIdx = nowF;
     // A-30 (a): before this moment the lines are estimated from the start date (declared history).
     const estBefore = estimatedBeforeMs(selected, start);
-    return { series, combined, max, nowIdx, nowF, nSteps, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
-  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight]);
+    // The Combined toggle shows whenever a same-substance group exists (also while it is off).
+    const hasGroups = Object.values(bySubstance).some(members => members.length >= 2);
+    return { series, combined, hasGroups, max, nowIdx, nowF, nSteps, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
+  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight, readoutDate]);
 
   // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
   // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
@@ -852,8 +861,8 @@ export default function SerumCurveScreen({ embedded = false }) {
                 .filter(k => k.ts >= model.start && k.ts <= model.start + model.nSteps * stepMs)
                 .map(({ ts, hollow }, i) => {
                   const x = xForIndex((ts - model.start) / stepMs);
-                  if (hollow) return <Rect key={`tk-${ser.id}-${i}`} x={x - 1.5} y={PLOT_BOTTOM + 2} width={3} height={5} fill="none" stroke={lineColor(ser)} strokeWidth={1} />;
-                  return <Line key={`tk-${ser.id}-${i}`} x1={x} y1={PLOT_BOTTOM + 2} x2={x} y2={PLOT_BOTTOM + 7} stroke={lineColor(ser)} strokeWidth={1.4} />;
+                  if (hollow) return <Rect key={`tk-${ser.id}-${i}`} x={x - TICK.hollowW / 2} y={PLOT_BOTTOM + 2} width={TICK.hollowW} height={TICK.h} fill="none" stroke={lineColor(ser)} strokeWidth={TICK.hollowStroke} />;
+                  return <Line key={`tk-${ser.id}-${i}`} x1={x} y1={PLOT_BOTTOM + 2} x2={x} y2={PLOT_BOTTOM + 7} stroke={lineColor(ser)} strokeWidth={TICK.w} />;
                 }))}
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="start">{unitLbl}</SvgText>
               {/* A-30 (a): where the estimate from the start date ends (the protocol was added) */}
@@ -1022,7 +1031,7 @@ export default function SerumCurveScreen({ embedded = false }) {
           )}
 
           {/* Combined-total toggle — only when a same-substance group exists */}
-          {model && model.combined.length > 0 && (
+          {model && model.hasGroups && (
             <View style={s.toggleRow}>
               <View style={{ flex: 1 }}>
                 <Text style={s.toggleLabel}>{t('curve_combined_toggle')}</Text>
@@ -1226,8 +1235,9 @@ function makeStyles(c) {
     lgSolid: { width: 18, height: 2, backgroundColor: c.data },
     lgDash: { width: 18, height: 2, flexDirection: 'row', justifyContent: 'space-between' },
     lgDashBit: { width: 4, height: 2, backgroundColor: c.data },
-    lgTick: { width: 2, height: 8, backgroundColor: c.data },
-    lgTickHollow: { width: 4, height: 8, borderWidth: 1, borderColor: c.data },
+    // The chart's tick marks × TICK_LEGEND_SCALE (one factor, so both read as the same marks).
+    lgTick: { width: TICK.w * TICK_LEGEND_SCALE, height: TICK.h * TICK_LEGEND_SCALE, backgroundColor: c.data },
+    lgTickHollow: { width: TICK.hollowW * TICK_LEGEND_SCALE, height: TICK.h * TICK_LEGEND_SCALE, borderWidth: TICK.hollowStroke * TICK_LEGEND_SCALE, borderColor: c.data },
     rangeLabel: { flex: 1, fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
     chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 2, justifyContent: 'center' },
     chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
