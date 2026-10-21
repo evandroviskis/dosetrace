@@ -10,16 +10,18 @@
 // The WHOLE lib/notificationActions.js runs here with its imports replaced by fakes.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read } = require('./helpers/extractFn');
+const { read, loadFn } = require('./helpers/extractFn');
 const { notificationTakeTarget } = require('../lib/markTaken');
 const { parseDoseId, foodReminderDay } = require('../lib/notificationPlan');
 
-function loadModule(over = {}) {
+// shared.store: the phone's AsyncStorage, kept across a "kill" (a second module instance).
+function loadModule(over = {}, shared = {}) {
   const src = read('lib/notificationActions.js')
     .split('\n').filter((l) => !/^import\s/.test(l)).join('\n')
     .replace(/^export\s+/gm, '');
   const log = [];
-  const store = {};
+  const store = shared.store || {};
+  let appListener = null;
   let background = false;
   let taskFn = null;
   const N = {
@@ -31,7 +33,7 @@ function loadModule(over = {}) {
     addNotificationResponseReceivedListener: () => {},
   };
   const deps = {
-    AppState: { currentState: 'background', addEventListener: () => {} },
+    AppState: { currentState: 'background', addEventListener: (_e, fn) => { appListener = fn; } },
     Platform: { OS: 'android' },
     AsyncStorage: {
       getItem: async (k) => (k in store ? store[k] : null),
@@ -50,6 +52,7 @@ function loadModule(over = {}) {
     closeFoodDay: async () => true,
     setBackgroundRun: (v) => { background = !!v; log.push(['bg', !!v]); },
     storedSessionOnly: () => background,
+    resetBackgroundRun: () => log.push(['bgReset']),
     requestSync: () => log.push(['sync']),
     notifyDataChanged: () => {},
     Analytics: { doseLogged: () => {}, notifAction: () => {} },
@@ -66,7 +69,7 @@ function loadModule(over = {}) {
   const names = Object.keys(deps);
   // eslint-disable-next-line no-new-func
   const mod = new Function(...names, `${src}\nreturn { handleNotificationResponse };`)(...names.map((n) => deps[n]));
-  return { ...mod, log, store, deps, task: () => taskFn, isBackground: () => background };
+  return { ...mod, log, store, deps, task: () => taskFn, isBackground: () => background, appChange: (s) => appListener && appListener(s) };
 }
 
 // The serialized response the Android task hands over for "Mark complete".
@@ -138,4 +141,106 @@ test('DV-184 source guard: the notification action path never calls getSession',
   const s = read('lib/notificationActions.js');
   assert.doesNotMatch(s, /getSession|getCachedUser/);
   assert.match(s, /setBackgroundRun\(true\)/);
+});
+
+// ── Gate B review (1.3.1) ───────────────────────────────────────────────────────────────────────
+
+test('Gate B 1: a 2x/day dose written, then the headless task killed before the end -> the retry never logs a second Taken', async () => {
+  const store = {};
+  const rows = [];
+  const write = (id) => { rows.push({ protocol_id: id, outcome: 'Taken' }); return { logId: rows.length, protocol: { name: 'BPC-157', type: 'oral', doses_per_day: 2 }, dayKey: '2026-10-20' }; };
+  // First run: the write lands, then the process dies while the reminder cleanup is awaited.
+  const killed = loadModule({ recordDoseTaken: write, cancelTodaysDoseReminders: () => new Promise(() => {}) }, { store });
+  killed.task()({ data: response() }); // never settles (killed)
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(rows.length, 1, 'the dose was written');
+  // Next launch: the drain delivers the same tap to a fresh process (same AsyncStorage).
+  const next = loadModule({ recordDoseTaken: write }, { store });
+  await next.task()({ data: response() });
+  assert.equal(rows.length, 1, 'exactly one Taken row (planMarkTaken would allow a 2nd dose of a 2x/day protocol)');
+});
+
+test('Gate B 2: "Nothing else today" whose day marker could not be written is not claimed and keeps the banner; no user = handled', async () => {
+  const food = (date) => ({ actionIdentifier: 'FOOD_DAY_DONE', notification: { date, request: { identifier: 'food-log-2026-10-20', content: { data: {} } } } });
+  let fail = true;
+  const m = loadModule({ closeFoodDay: async () => { if (fail) { fail = false; throw new Error('insert failed'); } return true; } });
+  await m.task()({ data: food(1) });
+  assert.deepEqual(handled(m), [], 'not claimed');
+  assert.ok(!m.log.some((e) => e[0] === 'dismiss'), 'banner kept');
+  await m.task()({ data: food(1) });
+  assert.equal(handled(m).length, 1, 'the retry closes the day');
+  const nobody = loadModule({ closeFoodDay: async () => false });
+  await nobody.task()({ data: food(2) });
+  assert.equal(handled(nobody).length, 1, 'signed out: nothing to close, handled');
+});
+
+test('Gate B 2: closeFoodDay throws on a failed marker write when asked to (the notification), and keeps false for no user / a bad day', async () => {
+  const mk = (insert, user = { id: 'u1' }) => loadFn('lib/notifications.js', 'export async function closeFoodDay(', 'closeFoodDay', {
+    getCachedUser: async () => user,
+    insertFoodDayMarker: insert,
+    getNotifications: () => null,
+    syncFoodLogReminder: async () => {},
+  });
+  await assert.rejects(mk(() => { throw new Error('db'); })('2026-10-20', null, { throwOnFail: true }));
+  await assert.rejects(mk(() => null)('2026-10-20', null, { throwOnFail: true }));
+  assert.equal(await mk(() => null)('2026-10-20'), false, 'Food log screen: still false (its own error message)');
+  assert.equal(await mk(() => 1, null)('2026-10-20', null, { throwOnFail: true }), false, 'no user: false, no throw');
+  assert.equal(await mk(() => 1)('bad', null, { throwOnFail: true }), false);
+  assert.match(read('lib/notificationActions.js'), /closeFoodDay\(dayKey, null, \{ throwOnFail: true \}\)/);
+});
+
+test('Gate B 3: analytics never reaches the auth client while in background mode (queued, sent on the next foreground event)', async () => {
+  const calls = [];
+  let bg = true;
+  const mem = {};
+  const AsyncStorage = { getItem: async (k) => (k in mem ? mem[k] : null), setItem: async (k, v) => { mem[k] = v; } };
+  const supabase = { from: (t) => ({ insert: async (row) => { calls.push(['insert', t, row]); return { error: null }; } }) };
+  const deps = {
+    storedSessionOnly: () => bg,
+    getCachedUser: async () => { calls.push(['getUser', bg]); return { id: 'u', user_metadata: {} }; },
+    supabase, AsyncStorage,
+    Platform: { OS: 'android' },
+    installId: async () => 'inst',
+    buildRow: (name, props, inst, os, at) => ({ name, at }),
+    BG_QUEUE_KEY: 'q',
+  };
+  const queue = loadFn('lib/analytics.js', 'async function queueBackgroundEvent(', 'queueBackgroundEvent', deps);
+  const flush = loadFn('lib/analytics.js', 'async function flushBackgroundEvents(', 'flushBackgroundEvents', deps);
+  const logEvent = loadFn('lib/analytics.js', 'export async function logEvent(', 'logEvent', { ...deps, queueBackgroundEvent: queue, flushBackgroundEvents: flush });
+  await logEvent('dose_logged', { source: 'notification' });
+  assert.deepEqual(calls, [], 'no session read, no insert in background mode');
+  bg = false;
+  await logEvent('notif_action', {});
+  assert.deepEqual(calls.filter((c) => c[0] === 'insert').map((c) => c[2].name), ['dose_logged', 'notif_action'], 'the queued event goes first, with the foreground one');
+  await logEvent('x', {});
+  assert.equal(calls.filter((c) => c[0] === 'insert' && c[2].name === 'dose_logged').length, 1, 'sent once');
+});
+
+test('Gate B 7: background mode is a counter - an overlapping refresh and action leave it on until both end; reset when the app is active', () => {
+  const BG = require('../lib/backgroundMode');
+  BG.reset();
+  const stored = [];
+  const _background = false;
+  const set = loadFn('lib/notifications.js', 'export function setBackgroundRun(', 'setBackgroundRun', { BG, setStoredSessionOnly: (v) => stored.push(v), _background });
+  const reset = loadFn('lib/notifications.js', 'export function resetBackgroundRun(', 'resetBackgroundRun', { BG, setStoredSessionOnly: (v) => stored.push(v), _background });
+  set(true);  // the reminder refresh starts
+  set(true);  // a Mark complete arrives
+  set(false); // the action ends
+  assert.equal(stored[stored.length - 1], true, 'the refresh is still running: stored session only');
+  set(false); // the refresh ends
+  assert.equal(stored[stored.length - 1], false);
+  set(false); // an extra leave never goes negative
+  set(true);
+  assert.equal(stored[stored.length - 1], true);
+  reset();
+  assert.equal(stored[stored.length - 1], false);
+  set(true);
+  assert.equal(stored[stored.length - 1], true, 'counted from 0 again after a reset');
+  BG.reset();
+});
+
+test('Gate B 7: the notification module resets background mode when the app becomes active', () => {
+  const m = loadModule();
+  m.appChange('active');
+  assert.ok(m.log.some((e) => e[0] === 'bgReset'));
 });
