@@ -23,14 +23,15 @@ function phone(db, { migrated = true, meta = null } = {}) {
   const getCalcInputsRow = (uid) => db.getFirstSync(
     `SELECT * FROM calc_inputs WHERE user_id = ? AND sync_status != 'deleted' ORDER BY updated_at DESC, id DESC LIMIT 1`, [uid]);
   const upsertCalcInputs = (uid, text, changes) => recordCalcInputs(db, uid, text, changes, now());
+  const mirrored = [];
   const save = loadFn('lib/realityCheck.js', 'export async function saveCalcInputs(', 'saveCalcInputs', {
     getCachedUser: async () => ({ id: USER, user_metadata: meta ? { calc_inputs: meta } : {} }),
     isMigrated: async () => migrated,
     getCalcInputsRow, upsertCalcInputs, mergeCalcInputs, calcInputsChanges,
     requestSync: () => {},
-    supabase: { auth: { updateUser: () => Promise.resolve() } },
+    supabase: { auth: { updateUser: (u) => { mirrored.push(u.data.calc_inputs); return Promise.resolve(); } } },
   });
-  return { db, save, payload: () => JSON.parse(getCalcInputsRow(USER)?.payload || 'null') };
+  return { db, save, mirrored, payload: () => JSON.parse(getCalcInputsRow(USER)?.payload || 'null') };
 }
 const cloudPayload = (cloud) => {
   const rows = cloud.rows('calc_inputs', USER);
@@ -185,4 +186,75 @@ test('DV-010: an install from before this build gets the pending_patch column; t
   const sync = read('lib/sync.js');
   assert.match(sync, /upsert\(payload, \{ onConflict: 'user_id', ignoreDuplicates: true \}\)/);
   assert.doesNotMatch(sync, /upsert\(payload, \{ onConflict: 'user_id' \}\)/);
+});
+
+// ── Gate B review (1.3.1) ───────────────────────────────────────────────────────────────────────
+
+test('Gate B 4: another phone writes between this push\'s read and its update -> the update matches nothing and the next pass merges (no lost key)', async () => {
+  const cloud = makeCloud();
+  const A = phone(makeDb()); const B = phone(makeDb());
+  await A.save(calcState());
+  await syncPass(A.db, cloud);
+  await fullImport(B.db, cloud, USER);
+  await B.save({ unit: 'imperial' });
+  let raced = false;
+  const racing = {
+    ...cloud,
+    update: async (t, id, p, o) => {
+      if (t === 'calc_inputs' && !raced) {
+        raced = true;
+        await A.save({ rcTypedKcal: 2100 });       // A's push lands after B read the row
+        await pushPending(A.db, cloud, USER);
+      }
+      return cloud.update(t, id, p, o);
+    },
+  };
+  await pushPending(B.db, racing, USER);
+  assert.equal(cloudPayload(cloud).rcTypedKcal, 2100, 'A\'s key is not overwritten by B\'s stale read');
+  assert.equal(B.db.getFirstSync('SELECT sync_status FROM calc_inputs').sync_status, 'pending', 'B retries');
+  await pushPending(B.db, cloud, USER);
+  assert.equal(cloudPayload(cloud).rcTypedKcal, 2100);
+  assert.equal(cloudPayload(cloud).unit, 'imperial');
+  assert.match(read('lib/sync.js'), /if \(opts\.ifUpdatedAt\) q = q\.eq\('updated_at', opts\.ifUpdatedAt\);/);
+});
+
+test('Gate B 5: A changes the weight; B, with Your numbers still open on the old values, edits the height -> the cloud keeps A\'s weight', async () => {
+  const cloud = makeCloud();
+  const A = phone(makeDb()); const B = phone(makeDb());
+  await A.save(calcState());
+  await syncPass(A.db, cloud);
+  await fullImport(B.db, cloud, USER);
+  const bScreen = calcState();                         // what B's screen loaded (it stays mounted)
+  await A.save(calcState({ weight: '85' }), { screenBase: calcState() });
+  await syncPass(A.db, cloud);
+  await syncPass(B.db, cloud);                         // B's row now holds 85; its screen still shows 88.4
+  assert.equal(B.payload().weight, '85');
+  await B.save(calcState({ height: '182' }), { screenBase: bScreen }); // the screen's whole state, only height edited
+  await syncPass(B.db, cloud);
+  assert.equal(cloudPayload(cloud).weight, '85', 'B never sends its stale weight');
+  assert.equal(cloudPayload(cloud).height, '182');
+  assert.equal(B.payload().weight, '85', 'B keeps the newer weight locally too');
+});
+
+test('Gate B 5: Your numbers saves against what the screen loaded / last saved (a ref), not the current row', () => {
+  const calc = read('screens/components/CalculatorSection.js');
+  assert.match(calc, /screenSaved\.current = saved && typeof saved === 'object' \? saved : null;/);
+  assert.match(calc, /createDebouncedSave\(\(payload\) => \{ const base = screenSaved\.current \|\| \{\}; screenSaved\.current = \{ \.\.\.base, \.\.\.payload \}; return saveCalcInputs\(payload, \{ screenBase: base \}\)\.then\(calcChanged\); \}, 900\)/);
+  // a number saved by an older build and the same number as typed text are no change
+  assert.deepEqual(calcInputsChanges({ weight: 86.5, age: 41 }, { weight: '86.5', age: '41' }), {});
+  assert.deepEqual(calcInputsChanges({ weight: 0 }, { weight: '' }), { weight: '' }, 'an emptied field is a change');
+});
+
+test('Gate B 8: the user_metadata mirror carries only the keys changed here, over the metadata as it is (never this phone\'s stale copy)', async () => {
+  const cloud = makeCloud();
+  const meta = { ...calcState(), weight: '84', fromOldPhone: 1 };
+  const B = phone(makeDb(), { meta });
+  await B.save(calcState());                          // B's local copy (weight 88.4)
+  await syncPass(B.db, cloud);
+  B.mirrored.length = 0;
+  await B.save({ unit: 'imperial' });
+  assert.equal(B.mirrored.length, 1);
+  assert.deepEqual(B.mirrored[0], { ...meta, unit: 'imperial' }, 'metadata + the changed key only');
+  await B.save({ unit: 'imperial' });                 // no change -> no mirror write
+  assert.equal(B.mirrored.length, 1);
 });

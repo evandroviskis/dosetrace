@@ -257,7 +257,7 @@ test('BK-19: CalculatorSection announces every saved calculator change (notifyDa
   const src = read('screens/components/CalculatorSection.js');
   assert.match(src, /import \{[^}]*\bnotifyDataChanged\b[^}]*\} from '\.\.\/\.\.\/lib\/sync'/);
   assert.match(src, /function calcChanged\(\) \{ notifyDataChanged\('calc'\); \}/);
-  assert.match(src, /createDebouncedSave\(\(payload\) => saveCalcInputs\(payload\)\.then\(calcChanged\), 900\)/, 'after the inputs are written');
+  assert.match(src, /createDebouncedSave\(\(payload\) => \{[^}]*\};[^}]*\};? return saveCalcInputs\(payload, \{ screenBase: base \}\)\.then\(calcChanged\); \}, 900\)/, 'after the inputs are written (DV-010: against what the screen loaded)');
   // Journey redesign 2026-10-02: Save a snapshot became Log today's weight (saveTodayWeighIn,
   // Q10), and the typed phase-2 form (saveRcWeighIn / saveRealityCheck / startNextRealityCheck)
   // became the automatic finish from the day-21 weigh-in + food log (completeRealityCheck).
