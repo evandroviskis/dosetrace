@@ -16,6 +16,10 @@ import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { consumeExplicitSignIn, beginExplicitSignIn, endExplicitSignIn } from './lib/explicitSignIn';
 import { deviceFlow, deviceGate, subscribeDevice, readDeviceState, continueAfterVerdict, checkAccountGoneFor } from './lib/deviceRuntime';
 import { noticeSheet, verdictSheet, askSheet, signOutSheet } from './lib/deviceCopy';
+import { UpdateInviteSheet, UpdateRequiredScreen, UpdateReadyBar } from './components/UpdateNotice';
+import { useUpdateNotice } from './components/useUpdateNotice';
+import { isUpdateTap } from './lib/updateRules';
+import { requestForcedInvite } from './lib/updateRuntime';
 import { runSignOut } from './lib/settingsSignOut';
 import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
 import { createBusyGuard } from './lib/busyGuard';
@@ -316,6 +320,21 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
     else onDeviceSheetClose && onDeviceSheetClose();
   };
 
+  // A-127 (picture docs/design/a127-update-notice.html): below the minimum version — the founder's
+  // per-platform minimum or A-119's server floor (DT003) — one full screen that cannot be closed,
+  // over everything, signed in or not; nothing is deleted. Below the latest — the invitation, at app
+  // open, on the tabs only, never over another sheet (components/useUpdateNotice).
+  const upd = useUpdateNotice({ session, onMain, language, navigationRef, blocked: !!(deviceSheet || linkSheet) });
+  const updateRequired = upd.required;
+  if (updateRequired) {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <UpdateRequiredScreen reason={updateRequired.reason} onUpdate={upd.onRequiredUpdate} />
+      </>
+    );
+  }
+
   const navTheme = navThemeFor(colors, isDark);
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onNavReady} onStateChange={onNavReady}>
@@ -368,6 +387,8 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
         )}
       </Stack.Navigator>
       <DTSheet config={deviceSheet || linkSheet} onClose={deviceSheet ? closeDeviceSheet : closeLinkSheet} />
+      <UpdateInviteSheet config={deviceSheet || linkSheet ? null : upd.invite} onUpdate={upd.onUpdate} onLater={upd.onLater} />
+      <UpdateReadyBar visible={upd.ready} onRestart={upd.onRestart} />
     </NavigationContainer>
   );
 }
@@ -557,6 +578,7 @@ export default function App() {
       if (Array.isArray(list) && list.includes(key)) return true;
       await AsyncStorage.setItem('dosetrace_nav_handled', JSON.stringify([...(Array.isArray(list) ? list : []), key].slice(-30)));
     } catch { /* best effort — the in-memory set still dedupes this run */ }
+    if (isUpdateTap(response)) requestForcedInvite(); // A-127 UN-6: the version push opens the invitation
     pendingNavRef.current = target;
     flushPendingNav();
     return true;

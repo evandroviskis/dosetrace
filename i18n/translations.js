@@ -9,6 +9,20 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
+    upd_title: "A new version of DoseTrace",
+    upd_whats_new: "What's new",
+    upd_not_now: "Not now",
+    upd_update: "Update",
+    upd_ask: "Tell me when there's a new version?",
+    upd_ask_sub: "One notification per version, in the daytime.",
+    upd_downloaded: "The new version is downloaded.",
+    upd_restart: "Restart",
+    upd_req_title: "Update DoseTrace to continue",
+    upd_req_body: "This version can no longer be used.",
+    upd_req_safe: "Your data stays saved — nothing is deleted when you update.",
+    settings_version_news: "What's new in DoseTrace",
+    settings_version_news_sub: "A notification when a new version is out, with what changed.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
     dev_counting_title: "Checking this phone",
     dev_counting_body: "Your account was opened on another device. Before signing you out here, the app needs to count what this phone hasn't backed up yet, and that didn't work just now. Nothing was removed.",
@@ -2448,6 +2462,20 @@ export const translations = {
   },
 
   'es': {
+    // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
+    upd_title: "Nueva versión de DoseTrace",
+    upd_whats_new: "Novedades",
+    upd_not_now: "Ahora no",
+    upd_update: "Actualizar",
+    upd_ask: "¿Te avisamos cuando haya una versión nueva?",
+    upd_ask_sub: "Una notificación por versión, durante el día.",
+    upd_downloaded: "La nueva versión ya se descargó.",
+    upd_restart: "Reiniciar",
+    upd_req_title: "Actualiza DoseTrace para continuar",
+    upd_req_body: "Esta versión ya no se puede usar.",
+    upd_req_safe: "Tus datos siguen guardados: al actualizar no se borra nada.",
+    settings_version_news: "Novedades de DoseTrace",
+    settings_version_news_sub: "Una notificación cuando sale una versión nueva, con lo que cambió.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
     dev_counting_title: "Comprobando este teléfono",
     dev_counting_body: "Tu cuenta se abrió en otro dispositivo. Antes de cerrar la sesión aquí, la app tiene que contar lo que este teléfono aún no tiene en copia de seguridad, y eso no funcionó ahora. No se borró nada.",
@@ -4887,6 +4915,20 @@ export const translations = {
   },
 
   'pt': {
+    // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
+    upd_title: "Nova versão do DoseTrace",
+    upd_whats_new: "O que há de novo",
+    upd_not_now: "Agora não",
+    upd_update: "Atualizar",
+    upd_ask: "Avisar quando houver versão nova?",
+    upd_ask_sub: "Uma notificação por versão, durante o dia.",
+    upd_downloaded: "A nova versão foi baixada.",
+    upd_restart: "Reiniciar",
+    upd_req_title: "Atualize o DoseTrace para continuar",
+    upd_req_body: "Esta versão não pode mais ser usada.",
+    upd_req_safe: "Seus dados continuam guardados — nada é apagado ao atualizar.",
+    settings_version_news: "Novidades do DoseTrace",
+    settings_version_news_sub: "Uma notificação quando sair uma versão nova, com o que mudou.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
     dev_counting_title: "Verificando este celular",
     dev_counting_body: "Sua conta foi aberta em outro aparelho. Antes de sair dela aqui, o app precisa contar o que ainda não tem backup neste celular, e isso não deu certo agora. Nada foi apagado.",
@@ -7325,6 +7367,20 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
+    upd_title: "Nouvelle version de DoseTrace",
+    upd_whats_new: "Nouveautés",
+    upd_not_now: "Pas maintenant",
+    upd_update: "Mettre à jour",
+    upd_ask: "Vous prévenir quand une nouvelle version sort ?",
+    upd_ask_sub: "Une notification par version, en journée.",
+    upd_downloaded: "La nouvelle version est téléchargée.",
+    upd_restart: "Redémarrer",
+    upd_req_title: "Mettez à jour DoseTrace pour continuer",
+    upd_req_body: "Cette version ne peut plus être utilisée.",
+    upd_req_safe: "Vos données restent enregistrées — rien n'est effacé pendant la mise à jour.",
+    settings_version_news: "Nouveautés de DoseTrace",
+    settings_version_news_sub: "Une notification à chaque nouvelle version, avec ce qui a changé.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
     dev_counting_title: "Vérification de ce téléphone",
     dev_counting_body: "Votre compte a été ouvert sur un autre appareil. Avant de vous déconnecter ici, l'app doit compter ce que ce téléphone n'a pas encore sauvegardé, et cela n'a pas fonctionné pour l'instant. Rien n'a été supprimé.",
@@ -9763,6 +9819,20 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
+    upd_title: "Neue Version von DoseTrace",
+    upd_whats_new: "Was ist neu",
+    upd_not_now: "Nicht jetzt",
+    upd_update: "Aktualisieren",
+    upd_ask: "Bei neuen Versionen Bescheid geben?",
+    upd_ask_sub: "Eine Benachrichtigung pro Version, tagsüber.",
+    upd_downloaded: "Die neue Version ist heruntergeladen.",
+    upd_restart: "Neu starten",
+    upd_req_title: "Aktualisiere DoseTrace, um weiterzumachen",
+    upd_req_body: "Diese Version kann nicht mehr verwendet werden.",
+    upd_req_safe: "Deine Daten bleiben gespeichert – beim Aktualisieren wird nichts gelöscht.",
+    settings_version_news: "Neuigkeiten von DoseTrace",
+    settings_version_news_sub: "Eine Benachrichtigung, wenn eine neue Version erscheint – mit dem, was sich geändert hat.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
     dev_counting_title: "Dieses Handy wird geprüft",
     dev_counting_body: "Dein Konto wurde auf einem anderen Gerät geöffnet. Bevor du hier abgemeldet wirst, muss die App zählen, was auf diesem Handy noch nicht gesichert ist, und das hat gerade nicht geklappt. Es wurde nichts gelöscht.",
@@ -12202,6 +12272,20 @@ export const translations = {
   },
 
   'it': {
+    // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
+    upd_title: "Nuova versione di DoseTrace",
+    upd_whats_new: "Novità",
+    upd_not_now: "Non ora",
+    upd_update: "Aggiorna",
+    upd_ask: "Ti avvisiamo quando esce una nuova versione?",
+    upd_ask_sub: "Una notifica per versione, durante il giorno.",
+    upd_downloaded: "La nuova versione è stata scaricata.",
+    upd_restart: "Riavvia",
+    upd_req_title: "Aggiorna DoseTrace per continuare",
+    upd_req_body: "Questa versione non si può più usare.",
+    upd_req_safe: "I tuoi dati restano salvati — con l'aggiornamento non si cancella nulla.",
+    settings_version_news: "Novità di DoseTrace",
+    settings_version_news_sub: "Una notifica quando esce una nuova versione, con cosa è cambiato.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
     dev_counting_title: "Verifica di questo telefono",
     dev_counting_body: "Il tuo account è stato aperto su un altro dispositivo. Prima di farti uscire qui, l'app deve contare ciò che questo telefono non ha ancora nel backup, e al momento non ci è riuscita. Non è stato eliminato nulla.",
