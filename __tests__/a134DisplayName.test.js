@@ -40,7 +40,10 @@ test('A-134 (4): the Reminder check names the next reminder\'s protocol with the
   assert.doesNotMatch(screen, /\[health\.next\.title, /, 'never the raw notification title first');
   const lib = read('lib/notifications.js');
   const fn = lib.slice(lib.indexOf('export async function readReminderHealth'), lib.indexOf('export async function sendTestReminder'));
-  assert.match(fn, /protocolId: n\.content\.data\.protocolId/, 'the next reminder keeps its protocol id');
+  // DV-139: the next reminder of any kind (lib/notificationPlan nextScheduled) keeps its protocol id.
+  assert.match(fn, /out\.next = nextScheduled\(/);
+  const next = require('../lib/notificationPlan').nextScheduled([{ identifier: 'dose-4-2026-10-03-t0', content: { title: 'x', data: { type: 'dose_reminder', protocolId: 4, slotMs: 5000 } } }], 1000, {});
+  assert.equal(next.protocolId, 4, 'the next reminder keeps its protocol id');
   assert.match(fn, /out\.next\.protocol = /, 'and the protocol it belongs to');
 });
 

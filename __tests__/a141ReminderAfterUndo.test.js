@@ -62,11 +62,11 @@ function runSchedule(todayLogs) {
   const fn = loadFn('lib/notifications.js', 'export async function scheduleDoseReminder(', 'scheduleDoseReminder', {
     Date: FakeDate, Platform: { OS: 'ios' }, getActiveProtocols: () => [{ id: 3 }], doseBudget: plan.doseBudget,
     getNotifications: () => N, getT: async () => Object.assign((k) => k, { language: 'pt' }),
-    parseReminderTimes: (rt) => plan.reminderTimes(rt).map((s) => ({ hours: s.hour, minutes: s.minute })),
     isPersistentEnabled: async () => false, fill: (s) => s, decimalText: String, unitText: String,
     ymd: plan.ymd, parseYmd: plan.parseYmd, dueDateKeys: plan.dueDateKeys, handledSlotIndexes: plan.handledSlotIndexes,
     getTodayLogs: () => todayLogs, showNamesInNotifications: async () => true, protocolDisplayName: () => 'Vitmin C',
     needsSiteQuestion: () => false, FOLLOWUP_DELAYS: [5, 10],
+    doseSlots: plan.doseSlots, snoozedDoseSlots: async () => new Set(), // 1.3.2: the slots in fire order (DV-053 / DV-224)
     scheduleReq: (n, req) => n.scheduleNotificationAsync(req),
   });
   const protocol = { id: 3, user_id: 'u', reminder_time: '12:25', interval_days: 1, doses_per_day: 1, start_date: '2026-10-01', type: 'oral', dose: 500, dose_unit: 'mg' };

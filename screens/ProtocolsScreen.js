@@ -25,7 +25,9 @@ import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { scheduleDoseReminder, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
+// DV-051: every protocol / vial write re-plans through afterProtocolChange (doses, the morning
+// summary that lists protocol names, the vial alerts).
+import { afterProtocolChange, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '../lib/localeFormat';
 import { protocolDisplayName } from '../lib/protocolName';
@@ -1337,6 +1339,7 @@ export default function ProtocolsScreen() {
           onPress: () => {
             softDeleteProtocol(p.id);
             cancelDoseReminder(p.id).catch(() => {});
+            afterProtocolChange({ removedIds: [p.id] }).catch(() => {});
             fetchProtocols();
             notifyDataChanged('protocol');
             requestSync();
@@ -1393,7 +1396,7 @@ export default function ProtocolsScreen() {
       return;
     }
     const restarted = newId ? getProtocolById(newId) : null;
-    if (restarted) scheduleDoseReminder(restarted).catch(() => {});
+    if (restarted) afterProtocolChange({ saved: restarted }).catch(() => {});
     fetchProtocols();
     notifyDataChanged('protocol');
     requestSync();
@@ -1415,7 +1418,7 @@ export default function ProtocolsScreen() {
     const newestVial = getNewestVialForProtocol(id);
     if (newestVial) updateVial(newestVial.id, { active: 1 });
     const restored = getProtocolById(id);
-    if (restored) scheduleDoseReminder(restored).catch(() => {});
+    if (restored) afterProtocolChange({ saved: restored }).catch(() => {});
     fetchProtocols();
     notifyDataChanged('protocol'); // Today shows it again at once
     requestSync();
@@ -1446,6 +1449,7 @@ export default function ProtocolsScreen() {
               cancelDoseReminder(id).catch(() => {});
               dismissDeliveredDoseReminders(id).catch(() => {});
             });
+            afterProtocolChange({ removedIds: ids }).catch(() => {});
             setTrashSel(null);
             fetchProtocols();
             notifyDataChanged('protocol');
@@ -1988,7 +1992,7 @@ export default function ProtocolsScreen() {
       // the reschedule uses the new time AND correctly skips slots already logged
       // today.
       const editedProtocol = getProtocolById(editingId);
-      if (editedProtocol) scheduleDoseReminder(editedProtocol).catch(() => {});
+      if (editedProtocol) afterProtocolChange({ saved: editedProtocol }).catch(() => {});
       // Only when the timing moved: clear any banner delivered under the old
       // schedule so it stops "asking" at the previous hour. A rename/color/dose
       // edit leaves a still-pending reminder untouched.
@@ -2026,7 +2030,7 @@ export default function ProtocolsScreen() {
       if (rtuVial) insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
       setSaving(false);
       const protocolData = getProtocolById(newId);
-      if (protocolData) scheduleDoseReminder(protocolData).catch(() => {});
+      if (protocolData) afterProtocolChange({ saved: protocolData }).catch(() => {});
       Analytics.protocolCreated({ name, type, dose, dose_unit: doseUnit, frequency: frequencyLabel(intervalDays), goal: goals.join(',') });
 
       // A-30 (option C): started before adding it to the app? The curve already estimates that
@@ -2139,6 +2143,7 @@ export default function ProtocolsScreen() {
             deactivateVialsByProtocol(id);
             cancelDoseReminder(id).catch(() => {});
             dismissDeliveredDoseReminders(id).catch(() => {}); // clear any lingering banner
+            afterProtocolChange({ removedIds: [id] }).catch(() => {});
             if (target) Analytics.protocolDeactivated(target);
             closeProtocol(); // back to the list (and off the book's right page)
             fetchProtocols();
@@ -2289,6 +2294,7 @@ export default function ProtocolsScreen() {
   // Reset an oral protocol's supply counter — "opened a new bottle".
   function refillOralBottle(id) {
     updateProtocol(id, { units_taken: 0 });
+    afterProtocolChange().catch(() => {}); // DV-051: the supply alerts follow the new bottle
     fetchProtocols();
     requestSync();
   }
@@ -2298,6 +2304,7 @@ export default function ProtocolsScreen() {
     const v = vialsByProtocol[id];
     if (!v) return;
     updateVial(v.id, { doses_taken: 0, active: 1 });
+    afterProtocolChange().catch(() => {}); // DV-051: the vial alerts follow the new vial
     fetchProtocols();
     requestSync();
   }

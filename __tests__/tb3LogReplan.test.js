@@ -28,11 +28,11 @@ function world(rows) {
   const schedule = loadFn('lib/notifications.js', 'export async function scheduleDoseReminder(', 'scheduleDoseReminder', {
     Date: FakeDate, Platform: { OS: 'ios' }, getActiveProtocols: () => [PROTOCOL], doseBudget: plan.doseBudget,
     getNotifications: () => N, getT: async () => Object.assign((k) => k, { language: 'pt' }),
-    parseReminderTimes: (rt) => plan.reminderTimes(rt).map((s) => ({ hours: s.hour, minutes: s.minute })),
     isPersistentEnabled: async () => false, fill: (s) => s, decimalText: String, unitText: String,
     ymd: plan.ymd, parseYmd: plan.parseYmd, dueDateKeys: plan.dueDateKeys, handledSlotIndexes: plan.handledSlotIndexes,
     getTodayLogs: () => logs, showNamesInNotifications: async () => true, protocolDisplayName: () => 'Vitmin C',
     needsSiteQuestion: () => false, FOLLOWUP_DELAYS: [5, 10],
+    doseSlots: plan.doseSlots, snoozedDoseSlots: async () => new Set(), // 1.3.2: the slots in fire order (DV-053 / DV-224)
     scheduleReq: (n, req) => n.scheduleNotificationAsync(req),
   });
   const runs = [];

@@ -34,9 +34,9 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { registerReminderRefresh } from './lib/backgroundTasks';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
+import { initNotifications, askPermissionForArrivedProtocols, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
-import { notifTapTarget, responseKey } from './lib/notificationPlan';
+import { notifTapTarget, responseKey, syncEventNeedsResync } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
@@ -727,6 +727,13 @@ export default function App() {
     let lastFoodResync = 0;
     const unsubSyncForFood = addSyncListener((e) => {
       if (e?.type !== 'sync_complete' && e?.type !== 'import_complete') return;
+      // DV-052 (TRD H-9): a pull that brought another device's dose logs, protocols or vials re-plans
+      // every reminder (a dose taken on phone A stops reminding on phone B). Never throttled away:
+      // calls made during a resync share one follow-up run (lib/notifications).
+      if (syncEventNeedsResync(e)) syncAllNotifications().catch(() => {});
+      // AD-88 (DV-054): this account's protocols with a reminder time arrived on the phone → the
+      // permission is asked once (never again; a phone without protocols is never asked here).
+      askPermissionForArrivedProtocols().catch(() => {});
       const nowTs = Date.now();
       if (nowTs - lastFoodResync < 30000) return;
       lastFoodResync = nowTs;
@@ -787,8 +794,9 @@ export default function App() {
 
           // Schedule reminders AFTER the initial import — otherwise fresh
           // installs sync notifications against an empty local DB.
-          requestNotificationPermissions()
-            .then(() => syncAllNotifications())
+          // AD-88 (DV-054): no permission request at app open — it is asked once, when a protocol
+          // with a reminder time is first saved here or arrives by sync (lib/notifications).
+          syncAllNotifications()
             .then(() => registerPushToken())
             .catch(() => {});
         }
@@ -864,8 +872,9 @@ export default function App() {
         await runRealityMigration().catch(() => {});
 
         // Schedule reminders AFTER the import so they reflect the user's data
-        requestNotificationPermissions()
-          .then(() => syncAllNotifications())
+        // AD-88 (DV-054): never a permission request at sign-in (the sync listener asks once when
+        // this account's protocols arrive on the phone).
+        syncAllNotifications()
           .then(() => registerPushToken())
           .catch(() => {});
       }, 0);
@@ -1017,7 +1026,7 @@ export default function App() {
                   .then((r) => {
                     if (r && r.go) {
                       requestSync();
-                      requestNotificationPermissions().then(() => syncAllNotifications()).then(() => registerPushToken()).catch(() => {});
+                      syncAllNotifications().then(() => registerPushToken()).catch(() => {}); // AD-88: no request here
                     }
                   })
                   .catch(() => {})

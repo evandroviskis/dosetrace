@@ -109,5 +109,6 @@ test('refresh records the last successful run (kept across failed runs)', async 
   const save = loadFn('lib/backgroundTasks.js', 'export async function saveLastRun(', 'saveLastRun', { AsyncStorage, LAST_RUN_KEY: 'L' });
   await save({ at: 100, ok: true, reason: null });
   await save({ at: 200, ok: false, reason: 'error' });
-  assert.deepEqual(JSON.parse(mem.L), { at: 200, ok: false, reason: 'error', lastOkAt: 100 });
+  // DV-046: the scheduled count is kept too (null when the run did not count).
+  assert.deepEqual(JSON.parse(mem.L), { at: 200, ok: false, reason: 'error', scheduled: null, lastOkAt: 100 });
 });
