@@ -15,8 +15,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Linking,
-  KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform, Modal,
+  KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay, useReducedMotion } from 'react-native-reanimated';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';

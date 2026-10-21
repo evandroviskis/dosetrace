@@ -988,7 +988,7 @@ from pg_constraint where contype = 'f' and connamespace = 'public'::regnamespace
 select jobname, schedule, active from cron.job;
 ```
 
-Plus `list_migrations` (names must match `supabase/migrations/`) and `list_edge_functions` (slug, version, `verify_jwt`; expected set: delete-user, extract-bloodwork, parse-food, protocol-assistant, apple-link, wake-refresh; `send-reminders` absent by decision). Result on 2026-10-12: §1.6 and §2.2–2.3.
+Plus `list_migrations` (names must match `supabase/migrations/`) and `list_edge_functions` (slug, version, `verify_jwt`; expected set: delete-user, extract-bloodwork, parse-food, protocol-assistant, apple-link, wake-refresh, and — once the founder says "pode aplicar" for A-127 (migration `20261022000000_app_releases.sql`) — version-notice with `verify_jwt` off and the `CRON_SECRET` secret equal to the Vault secret `dosetrace_cron_secret`; `send-reminders` absent by decision). Result on 2026-10-12: §1.6 and §2.2–2.3.
 
 ### 8.5 Operational runbook items
 

@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image,
-  StyleSheet, Modal, BackHandler, Linking, Platform, AppState,
+  StyleSheet, BackHandler, Linking, Platform, AppState,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import { useWindowSize } from '../lib/windowSize';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,

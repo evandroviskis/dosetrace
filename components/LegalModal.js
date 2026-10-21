@@ -8,7 +8,8 @@
 // in every language: the headings keep their own case here (turning them to sentence
 // case by code would break German nouns and acronyms; that is a copy change).
 import { useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import Modal from './PresenceModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';

@@ -1,24 +1,21 @@
-// A-127 in-app update notice: when the required screen, the invitation and Android's "downloaded"
-// bar show (App.js ThemedRoot). The rules are lib/updateRules + lib/updateFlow; this hook only picks
-// the moments:
-//   required  — read from the cache at once (every open, offline too), again after each server read and
-//               when the A-119 device state changes (DT003 path). Turning it ON waits for a calm screen
-//               (lib/updateRules screenAllows) so nothing being typed is pulled away; OFF is at once.
-//   invite    — at app open (the first time Main is up, and each return to the foreground), after the
-//               server read, on the tab screens only, with no sheet open, never with the required
-//               screen; a tap on the version push asks for it (forced) and waits for those moments.
-//   ready     — Android Play finished the flexible download.
-import { useCallback, useEffect, useRef, useState } from 'react';
+// A-127 in-app update notice: the React wiring of lib/updateGate (which decides WHEN; the rules are
+// lib/updateRules + lib/updateFlow). App.js ThemedRoot calls it and passes poke() to the navigator's
+// onStateChange, so a pending required screen / invitation is re-checked when the route returns to a
+// tab; lib/sheetPresence re-checks it when the last Modal closes.
+//   required — read from the cache at once (every open, offline too), again after each server read,
+//              when the A-119 device state changes (DT003 path) and when the language changes.
+//              Turning it ON waits for a calm screen (no Modal open, a tab or sign-in screen), so a
+//              form being filled is never pulled away; OFF is at once.
+//   invite   — asked at app open (Main up for the first time in this run, and each return to the
+//              foreground) and by a tap on the version push; it waits for a calm tab screen while the
+//              app stays in the foreground, and is re-checked right before it shows.
+//   ready    — Android Play finished the flexible download.
+import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { updateFlow, takeForcedInvite, onForcedInvite } from '../lib/updateRuntime';
 import { subscribeDevice } from '../lib/deviceRuntime';
-import { screenAllows } from '../lib/updateRules';
-import { openSheetCount } from '../lib/sheetPresence';
-
-const FIRST_SCREEN_MS = 1500; // the first screen is drawn and settled
-const RETRY_MS = 1000;
-const FORCED_TRIES = 30; // a push tap that launched the app waits for Main (boot, sign-in work)
-const OPEN_TRIES = 3;
+import { createUpdateGate } from '../lib/updateGate';
+import { openSheetCount, onSheetsChange } from '../lib/sheetPresence';
 
 export function useUpdateNotice({ session, onMain, language, navigationRef, blocked }) {
   const [required, setRequired] = useState(null);
@@ -26,72 +23,58 @@ export function useUpdateNotice({ session, onMain, language, navigationRef, bloc
   const [ready, setReady] = useState(false);
   const uid = (session && session.user && session.user.id) || null;
   const live = useRef({});
-  live.current = { uid, meta: (session && session.user && session.user.user_metadata) || {}, onMain, language, blocked, required };
-  const reading = useRef(null);
-  const timer = useRef(null);
+  live.current = { uid, meta: (session && session.user && session.user.user_metadata) || {}, onMain, language, blocked };
 
-  const rootState = () => {
-    const nav = navigationRef && navigationRef.current;
-    try { return nav && (!nav.isReady || nav.isReady()) && nav.getRootState ? nav.getRootState() : null; } catch { return null; }
+  const gateRef = useRef(null);
+  // Made on first use (and again after a cleanup: React may run an effect twice in development).
+  const getGate = () => {
+    if (gateRef.current) return gateRef.current;
+    gateRef.current = createUpdateGate({
+      flow: updateFlow(),
+      sheets: { count: openSheetCount, subscribe: onSheetsChange },
+      rootState: () => {
+        const nav = navigationRef && navigationRef.current;
+        try { return nav && (!nav.isReady || nav.isReady()) && nav.getRootState ? nav.getRootState() : null; } catch { return null; }
+      },
+      ctx: () => live.current,
+      onRequired: setRequired,
+      onInvite: setInvite,
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (h) => clearTimeout(h),
+    });
+    return gateRef.current;
   };
 
-  const evalRequired = useCallback(async () => {
-    let st = null;
-    try { st = await updateFlow().state({ language: live.current.language, signedIn: !!live.current.uid }); } catch { return; }
-    const next = st && st.required;
-    if (!next) { setRequired(null); return; }
-    if (live.current.required || screenAllows({ rootState: rootState(), sheets: openSheetCount(), kind: 'required' })) setRequired(next);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const refresh = useCallback(() => {
-    const p = updateFlow().refresh().catch(() => false).then(() => evalRequired());
-    reading.current = p;
-    return p;
-  }, [evalRequired]);
-
-  const attempt = useCallback((forced, tries) => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      timer.current = null;
-      const c = live.current;
-      const calm = c.uid && c.onMain && !c.blocked && !c.required
-        && screenAllows({ rootState: rootState(), sheets: openSheetCount(), kind: 'invite' });
-      if (!calm) { if (tries > 1) attempt(forced, tries - 1); return; }
-      try { await reading.current; } catch { /* the cache decides */ }
-      const f = updateFlow();
-      f.flushPending(c.uid).catch(() => {});
-      let inv = null;
-      try { inv = await f.inviteNow({ meta: c.meta, userId: c.uid, language: c.language, forced }); } catch { inv = null; }
-      if (inv && live.current.uid === c.uid) setInvite({ ...inv, userId: c.uid });
-    }, tries === (forced ? FORCED_TRIES : OPEN_TRIES) ? FIRST_SCREEN_MS : RETRY_MS);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   useEffect(() => {
+    const gate = getGate();
     const f = updateFlow();
+    const refresh = () => { const p = f.refresh().catch(() => false).then(() => gate.evalRequired()); gate.setReading(p); return p; };
     const unsub = f.subscribe((s) => { setReady(!!(s && s.ready)); });
-    const unsubDev = subscribeDevice(() => { evalRequired(); });
-    const unsubForced = onForcedInvite(() => { if (takeForcedInvite()) attempt(true, FORCED_TRIES); });
-    evalRequired();
+    const unsubDev = subscribeDevice(() => { gate.evalRequired(); });
+    const unsubForced = onForcedInvite(() => { if (takeForcedInvite()) gate.requestInvite(true); });
+    gate.evalRequired();
     refresh();
-    if (takeForcedInvite()) attempt(true, FORCED_TRIES);
+    if (takeForcedInvite()) gate.requestInvite(true);
     const app = AppState.addEventListener('change', (st) => {
-      if (st !== 'active') return;
+      if (st !== 'active') { gate.background(); return; }
       refresh();
-      attempt(false, OPEN_TRIES);
+      gate.requestInvite(false);
     });
-    return () => { unsub(); unsubDev(); unsubForced(); app.remove(); if (timer.current) clearTimeout(timer.current); };
-  }, [evalRequired, refresh, attempt]);
+    return () => { unsub(); unsubDev(); unsubForced(); app.remove(); gate.dispose(); gateRef.current = null; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The first time Main is up in this run (a cold start, or right after signing in).
   const mainSeen = useRef(false);
   useEffect(() => {
     if (!onMain || !uid || mainSeen.current) return;
     mainSeen.current = true;
-    attempt(false, OPEN_TRIES);
-  }, [onMain, uid, attempt]);
+    getGate().requestInvite(false);
+  }, [onMain, uid]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!uid) mainSeen.current = false; }, [uid]);
-  // The language changed: the reason line follows.
-  useEffect(() => { evalRequired(); }, [language, uid, evalRequired]);
+  // The language or the account changed: the reason line / the device floor follow.
+  useEffect(() => { getGate().evalRequired(); }, [language, uid]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Something around the screen changed (another sheet of the app, Main up): re-check what waits.
+  useEffect(() => { getGate().poke(); }, [onMain, blocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const close = (inv, optIn) => {
     setInvite(null);
@@ -101,6 +84,7 @@ export function useUpdateNotice({ session, onMain, language, navigationRef, bloc
     required,
     invite,
     ready: ready && !!uid && !!onMain,
+    poke: () => getGate().poke(),
     onLater: (optIn) => close(invite, optIn),
     onUpdate: (optIn) => { const inv = invite; close(inv, optIn); updateFlow().update('invite').catch(() => {}); },
     onRequiredUpdate: () => { updateFlow().update('required').catch(() => {}); },

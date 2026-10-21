@@ -184,11 +184,11 @@ test('UN-1 / UN-4 the row is cached: a later open offline still shows the requir
   // After the update the same cache no longer locks anything.
   const c = makeFlow({ store, appVersion: '1.3.2', fetched: new Error('offline') });
   assert.equal((await c.flow.state()).required, null);
-  // Before the migration the table does not exist (PGRST205): nothing changes, nothing shown.
-  const d = makeFlow({ fetched: { data: null, error: { code: 'PGRST205', message: 'Could not find the table' } } });
+  // Before the migration the table does not exist (PostgREST 12.2: HTTP 404, code 42P01): nothing changes, nothing shown.
+  const d = makeFlow({ fetched: { data: null, error: { code: '42P01', message: 'relation "public.app_releases" does not exist', status: 404 } } });
   await d.flow.refresh();
   assert.equal((await d.flow.state()).required, null);
-  assert.equal(await d.flow.inviteNow({ meta: {}, userId: 'u1' }), null);
+  assert.equal(await d.flow.inviteCandidate({ meta: {}, userId: 'u1' }), null);
   // An error never drops a good cache (only a real answer replaces it).
   const e = makeFlow({ store, appVersion: '1.3.1', fetched: { data: null, error: { code: '500', message: 'boom' } } });
   await e.flow.refresh();
@@ -222,7 +222,7 @@ test('UN-4 / A-119 end to end: the server says min_version 1.3.2 in device_statu
   await dev.gate('u1', 'sync');
   const upd = createUpdateFlow({
     store, platform: 'ios', appVersion: '1.3.1', now: () => at(2026, 10, 20),
-    fetchRelease: async () => ({ data: null, error: { code: 'PGRST205' } }),
+    fetchRelease: async () => ({ data: null, error: { code: '42P01', status: 404 } }),
     deviceMin: async () => { const st = await dev.load(); return st.update && st.update.min; },
     openUrl: async () => {}, writeMeta: async () => ({ error: null }), play: createPlayUpdate(null),
   });
@@ -238,15 +238,16 @@ test('UN-4 the required screen deletes nothing: the flow has no wipe, no sign-ou
   assert.doesNotMatch(src, /DELETE FROM|\.from\([^)]*\)[\s\S]{0,80}\.delete\(|getDB|executeSql|runSql/i);
 });
 
-test('UN-2 / UN-5 inviteNow records the showing at once (a kill mid-sheet still counts) and carries the lines and the question', async () => {
+test('UN-2 / UN-5 the candidate carries the lines and the question; recordShown (called as it shows) counts it', async () => {
   const { flow, store, clock } = makeFlow();
   await flow.refresh();
-  const inv = await flow.inviteNow({ meta: {}, userId: 'u1', language: 'pt' });
+  const inv = await flow.inviteCandidate({ meta: {}, userId: 'u1', language: 'pt' });
+  await flow.recordShown(inv.version);
   assert.deepEqual(inv.lines, ['Destaque no registro de comida', 'Meu corpo mais fácil de navegar', 'Data de fim nos protocolos']);
   assert.equal(inv.askOptIn, true);
   assert.equal(inv.version, '1.3.3');
   assert.ok(JSON.parse(store.m.get(KEYS.seen)).lastAt === clock.now);
-  assert.equal(await flow.inviteNow({ meta: {}, userId: 'u1' }), null, 'the same day: no second time');
+  assert.equal(await flow.inviteCandidate({ meta: {}, userId: 'u1' }), null, 'the same day: no second time');
 });
 
 test('UN-5 the answer is stored in the account (merge write of one key) and this phone; a failed write is kept and sent at the next open', async () => {
@@ -337,27 +338,27 @@ async function planMod() {
   return import(pathToFileURL(path.join(__dirname, '../supabase/functions/version-notice/plan.js')).href);
 }
 const tok = (o) => ({ user_id: 'u1', expo_token: 'ExponentPushToken[a]', platform: 'ios', timezone: 'America/Sao_Paulo', app_version: '1.3.2', updated_at: '2026-10-20T10:00:00Z', ...o });
-const rel = (o) => ({ platform: 'ios', latest_version: '1.3.3', notes: row().notes, ...o });
+const rel = (o) => ({ platform: 'ios', latest_version: '1.3.3', latest_set_at: '2026-10-18T00:00:00Z', notes: row().notes, ...o });
 // 15:00 UTC = 12:00 in São Paulo, 08:00 in Los Angeles, 00:00 in Tokyo.
 const NOON_SP = new Date('2026-10-20T15:00:00Z');
 
 test('UN-6 one push per version, only to people who said yes, never in Silent mode, never at night, only below the latest', async () => {
   const P = await planMod();
   const users = new Map([
-    ['u1', { version_news: true, language: 'pt' }],
+    ['u1', { version_news: true }],
     ['u2', { version_news: false }],
     ['u3', {}],
     ['u4', { version_news: true, silent_mode: true }],
-    ['u5', { version_news: true, language: 'de' }],
+    ['u5', { version_news: true }],
     ['u6', { version_news: true }],
     ['u7', { version_news: true }],
   ]);
   const tokens = [
-    tok({}),
+    tok({ language: 'pt' }), // A-156: the language is on the token row (user_metadata has none)
     tok({ user_id: 'u2', expo_token: 'T2' }),
     tok({ user_id: 'u3', expo_token: 'T3' }),
     tok({ user_id: 'u4', expo_token: 'T4' }),
-    tok({ user_id: 'u5', expo_token: 'T5', timezone: 'Asia/Tokyo' }),
+    tok({ user_id: 'u5', expo_token: 'T5', timezone: 'Asia/Tokyo', language: 'de' }),
     tok({ user_id: 'u6', expo_token: 'T6', app_version: '1.3.3' }),
     tok({ user_id: 'u7', expo_token: 'T7', app_version: null }),
   ];
@@ -387,7 +388,7 @@ test('UN-6 daytime is 10:00 to 19:59 on the person\'s clock; two tokens of one p
   const two = [tok({ expo_token: 'old', updated_at: '2026-10-01T00:00:00Z' }), tok({ expo_token: 'new', updated_at: '2026-10-19T00:00:00Z' })];
   const msgs = P.versionMessages({ releases: [rel()], tokens: two, users, sent: new Set(), now: NOON_SP });
   assert.deepEqual(msgs.map((m) => m.to), ['new']);
-  assert.equal(msgs[0].title, 'A new version of DoseTrace', 'English when the account has no language');
+  assert.equal(msgs[0].title, 'A new version of DoseTrace', 'English when the token row has no language');
   assert.equal(msgs[0].body, 'The food log stands out');
   const android = [tok({ platform: 'android', expo_token: 'A' })];
   assert.equal(P.versionMessages({ releases: [rel()], tokens: android, users, sent: new Set(), now: NOON_SP }).length, 0);
@@ -474,9 +475,11 @@ test('App: the required screen replaces the whole app; the invitation waits for 
   assert.match(src, /isUpdateTap\(response\)\) requestForcedInvite\(\)/);
   assert.match(src, /config=\{deviceSheet \|\| linkSheet \? null : upd\.invite\}/, 'never over the A-119 / link sheets');
   const hook = read('components/useUpdateNotice.js');
-  assert.match(hook, /openSheetCount\(\)/);
-  assert.match(hook, /screenAllows\(\{ rootState: rootState\(\), sheets: openSheetCount\(\), kind: 'invite' \}\)/);
-  assert.match(hook, /screenAllows\(\{ rootState: rootState\(\), sheets: openSheetCount\(\), kind: 'required' \}\)/);
+  assert.match(hook, /sheets: \{ count: openSheetCount, subscribe: onSheetsChange \}/);
+  // The calm checks (behaviour-tested in __tests__/updateNoticeReview.test.js) live in lib/updateGate.
+  const gate = read('lib/updateGate.js');
+  assert.match(gate, /calm\('invite'\)/);
+  assert.match(gate, /calm\('required'\)/);
   const root = src.slice(src.indexOf('function ThemedRoot('), src.indexOf('function navThemeFor('));
   const req = root.indexOf('if (updateRequired)');
   const nav = root.indexOf('<NavigationContainer');
@@ -484,12 +487,10 @@ test('App: the required screen replaces the whole app; the invitation waits for 
 });
 
 test('every DoseTrace sheet reports itself open (the invitation never shows over one)', () => {
-  const pp = read('screens/components/ProtocolParts.js');
-  for (const fn of ['export function DTSheet(', 'export function DTActionSheet(', 'export function DTPickerSheet(']) {
-    const b = pp.slice(pp.indexOf(fn), pp.indexOf(fn) + 600);
-    assert.match(b, /useSheetPresence\(/, fn);
-  }
-  assert.match(read('screens/components/BodySheets.js'), /useSheetPresence\(/);
+  // Review round 1: every Modal in the app reports through components/PresenceModal (drift guard in
+  // __tests__/updateNoticeReview.test.js), the DoseTrace sheets included.
+  assert.match(read('screens/components/ProtocolParts.js'), /import Modal from '\.\.\/\.\.\/components\/PresenceModal';/);
+  assert.match(read('screens/components/BodySheets.js'), /import Modal from '\.\.\/\.\.\/components\/PresenceModal';/);
   const P = require('../lib/sheetPresence');
   assert.equal(P.openSheetCount(), 0);
   const a = P.markSheet(true);

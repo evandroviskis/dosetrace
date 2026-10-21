@@ -9,7 +9,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   Linking,
   Share,
   TextInput,
@@ -17,6 +16,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import Svg, { Path } from 'react-native-svg';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -7,7 +7,8 @@
 // Theme tokens only; the body image marks use the fixed light figure palette (the image is a
 // fixed light surface in both themes, as in the site picker).
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import Modal from './PresenceModal';
 import { useWindowSize } from '../lib/windowSize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { SlideInDown, useAnimatedProps, useDerivedValue } from 'react-native-reanimated';

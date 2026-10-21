@@ -337,7 +337,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
 
   const navTheme = navThemeFor(colors, isDark);
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onNavReady} onStateChange={onNavReady}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onNavReady} onStateChange={() => { if (onNavReady) onNavReady(); upd.poke(); }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {recovery ? (
@@ -726,6 +726,9 @@ export default function App() {
       // OD-6: a verdict shown again counts what the phone holds now (a notification "Taken" since).
       deviceFlow().refreshVerdict().then(reloadDevice).catch(reloadDevice);
       supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? deviceGate('foreground') : null)).catch(() => null);
+      // A-127 / A-156: every foreground re-writes this phone's push row (app version after a store
+      // auto-update, the language) — one upsert, never a permission prompt.
+      supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? registerPushToken({ prompt: false }) : null)).catch(() => null);
       const nowTs = Date.now();
       // At most once a minute, with the first-sync gate's own rule: a clock moved back is stale too
       // (a negative difference never asked for a sync again — council fix 1, 2026-10-16).

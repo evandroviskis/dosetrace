@@ -10,7 +10,8 @@
 //   UpdateReadyBar       — screen 2c (Android): the Today Undo-bar look (toast tokens) "A nova versão
 //                          foi baixada." · "Reiniciar", above the tab bar.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, ScrollView, BackHandler, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView, BackHandler, Platform } from 'react-native';
+import Modal from './PresenceModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';

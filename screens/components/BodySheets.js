@@ -3,13 +3,13 @@
 // heads the prototype uses (Cancel · title · Save, and title · round ×), and the toast line
 // a sheet shows over itself ("Enter the vaccine name first."). Theme tokens only.
 import { useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';
 import useSheetKeyboard from '../../components/useSheetKeyboard';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { CrossMark } from '../../components/CheckMark';
-import { useSheetPresence } from '../../lib/sheetPresence';
 
 // A form closes only through its own Cancel / Save / × (never a stray tap on the scrim), so
 // nothing typed is lost. `footer` stays under the scrolling content (the export buttons).
@@ -18,7 +18,6 @@ export function BottomSheet({ visible, onClose, children, footer = null, overlay
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const restGap = useSheetGap(30); // A-136 (2)
-  useSheetPresence(visible); // A-127: the update invitation never shows over a sheet
   // Android (Fold folded, build 53, sheetKeyboard.test.js): edge to edge, the Modal is not
   // resized and the KeyboardAvoidingView pads on iPhone only, so the keyboard covered the sheet.
   // While the keyboard is up the sheet sits above it, capped to the room left (the ScrollView

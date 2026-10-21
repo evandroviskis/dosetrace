@@ -6,7 +6,8 @@
 // Apple 1.4.1 line). Reduce Motion shows the last frame. Theme tokens only.
 // Engine: components/previewFx.js (one UI-thread clock per preview).
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Pressable } from 'react-native';
+import Modal from './PresenceModal';
 import { useWindowSize } from '../lib/windowSize';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { SlideInDown, useAnimatedProps } from 'react-native-reanimated';

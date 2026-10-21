@@ -3,13 +3,13 @@
 // choice), the bottom picker sheet that holds the iPhone wheel, the vial cells (one cell
 // per dose, remaining in data) and the enlarged syringe ruler. Theme tokens only.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import Svg, { Rect, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';
 import { MONO } from '../../lib/fonts';
 import FeatureIcon from '../../components/FeatureIcon';
-import { useSheetPresence } from '../../lib/sheetPresence';
 import { vialCells } from '../../lib/todayFormat';
 import { wheelSettle, dateColumns, dateAfter } from '../../lib/wheelPick';
 
@@ -60,7 +60,6 @@ export function DTSheet({ config, onClose }) {
   const open = !!config;
   const shown = useLast(config);
   const after = useAfterDismiss(open);
-  useSheetPresence(open); // A-127: the update invitation never shows over a sheet
   if (!shown) return null;
   const btns = shown.buttons || [];
   const stack = btns.length !== 2 || btns.some(b => String(b.label).length > 14);
@@ -115,7 +114,6 @@ export function DTActionSheet({ config, onClose }) {
   const open = !!config;
   const shown = useLast(config);
   const after = useAfterDismiss(open);
-  useSheetPresence(open); // A-127: the update invitation never shows over a sheet
   if (!shown) return null;
   const press = (fn) => { after.queue(fn); onClose(); };
   return (
@@ -149,7 +147,6 @@ export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
   const gap = useSheetGap(30); // A-136 (2)
-  useSheetPresence(visible); // A-127
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
       <Pressable style={[s.scrim, s.scrimBottom, { paddingBottom: gap }]} onPress={onDone}>

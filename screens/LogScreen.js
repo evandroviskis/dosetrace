@@ -5,11 +5,11 @@ import {
   SectionList,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   Pressable,
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';

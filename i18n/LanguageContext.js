@@ -51,7 +51,15 @@ export function LanguageProvider({ children }) {
 
   function setLanguage(code) {
     setLanguageState(code);
-    AsyncStorage.setItem('dosetrace_language', code).catch(() => {});
+    // A-156 / A-127: once stored, the push token row and the Android news channel follow the new
+    // language (server pushes are written in the language on the token row). No permission prompt.
+    AsyncStorage.setItem('dosetrace_language', code)
+      .then(() => {
+        const n = require('../lib/notifications');
+        n.registerPushToken({ prompt: false }).catch(() => {});
+        n.nameNewsChannel(code).catch(() => {});
+      })
+      .catch(() => {});
   }
 
   function setTimeFormat(fmt) {

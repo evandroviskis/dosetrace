@@ -2,21 +2,35 @@
 -- UN-1, UN-4, UN-6; picture docs/design/a127-update-notice.html).
 --
 -- NOT APPLIED. Apply only with the founder's "pode aplicar". A build with A-127 and WITHOUT this
--- migration behaves as before: its read of app_releases answers "table not found" (PGRST205), which
--- the app treats as "nothing to say" — no invitation, no required screen (lib/updateFlow refresh;
--- __tests__/updateNotice.test.js "a missing table"). Its push_tokens upsert without app_version
--- retries without the column (lib/notifications registerPushToken).
+-- migration behaves as before: its read of app_releases answers "table not found" (PostgREST 12.2:
+-- HTTP 404 with code 42P01), which the app treats as "nothing to say" — no invitation, no required
+-- screen (lib/updateFlow refresh keeps its cache on any error; __tests__/updateNotice.test.js "a
+-- missing table"). Its push_tokens upsert without app_version / language retries without the column
+-- named in the error (lib/notifications registerPushToken).
+-- send-reminders (not deployed) reads push_tokens.language from this migration: apply it first.
+--
+-- BEFORE applying, create the cron secret in Vault and give the function the same value (the hourly
+-- call sends it; version-notice refuses a call without it):
+--   select vault.create_secret('<a long random value>', 'dosetrace_cron_secret');
+--   supabase secrets set CRON_SECRET=<the same value>
+--   supabase functions deploy version-notice --no-verify-jwt
 -- Needs A-119's migration (20261021010000_one_active_device.sql) only for push_tokens.device_id,
 -- which registerPushToken already handles missing.
 --
 -- What the founder edits WITHOUT a new build (Supabase dashboard › Table editor › app_releases, one
 -- row per platform):
---   latest_version — e.g. '1.3.3'. Below it, at app open, the invitation "Nova versão do DoseTrace"
---                    with "Agora não" (once per version, once more 7 days later, never twice a day),
---                    and one push to the people who said yes.
+--   latest_version — e.g. '1.3.3'. Set it only AFTER the version is live in that store (App Store /
+--                    Google Play, released to 100%): "Atualizar" opens the store, and a version not
+--                    there yet would invite people to nothing and spend the one push. Below it, at app
+--                    open, the invitation "Nova versão do DoseTrace" with "Agora não" (once per
+--                    version, once more 7 days later, never twice a day), and — 24 h after this
+--                    field changed (latest_set_at, set by the trigger below) — one push to the people
+--                    who said yes.
 --   min_version    — leave EMPTY (null) unless an old version must stop (changed Terms / Privacy
---                    Policy). Below it: the full screen "Atualize o DoseTrace para continuar" that
---                    cannot be closed. Nothing on the phone is deleted. Never above latest_version.
+--                    Policy). Set it only AFTER the version is live in that store, too: below it the
+--                    full screen "Atualize o DoseTrace para continuar" cannot be closed, and its only
+--                    button opens the store — with nothing new there it would lock people out.
+--                    Nothing on the phone is deleted. Never above latest_version.
 --   notes          — "O que há de novo", two or three lines per language:
 --                    {"en": ["The food log stands out", "…"], "pt": ["Destaque no registro de comida", "…"],
 --                     "es": […], "fr": […], "de": […], "it": […]}  (a missing language shows English)
@@ -30,7 +44,8 @@
 --   select cron.unschedule('dosetrace-version-notice');
 --   drop function if exists public.claim_version_notice();
 --   drop table if exists public.app_release_pushes, public.version_notice_runs, public.app_releases;
---   (push_tokens.app_version may stay: nullable, unused by older builds.)
+--   drop function if exists public.app_releases_touch();
+--   (push_tokens.app_version / language may stay: nullable, unused by older builds.)
 
 -- ── UN-1: the release row per platform ──────────────────────────────────────────────────────
 create table if not exists public.app_releases (
@@ -40,6 +55,8 @@ create table if not exists public.app_releases (
   notes jsonb not null default '{}'::jsonb check (jsonb_typeof(notes) = 'object'),
   reason jsonb not null default '{}'::jsonb check (jsonb_typeof(reason) = 'object'),
   updated_at timestamptz not null default now(),
+  -- When latest_version last changed (the trigger below): the push waits 24 h after it.
+  latest_set_at timestamptz,
   -- A typo that put the minimum above the latest would lock every phone out: refused.
   constraint app_releases_min_not_above_latest check (
     min_version is null or latest_version is null
@@ -52,11 +69,18 @@ create or replace function public.app_releases_touch()
 returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
   new.updated_at := now();
+  if tg_op = 'INSERT' then
+    if new.latest_version is not null then new.latest_set_at := now(); end if;
+  elsif new.latest_version is distinct from old.latest_version then
+    new.latest_set_at := case when new.latest_version is null then null else now() end;
+  else
+    new.latest_set_at := old.latest_set_at; -- never moved by hand
+  end if;
   return new;
 end;
 $$;
 drop trigger if exists app_releases_touch on public.app_releases;
-create trigger app_releases_touch before update on public.app_releases for each row execute function public.app_releases_touch();
+create trigger app_releases_touch before insert or update on public.app_releases for each row execute function public.app_releases_touch();
 
 -- Public, read-only: the app reads it signed in or not (the required screen applies to everyone,
 -- and a phone below the minimum must still read its reason line). Only the dashboard / service role
@@ -69,6 +93,8 @@ grant select on table public.app_releases to anon, authenticated;
 
 -- ── UN-6: the app version on the device row ─────────────────────────────────────────────────
 alter table public.push_tokens add column if not exists app_version text check (app_version is null or char_length(app_version) <= 20);
+-- A-156: the app language (the phone keeps it; user_metadata never has it), for every server push.
+alter table public.push_tokens add column if not exists language text check (language is null or language in ('en', 'es', 'pt', 'fr', 'de', 'it'));
 
 -- One push per person per version (the sender claims a row before sending; a failed send releases it).
 create table if not exists public.app_release_pushes (
@@ -114,7 +140,10 @@ select cron.schedule(
   '5 * * * *',
   $$ select net.http_post(
        url := 'https://mqfvnqfusqyhqhowfweh.supabase.co/functions/v1/version-notice',
-       headers := '{"Content-Type": "application/json"}'::jsonb,
+       headers := jsonb_build_object(
+         'Content-Type', 'application/json',
+         'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'dosetrace_cron_secret')
+       ),
        body := '{}'::jsonb
      ); $$
 );

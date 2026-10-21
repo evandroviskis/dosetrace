@@ -6,7 +6,8 @@
 // "mg = how much medicine · ml = how much liquid" is always shown. Numbers: lib/fitExplainer.
 // Reduce Motion shows the last frame. Graduated tokens only.
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, ScrollView } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import Svg, { Rect, Path, Text as SvgText } from 'react-native-svg';
 import { useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from '../../lib/theme';
