@@ -19,7 +19,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0C2340"
+      "backgroundColor": "#DDE0DB"
     },
     "ios": {
       "supportsTablet": false,
@@ -41,6 +41,15 @@
           "de",
           "it"
         ]
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#DDE0DB",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#121416"
+        }
       }
     },
     "android": {
@@ -53,7 +62,16 @@
       "permissions": [
         "SCHEDULE_EXACT_ALARM"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#DDE0DB",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#121416"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
