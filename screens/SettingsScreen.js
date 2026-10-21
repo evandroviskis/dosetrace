@@ -202,6 +202,8 @@ export default function SettingsScreen({ navigation }) {
   const billingLoad = useRef(null);
   const deleteOpening = useRef(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+  const analyticsSaved = useRef(true); // DV-008: the value the account holds (a failed tap reverts to it)
+  const savingProfile = useRef(false); // DV-008: Edit profile Save in flight (a double tap sends one save)
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   // Profile fields
@@ -349,6 +351,7 @@ export default function SettingsScreen({ navigation }) {
     hasPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
+      analyticsSaved.current = user.user_metadata?.analytics_opt_in !== false;
       setDoseReminders(user.user_metadata?.dose_reminders !== false);
       setCheckinReminders(user.user_metadata?.checkin_reminders !== false);
       setFoodReminders(user.user_metadata?.food_reminders !== false);
@@ -390,7 +393,17 @@ export default function SettingsScreen({ navigation }) {
 
   async function toggleAnalytics(val) {
     setAnalyticsEnabled(val);
-    await supabase.auth.updateUser({ data: { analytics_opt_in: val } });
+    // DV-008 / DL-56: a refused save (offline) must not LOOK saved: revert to what the account
+    // holds (not !val: two quick failing taps would end on a value never stored) and say so.
+    // Only its own key is written (merge).
+    let error = null;
+    try { ({ error } = await supabase.auth.updateUser({ data: { analytics_opt_in: val } })); } catch (e) { error = e; }
+    if (error) {
+      setAnalyticsEnabled(analyticsSaved.current);
+      errorSheet(friendlyError(error, t, 'error_save_failed'));
+    } else {
+      analyticsSaved.current = val;
+    }
   }
 
   async function saveProfile() {
@@ -410,8 +423,12 @@ export default function SettingsScreen({ navigation }) {
       setEditSheet({ icon: 'warning', title: t('profile_required_legend').replace(/^\*\s*/, ''), body: missing.join('\n'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
+    if (savingProfile.current) return; // a double tap on Save sends one save
+    savingProfile.current = true;
     try {
-      await supabase.auth.updateUser({
+      // DV-008 / DL-56: updateUser RESOLVES { error } when the save is refused (offline): that
+      // is a failure too — Edit profile stays open with the typed values and the error sheet shows.
+      const res = await supabase.auth.updateUser({
         data: {
           display_name: displayName.trim() || null,
           gender: gender || null,
@@ -428,11 +445,14 @@ export default function SettingsScreen({ navigation }) {
           has_provider: hasProvider || null,
         },
       });
+      if (res && res.error) throw res.error;
       setShowCountryPicker(false);
       setShowEditProfile(false);
       fetchUser();
     } catch (e) {
       setEditSheet({ icon: 'warning', title: t('error'), body: friendlyError(e, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    } finally {
+      savingProfile.current = false;
     }
   }
 

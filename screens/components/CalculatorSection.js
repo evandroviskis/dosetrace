@@ -62,7 +62,7 @@ import { localISO } from '../../lib/localDate';
 import { createDebouncedSave } from '../../lib/debouncedSave';
 import {
   getFoodLogsSince,
-  getRealityChecks, upsertRealityCheck, clearRealityChecks,
+  getRealityChecks, upsertRealityCheck,
   getCalcSnapshots, upsertCalcSnapshot, correctCalcSnapshot, deleteCalcSnapshot,
   getCalcTarget, upsertCalcTarget, clearCalcTarget,
 } from '../../lib/database';
@@ -943,10 +943,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     });
   }
 
-  // Stop the reality check entirely (founder-requested, one easy-to-reach button):
-  // confirm in a DoseTrace sheet, then clear the open check-in AND the saved numbers,
-  // and cancel both the weigh-in reminder and the daily food-log reminder. Logged meals
-  // and weigh-ins are KEPT. Nothing is cleared before the confirm.
+  // Stop the reality check (founder-requested, one easy-to-reach button): confirm in a
+  // DoseTrace sheet, then end the OPEN check only and cancel both the weigh-in reminder and
+  // the daily food-log reminder. AD-91 / DV-004: earlier results, logged meals and weigh-ins
+  // are KEPT (Stop never touches reality_checks). Nothing changes before the confirm.
   function stopRealityCheck() {
     setConfirm({
       title: t('cal_rc_stop_title'),
@@ -954,9 +954,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         { label: t('cal_rc_stop_confirm'), kind: 'danger', onPress: async () => {
-          setRcStart(null); setRealityLog([]);
+          const stoppedStart = rcStart ? String(rcStart.date).slice(0, 10) : null;
+          setRcStart(null);
           await clearRealityStart();
-          if (userIdRef.current) { clearRealityChecks(userIdRef.current); requestSync?.(); }
+          // The stopped check's typed calorie average goes with it (it is keyed by the start date, so a
+          // new check started on that date would reuse it as its intake). Only that entry: result
+          // sources and the rest of the payload stay (merge, never clobber).
+          if (stoppedStart) {
+            const sameStart = (v) => !!(v && v.rcTypedKcal && String(v.rcTypedKcal.start).slice(0, 10) === stoppedStart);
+            const clearTyped = typedIntakePatch(stoppedStart, null);
+            setRcInputs(prev => (sameStart(prev) ? mergeCalcInputs(prev, clearTyped) : prev));
+            const saved = await getCalcInputs().catch(() => null);
+            if (sameStart(saved)) await saveCalcInputs(clearTyped).catch(() => {});
+          }
           calcChanged();
           syncRealityCheckReminder().catch(() => {});
           syncFoodLogReminder().catch(() => {});
@@ -1487,7 +1497,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             </TouchableOpacity>
           ) : null}
           {howRow}
-          {(rcStart || realityLog.length > 0) ? stopLink : null}
+          {rcStart ? stopLink : null}
         </>
       ) : rcStart && !checkSaved ? (
         // Part 8: in progress — no fold to open; Start over / Stop always in view.
@@ -1553,7 +1563,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <TouchableOpacity style={s.btnO} onPress={openRcStart} activeOpacity={0.75} accessibilityRole="button">
             <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
           </TouchableOpacity>
-          {stopLink}
+          {/* AD-91: Stop only while a check is open. A check open yet counted as saved (checkSaved)
+              shows this view, so it keeps its Stop; a finished result with nothing running has none. */}
+          {rcStart ? stopLink : null}
         </>
       ) : (
         // Part 9: not run yet — the row opens the start sheet.
