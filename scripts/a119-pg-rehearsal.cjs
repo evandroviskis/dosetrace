@@ -227,6 +227,29 @@ async function scenarios() {
   check('OD-10: a phone of a deleted account hears "account_gone"', gone.body.status === 'account_gone', gone);
   const goneAnon = await rpc('account_exists', { p_user: U1 }, {});
   check('OD-10: account_exists says false', goneAnon.body === false, goneAnon);
+
+  // Gate B round 2 (M3 warning): dt_pre_request dropped while pgrst.db_pre_request still names it →
+  // EVERY call fails (any table, any app version). Then the ROLLBACK steps exactly as the migration
+  // header writes them: everything works again, as before the migration.
+  const U2tok = jwt({ sub: '22222222-2222-2222-2222-222222222222', role: 'authenticated' });
+  await psql("drop function public.dt_pre_request(); notify pgrst, 'reload schema';");
+  await sleep(1500);
+  const broken = await call('GET', '/protocols?select=id', { tok: U2tok });
+  const brokenAnon = await call('POST', '/analytics', { body: { ev: 'x' } });
+  check('M3: with dt_pre_request missing every call fails (the never-drop warning is real)', broken.status >= 400 && brokenAnon.status >= 400, { broken, brokenAnon });
+  const raw = fs.readFileSync(MIGRATION, 'utf8').split('\n');
+  const at = raw.findIndex((l) => /^-- ROLLBACK \(run in this order\):/.test(l));
+  const steps = [];
+  for (let i = at + 1; i < raw.length && /^--   /.test(raw[i]); i++) steps.push(raw[i].replace(/^--   /, ''));
+  const rollbackSql = steps.filter((l) => !/^\(/.test(l.trim())).join('\n');
+  fs.writeFileSync(path.join(require('node:os').tmpdir(), `${tag}-rb.sql`), rollbackSql);
+  await sh(['cp', path.join(require('node:os').tmpdir(), `${tag}-rb.sql`), `${PG}:/tmp/rb.sql`]);
+  const rb = await sh(['exec', PG, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-q', '-f', '/tmp/rb.sql']);
+  await psql("notify pgrst, 'reload schema'; notify pgrst, 'reload config';");
+  await sleep(1500);
+  const after = await call('POST', '/protocols', { tok: U2tok, body: { user_id: '22222222-2222-2222-2222-222222222222', val: 'after-rollback' } });
+  const afterRpc = await rpc('claim_device', { p_device: A, p_platform: null, p_name: null, p_brand: null, p_app_version: null, p_mode: 'signin' }, { tok: U2tok });
+  check('ROLLBACK as written in the migration header: it runs, and the project works as before (writes OK; the device RPC is gone: PGRST202)', rb.code === 0 && after.status === 201 && afterRpc.body && afterRpc.body.code === 'PGRST202', { rb: rb.err, after, afterRpc });
 }
 
 (async () => {

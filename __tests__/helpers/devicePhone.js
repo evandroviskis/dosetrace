@@ -8,6 +8,7 @@ const { pushPending, pullChanges, rebuildFromCloud } = require('../../lib/syncCo
 const { createDeviceFlow } = require('../../lib/deviceFlow');
 const { runSyncPass, trackRefusals } = require('../../lib/syncPassCore');
 const { summarizeUnsent } = require('../../lib/unsentSummary');
+const { readChangeSeq } = require('../../lib/changeSeq');
 
 function memKv(seed) {
   const m = new Map(Object.entries(seed || {}));
@@ -36,6 +37,7 @@ function phone(cloud, deviceId, userId, opts = {}) {
     store: kv,
     secret: { get: async () => p.secret, set: async (v) => { p.secret = v; }, remove: async () => { p.secret = null; } },
     summarize: async (uid) => summarizeUnsent(db, [uid]),
+    changeSeq: () => readChangeSeq(db),
     rebuild: async (uid, o) => rebuildFromCloud(db, view, uid, { keep: o && o.keep }),
     requestPass: () => { p.passesAsked = (p.passesAsked || 0) + 1; },
     stopSync: () => { p.stopped += 1; },

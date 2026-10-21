@@ -358,7 +358,8 @@ test('OD-5: a phone whose own takeover was never confirmed retries it first and 
   B.view.offline = false;
   await B.sync();
   assert.equal(cloud.active(U), 'dev-B', 'the takeover went through at the next pass');
-  assert.equal((await B.state()).notice.own.count, 1, 'its own unsent protocol is named (DL-104)');
+  assert.equal((await B.state()).notice.own, null, 'round 2: its protocol, made after its own sign-in, is kept (not discarded)');
+  assert.ok(cloud.base.rows('protocols', U).some((p) => p.id === B.db.getFirstSync('SELECT remote_id FROM protocols WHERE id = ?', [bp]).remote_id), 'and pushed');
   await A.sync();
   assert.equal((await A.state()).verdict.kind, 'replaced');
 });

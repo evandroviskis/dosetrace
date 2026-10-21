@@ -261,7 +261,7 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onVerdictRetry, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose }) {
   const { colors, isDark } = useTheme();
   const { t, language, timeFormat } = useLanguage();
 
@@ -306,7 +306,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // The one sign-out sheet (the reset-link switch, screen 4's "Sign out of this phone") comes before
   // screen 4 itself, which shows again when the person stays.
   const deviceSheet = deviceHeld ? null
-    : dev.verdict ? verdictSheet({ t, language, timeFormat, verdict: dev.verdict, onContinue: onVerdictContinue })
+    : dev.verdict ? verdictSheet({ t, language, timeFormat, verdict: dev.verdict, onContinue: onVerdictContinue, onRetry: onVerdictRetry })
       : switchSignOut ? signOutSheet({ t, language, timeFormat, offline: switchSignOut.r.offline, summary: switchSignOut.r.summary, lastBackup: switchSignOut.r.lastBackup, onAnyway: switchSignOut.onAnyway, onStay: switchSignOut.onStay })
         : dev.ask && session && dev.ask.userId === session.user.id ? askSheet({ t, language, timeFormat, ask: dev.ask, onUseHere, onSignOut: onAskSignOut })
           : dev.notice && onMain && dev.notice.userId === session.user.id ? noticeSheet({ t, language, timeFormat, notice: dev.notice, onOk: onNoticeSeen })
@@ -1004,6 +1004,10 @@ export default function App() {
                 // Screen 2 / account deleted: wipe and sign out like an intentional sign-out; on a
                 // failure the screen comes back (the verdict stays until it worked).
                 continueAfterVerdict().catch(() => {}).finally(() => { setDeviceHeld(false); reloadDevice(); });
+              }}
+              onVerdictRetry={() => {
+                // The count could not be read: try again (no wipe until it is read; Gate B round 2).
+                deviceFlow().refreshVerdict().catch(() => {}).finally(() => { setDeviceHeld(false); reloadDevice(); });
               }}
               onUseHere={() => {
                 const uid = session && session.user && session.user.id;

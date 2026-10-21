@@ -157,7 +157,8 @@ test('H1: screen 4 carries this phone\'s unsent count (kinds and dates) before e
 // ── Never wipe without a count ────────────────────────────────────────────────────────────────
 test('OD-6: a verdict whose count could not be read shows no wipe button until the count is read', () => {
   const t = (k) => k;
-  assert.equal(verdictSheet({ t, language: 'en', verdict: { kind: 'replaced', at: '2026-10-15T09:10:00Z', summary: null, unknown: true } }), null);
+  const u = verdictSheet({ t, language: 'en', verdict: { kind: 'replaced', at: '2026-10-15T09:10:00Z', summary: null, unknown: true } });
+  assert.deepEqual(u.buttons.map((b) => b.label), ['dev_counting_retry'], 'no Continue (no wipe) — round 2: a locked checking sheet with a retry');
   assert.ok(verdictSheet({ t, language: 'en', verdict: { kind: 'replaced', at: '2026-10-15T09:10:00Z', summary: { count: 0, byKind: {} } } }));
   assert.ok(verdictSheet({ t, language: 'en', verdict: { kind: 'gone' } }), 'the account is gone: nothing can be kept anyway');
 });

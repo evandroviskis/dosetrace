@@ -84,7 +84,7 @@ test('OD-15 / Gate B M1 (no deadlock, once): an owed rebuild runs inside a sync 
   assert.deepEqual(calls, ['pass asked'], 'outside a pass: no rebuild');
   calls.length = 0;
   await Promise.race([runner.run(), timeout]);
-  assert.deepEqual(calls, ['import_start', 'rebuild:{"since":null}', 'import_complete', 'data_changed', 'reminders', 'push', 'pull'], 'inside the pass, then the reminders are planned again');
+  assert.deepEqual(calls, ['import_start', 'rebuild:{"seq":null}', 'import_complete', 'data_changed', 'reminders', 'push', 'pull'], 'inside the pass, then the reminders are planned again');
   calls.length = 0;
   await Promise.race([runner.run(), timeout]);
   assert.deepEqual(calls, ['push', 'pull'], 'acknowledged: never twice');

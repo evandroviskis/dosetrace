@@ -9,6 +9,10 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
+    dev_counting_title: "Checking this phone",
+    dev_counting_body: "Your account was opened on another device. Before signing you out here, the app needs to count what this phone hasn't backed up yet, and that didn't work just now. Nothing was removed.",
+    dev_counting_retry: "Try again",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
     dev_ask_unsent_one: "This phone has 1 change not backed up yet: {what}. It isn't in your account, and either choice removes it from this phone.",
     dev_ask_unsent_many: "This phone has {n} changes not backed up yet: {what}. They aren't in your account, and either choice removes them from this phone.",
@@ -2444,6 +2448,10 @@ export const translations = {
   },
 
   'es': {
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
+    dev_counting_title: "Comprobando este teléfono",
+    dev_counting_body: "Tu cuenta se abrió en otro dispositivo. Antes de cerrar la sesión aquí, la app tiene que contar lo que este teléfono aún no tiene en copia de seguridad, y eso no funcionó ahora. No se borró nada.",
+    dev_counting_retry: "Intentar de nuevo",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
     dev_ask_unsent_one: "Este teléfono tiene 1 cambio aún sin copia de seguridad: {what}. No está en tu cuenta, y con cualquiera de las dos opciones se borra de este teléfono.",
     dev_ask_unsent_many: "Este teléfono tiene {n} cambios aún sin copia de seguridad: {what}. No están en tu cuenta, y con cualquiera de las dos opciones se borran de este teléfono.",
@@ -4879,6 +4887,10 @@ export const translations = {
   },
 
   'pt': {
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
+    dev_counting_title: "Verificando este celular",
+    dev_counting_body: "Sua conta foi aberta em outro aparelho. Antes de sair dela aqui, o app precisa contar o que ainda não tem backup neste celular, e isso não deu certo agora. Nada foi apagado.",
+    dev_counting_retry: "Tentar de novo",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
     dev_ask_unsent_one: "Este celular tem 1 alteração ainda sem backup: {what}. Ela não está na sua conta, e as duas opções a apagam deste celular.",
     dev_ask_unsent_many: "Este celular tem {n} alterações ainda sem backup: {what}. Elas não estão na sua conta, e as duas opções as apagam deste celular.",
@@ -7313,6 +7325,10 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
+    dev_counting_title: "Vérification de ce téléphone",
+    dev_counting_body: "Votre compte a été ouvert sur un autre appareil. Avant de vous déconnecter ici, l'app doit compter ce que ce téléphone n'a pas encore sauvegardé, et cela n'a pas fonctionné pour l'instant. Rien n'a été supprimé.",
+    dev_counting_retry: "Réessayer",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
     dev_ask_unsent_one: "Ce téléphone a 1 modification pas encore sauvegardée : {what}. Elle n'est pas dans votre compte, et les deux choix la suppriment de ce téléphone.",
     dev_ask_unsent_many: "Ce téléphone a {n} modifications pas encore sauvegardées : {what}. Elles ne sont pas dans votre compte, et les deux choix les suppriment de ce téléphone.",
@@ -9747,6 +9763,10 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
+    dev_counting_title: "Dieses Handy wird geprüft",
+    dev_counting_body: "Dein Konto wurde auf einem anderen Gerät geöffnet. Bevor du hier abgemeldet wirst, muss die App zählen, was auf diesem Handy noch nicht gesichert ist, und das hat gerade nicht geklappt. Es wurde nichts gelöscht.",
+    dev_counting_retry: "Erneut versuchen",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
     dev_ask_unsent_one: "Auf diesem Handy ist 1 Änderung noch nicht gesichert: {what}. Sie ist nicht in deinem Konto, und bei beiden Optionen wird sie von diesem Handy gelöscht.",
     dev_ask_unsent_many: "Auf diesem Handy sind {n} Änderungen noch nicht gesichert: {what}. Sie sind nicht in deinem Konto, und bei beiden Optionen werden sie von diesem Handy gelöscht.",
@@ -12182,6 +12202,10 @@ export const translations = {
   },
 
   'it': {
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
+    dev_counting_title: "Verifica di questo telefono",
+    dev_counting_body: "Il tuo account è stato aperto su un altro dispositivo. Prima di farti uscire qui, l'app deve contare ciò che questo telefono non ha ancora nel backup, e al momento non ci è riuscita. Non è stato eliminato nulla.",
+    dev_counting_retry: "Riprova",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
     dev_ask_unsent_one: "Su questo telefono c'è 1 modifica non ancora nel backup: {what}. Non è nel tuo account, e con entrambe le scelte viene eliminata da questo telefono.",
     dev_ask_unsent_many: "Su questo telefono ci sono {n} modifiche non ancora nel backup: {what}. Non sono nel tuo account, e con entrambe le scelte vengono eliminate da questo telefono.",
