@@ -257,14 +257,14 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, accountHeld, accountAsk, onAccountSave, onAccountDiscard, onAccountAskClose }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, accountHeld, accountAsk, onAccountSave, onAccountDiscard, onAccountRetry, onAccountAskClose }) {
   const { colors, isDark } = useTheme();
   const { t } = useLanguage();
 
   // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed
   // up. Locked: the person picks one of the two (lib/accountGuard).
   const accountSheet = accountAsk
-    ? accountAskSheet(t, { previous: accountAsk.previous, error: !!accountAsk.error, onSave: onAccountSave, onDiscard: onAccountDiscard })
+    ? accountAskSheet(t, { previous: accountAsk.previous, error: !!accountAsk.error, unreadable: !!accountAsk.unreadable, onSave: onAccountSave, onDiscard: onAccountDiscard, onRetry: onAccountRetry, onSignOut: onAccountSave })
     : null;
 
   // Signup confirmation came back through the deep link — the user has no other way to
@@ -518,7 +518,7 @@ export default function App() {
   const accountHeld = !!sessionUid && (ownerHeld || !!accountAsk);
   // An unexpected guard error never means "continue": the sheet, with Discard always offered.
   const failClosed = (user) => {
-    try { guardDeps().ask({ previous: null, pending: null, userId: user && user.id }); } catch { /* ignore */ }
+    try { guardDeps().ask({ unreadable: true, previous: null, pending: null, userId: user && user.id }); } catch { /* ignore */ }
     return 'held';
   };
   const accountHeldRef = useRef(false);
@@ -549,6 +549,20 @@ export default function App() {
     resolveAccountAsk('save', guardDeps(), { lastAsk: lastAskRef.current })
       .then(() => setAuthEntry({ mode: 'signin', consent: false }))
       .catch(() => {});
+  };
+  // Re-verification 2: "Try again" on the owner-unreadable sheet runs the guard once more (it asks
+  // again itself when it still cannot read; the session unreadable → the same sheet back).
+  const onAccountRetry = async () => {
+    let s = null;
+    try { s = await guardDeps().getSession(); } catch { s = null; }
+    if (!s || !s.user) { failClosed(null); return; }
+    let guard = 'held';
+    try { guard = await guardSignedIn(guardDeps(), { sessionUser: s.user }); } catch { guard = failClosed(s.user); }
+    setGuardTick((n) => n + 1);
+    if (guard !== 'continue') return;
+    lastAskRef.current = null;
+    startSyncEngine();
+    await continueSignedIn(s).catch(() => {});
   };
   // Gate B 4: a session that cannot be read brings the sheet back with an error (retry), never a
   // holding screen without buttons.
@@ -876,8 +890,10 @@ export default function App() {
         // DV-009: did the auth server just say the account / session is gone? (in-memory read)
         const gone = takeAccountGone();
         // Deferred: stop sync; intentional → wait for a running sync, then the full wipe (the
-        // anti-cross-account-leak guard). Spurious → keep local data (cloud-backed, same user),
-        // unless the server confirmed a deletion or a revoke (DL-85, lib/signedOut afterAccountGone).
+        // anti-cross-account-leak guard). Spurious → keep local data (cloud-backed, same user). When the
+        // server said the session is gone, the reminders are cancelled too — the data is still kept:
+        // a sign-out signal never wipes; only the deferred account probe's user_not_found does, for
+        // that user id (DL-85, lib/signedOut afterAccountGone).
         setTimeout(() => { afterSignedOut(intentional, wipeDeps(), gone).catch(() => {}); }, 0);
       }
 
@@ -987,6 +1003,7 @@ export default function App() {
               accountAsk={accountAsk}
               onAccountSave={onAccountSave}
               onAccountDiscard={onAccountDiscard}
+              onAccountRetry={onAccountRetry}
               onAccountAskClose={() => setAccountAsk(null)}
             />
             )}

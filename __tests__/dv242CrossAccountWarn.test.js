@@ -144,17 +144,35 @@ test('DV-242: a sync pass never runs while the local data belongs to another acc
 // lib/sync.js's real push / pull wrappers and its owner check, with syncCore's steps faked.
 function syncSteps(deps) {
   const ran = [];
+  const events = [];
   const base = { getDB: () => ({}), cloud: {}, ownerBlocksSync: G.ownerBlocksSync, ...deps };
   const ownerBlocksThisSync = loadFn('lib/sync.js', 'function ownerBlocksThisSync(', 'ownerBlocksThisSync', base);
   const all = { ...base, ownerBlocksThisSync, pushPending: async () => ran.push('push'), pullChanges: async () => ran.push('pull') };
   const push = loadFn('lib/sync.js', 'async function pushPendingChanges(', 'pushPendingChanges', all);
   const pull = loadFn('lib/sync.js', 'async function pullCloudChanges(', 'pullCloudChanges', all);
   const syncPass = loadFn('lib/sync.js', 'async function syncPass(', 'syncPass', {
-    _deletionPaused: false, _isOnline: true, notifyListeners: () => {}, console: { warn() {} },
+    _deletionPaused: false, _isOnline: true, notifyListeners: (e) => events.push(e.type), console: { warn() {} },
     pushPendingChanges: push, pullCloudChanges: pull,
   });
-  return { ran, pass: syncPass };
+  return { ran, events, pass: syncPass };
 }
+
+// Re-verification 3: a pass the owner check skipped is not a completed sync (Today's "Still going?"
+// gate and the offline line read sync_complete as "the cloud's data is here").
+test('Re-verify 3: a pass skipped by the owner check never emits sync_complete', async () => {
+  for (const deps of [
+    { getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => 'user-a' },
+    { getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => { throw new Error('locked'); } },
+  ]) {
+    const s = syncSteps(deps);
+    await s.pass();
+    assert.ok(!s.events.includes('sync_complete'), s.events.join(','));
+    assert.ok(s.events.includes('sync_error'), 'it settles as not done (the gate never waits forever)');
+  }
+  const ok = syncSteps({ getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => 'user-b' });
+  await ok.pass();
+  assert.deepEqual(ok.events, ['sync_start', 'sync_complete']);
+});
 
 test('DV-242: the App holds the UI while the owner is another account and wires both paths through the guard', () => {
   const app = read('App.js');
@@ -177,15 +195,65 @@ test('Gate B 5: the discard cancels and dismisses A\'s reminders BEFORE it clear
   assert.match(deps, /dismissAllNotifications,/);
 });
 
-test('Gate B 3: the guard fails closed — an owner that cannot be read holds and shows the sheet (Discard always there)', async () => {
+// Re-verification 2: an owner that cannot be read may be THIS account's own unsent rows — Discard
+// would wipe them. The fail-closed sheet offers Try again (and Sign out, which keeps the data),
+// never Discard. Existing strings only: error / error_generic / pw_try_again / settings_signout.
+test('Re-verify 2: an owner that cannot be read holds and asks Try again / Sign out — never Discard', async () => {
   const p = phone({ pendingRows: 0 });
   p.d.getLocalOwner = () => { throw new Error('database is locked'); };
   assert.equal(await G.guardSignedIn(p.d, { sessionUser: B }), 'held');
   assert.equal(p.asked.length, 1);
-  assert.equal(p.asked[0].previous, null);
+  assert.equal(p.asked[0].unreadable, true);
   assert.equal(p.rows().length, 1, 'nothing discarded');
-  const sheet = G.accountAskSheet((k) => translations.en[k], { previous: null, onSave() {}, onDiscard() {} });
-  assert.ok(sheet.buttons.some((b) => b.label === translations.en.account_guard_discard), 'Discard is offered: nobody is trapped');
+  for (const lang of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
+    const t = (k) => translations[lang][k];
+    const sheet = G.accountAskSheet(t, { unreadable: true, onRetry() {}, onSignOut() {}, onSave() {}, onDiscard() {} });
+    const labels = sheet.buttons.map((b) => b.label);
+    assert.ok(!labels.includes(t('account_guard_discard')), `${lang}: no Discard`);
+    assert.ok(labels.includes(t('pw_try_again')) && labels.includes(t('settings_signout')), `${lang}: Try again + Sign out`);
+    assert.equal(sheet.title, t('error'));
+    assert.equal(sheet.body, t('error_generic'));
+    assert.equal(sheet.locked, true);
+    assert.ok(labels.every((l) => typeof l === 'string' && l), `${lang}: every string exists`);
+  }
+});
+
+test('Re-verify 2: Try again runs the guard once more — readable now → it continues', async () => {
+  const p = phone({ pendingRows: 0, syncedRows: 0, label: null });
+  let fail = true;
+  const real = p.d.getLocalOwner;
+  p.d.getLocalOwner = () => { if (fail) throw new Error('database is locked'); return real(); };
+  assert.equal(await G.guardSignedIn(p.d, { sessionUser: B }), 'held');
+  fail = false;
+  assert.equal(await G.guardSignedIn(p.d, { sessionUser: B }), 'continue');
+  assert.equal(p.asked.length, 1);
+  const app = read('App.js');
+  assert.match(app, /onRetry: onAccountRetry/);
+  assert.match(app, /const onAccountRetry = async \(\) => \{[\s\S]{0,400}guardSignedIn\(guardDeps\(\)/);
+});
+
+test('Re-verify 2: getLocalDataUserId reports a read error, distinct from "no owner"; a missing table is no error', () => {
+  const load = (db) => loadFn('lib/database.js', 'export function getLocalDataUserId(', 'getLocalDataUserId', { getDB: () => db });
+  // fresh install: real schema, no rows → null, no throw
+  assert.equal(load(makeDb())(), null);
+  // a very old install without some tables → skipped
+  const old = makeDb();
+  old.execSync('DROP TABLE protocols');
+  old.runSync(`INSERT INTO dose_logs (user_id, protocol_id, logged_at, sync_status) VALUES ('user-a', 1, '2026-10-01T08:00:00Z', 'synced')`);
+  assert.equal(load(old)(), 'user-a');
+  // a transient read error → throws (never "no owner")
+  const broken = { getFirstSync: () => { throw new Error('database is locked'); } };
+  assert.throws(() => load(broken)(), /database is locked/);
+});
+
+test('Re-verify 2: a fresh install (no owner, no error) continues without any sheet', async () => {
+  const db = makeDb();
+  const getLocalDataUserId = loadFn('lib/database.js', 'export function getLocalDataUserId(', 'getLocalDataUserId', { getDB: () => db });
+  const p = phone({ pendingRows: 0, syncedRows: 0, label: null });
+  p.d.getLocalOwner = getLocalDataUserId;
+  assert.equal(await G.guardSignedIn(p.d, { sessionUser: B }), 'continue');
+  assert.equal(p.asked.length, 0);
+  assert.ok(!p.calls.includes('clearDb'));
 });
 
 test('Gate B 3: App turns an unexpected guard error into the sheet, never into "continue"', () => {
