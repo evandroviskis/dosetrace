@@ -87,15 +87,16 @@ test('A-108: Silent mode off → the resync runs every scheduler as before', asy
     syncNotificationCategories: spy('categories'),
     syncAllDoseReminders: spy('doses'), syncVialAlerts: spy('vials'), syncCheckinReminder: spy('checkin'),
     syncRealityCheckReminder: spy('rc'), syncFoodLogReminder: spy('food'), syncMorningSummary: spy('summary'), restoreSnoozes: spy('snoozes'),
+    enforcePendingCap: spy('cap'), // DV-053: the iPhone 64 guard runs last
   };
   await loadFn('lib/notifications.js', 'async function syncAllNotificationsNow(', 'syncAllNotificationsNow', deps)();
-  assert.deepEqual(calls, ['categories', 'doses', 'vials', 'checkin', 'rc', 'food', 'summary', 'snoozes']);
+  assert.deepEqual(calls, ['categories', 'doses', 'vials', 'checkin', 'rc', 'food', 'summary', 'snoozes', 'cap']);
   assert.equal(N.scheduled.size, IDS.length);
 });
 
 test('A-108: every schedule call is refused while Silent mode is on (except the user\'s own test reminder)', async () => {
   const N = fakeN([]);
-  const deps = { silentNow: async () => true, androidChannelRequest: (r) => r, Platform: { OS: 'android' } };
+  const deps = { silentNow: async () => true, androidChannelRequest: (r) => r, withFireMs: (r) => r, Platform: { OS: 'android' } };
   const scheduleReq = loadFn('lib/notifications.js', 'async function scheduleReq(', 'scheduleReq', deps);
   assert.equal(await scheduleReq(N, { identifier: 'dose-1', content: { data: { type: 'dose_reminder' } }, trigger: null }), null);
   assert.equal(N.added.length, 0);

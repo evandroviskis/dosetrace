@@ -30,7 +30,8 @@ test('lib/notifications schedules only through the channel helper', () => {
   const s = fs.readFileSync(path.join(__dirname, '../lib/notifications.js'), 'utf8');
   assert.doesNotMatch(s, /N\.scheduleNotificationAsync\(\{/, 'no direct schedule call');
   // A-108 adds the Silent mode check first; the one scheduling call still goes through the channel helper.
-  assert.match(s, /async function scheduleReq\(N, req\) \{[\s\S]{0,240}?return N\.scheduleNotificationAsync\(androidChannelRequest\(req, Platform\.OS\)\);/);
+  // DV-139 / DV-053: the request also records its fire time (withFireMs) on the way in.
+  assert.match(s, /async function scheduleReq\(N, req\) \{[\s\S]{0,320}?return N\.scheduleNotificationAsync\(androidChannelRequest\(withFireMs\(req\), Platform\.OS\)\);/);
 });
 
 // Council 2 senior review B2: Mark as taken with the app closed must not rebuild the whole queue in

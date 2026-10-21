@@ -151,10 +151,12 @@ test('council 4 / SP-1: a late automatic refresh never reads "All set"; the scre
   assert.equal(row.staleDays, 5);
   assert.equal(R.reminderChecks(late).find((c) => c.id === 'refresh').state, 'warn');
   assert.equal(R.staleRefreshDays(late), 5);
-  // The app itself refreshed the reminders on open in the last 2 days: fresh everywhere.
+  // DV-045 split (coordinator 2026-10-20, replaces "fresh everywhere"): the app refreshed the
+  // reminders on open in the last 2 days → Today stays quiet; the screen and Settings still judge the
+  // background task alone (every open resyncs, so they could otherwise never warn).
   const fresh = { ...late, foregroundSyncAt: NOW - 3 * 3600e3 };
-  assert.equal(R.setupRowState(fresh).kind, 'ok');
-  assert.equal(R.reminderChecks(fresh).find((c) => c.id === 'refresh').state, 'ok');
+  assert.equal(R.setupRowState(fresh).kind, 'warn');
+  assert.equal(R.reminderChecks(fresh).find((c) => c.id === 'refresh').state, 'warn');
   assert.equal(R.staleRefreshDays(fresh), 0);
   const s = read('screens/SettingsScreen.js');
   assert.match(between(s, 'function setupRowSub()', '\n  }\n'), /today_alert_stale_title/);
