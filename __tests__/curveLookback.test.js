@@ -4,8 +4,11 @@
 // max(16 d, window shown, 6 × t½): the window's own start had almost no earlier doses (a 90-day
 // window of a 7-day t½ compound started from ~2 days of history), and the Journey tile (14-day
 // model) and the screen (90-day window) counted different doses, ~1.6 % apart. Now one look-back
-// per compound — the longest window the screen can show plus 6 half-lives, capped at 600 days —
-// is used by the screen at every window, the tile and the date estimate. Pure math, never advice.
+// per compound, used by the screen at every window, the tile and the date estimate: the history
+// before the EARLIEST instant the curve can draw or estimate (the left edge of its longest window,
+// or a date estimate before it) is max(16 d, 6 × t½), capped at 600 d from that instant (coordinator
+// 2026-10-20, decided by logic: the curve must be right at every date it shows — the cap measured
+// from Now left Undecanoate ~16 % low at the left edge of a 365-day window). Pure math, never advice.
 process.env.TZ = 'America/New_York';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -53,11 +56,12 @@ test('PK-15: Testosterone Undecanoate 1000 mg dosed 300 days ago contributes 100
   assert.equal(M.levelAt(s.doses, 1000, entry, T), 1000 * H.amountFraction(entry, (T - doseAt) / 3600e3));
 });
 
-test('PK-15: the look-back reaches ≥ 540 days for Undecanoate (600, the cap) and the Dose log read reaches ≥ 540 days', () => {
+test('PK-15: the look-back reaches ≥ 540 days for Undecanoate (540 before the longest window) and the Dose log read reaches ≥ 540 days', () => {
   const tu = H.getHalfLifeEntry('Testosterone Undecanoate');
   assert.equal(M.LOOKBACK_CAP_DAYS, 600);
-  assert.equal(M.curveLookbackDays(tu), 600);
-  assert.ok(M.CURVE_LOG_LOOKBACK_DAYS >= 540);
+  assert.equal(M.curveHistoryDays(tu), 540);
+  assert.equal(M.curveLookbackDays(tu), M.CURVE_MAX_PAST_DAYS + 2 + 540);
+  assert.equal(M.CURVE_LOG_LOOKBACK_DAYS, M.CURVE_MAX_PAST_DAYS + 2 + 600, 'the longest look-back of any compound');
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
   assert.match(src, /getLogsSince\(userId, new Date\(Date\.now\(\) - CURVE_LOG_LOOKBACK_DAYS \* 24 \* 3600 \* 1000\)\.toISOString\(\)\)/);
   // a weekly Undecanoate protocol started 2 years ago: every dose of the last 540+ days is scanned
@@ -66,15 +70,20 @@ test('PK-15: the look-back reaches ≥ 540 days for Undecanoate (600, the cap) a
   assert.ok(now - doses[0] >= 540 * DAY, `${(now - doses[0]) / DAY} days`);
 });
 
-test('R15: every charted compound — look-back ≥ max(16 d, the longest window, 6 × t½), never above 600 d', () => {
+test('R15: every charted compound — history before the earliest instant = max(16 d, 6 × t½), capped at 600 d from it', () => {
   for (const name of Object.keys(H.HALF_LIVES)) {
     const e = H.getHalfLifeEntry(name);
     if (!e) continue;
-    const L = M.curveLookbackDays(e);
-    assert.ok(L <= 600, name);
-    assert.ok(L >= Math.min(600, Math.max(16, M.CURVE_MAX_PAST_DAYS + 2, Math.ceil(6 * e.hours / 24))), name);
-    // and 6 half-lives before the left edge of the longest window, where the cap allows
-    assert.ok(L >= Math.min(600, M.CURVE_MAX_PAST_DAYS + 2 + 6 * e.hours / 24), name);
+    const hist = M.curveHistoryDays(e);
+    assert.equal(hist, Math.min(600, Math.max(16, Math.ceil(6 * e.hours / 24))), name);
+    // the scan from Now covers the longest window plus that history, for every window
+    assert.equal(M.curveLookbackDays(e), M.CURVE_MAX_PAST_DAYS + 2 + hist, name);
+    const p = { id: name, type: 'recon', name, dose: '1', dose_unit: 'mg', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', start_date: iso(now - 3000 * DAY), created_at: new Date(now - 3000 * DAY).toISOString() };
+    for (const w of [3, 365]) {
+      const start = M.curveGridStart(now, w);
+      const doses = M.scheduledDoses(p, e, start, now, now);
+      assert.ok(start - doses[0] >= hist * DAY - DAY, `${name}, ${w}-day window: ${(start - doses[0]) / DAY} days before its start`);
+    }
   }
 });
 
@@ -121,4 +130,57 @@ test('every charted compound, a daily protocol started 2 years ago: tile == scre
     assert.ok(tile, name);
     for (const w of [3, 30, 90, 365]) assert.equal(screen(p, w).nowLevel, tile.value, `${name}, ${w}-day window`);
   }
+});
+
+// A long-term Undecanoate user: 1000 mg every 70 days for 4 years (the full history, hand-built).
+const tuLong = { id: 'tuL', type: 'rtu', name: 'Testosterone Undecanoate', dose: '1000', dose_unit: 'mg', interval_days: 70, doses_per_day: 1, reminder_time: '09:00', start_date: iso(now - 1460 * DAY), created_at: new Date(now - 1460 * DAY).toISOString() };
+// The spec rule keeps 6 half-lives before the earliest instant: what it leaves out is at most 2^−6
+// (1.56 %) of the level there (a steady 70-day Undecanoate user: 1.3 % at the left edge of a 365-day
+// window; was 19.8 % low with the cap counted from Now). Now has 367 + 540 days: well inside 1 %.
+const RESIDUAL = 1 / 64;
+function tuFull(T) {
+  const e = H.getHalfLifeEntry('Testosterone Undecanoate');
+  const sd = new Date(tuLong.start_date + 'T00:00:00');
+  let lv = 0;
+  for (let k = 0; ; k += 70) {
+    const d = new Date(sd.getFullYear(), sd.getMonth(), sd.getDate() + k, 9, 0).getTime();
+    if (d > T) break;
+    lv += 1000 * H.amountFraction(e, (T - d) / 3600e3);
+  }
+  return lv;
+}
+
+test('Undecanoate, long-term user, 365-day window: the left edge reads within the 6-half-life residual (≤ 1.56 %) of the full history (the cap counts from that edge)', () => {
+  const s = screen(tuLong, 365);
+  assert.equal(s.line.times[0], s.start);
+  const full = tuFull(s.start);
+  assert.ok(Math.abs(s.line.points[0] / full - 1) < RESIDUAL, `left edge ${s.line.points[0]} vs full history ${full}`);
+  assert.ok(Math.abs(s.nowLevel / tuFull(now) - 1) < 0.01, 'and Now');
+});
+
+test('Undecanoate, long-term user: a date estimate 365 days back, and one 3 years back, within the 6-half-life residual of the full history', () => {
+  const s = screen(tuLong, M.curveWindowDays(iso(now - 365 * DAY), iso(now)));
+  const winEnd = now + 7 * DAY;
+  const T = M.readoutMoment(iso(now - 365 * DAY), iso(now), now);
+  assert.ok(T >= s.start, 'inside the 365-day window');
+  const est = M.levelOnDate(tuLong, s.entry, 1000, s.doses, T, now, winEnd);
+  assert.equal(est, M.levelAt(s.doses, 1000, s.entry, T), 'inside the window: the drawn doses');
+  assert.ok(Math.abs(est / tuFull(T) - 1) < RESIDUAL, `${est} vs ${tuFull(T)}`);
+  // before the longest window (the picker allows 10 years back): its own history before that date
+  const T3 = M.readoutMoment(iso(now - 3 * 365 * DAY), iso(now), now);
+  const est3 = M.levelOnDate(tuLong, s.entry, 1000, s.doses, T3, now, winEnd);
+  assert.ok(Math.abs(est3 / tuFull(T3) - 1) < RESIDUAL, `3 years back: ${est3} vs ${tuFull(T3)}`);
+  // after the projection: unchanged rule (its own scheduled doses up to that date)
+  const Tf = now + 60 * DAY;
+  assert.ok(Math.abs(M.levelOnDate(tuLong, s.entry, 1000, s.doses, Tf, now, winEnd) / tuFull(Tf) - 1) < 0.01);
+});
+
+test('Undecanoate, long-term user: Journey tile == screen at 3, 90 and 365 days, exactly', () => {
+  const tile = M.defaultCurveLevel([tuLong], now).value;
+  for (const w of [3, 90, 365]) assert.equal(screen(tuLong, w).nowLevel, tile, `${w}-day window`);
+});
+
+test('the screen reads every date estimate through levelOnDate', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /const readoutLevel = \(ser, T\) => \(model \? levelOnDate\(ser\.p, ser\.entry, ser\.doseMg, ser\.doses, T, model\.now, winEnd\) : 0\);/);
 });
