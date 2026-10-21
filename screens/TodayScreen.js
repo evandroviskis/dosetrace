@@ -28,6 +28,7 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
+import { handledSlotIndexes, ymd } from '../lib/notificationPlan';
 import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
@@ -1386,6 +1387,12 @@ export default function TodayScreen() {
         fetchPageLogs();
         setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
         fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line
+        // Final review 2026-10-20: the skipped slot and its +5/+10 repeats are cancelled directly (the
+        // same cancel the take uses), so a repeat due before the queued resync never fires.
+        try {
+          const handled = handledSlotIndexes({ reminderTime: protocol.reminder_time, logs: getTodayLogs(protocol.user_id) || [], protocolId: protocol.id, dayKey: ymd(new Date()) });
+          if (handled.size) cancelTodaysDoseReminders(protocol.id, Math.max(...handled) + 1).catch(() => {});
+        } catch { /* the resync below still re-plans */ }
         syncAllNotifications().catch(() => {}); // A-141 (6) (DL-08): a skipped slot is never reminded
         Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
         setTimeout(checkStillGoingWhenSynced, 450); // A-121 SG-17: a Skip also answers the last slot

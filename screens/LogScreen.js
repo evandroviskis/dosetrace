@@ -15,12 +15,13 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { protocolDisplayName } from '../lib/protocolName';
-import { getAllLogs, getLogsSince, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
+import { getAllLogs, getLogsSince, getTodayLogs, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
 import { scanMissedDoses, recordDoseTaken } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
 import { summarizeStored, describeStored } from '../lib/injectionSites';
 import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose';
-import { syncAllNotifications } from '../lib/notifications';
+import { syncAllNotifications, cancelTodaysDoseReminders } from '../lib/notifications';
+import { handledSlotIndexes } from '../lib/notificationPlan';
 import { friendlyError } from '../lib/friendlyError';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate } from '../lib/localeFormat';
@@ -154,6 +155,15 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       res = recordDoseTaken(protocolId, { dayKey: Number.isFinite(atMs) ? dayKeyOf(atMs) : undefined, slotMs: Number.isFinite(atMs) ? atMs : undefined, flipRowId: id, injectionSite: site || null });
     } catch { res = null; }
     if (!res) { writeOutcome(id, site ? { outcome: 'Taken', injection_site: site } : { outcome: 'Taken' }); return; }
+    // Final review 2026-10-20: a take of TODAY cancels its slot and +5/+10 repeats directly (the same
+    // cancel Today's take uses), so a repeat due before the queued resync never fires.
+    if (Number.isFinite(atMs) && dayKeyOf(atMs) === dayKeyOf(Date.now())) {
+      try {
+        const p = getProtocolById(protocolId);
+        const handled = p ? handledSlotIndexes({ reminderTime: p.reminder_time, logs: getTodayLogs(p.user_id) || [], protocolId, dayKey: dayKeyOf(atMs) }) : new Set();
+        if (handled.size) cancelTodaysDoseReminders(protocolId, Math.max(...handled) + 1).catch(() => {});
+      } catch { /* the resync below still re-plans */ }
+    }
     syncAllNotifications().catch(() => {}); // test build 3 council item 2: the slot is handled now
     requestSync();
     fetchLogs();
