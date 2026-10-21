@@ -477,6 +477,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   // DV-226 / AD-01: the Remove entry pill under a refused or too-old message asks first (the
   // user's typed text); only the sheet's Remove entry deletes it.
   function confirmRemoveRow(rowId) {
+    if (inFlight.has(rowId)) return; // being read right now (same guard as confirmRemove)
     alert(t('nutri_delete_confirm'), null, [
       { text: t('cancel'), style: 'cancel' },
       { text: t('nutri_delete_entry'), style: 'destructive', onPress: () => removeRow(rowId) },

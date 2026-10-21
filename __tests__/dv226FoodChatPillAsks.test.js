@@ -22,10 +22,10 @@ function phone(parseStatus) {
 }
 
 // The chat's real removeRow and its asking wrapper; alert = the chat's DoseTrace-sheet helper.
-function chat(p) {
+function chat(p, inFlight = new Set()) {
   const out = { alerts: [], syncs: 0, refreshes: 0 };
   const deps = {
-    t, userId: USER,
+    t, userId: USER, inFlight,
     deleteFoodLog: p.deleteFoodLog,
     requestSync: () => { out.syncs++; },
     refresh: () => { out.refreshes++; },
@@ -73,4 +73,12 @@ test('DV-226: no tap in the chat deletes a row without the sheet (removeRow is r
   const src = read(CHAT);
   assert.equal((src.match(/removeRow\(x\.rowId\)/g) || []).length, 0);
   assert.equal((src.match(/onPress: \(\) => removeRow\(rowId\)/g) || []).length, 1);
+});
+
+test('DV-226: a row being read right now (in flight) is never offered for removal, same as the bubble tap', () => {
+  const p = phone('refused');
+  const c = chat(p, new Set([p.id]));
+  c.ask(p.id);
+  assert.equal(c.alerts.length, 0, 'no sheet while the row is in flight');
+  assert.equal(p.status(), 'pending');
 });
