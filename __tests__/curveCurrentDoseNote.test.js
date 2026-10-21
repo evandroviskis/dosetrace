@@ -30,10 +30,23 @@ test('the interim note and the hollow-tick legend exist in all 6 languages, nati
   assert.match(translations.pt.curve_current_dose_note, /mesmo que você/);
   // Re-review: the legend says the spec's sense, "Planned, not logged as taken" — never that the dose
   // was not done (fr "non effectuées" said that).
-  assert.equal(translations.en.curve_lg_not_taken, 'planned, not logged as taken');
-  assert.match(translations.pt.curve_lg_not_taken, /não marcadas como tomadas/);
-  assert.doesNotMatch(translations.fr.curve_lg_not_taken, /effectu/);
-  for (const l of LANGS) assert.ok(translations[l].curve_lg_not_taken.includes(','), `${l}: planned, + not logged`);
+  // Re-review 2 (one term per concept, CLAUDE.md): in the app's own words — the neighbour key's word
+  // for "scheduled" (curve_lg_doses) and the app's word for a Taken dose ("Complete", log_taken).
+  const WANT = {
+    en: 'scheduled, not marked complete',
+    es: 'programadas, sin marcar como completadas',
+    pt: 'programadas, não marcadas como concluídas',
+    fr: 'prévues, non marquées comme effectuées',
+    de: 'geplant, nicht als erledigt markiert',
+    it: 'programmate, non contrassegnate come completate',
+  };
+  for (const l of LANGS) assert.equal(translations[l].curve_lg_not_taken, WANT[l], l);
+  const stem = (w) => w.toLowerCase().slice(0, 6);
+  for (const l of LANGS) {
+    const sched = translations[l].curve_lg_doses.split(' ').map(stem);
+    assert.ok(sched.includes(stem(WANT[l].split(',')[0])), `${l}: "scheduled" as in curve_lg_doses`);
+    assert.ok(WANT[l].toLowerCase().includes(stem(translations[l].log_taken)), `${l}: "complete" as in log_taken`);
+  }
 });
 
 test('descriptive only: no advice words in the new curve strings', () => {

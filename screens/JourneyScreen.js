@@ -31,7 +31,7 @@ import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
 import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
-import { curveReloadOnSync } from '../lib/curveReload';
+import { curveReloadOnSync, sameCurveLevel } from '../lib/curveReload';
 import { getCachedUser } from '../lib/supabase';
 import { getActiveProtocols, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
@@ -108,7 +108,11 @@ export default function JourneyScreen() {
     if (!isAlive() || !user) return;
     const savedView = await loadCurveView(user.id);
     if (!isAlive()) return;
-    try { setLevel(defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView)); } catch { setLevel(null); }
+    try {
+      const next = defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView);
+      // The same compound, value and unit → no state change (a reload is not a re-render).
+      setLevel((prev) => (sameCurveLevel(prev, next) ? prev : next));
+    } catch { setLevel(null); }
   }, []);
   useFocusEffect(useCallback(() => {
     let alive = true;

@@ -52,7 +52,7 @@ import { paneWidths } from '../lib/bookLayout';
 import { restoreCurveView, FUTURE_PRESETS } from '../lib/curveView';
 import { loadCurveView, saveCurveView } from '../lib/curveViewStore';
 import { notifyDataChanged, addSyncListener } from '../lib/sync';
-import { curveReloadOnSync, curveReloadPatch } from '../lib/curveReload';
+import { curveReloadOnSync, curveReloadPatch, keepSelection } from '../lib/curveReload';
 
 const APath = Animated.createAnimatedComponent(Path);
 const AG = Animated.createAnimatedComponent(G);
@@ -298,6 +298,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const pastDays = curveWindowDays(readoutDate, todayISO());
   // The focused screen's read, for the sync listener below (null while blurred or not Premium).
   const readRef = useRef(null);
+  // True once this focus's first read has applied the saved view; a reload before that (a sync at
+  // a cold open) does nothing, so the saved selection always wins.
+  const viewReadyRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -316,7 +319,7 @@ export default function SerumCurveScreen({ embedded = false }) {
         }
         if (isMounted) { readRef.current = reloadData; fetchData(); }
       })();
-      return () => { isMounted = false; readRef.current = null; };
+      return () => { isMounted = false; readRef.current = null; viewReadyRef.current = false; };
     }, [navigation, embedded])
   );
   // DV-072 C review: a sync / import / dose or protocol change re-reads the protocols and the Dose
@@ -370,6 +373,8 @@ export default function SerumCurveScreen({ embedded = false }) {
     setFutureDays(view.futureDays);
     setLabDates(d.labDates);
     setDoseLogs(d.doseLogs);
+    // From here a reload may run: its selection updater queues after this view.
+    viewReadyRef.current = true;
   }
 
   // What the chart shows now, for a reload (a ref: the listener outlives renders).
@@ -379,12 +384,16 @@ export default function SerumCurveScreen({ embedded = false }) {
   // protocols that are gone — founder rule, the curve keeps the last selection); the saved view is
   // never restored here; unchanged data sets no state (lib/curveReload curveReloadPatch).
   async function reloadData() {
+    if (!viewReadyRef.current) return;
     const user = await getCachedUser();
-    if (!user || !curRef.current) return;
-    const patch = curveReloadPatch(curRef.current, readCurveData(user.id));
+    if (!user || !curRef.current || !viewReadyRef.current) return;
+    const fresh = readCurveData(user.id);
+    const patch = curveReloadPatch(curRef.current, fresh);
     if ('notCharted' in patch) setNotCharted(patch.notCharted);
     if ('protocols' in patch) setProtocols(patch.protocols);
-    if ('selectedIds' in patch) setSelectedIds(patch.selectedIds);
+    // A functional updater (never the curRef snapshot): a tap that landed meanwhile is kept, and the
+    // same array comes back when nothing changed (no state change).
+    setSelectedIds((prev) => keepSelection(prev, fresh.protocols));
     if ('labDates' in patch) setLabDates(patch.labDates);
     if ('doseLogs' in patch) setDoseLogs(patch.doseLogs);
   }
