@@ -24,7 +24,11 @@ const { translations } = require('../i18n/translations');
 const PAST_DAYS = 14;
 const STEP_HOURS = 6;
 // The day's dose moments at the protocol's own times (the creation-day floor of 1 uses the
-// protocol's first time; no times → 08:00).
+// protocol's first time; no times → 08:00). NOTE (review 2026-10-20): this mirrors
+// lib/serumModel doseTimesOn for the fixtures below (every fixture lists one distinct time per
+// dose), so it is NOT evidence for the dose-time rule itself — the independent proofs are
+// __tests__/curveExactTime.test.js and curveExactTimeBerlin.test.js (exact hand-written instants,
+// the padding rule for legacy rows, DST). This file guards the rest of the model (tile = screen).
 function ownDoseMoments(p, day) {
   const cnt = expectedDosesOn(p, day);
   const slots = expectedSlotTimesOn(p, day);

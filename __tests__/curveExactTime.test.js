@@ -96,6 +96,33 @@ test('DL-77: a protocol without reminder times is placed at 08:00', () => {
   for (const d of doses) assert.equal(new Date(d).toTimeString().slice(0, 5), '08:00');
 });
 
+test('DV-069 review: more doses a day than reminder times never stack on one instant (distinct times, one rule)', () => {
+  const now = new Date(2026, 9, 20, 13, 0).getTime();
+  const at = (h, m = 0) => new Date(2026, 9, 19, h, m).getTime();
+  const dayOf = (p) => {
+    const e = entryOf(p);
+    return M.scheduledDoses(p, e, M.curveGridStart(now, 3), now, now).filter((d) => new Date(d).getDate() === 19);
+  };
+  // Legacy rows: 2 a day with no times, 2 a day with one time, the same time picked twice, 3 a day with one time.
+  assert.deepEqual(dayOf(bpc({ reminder_time: null, doses_per_day: 2 })), [at(8), at(16)]);
+  assert.deepEqual(dayOf(bpc({ reminder_time: '08:00', doses_per_day: 2 })), [at(8), at(16)]);
+  assert.deepEqual(dayOf(bpc({ reminder_time: '08:00,08:00', doses_per_day: 2 })), [at(8), at(16)]);
+  assert.deepEqual(dayOf(bpc({ reminder_time: '20:00', doses_per_day: 3 })), [at(20), at(21, 20), at(22, 40)]);
+  // The rule never moves the user's own distinct times.
+  assert.deepEqual(dayOf(bpc({ reminder_time: '07:15,19:45', doses_per_day: 2 })), [at(7, 15), at(19, 45)]);
+  // The level counts each dose once at its own instant (no double-height spike).
+  const p = bpc({ reminder_time: '08:00,08:00', doses_per_day: 2 });
+  const doses = M.scheduledDoses(p, entryOf(p), M.curveGridStart(now, 3), now, now);
+  assert.equal(doses.length, new Set(doses).size, 'no two doses at one instant');
+});
+
+test('DV-069 review: on the end day an extra dose is never placed after the end', () => {
+  const p = bpc({ reminder_time: '08:00,08:00', doses_per_day: 2, ended_at: new Date(2026, 9, 19, 12, 0).toISOString(), active: 0 });
+  const now = new Date(2026, 9, 20, 13, 0).getTime();
+  const doses = M.scheduledDoses(p, entryOf(p), M.curveGridStart(now, 3), now + 864e5, now);
+  for (const d of doses) assert.ok(d <= new Date(2026, 9, 19, 12, 0).getTime(), new Date(d).toString());
+});
+
 test('DV-069: the end day draws only the slots up to the end (no dose after the end)', () => {
   const p = bpc({ reminder_time: '08:00,20:00', doses_per_day: 2, ended_at: new Date(2026, 9, 19, 15, 0).toISOString(), active: 0 });
   const e = entryOf(p);

@@ -107,6 +107,18 @@ test('DV-072 C: a blend component reads the blend protocol\'s own rows', () => {
   assert.deepEqual(ticks.filter((k) => k.ts <= now).map((k) => k.hollow), [false, true]);
 });
 
+test('DV-072 C review: ticks are matched per planned dose (by position), never by timestamp', () => {
+  // Two planned doses that share an instant (defensive: the model spreads them now) and one Taken row:
+  // one tick solid, one hollow — a timestamp-keyed set marked both solid.
+  const p = daily({ start_date: '2026-10-19', created_at: iso(at(19, 6)) });
+  const ticks = M.doseTicks(p, [at(19, 9), at(19, 9)], [row(5, 'Taken', at(19, 9, 5))], at(19, 12));
+  assert.deepEqual(ticks.map((k) => k.hollow), [false, true]);
+  const fs = require('fs');
+  const src = fs.readFileSync(require('path').join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /key=\{`tk-\$\{ser\.id\}-\$\{i\}`\}/, 'tick keys by position');
+  assert.match(src, /key: `\$\{ser\.id\}-\$\{i\}`/, 'intro drop keys by position');
+});
+
 test('DV-072 C: no logs at all → every logged-era past tick hollow, no crash on a missing log list', () => {
   const p = daily({ start_date: '2026-10-18', created_at: iso(at(18, 6)) });
   const now = at(19, 12);

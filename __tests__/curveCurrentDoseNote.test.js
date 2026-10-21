@@ -24,6 +24,10 @@ test('the interim note and the hollow-tick legend exist in all 6 languages, nati
   }
   assert.match(translations.en.curve_current_dose_note, /current dose/);
   assert.match(translations.pt.curve_current_dose_note, /dose/);
+  // Review: shown to everyone, so it must not claim the user changed anything ("if you changed").
+  assert.match(translations.en.curve_current_dose_note, /even if you changed/);
+  assert.doesNotMatch(translations.en.curve_current_dose_note, /before you changed/);
+  assert.match(translations.pt.curve_current_dose_note, /mesmo que você/);
 });
 
 test('descriptive only: no advice words in the new curve strings', () => {

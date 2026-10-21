@@ -31,7 +31,7 @@ import { sampleLevelsAt } from '../lib/curveSampling';
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, curveSampleTimes, doseTicks, readoutMoment, CURVE_MAX_PAST_DAYS,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, curveDoseInstants, curveSampleTimes, doseTicks, readoutMoment, CURVE_MAX_PAST_DAYS,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
@@ -52,7 +52,7 @@ import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import { restoreCurveView, FUTURE_PRESETS } from '../lib/curveView';
 import { loadCurveView, saveCurveView } from '../lib/curveViewStore';
-import { notifyDataChanged } from '../lib/sync';
+import { notifyDataChanged, addSyncListener } from '../lib/sync';
 
 const APath = Animated.createAnimatedComponent(Path);
 const AG = Animated.createAnimatedComponent(G);
@@ -200,6 +200,22 @@ function DoseDrop({ clock, hit, x, y, color, showDrop }) {
 // The schedule → dose → level math lives in lib/serumModel.js (shared with the
 // Journey tile, so both always show the same Est. level).
 
+// 1.3.1 review (DV-072 C): the ticks read the Dose log, so the focused curve reads again when a
+// sync / import finishes or doses / protocols change (the A-146 FoodLogHero pattern), debounced
+// (a burst reloads once, waitMs after the last). Its own view saves ('curve') and unrelated data
+// do not reload it. Returns the unsubscribe, which also drops a reload still waiting.
+function curveReloadOnSync(addListener, reload, waitMs = 300) {
+  const skip = ['curve', 'food_logs', 'calc'];
+  let timer = null;
+  const off = addListener((e) => {
+    if (!e) return;
+    const data = e.type === 'data_changed' && !skip.includes(e.what);
+    if (e.type !== 'import_complete' && e.type !== 'sync_complete' && !data) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; reload(); }, waitMs);
+  });
+  return () => { if (timer) clearTimeout(timer); timer = null; off(); };
+}
 
 // Estimated level (mg or IU) from the summed dose model — not "amount in the body"
 // not a serum concentration — the disclaimer says so.
@@ -292,6 +308,8 @@ export default function SerumCurveScreen({ embedded = false }) {
   // Founder 2026-10-02: the curve opens on the last 3 days (a new protocol fills the chart);
   // choosing an earlier date in "Estimate on a date" reaches the chart back to it.
   const pastDays = curveWindowDays(readoutDate, todayISO());
+  // The focused screen's read, for the sync listener below (null while blurred or not Premium).
+  const readRef = useRef(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -308,11 +326,14 @@ export default function SerumCurveScreen({ embedded = false }) {
           }
           return;
         }
-        if (isMounted) fetchData();
+        if (isMounted) { readRef.current = fetchData; fetchData(); }
       })();
-      return () => { isMounted = false; };
+      return () => { isMounted = false; readRef.current = null; };
     }, [navigation, embedded])
   );
+  // DV-072 C review: a sync / import / dose or protocol change re-reads the protocols and the Dose
+  // log while the curve is focused (debounced), so the ticks never go stale.
+  useEffect(() => curveReloadOnSync(addSyncListener, () => { if (readRef.current) readRef.current().catch(() => {}); }), []);
 
   const userIdRef = useRef(null);
   async function fetchData() {
@@ -435,13 +456,17 @@ export default function SerumCurveScreen({ embedded = false }) {
       // scheduledDoses, DV-069), not from hand-logged doses (1.3.1 keeps the planned curve).
       return { p, entry, doses: scheduledDoses(p, entry, start, end, now) };
     });
-    // One shared set of sample moments for every line (the combined total adds point by point).
-    const times = curveSampleTimes(start, stepMs, nSteps, base.map(b => b.doses), now);
-    const xs = times.map(ts => (ts - start) / stepMs);
+    // Each line is sampled at the grid, Now and ONLY its own dose instants (none for a modeled
+    // rise; merged to the plot's pixels past 30 days) — lib/serumModel curveDoseInstants.
+    const winEnd = start + nSteps * stepMs;
+    const plotPx = plotRight - plotLeft;
 
     const series = base.map(({ p, entry, doses }) => {
       const doseMg = doseInCurveUnit(parseDecimal(p.dose), p.dose_unit, entry) || 0;
       const halfLifeMs = entry.hours * 3600 * 1000;
+      const instants = curveDoseInstants(doses, entry, start, winEnd, plotPx);
+      const times = curveSampleTimes(start, stepMs, nSteps, [instants], now);
+      const xs = times.map(ts => (ts - start) / stepMs);
       // A-93: sorted doses in a moving window (same numbers, far fewer calls — lib/curveSampling).
       const { points, pre } = sampleLevelsAt(doses, doseMg, entry, times, amountFraction);
       // Exact level at this moment, for the numbers.
@@ -456,6 +481,8 @@ export default function SerumCurveScreen({ embedded = false }) {
         entry,
         points,
         pre,
+        xs,
+        instants,
         nowLevel,
         dosesInWindow,
         doses,       // raw dose timestamps, for date-readout math
@@ -480,11 +507,17 @@ export default function SerumCurveScreen({ embedded = false }) {
     const combined = Object.entries(bySubstance)
       .filter(([, members]) => members.length >= 2)
       .map(([sub, members]) => {
+        // The total is sampled at its members' instants together (point by point).
+        const times = curveSampleTimes(start, stepMs, nSteps, members.map(m => m.instants), now);
+        const xs = times.map(ts => (ts - start) / stepMs);
         const points = new Array(times.length).fill(0);
         const pre = new Array(times.length).fill(0);
-        for (const ser of members) for (let i = 0; i < times.length; i++) { points[i] += ser.points[i]; pre[i] += ser.pre[i]; }
+        for (const ser of members) {
+          const lv = sampleLevelsAt(ser.doses, ser.doseMg, ser.entry, times, amountFraction);
+          for (let i = 0; i < times.length; i++) { points[i] += lv.points[i]; pre[i] += lv.pre[i]; }
+        }
         const nowLevel = members.reduce((sum, m) => sum + m.nowLevel, 0);
-        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points, pre, nowLevel };
+        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points, pre, xs, nowLevel };
       });
 
     // Shared vertical scale spans the individual series and, when shown, the
@@ -499,8 +532,8 @@ export default function SerumCurveScreen({ embedded = false }) {
     const nowIdx = nowF;
     // A-30 (a): before this moment the lines are estimated from the start date (declared history).
     const estBefore = estimatedBeforeMs(selected, start);
-    return { series, combined, max, nowIdx, nowF, nSteps, xs, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
-  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs]);
+    return { series, combined, max, nowIdx, nowF, nSteps, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
+  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight]);
 
   // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
   // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
@@ -578,11 +611,12 @@ export default function SerumCurveScreen({ embedded = false }) {
     const drops = [];
     const hitsSingle = [];
     for (const ser of model.series) {
-      for (const ts of ser.doses) {
+      for (let i = 0; i < ser.doses.length; i++) {
+        const ts = ser.doses[i];
         const idx = (ts - model.start) / stepMs;
         if (idx < 0 || idx > model.nowIdx || model.nowIdx <= 0) continue;
         const hit = C_DRAW * invInOutSine(idx / model.nowIdx);
-        drops.push({ key: `${ser.id}-${ts}`, hit, color: lineColor(ser), x: plotLeft + (idx / model.nSteps) * w, y: PLOT_BOTTOM - (levelAtDate(ser, ts) / plotMax) * h });
+        drops.push({ key: `${ser.id}-${i}`, hit, color: lineColor(ser), x: plotLeft + (idx / model.nSteps) * w, y: PLOT_BOTTOM - (levelAtDate(ser, ts) / plotMax) * h });
         if (single && ser.id === single.id) hitsSingle.push(hit);
       }
     }
@@ -646,7 +680,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const singlePts = single ? single.points : null;
   const singlePre = single ? single.pre : null;
   const singleNow = single ? single.nowLevel : 0;
-  const modelXs = model ? model.xs : null;
+  const modelXs = single ? single.xs : null;
   const singleDoseIdx = useMemo(() => {
     if (!single || !model) return [];
     return single.doses
@@ -816,10 +850,10 @@ export default function SerumCurveScreen({ embedded = false }) {
                   Missed, not answered yet) — the level itself stays the planned one */}
               {model && model.max > 0 && model.series.map(ser => ser.ticks
                 .filter(k => k.ts >= model.start && k.ts <= model.start + model.nSteps * stepMs)
-                .map(({ ts, hollow }) => {
+                .map(({ ts, hollow }, i) => {
                   const x = xForIndex((ts - model.start) / stepMs);
-                  if (hollow) return <Rect key={`tk-${ser.id}-${ts}`} x={x - 1.5} y={PLOT_BOTTOM + 2} width={3} height={5} fill="none" stroke={lineColor(ser)} strokeWidth={1} />;
-                  return <Line key={`tk-${ser.id}-${ts}`} x1={x} y1={PLOT_BOTTOM + 2} x2={x} y2={PLOT_BOTTOM + 7} stroke={lineColor(ser)} strokeWidth={1.4} />;
+                  if (hollow) return <Rect key={`tk-${ser.id}-${i}`} x={x - 1.5} y={PLOT_BOTTOM + 2} width={3} height={5} fill="none" stroke={lineColor(ser)} strokeWidth={1} />;
+                  return <Line key={`tk-${ser.id}-${i}`} x1={x} y1={PLOT_BOTTOM + 2} x2={x} y2={PLOT_BOTTOM + 7} stroke={lineColor(ser)} strokeWidth={1.4} />;
                 }))}
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="start">{unitLbl}</SvgText>
               {/* A-30 (a): where the estimate from the start date ends (the protocol was added) */}
@@ -860,7 +894,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model && model.max > 0 && model.series.map(ser => (
                 <CurveLine
                   key={ser.id}
-                  points={ser.points} pre={ser.pre} xs={model.xs}
+                  points={ser.points} pre={ser.pre} xs={ser.xs}
                   clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={lineColor(ser)}
@@ -871,7 +905,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model && model.max > 0 && showCombined && model.combined.map(c => (
                 <CurveLine
                   key={c.id}
-                  points={c.points} pre={c.pre} xs={model.xs}
+                  points={c.points} pre={c.pre} xs={c.xs}
                   clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={colors.ink} strokeWidth={3.2}
@@ -882,7 +916,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <DoseDrop key={dp.key} clock={clock} hit={dp.hit} x={dp.x} y={dp.y} color={dp.color} showDrop={introFx.showDrop} />
               ))}
               {introFx && model && model.max > 0 && model.series.map(ser => (
-                <PenDot key={`pen-${ser.id}`} points={ser.points} pre={ser.pre} xs={model.xs} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={lineColor(ser)} />
+                <PenDot key={`pen-${ser.id}`} points={ser.points} pre={ser.pre} xs={ser.xs} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={lineColor(ser)} />
               ))}
               {/* dots marking each line's level right now */}
               <AG animatedProps={markerProps}>
