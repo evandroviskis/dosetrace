@@ -1,6 +1,6 @@
 'use strict';
-// Pre-existing curve bug B (re-review 2026-10-20, waiting for the founder — NOT in 1.3.1 unless he
-// says yes): on the creation day, after every slot already passed, the day keeps one loggable dose
+// Pre-existing curve bug B (re-review 2026-10-20; the founder approved it for 1.3.1 on 2026-10-20,
+// curve fix 1): on the creation day, after every slot already passed, the day keeps one loggable dose
 // (lib/schedule expectedDosesOn floor of 1). Today shows that dose as the LAST slot (lib/dosePageState
 // daySlots: ti = dpd − expected), e.g. the 20:00 dose of an 08:00 / 20:00 protocol created at 21:30;
 // the curve placed it at the protocol's FIRST time (08:00). Fix: the extra dose uses the protocol's

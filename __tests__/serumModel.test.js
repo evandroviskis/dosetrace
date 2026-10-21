@@ -86,7 +86,10 @@ function oldSeries(p, now, futureDays) {
   const DAY_MS = 86400000;
   const entry = getHalfLifeEntry(oldMatchName(p));
   const doseMg = doseInCurveUnit(p.dose, p.dose_unit, entry) || 0;
-  const lookbackDays = Math.min(600, Math.max(PAST_DAYS + 2, Math.ceil(6 * entry.hours / 24)));
+  // UPDATED 1.3.1 (curve fix 2, spec R15, founder-approved 2026-10-20): one look-back for every
+  // window — the longest window the screen shows (365 d) + 2 + 6 half-lives, capped at 600 d — so
+  // the tile and the screen count the same doses (was max(16 d, 6 × t½) from Now: 1.6 % short).
+  const lookbackDays = Math.min(600, Math.max(PAST_DAYS + 2, 365 + 2 + Math.ceil(6 * entry.hours / 24)));
   let scanStart = now - lookbackDays * DAY_MS;
   if (p.start_date) {
     const sd = new Date(p.start_date + 'T00:00:00').getTime();

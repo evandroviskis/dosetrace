@@ -30,7 +30,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_MAX_PAST_DAYS,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
@@ -344,11 +344,11 @@ export default function SerumCurveScreen({ embedded = false }) {
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(userId) || [];
     const labDates = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
-    // DV-072 C: the Dose log over the longest window the chart can show (read only; the level
-    // stays the planned schedule — the rows only mark which planned ticks are hollow).
+    // DV-072 C: the Dose log over the curve's longest look-back (600 days, spec R15 / PK-15; read
+    // only; the level stays the planned schedule — the rows only mark which planned ticks are hollow).
     let doseLogs = [];
     try {
-      doseLogs = getLogsSince(userId, new Date(Date.now() - (CURVE_MAX_PAST_DAYS + 2) * 24 * 3600 * 1000).toISOString()) || [];
+      doseLogs = getLogsSince(userId, new Date(Date.now() - CURVE_LOG_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString()) || [];
     } catch { doseLogs = []; }
     return { protocols, notCharted: { iu, noData, noDose }, doseLogs, labDates };
   }
