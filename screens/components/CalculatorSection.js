@@ -61,7 +61,7 @@ import { localISO } from '../../lib/localDate';
 import { createDebouncedSave } from '../../lib/debouncedSave';
 import {
   getFoodLogsSince,
-  getRealityChecks, upsertRealityCheck, clearRealityChecks,
+  getRealityChecks, upsertRealityCheck,
   getCalcSnapshots, upsertCalcSnapshot, correctCalcSnapshot, deleteCalcSnapshot,
   getCalcTarget, upsertCalcTarget, clearCalcTarget,
 } from '../../lib/database';
@@ -935,10 +935,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     });
   }
 
-  // Stop the reality check entirely (founder-requested, one easy-to-reach button):
-  // confirm in a DoseTrace sheet, then clear the open check-in AND the saved numbers,
-  // and cancel both the weigh-in reminder and the daily food-log reminder. Logged meals
-  // and weigh-ins are KEPT. Nothing is cleared before the confirm.
+  // Stop the reality check (founder-requested, one easy-to-reach button): confirm in a
+  // DoseTrace sheet, then end the OPEN check only and cancel both the weigh-in reminder and
+  // the daily food-log reminder. AD-91 / DV-004: earlier results, logged meals and weigh-ins
+  // are KEPT (Stop never touches reality_checks). Nothing changes before the confirm.
   function stopRealityCheck() {
     setConfirm({
       title: t('cal_rc_stop_title'),
@@ -946,9 +946,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         { label: t('cal_rc_stop_confirm'), kind: 'danger', onPress: async () => {
-          setRcStart(null); setRealityLog([]);
+          setRcStart(null);
           await clearRealityStart();
-          if (userIdRef.current) { clearRealityChecks(userIdRef.current); requestSync?.(); }
           calcChanged();
           syncRealityCheckReminder().catch(() => {});
           syncFoodLogReminder().catch(() => {});
@@ -1479,7 +1478,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             </TouchableOpacity>
           ) : null}
           {howRow}
-          {(rcStart || realityLog.length > 0) ? stopLink : null}
+          {rcStart ? stopLink : null}
         </>
       ) : rcStart && !checkSaved ? (
         // Part 8: in progress — no fold to open; Start over / Stop always in view.
@@ -1545,7 +1544,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <TouchableOpacity style={s.btnO} onPress={openRcStart} activeOpacity={0.75} accessibilityRole="button">
             <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
           </TouchableOpacity>
-          {stopLink}
+          {/* AD-91: no Stop here — nothing is running; the saved results stay. */}
         </>
       ) : (
         // Part 9: not run yet — the row opens the start sheet.
