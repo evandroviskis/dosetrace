@@ -41,7 +41,7 @@ function loadModule(over = {}, shared = {}) {
     },
     initDatabase: () => { log.push(['initDb']); },
     getProtocolById: (id) => ({ id, name: 'Testosterone', type: 'oral', active: 1 }),
-    recordDoseTaken: (id) => { log.push(['write', id, background]); return { logId: 7, protocol: { name: 'Testosterone', type: 'oral' }, dayKey: '2026-10-20' }; },
+    recordDoseTaken: (id) => { log.push(['write', id, background]); return { logId: 7, protocol: { name: 'Testosterone', type: 'oral' }, dayKey: `${TODAY}` }; },
     notificationTakeTarget, parseDoseId, foodReminderDay,
     needsSiteQuestion: () => false,
     newQuestion: (q) => q,
@@ -74,9 +74,12 @@ function loadModule(over = {}, shared = {}) {
 }
 
 // The serialized response the Android task hands over for "Mark complete".
+// The tap's day is TODAY (local): the action only cancels today's reminders, so a fixed date made
+// these tests fail on any other day (2026-10-21).
+const TODAY = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
 const response = (date = 1760950000000) => ({
   actionIdentifier: 'MARK_TAKEN',
-  notification: { date, request: { identifier: 'dose-12-2026-10-20-t0', content: { data: { protocolId: 12, dayKey: '2026-10-20', ti: 0 } } } },
+  notification: { date, request: { identifier: `dose-12-${TODAY}-t0`, content: { data: { protocolId: 12, dayKey: `${TODAY}`, ti: 0 } } } },
 });
 const handled = (m) => JSON.parse(m.store.dosetrace_notif_handled || '[]');
 
@@ -86,7 +89,7 @@ test('DV-184: the dose write throws once -> not claimed, banner kept, nothing po
     recordDoseTaken: (id) => {
       if (fail) { fail = false; throw new Error('SQLITE_BUSY'); }
       m2.log.push(['write', id]);
-      return { logId: 7, protocol: { name: 'Testosterone', type: 'oral' }, dayKey: '2026-10-20' };
+      return { logId: 7, protocol: { name: 'Testosterone', type: 'oral' }, dayKey: `${TODAY}` };
     },
   });
   await m2.task()({ data: response() });               // headless, app closed
@@ -154,7 +157,7 @@ test('Gate B 1: a 2x/day dose written, then the headless task killed before the 
     const hit = rows.find((r) => o.sourceKey && r.source_key === o.sourceKey);
     if (hit) return { logId: null, alreadyLogged: true, sameTap: true, protocol: { name: 'BPC-157', type: 'oral' } };
     rows.push({ protocol_id: id, outcome: 'Taken', source_key: o.sourceKey || null });
-    return { logId: rows.length, protocol: { name: 'BPC-157', type: 'oral', doses_per_day: 2 }, dayKey: '2026-10-20' };
+    return { logId: rows.length, protocol: { name: 'BPC-157', type: 'oral', doses_per_day: 2 }, dayKey: `${TODAY}` };
   };
   // First run: the write lands, then the process dies while the reminder cleanup is awaited.
   const killed = loadModule({ recordDoseTaken: write, cancelTodaysDoseReminders: () => new Promise(() => {}) }, { store });
@@ -165,7 +168,7 @@ test('Gate B 1: a 2x/day dose written, then the headless task killed before the 
   const next = loadModule({ recordDoseTaken: write }, { store });
   await next.task()({ data: response() });
   assert.equal(rows.length, 1, 'exactly one Taken row (planMarkTaken would allow a 2nd dose of a 2x/day protocol)');
-  assert.equal(rows[0].source_key, 'dose-12-2026-10-20-t0|MARK_TAKEN|1760950000000', 'the tap\'s key goes with the write');
+  assert.equal(rows[0].source_key, `dose-12-${TODAY}-t0|MARK_TAKEN|1760950000000`, 'the tap\'s key goes with the write');
   assert.ok(!next.log.some((e) => e[0] === 'post'), 'the replay of a tap already written posts nothing');
   assert.ok(next.log.some((e) => e[0] === 'dismiss'), 'and clears the banner');
   assert.equal(handled(next).length, 1);
@@ -177,7 +180,7 @@ test('Re-verification C: the AsyncStorage claim is after the write (a kill at th
   const write = (id, o) => {
     if (rows.some((r) => r.source_key === o.sourceKey)) return { logId: null, alreadyLogged: true, sameTap: true };
     rows.push({ source_key: o.sourceKey });
-    return { logId: 1, protocol: { name: 'x', type: 'oral' }, dayKey: '2026-10-20' };
+    return { logId: 1, protocol: { name: 'x', type: 'oral' }, dayKey: `${TODAY}` };
   };
   // The process dies inside the claim's AsyncStorage write (the value is stored, nothing after runs).
   const dying = { getItem: async (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; return new Promise(() => {}); } };
@@ -191,7 +194,7 @@ test('Re-verification C: the AsyncStorage claim is after the write (a kill at th
 });
 
 test('Gate B 2: "Nothing else today" whose day marker could not be written is not claimed and keeps the banner; no user = handled', async () => {
-  const food = (date) => ({ actionIdentifier: 'FOOD_DAY_DONE', notification: { date, request: { identifier: 'food-log-2026-10-20', content: { data: {} } } } });
+  const food = (date) => ({ actionIdentifier: 'FOOD_DAY_DONE', notification: { date, request: { identifier: `food-log-${TODAY}`, content: { data: {} } } } });
   let fail = true;
   const m = loadModule({ closeFoodDay: async () => { if (fail) { fail = false; throw new Error('insert failed'); } return true; } });
   await m.task()({ data: food(1) });
@@ -211,10 +214,10 @@ test('Gate B 2: closeFoodDay throws on a failed marker write when asked to (the 
     getNotifications: () => null,
     syncFoodLogReminder: async () => {},
   });
-  await assert.rejects(mk(() => { throw new Error('db'); })('2026-10-20', null, { throwOnFail: true }));
-  await assert.rejects(mk(() => null)('2026-10-20', null, { throwOnFail: true }));
-  assert.equal(await mk(() => null)('2026-10-20'), false, 'Food log screen: still false (its own error message)');
-  assert.equal(await mk(() => 1, null)('2026-10-20', null, { throwOnFail: true }), false, 'no user: false, no throw');
+  await assert.rejects(mk(() => { throw new Error('db'); })(`${TODAY}`, null, { throwOnFail: true }));
+  await assert.rejects(mk(() => null)(`${TODAY}`, null, { throwOnFail: true }));
+  assert.equal(await mk(() => null)(`${TODAY}`), false, 'Food log screen: still false (its own error message)');
+  assert.equal(await mk(() => 1, null)(`${TODAY}`, null, { throwOnFail: true }), false, 'no user: false, no throw');
   assert.equal(await mk(() => 1)('bad', null, { throwOnFail: true }), false);
   assert.match(read('lib/notificationActions.js'), /closeFoodDay\(dayKey, null, \{ throwOnFail: true \}\)/);
 });
