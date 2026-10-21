@@ -38,9 +38,10 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { registerReminderRefresh } from './lib/backgroundTasks';
-import { initNotifications, requestNotificationPermissions, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
+import { initNotifications, askPermissionForArrivedProtocols, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
-import { notifTapTarget, responseKey } from './lib/notificationPlan';
+import { notifTapTarget, responseKey, syncEventNeedsResync } from './lib/notificationPlan';
+import { readAppLanguage } from './lib/appLanguage';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
@@ -73,9 +74,10 @@ class ErrorBoundary extends React.Component {
   componentDidMount() {
     // Best-effort language detection — must never throw on the error path.
     try {
-      AsyncStorage.getItem('dosetrace_language')
-        .then(saved => {
-          if (saved && ERROR_BOUNDARY_STRINGS[saved]) this.setState({ lang: saved });
+      // Gate B F8: the one language rule (lib/appLanguage: the stored choice, else the phone's).
+      readAppLanguage()
+        .then(lang => {
+          if (lang && ERROR_BOUNDARY_STRINGS[lang]) this.setState({ lang });
         })
         .catch(() => {});
     } catch {
@@ -728,7 +730,7 @@ export default function App() {
       supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? deviceGate('foreground') : null)).catch(() => null);
       // A-127 / A-156: every foreground re-writes this phone's push row (app version after a store
       // auto-update, the language) — one upsert, never a permission prompt.
-      supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? registerPushToken({ prompt: false, ifChanged: true }) : null)).catch(() => null);
+      supabase.auth.getSession().then(({ data: { session } }) => (session?.user?.id ? registerPushToken({ ifChanged: true }) : null)).catch(() => null);
       const nowTs = Date.now();
       // At most once a minute, with the first-sync gate's own rule: a clock moved back is stale too
       // (a negative difference never asked for a sync again — council fix 1, 2026-10-16).
@@ -750,15 +752,24 @@ export default function App() {
     // food nudge so a day logged on the iPad doesn't still ping the phone, and so
     // the backoff doesn't count it as ignored (journey-review F7). Throttled.
     let lastFoodResync = 0;
+    let lastPermissionAsk = 0;
     const unsubSyncForFood = addSyncListener((e) => {
       if (e?.type !== 'sync_complete' && e?.type !== 'import_complete') return;
+      // DV-052 (TRD H-9): a pull that brought another device's dose logs, protocols or vials re-plans
+      // every reminder (a dose taken on phone A stops reminding on phone B). Never throttled away:
+      // calls made during a resync share one follow-up run (lib/notifications).
+      if (syncEventNeedsResync(e)) syncAllNotifications().catch(() => {});
       const nowTs = Date.now();
+      // AD-88 (DV-054): this account's protocols with a reminder time arrived on the phone → the
+      // permission is asked while the phone's answer is undecided (Gate B F3: never after a pass
+      // the server refused — a replaced phone — and at most once a minute).
+      if (!e.refused && nowTs - lastPermissionAsk > 60000) { lastPermissionAsk = nowTs; askPermissionForArrivedProtocols().catch(() => {}); }
       if (nowTs - lastFoodResync < 30000) return;
       lastFoodResync = nowTs;
-      syncFoodLogReminder().catch(() => {});
-      // A Stop (or new check) pulled from another device must also cancel / re-arm
-      // the day-21 weigh-in reminder here, not only on the next cold start (FX-9).
-      syncRealityCheckReminder().catch(() => {});
+      // The 8 PM food question and (a Stop or new check pulled from another device) the day-21
+      // weigh-in are re-planned here, not only on the next cold start (FX-9) — through the one full
+      // resync (R1, 2026-10-20: serialized, the iPhone 64 guard).
+      syncAllNotifications().catch(() => {});
     });
 
     // Resolve the first-launch intro flag; the loading gate holds until it's
@@ -813,8 +824,9 @@ export default function App() {
 
           // Schedule reminders AFTER the initial import — otherwise fresh
           // installs sync notifications against an empty local DB.
-          requestNotificationPermissions()
-            .then(() => syncAllNotifications())
+          // AD-88 (DV-054): no permission request at app open — it is asked once, when a protocol
+          // with a reminder time is first saved here or arrives by sync (lib/notifications).
+          syncAllNotifications()
             .then(() => registerPushToken())
             .catch(() => {});
         }
@@ -892,8 +904,9 @@ export default function App() {
         if (step.migrate) await runRealityMigration().catch(() => {});
 
         // Schedule reminders AFTER the import so they reflect the user's data
-        requestNotificationPermissions()
-          .then(() => syncAllNotifications())
+        // AD-88 (DV-054): never a permission request at sign-in (the sync listener asks once when
+        // this account's protocols arrive on the phone).
+        syncAllNotifications()
           .then(() => registerPushToken())
           .catch(() => {});
       }, 0);
@@ -1045,7 +1058,7 @@ export default function App() {
                   .then((r) => {
                     if (r && r.go) {
                       requestSync();
-                      requestNotificationPermissions().then(() => syncAllNotifications()).then(() => registerPushToken()).catch(() => {});
+                      syncAllNotifications().then(() => registerPushToken()).catch(() => {}); // AD-88: no request here
                     }
                   })
                   .catch(() => {})

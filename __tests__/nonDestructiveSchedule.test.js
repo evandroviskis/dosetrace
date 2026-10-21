@@ -26,14 +26,13 @@ function fakeN(ids) {
 function load(N, { persistent = false, scheduleReq } = {}) {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../lib/notifications.js'), 'utf8');
   const fill = loadFn('lib/notifications.js', 'function fill(', 'fill');
-  const parseReminderTimes = loadFn('lib/notifications.js', 'function parseReminderTimes(', 'parseReminderTimes', { reminderTimes: plan.reminderTimes });
   const deps = {
     getActiveProtocols: () => [{ id: 1 }],
     doseBudget: plan.doseBudget, Platform: { OS: 'android' },
     getNotifications: () => N,
     cancelDoseReminder: async (pid) => { for (const id of [...N.scheduled.keys()]) if (id.startsWith(`dose-${pid}-`)) N.scheduled.delete(id); },
     getT: async () => Object.assign((k) => k, { language: 'en' }),
-    parseReminderTimes, fill,
+    fill,
     isPersistentEnabled: async () => persistent,
     showNamesInNotifications: async () => true,
     protocolDisplayName: require('../lib/protocolName').protocolDisplayName, // A-134
@@ -43,6 +42,7 @@ function load(N, { persistent = false, scheduleReq } = {}) {
     getTodayLogs: () => [],
     needsSiteQuestion,
     FOLLOWUP_DELAYS: [5, 10],
+    doseSlots: plan.doseSlots, snoozedDoseSlots: async () => new Set(), // 1.3.2: the slots in fire order (DV-053 / DV-224)
     scheduleReq: scheduleReq || (async (n, req) => { n.scheduled.set(req.identifier, req); return req.identifier; }),
   };
   assert.ok(src.includes('export async function scheduleDoseReminder('));
@@ -192,5 +192,7 @@ test('BR-1: a failed reality-check read is "unknown" for the schedulers, never "
   const ok = loadFn('lib/realityCheck.js', 'export async function getRealityStart(', 'getRealityStart', deps(false));
   assert.equal(await ok({ strict: true }), null, 'a real "no open check" is still null');
   const n = require('node:fs').readFileSync(require('node:path').join(__dirname, '../lib/notifications.js'), 'utf8');
-  assert.equal((n.match(/getRealityStart\(\{ strict: true \}\)/g) || []).length, 2, 'both schedulers ask strictly');
+  // Both schedulers and (Gate B F6) the iPhone budget's count of the other kinds ask strictly.
+  assert.equal((n.match(/getRealityStart\(\{ strict: true \}\)/g) || []).length, 3, 'every reminder path asks strictly');
+  assert.doesNotMatch(n, /getRealityStart\(\)/);
 });

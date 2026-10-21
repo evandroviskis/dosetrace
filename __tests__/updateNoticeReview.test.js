@@ -229,10 +229,11 @@ test('3 the token row carries the app language (stored choice, else the phone\'s
   const fn = src.slice(src.indexOf('export async function registerPushToken'), src.indexOf('export async function removePushToken'));
   assert.match(fn, /language/);
   assert.match(fn, /app_version\|device_id\|language/);
-  assert.match(fn, /prompt === false/);
-  const lc = read('i18n/LanguageContext.js');
-  const set = lc.slice(lc.indexOf('function setLanguage('), lc.indexOf('function setTimeFormat('));
-  assert.match(set, /registerPushToken\(\{ prompt: false \}\)/);
+  // After the REM merge (AD-88): registering only reads the permission; a language change re-writes
+  // the row through REM's onAppLanguageChanged (checked in "I-1 merge with REM").
+  assert.match(fn, /AD-88/);
+  const ns = read('lib/notifications.js');
+  assert.match(ns.slice(ns.indexOf('export async function onAppLanguageChanged('), ns.indexOf('// ── Action buttons')), /registerPushToken\(\{ ifChanged: false \}\)/);
   // Round 2 item 2: its own migration (applies independently of app_releases).
   assert.match(read('supabase/migrations/20261021230000_push_tokens_language.sql'), /alter table public\.push_tokens add column if not exists language text check \(language is null or language in \('en', 'es', 'pt', 'fr', 'de', 'it'\)\)/);
 });
@@ -258,7 +259,7 @@ test('6 the token row (app version, language) is re-written on every foreground 
   const app = read('App.js');
   const fg = app.slice(app.indexOf("const appStateSub = AppState.addEventListener('change'"), app.indexOf('// A-106:'));
   // Round 2 item 3: only when something on the row changed (or once a day).
-  assert.match(fg, /registerPushToken\(\{ prompt: false, ifChanged: true \}\)/);
+  assert.match(fg, /registerPushToken\(\{ ifChanged: true \}\)/);
 });
 
 // ── 7. The sender needs the cron secret ───────────────────────────────────────────────────────
@@ -310,10 +311,10 @@ test('10 the spec header commits A-127 to 1.3.2, and UN-6 evidence says what the
 test('11 the Android "news" channel is named in the app language (the Settings switch words), and renamed when the language changes', () => {
   const src = read('lib/notifications.js');
   assert.doesNotMatch(src, /name: 'DoseTrace news'/);
-  assert.match(src, /export async function nameNewsChannel\(/);
-  assert.match(src, /settings_version_news/);
-  const lc = read('i18n/LanguageContext.js');
-  assert.match(lc.slice(lc.indexOf('function setLanguage('), lc.indexOf('function setTimeFormat(')), /nameNewsChannel\(code\)/);
+  // After the REM merge: inside REM's one channel setup (getT), re-run by onAppLanguageChanged.
+  const ch = src.slice(src.indexOf('export async function syncNotificationChannels('), src.indexOf('export async function onAppLanguageChanged('));
+  assert.match(ch, /name: t\('settings_version_news'\)/);
+  assert.match(src.slice(src.indexOf('export async function onAppLanguageChanged(')), /syncNotificationChannels\(\)/);
 });
 
 // ══ Review round 2 (coordinator 2026-10-20, re-verification items 2-6) ═════════════════════════
@@ -379,7 +380,7 @@ test('R2-3 the push row is written only when token / app version / language / ti
   assert.match(fn, /if \(!lastError\)/);
   const app = read('App.js');
   const fg = app.slice(app.indexOf("const appStateSub = AppState.addEventListener('change'"), app.indexOf('// A-106:'));
-  assert.match(fg, /registerPushToken\(\{ prompt: false, ifChanged: true \}\)/);
+  assert.match(fg, /registerPushToken\(\{ ifChanged: true \}\)/);
 });
 
 // ── 4. The drift guard covers every way to reach React Native's Modal ─────────────────────────
@@ -482,4 +483,121 @@ test('R2-6 version-notice logs a refused call without the header loudly (missing
   assert.doesNotMatch(ts, /console\.[a-z]+\([^)]*(cronSecret|serviceKey|auth\b)/, 'never the secret or the header in a log');
   const sql = read('supabase/migrations/20261022000000_app_releases.sql');
   assert.match(sql, /select count\(\*\) from vault\.decrypted_secrets where name = 'dosetrace_cron_secret'/);
+});
+
+// ══ Item 1 (after the REM reminders merge): the version-news "yes" asks for the permission ═════
+// The phone's notification permission, as REM's askNotificationPermission sees it: it shows the
+// system dialog only while the permission is undetermined (AD-88), and registerPushToken only reads it.
+function permissionPhone(status, answer) {
+  const p = { status, dialogs: 0, registered: 0 };
+  p.ask = async () => { if (p.status !== 'undetermined') return false; p.dialogs++; p.status = answer; return true; };
+  p.granted = async () => p.status === 'granted';
+  p.register = async () => { if (p.status === 'granted') p.registered++; };
+  return p;
+}
+function yesFlow(phone, writes) {
+  return createUpdateFlow({
+    store: memStore(), platform: 'ios', appVersion: '1.3.2', now: () => 1,
+    fetchRelease: async () => ({ data: null, error: null }),
+    openUrl: async () => {}, writeMeta: async (d) => { writes.push(d); return { error: null }; },
+    askPermission: async () => { await phone.ask(); return phone.granted(); },
+    registerPush: phone.register,
+    play: createPlayUpdate(null),
+  });
+}
+
+test('I-1 invitation "yes" while the permission is undetermined: ONE system dialog, then (granted) the phone registered and version_news true', async () => {
+  const phone = permissionPhone('undetermined', 'granted');
+  const writes = [];
+  const r = await yesFlow(phone, writes).answerOptIn('u1', true);
+  assert.equal(phone.dialogs, 1);
+  assert.equal(phone.registered, 1);
+  assert.deepEqual(writes, [{ version_news: true }]);
+  assert.equal(r.on, true);
+});
+
+test('I-1 invitation "yes" with notifications denied: no dialog, nothing registered, the answer stored as off (never ON without a way to deliver)', async () => {
+  const phone = permissionPhone('denied');
+  const writes = [];
+  const r = await yesFlow(phone, writes).answerOptIn('u1', true);
+  assert.equal(phone.dialogs, 0, 'no system dialog');
+  assert.equal(phone.registered, 0);
+  assert.deepEqual(writes, [{ version_news: false }]);
+  assert.equal(r.on, false);
+  // Undetermined and the person says "Don't allow" in the dialog: off too.
+  const p2 = permissionPhone('undetermined', 'denied');
+  const w2 = [];
+  assert.equal((await yesFlow(p2, w2).answerOptIn('u1', true)).on, false);
+  assert.equal(p2.dialogs, 1);
+  assert.deepEqual(w2, [{ version_news: false }]);
+  // "No" never asks.
+  const p3 = permissionPhone('undetermined', 'granted');
+  await yesFlow(p3, []).answerOptIn('u1', false);
+  assert.equal(p3.dialogs, 0);
+});
+
+function settingsToggle(phone, { saveError = null } = {}) {
+  const { loadFn } = require('./helpers/extractFn');
+  const shown = [];
+  const writes = [];
+  const sheets = [];
+  const fn = loadFn('screens/SettingsScreen.js', 'async function toggleVersionNews(', 'toggleVersionNews', {
+    setVersionNews: (v) => shown.push(v),
+    supabase: { auth: { updateUser: async ({ data }) => { writes.push(data); return { error: saveError }; } } },
+    errorSheet: (x) => sheets.push(x),
+    friendlyError: () => 'err',
+    t: (k) => k,
+    user: { id: 'u1' },
+    updateFlow: () => ({ noteSettingsAnswer: async () => {} }),
+    askNotificationPermission: phone.ask,
+    notificationsGranted: phone.granted,
+    registerPushToken: phone.register,
+  });
+  return { fn, shown, writes, sheets };
+}
+
+test('I-1 Settings "Novidades do DoseTrace" ON: undetermined → one dialog, granted → saved, registered, the switch stays ON', async () => {
+  const phone = permissionPhone('undetermined', 'granted');
+  const s = settingsToggle(phone);
+  await s.fn(true);
+  assert.equal(phone.dialogs, 1);
+  assert.deepEqual(s.writes, [{ version_news: true }]);
+  assert.equal(phone.registered, 1);
+  assert.equal(s.shown[s.shown.length - 1], true);
+});
+
+test('I-1 Settings ON with notifications denied: no dialog, nothing saved or registered, the switch never shows ON', async () => {
+  const phone = permissionPhone('denied');
+  const s = settingsToggle(phone);
+  await s.fn(true);
+  assert.equal(phone.dialogs, 0);
+  assert.deepEqual(s.writes, []);
+  assert.equal(phone.registered, 0);
+  assert.ok(!s.shown.includes(true), 'never ON');
+  assert.equal(s.shown[s.shown.length - 1], false);
+  // OFF never asks and saves false.
+  const p2 = permissionPhone('undetermined', 'granted');
+  const s2 = settingsToggle(p2);
+  await s2.fn(false);
+  assert.equal(p2.dialogs, 0);
+  assert.deepEqual(s2.writes, [{ version_news: false }]);
+});
+
+test('I-1 merge with REM: one channel setup (app-news named with settings_version_news inside syncNotificationChannels), read-only registerPushToken, readAppLanguage, the language change re-writes the push row', () => {
+  const src = read('lib/notifications.js');
+  assert.doesNotMatch(src, /nameNewsChannel|appLanguageNow|PUSH_LANGS|opts\.prompt|requestNotificationPermissions/);
+  const ch = src.slice(src.indexOf('export async function syncNotificationChannels('), src.indexOf('export async function onAppLanguageChanged('));
+  assert.match(ch, /setNotificationChannelAsync\('app-news', \{\s*name: t\('settings_version_news'\)/);
+  const lang = src.slice(src.indexOf('export async function onAppLanguageChanged('), src.indexOf('// ── Action buttons'));
+  assert.match(lang, /registerPushToken\(\{ ifChanged: false \}\)/);
+  const reg = src.slice(src.indexOf('export async function registerPushToken'), src.indexOf('export async function removePushToken'));
+  assert.match(reg, /AD-88/);
+  assert.match(reg, /readAppLanguage\(/);
+  assert.doesNotMatch(reg, /requestPermissionsAsync/);
+  assert.match(src, /export async function notificationsGranted\(/);
+  const lc = read('i18n/LanguageContext.js');
+  const set = lc.slice(lc.indexOf('function setLanguage('), lc.indexOf('function setTimeFormat('));
+  assert.match(set, /onAppLanguageChanged\(\)/);
+  assert.doesNotMatch(set, /registerPushToken|nameNewsChannel/);
+  assert.match(read('lib/updateRuntime.js'), /askNotificationPermission\(\)/);
 });

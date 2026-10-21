@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { translations, LANGUAGES } from './translations';
+import { resolveLanguage, deviceLanguage, LANGUAGE_KEY } from '../lib/appLanguage';
 
 const LanguageContext = createContext({
   language: 'en',
@@ -12,17 +13,9 @@ const LanguageContext = createContext({
   LANGUAGES: [],
 });
 
-function getDeviceLanguage() {
-  try {
-    // expo-localization works under the New Architecture, where the legacy
-    // NativeModules.SettingsManager path is often undefined
-    const code = (Localization.getLocales()?.[0]?.languageCode || 'en').toLowerCase();
-    const supported = LANGUAGES.map(l => l.code);
-    return supported.includes(code) ? code : 'en';
-  } catch {
-    return 'en';
-  }
-}
+// DV-196: the one language rule (lib/appLanguage) — the stored choice, else the phone's language
+// (expo-localization, which works under the New Architecture) — shared with every notification
+// path, so a reminder speaks the language the app shows.
 
 export function LanguageProvider({ children }) {
   const [language, setLanguageState] = useState('en');
@@ -32,13 +25,9 @@ export function LanguageProvider({ children }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('dosetrace_language')
+    AsyncStorage.getItem(LANGUAGE_KEY)
       .then(saved => {
-        if (saved) {
-          setLanguageState(saved);
-        } else {
-          setLanguageState(getDeviceLanguage());
-        }
+        setLanguageState(resolveLanguage(saved, deviceLanguage(Localization)));
       })
       .catch(() => setLanguageState('en'))
       .finally(() => setReady(true));
@@ -49,16 +38,13 @@ export function LanguageProvider({ children }) {
       .catch(() => {});
   }, []);
 
+  // DV-050 (DL-13): a new language re-plans every scheduled notification (and renames the Android
+  // channels) once it is stored, so pending reminders never keep the old language.
   function setLanguage(code) {
     setLanguageState(code);
-    // A-156 / A-127: once stored, the push token row and the Android news channel follow the new
-    // language (server pushes are written in the language on the token row). No permission prompt.
-    AsyncStorage.setItem('dosetrace_language', code)
-      .then(() => {
-        const n = require('../lib/notifications');
-        n.registerPushToken({ prompt: false }).catch(() => {});
-        n.nameNewsChannel(code).catch(() => {});
-      })
+    AsyncStorage.setItem(LANGUAGE_KEY, code)
+      .catch(() => {})
+      .then(() => require('../lib/notifications').onAppLanguageChanged())
       .catch(() => {});
   }
 

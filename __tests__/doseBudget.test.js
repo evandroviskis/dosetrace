@@ -25,9 +25,12 @@ test('iPhone keeps the 64 cap: dose budget + expiry alerts + the rest stay under
   }
 });
 
-test('iPhone with no expiry alerts keeps the old numbers (40 shared, at most 24 each)', () => {
+test('iPhone with no expiry alerts: at most 24 each, the total shared', () => {
   const b = doseBudget({ os: 'ios', protocolCount: 1, expiryAlerts: 0 });
   assert.equal(b.perProtocol, 24);
   assert.equal(b.windowDays, 10);
-  assert.equal(doseBudget({ os: 'ios', protocolCount: 4, expiryAlerts: 0 }).perProtocol, 10);
+  // 1.3.2 (DV-053): the total is what the 64 leave after every other kind at its most (44), shared.
+  const four = doseBudget({ os: 'ios', protocolCount: 4, expiryAlerts: 0 });
+  assert.equal(four.total, 44);
+  assert.equal(four.perProtocol, 11);
 });

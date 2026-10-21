@@ -132,8 +132,8 @@ test('L-28: after a sync or import the 8 PM reminder (and the day-21 one) is re-
   const block = sliceBlock(app, 'const unsubSyncForFood = addSyncListener((e) => {');
   assert.match(block, /if \(e\?\.type !== 'sync_complete' && e\?\.type !== 'import_complete'\) return;/);
   assert.match(block, /if \(nowTs - lastFoodResync < 30000\) return;/);
-  assert.match(block, /syncFoodLogReminder\(\)\.catch/);
-  assert.match(block, /syncRealityCheckReminder\(\)\.catch/);
+  // R1 (2026-10-20): both through the one full re-plan (serialized, the iPhone 64 guard).
+  assert.match(block, /lastFoodResync = nowTs;[\s\S]*syncAllNotifications\(\)\.catch/);
 });
 
 // ── L-30: the Journey sex prompt → the profile ─────────────────────────────────────────────

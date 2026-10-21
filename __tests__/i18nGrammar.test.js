@@ -195,7 +195,8 @@ test('the vial-low notification uses the singular for 1 (and French 0), with the
   for (const l of LANGS) assert.match(tr[l].notif_vial_body_one, /\{n\}/, l);
   const notif = read('lib/notifications.js');
   assert.doesNotMatch(notif, /remaining === 1 \? 'notif_vial_body_one'/);
-  assert.equal((notif.match(/isOne\([^)]*remaining[^)]*\) \? 'notif_vial_body_one' : 'notif_vial_body_other'/g) || []).length, 2);
+  // The alert, the names-off snooze copy and (1.3.2, Gate B F8) the re-worded snooze copy.
+  assert.equal((notif.match(/isOne\([^)]*remaining[^)]*\) \? 'notif_vial_body_one' : 'notif_vial_body_other'/g) || []).length, 3);
 });
 
 test('a vial that lasts about 1 day says "1 day", in the assistant fact and the review row', () => {

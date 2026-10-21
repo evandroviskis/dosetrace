@@ -142,7 +142,7 @@ test('F7: reminders of a protocol that is no longer active are found and cancell
   const n = read('lib/notifications.js');
   const i = n.indexOf('async function syncAllDoseRemindersNow(');
   const body = n.slice(i, n.indexOf('\n}\n', i));
-  assert.ok(body.indexOf('orphanDoseIds(') > 0 && body.indexOf('orphanDoseIds(') < body.indexOf('if (!protocols || protocols.length === 0) return;'), 'before the early return');
+  assert.ok(body.indexOf('orphanDoseIds(') > 0 && body.indexOf('orphanDoseIds(') < body.indexOf('if (protocols.length === 0) return'), 'before the early return');
 });
 
 test('F8 + Restart wiring: the free limit is checked first; the new run gets its reminders', () => {

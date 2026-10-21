@@ -40,7 +40,7 @@ import { hasPremium, getBillingStore } from '../lib/entitlement';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
-import { syncAllNotifications, readReminderHealth, registerPushToken } from '../lib/notifications';
+import { syncAllNotifications, readReminderHealth, registerPushToken, askNotificationPermission, notificationsGranted } from '../lib/notifications';
 import { updateFlow } from '../lib/updateRuntime';
 import { reminderChecks, scheduleState, blockingCount, setupRowState } from '../lib/reminderHealth';
 import { formatTime } from '../lib/timeFormat';
@@ -395,6 +395,14 @@ export default function SettingsScreen({ navigation }) {
   // invitation. Saved like the other switches (a failed save reverts and says so); a yes registers
   // this phone for the push; the answer ends the invitation's question on this phone.
   async function toggleVersionNews(val) {
+    // ON needs the notification permission: the system dialog only while it is undetermined (AD-88);
+    // denied or not granted → the switch stays off and nothing is saved or registered.
+    if (val) {
+      try { await askNotificationPermission(); } catch { /* read below */ }
+      let granted = false;
+      try { granted = await notificationsGranted(); } catch { granted = false; }
+      if (!granted) { setVersionNews(false); return; }
+    }
     setVersionNews(val);
     let error = null;
     try { ({ error } = await supabase.auth.updateUser({ data: { version_news: val } })); } catch (e) { error = e; }

@@ -34,7 +34,8 @@ export default function ReminderSetupList({ health, setup = true, withRefresh = 
   if (!health) return null;
   const steps = setup ? setupSteps(health, { withRefresh }) : null;
   const checks = setup ? steps.rows : reminderChecks(health);
-  const progress = steps ? t(pluralKey('rc_setup_progress', steps.ready, language)).replace('{n}', String(steps.ready)).replace('{total}', String(steps.total)) : null;
+  // DV-044 (DL-46): with every row ready but nothing scheduled, the bar says "None scheduled".
+  const progress = steps ? (steps.scheduleBlocked && steps.ready === steps.total ? t('rc_none') : t(pluralKey('rc_setup_progress', steps.ready, language)).replace('{n}', String(steps.ready)).replace('{total}', String(steps.total))) : null;
 
   function stateText(c) {
     const r = ROW[c.id];
