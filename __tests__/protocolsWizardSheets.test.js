@@ -36,9 +36,11 @@ test('part 21: AI consent is a DoseTrace sheet with the spark, the policy link, 
   assert.match(scan, /link: \{ label: t\('ai_consent_privacy'\), onPress: \(\) => Linking\.openURL\(AI_PRIVACY_URL\)/);
   assert.match(scan, /\{ label: t\('cancel'\), kind: 'secondary' \}/);
   assert.match(scan, /\{ label: t\('ai_consent_agree'\), kind: 'primary', onPress: async \(\) => \{ await grantAIConsent\(\); openScanChoice\(\); \} \}/);
-  // the consent is still recorded in the one shared key (lib/aiConsent.js)
+  // the consent is still the one shared record for every AI feature — since DV-007 (1.3.1) one per
+  // account (lib/aiConsent.js; behaviour: __tests__/dv007AiConsentPerAccount.test.js)
   const lib = read('lib', 'aiConsent.js');
-  assert.match(fnBody(lib, 'grantAIConsent'), /AsyncStorage\.setItem\(CONSENT_KEY, 'granted'\)/);
+  assert.match(fnBody(lib, 'grantAIConsent'), /return writeConsent\('granted'\)/);
+  assert.match(lib, /AsyncStorage\.setItem\(CONSENT_PREFIX \+ uid, JSON\.stringify\(rec\)\)/);
   assert.match(lib, /export const AI_PRIVACY_URL = PRIVACY_URL;/);
   // DTSheet draws the link as the prototype .btnlink: 17 ink, underlined in tick
   assert.match(PARTS, /shown\.link \? \(/);

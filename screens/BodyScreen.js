@@ -23,6 +23,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
+import { asList, asTags, isFavorite, setFavorite, setReportTag, dropReportDate, saveBodyPref } from '../lib/bodyPrefs';
 import { hasNativeModule } from '../lib/nativeModule';
 import { requestSync } from '../lib/sync';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
@@ -224,14 +225,13 @@ export default function BodyScreen({ navigation, route }) {
     for (const row of rows) {
       (byKey[canonicalMarker(row.marker)] ||= []).push(row);
     }
-    const favSet = new Set(favorites);
     return Object.entries(byKey).map(([key, rs]) => {
       const sorted = rs.slice().sort((a, b) => (a.report_date < b.report_date ? -1 : a.report_date > b.report_date ? 1 : 0));
       const points = sorted.map(r => ({ id: r.id, marker: r.marker, date: r.report_date, value: r.value, unit: r.unit }));
       const latest = points[points.length - 1];
       const display = sorted[sorted.length - 1].marker; // most recent original label
-      const names = new Set(rs.map(r => r.marker));
-      return { key, marker: display, points, latest, unit: latest?.unit || '', isFav: [...names].some(n => favSet.has(n)) };
+      // DV-006: by the canonical key, so a star stored under an older variant shows (and clears).
+      return { key, marker: display, points, latest, unit: latest?.unit || '', isFav: isFavorite(favorites, display) };
     });
   }, [rows, favorites]);
   const markerSeries = useMemo(() => {
@@ -364,37 +364,40 @@ export default function BodyScreen({ navigation, route }) {
   const exportMarkers = useMemo(() => buildMarkerSeries(rows), [rows]);
 
   // Favorite markers live in Supabase user_metadata (per-user, multi-device).
-  // Update optimistically; the write is fire-and-forget.
-  function toggleFavorite(marker) {
-    setFavorites(prev => {
-      const next = prev.includes(marker)
-        ? prev.filter(m => m !== marker)
-        : [...prev, marker];
-      supabase.auth.updateUser({ data: { favorite_markers: next } }).catch(() => {});
-      return next;
-    });
+  // DV-006: optimistic on screen; the change itself is applied to the FRESH server value (never
+  // this screen's cached copy) and only that key is written (lib/bodyPrefs). A failed save undoes
+  // only this change and says so.
+  const bodyPrefDeps = {
+    readFresh: async () => { const { data, error } = await supabase.auth.getUser(); if (error || !data?.user) throw error || new Error('no user'); return data.user.user_metadata || {}; },
+    write: (data) => supabase.auth.updateUser({ data }),
+  };
+  function saveFailed() { notice({ title: t('error'), body: t('error_save_failed') }); }
+  async function toggleFavorite(marker) {
+    const on = !isFavorite(favorites, marker);
+    setFavorites(prev => setFavorite(prev, marker, on));
+    const r = await saveBodyPref(bodyPrefDeps, 'favorite_markers', (cur) => setFavorite(asList(cur), marker, on));
+    if (r.ok) setFavorites(r.value);
+    else { setFavorites(prev => setFavorite(prev, marker, !on)); saveFailed(); }
   }
 
   // Per-test labels ("baseline", "week 8", …). The user's own categorization,
   // stored per-user in user_metadata keyed by report date. Never interpreted.
-  function saveReportTags(next) {
-    setReportTags(next);
-    supabase.auth.updateUser({ data: { report_tags: next } }).catch(() => {});
+  // DV-006: each add / remove is one operation on the fresh server value (lib/bodyPrefs).
+  async function saveReportTagOp(apply, undo, quiet = false) {
+    setReportTags(prev => apply(prev));
+    const r = await saveBodyPref(bodyPrefDeps, 'report_tags', (cur) => apply(asTags(cur)));
+    if (r.ok) setReportTags(r.value);
+    else { if (undo) setReportTags(prev => undo(prev)); if (!quiet) saveFailed(); }
   }
   function addReportTag(date) {
     const tag = tagDraft.trim();
     if (!tag) return;
-    const cur = reportTags[date] || [];
-    if (!cur.some(x => x.toLowerCase() === tag.toLowerCase())) {
-      saveReportTags({ ...reportTags, [date]: [...cur, tag] });
-    }
+    const had = (reportTags[date] || []).some(x => x.toLowerCase() === tag.toLowerCase());
+    if (!had) saveReportTagOp((tags) => setReportTag(tags, date, tag, true), (tags) => setReportTag(tags, date, tag, false));
     setTagDraft('');
   }
   function removeReportTag(date, tag) {
-    const nextTags = (reportTags[date] || []).filter(x => x !== tag);
-    const next = { ...reportTags };
-    if (nextTags.length) next[date] = nextTags; else delete next[date];
-    saveReportTags(next);
+    saveReportTagOp((tags) => setReportTag(tags, date, tag, false), (tags) => setReportTag(tags, date, tag, true));
   }
 
   // A DoseTrace sheet with OK (MB-12, MB-13). One that follows the camera / photo library
@@ -679,9 +682,8 @@ export default function BodyScreen({ navigation, route }) {
             // (another same-date upload keeps its labels).
             const remains = (getBiomarkers(user.id) || []).some(r => r.report_date === date);
             if (!remains && reportTags[date]) {
-              const next = { ...reportTags };
-              delete next[date];
-              saveReportTags(next);
+              // Quiet: the report is gone either way; labels left on a date with no card show nowhere.
+              saveReportTagOp((tags) => dropReportDate(tags, date), null, true);
             }
             requestSync();
             setDetail(null);
