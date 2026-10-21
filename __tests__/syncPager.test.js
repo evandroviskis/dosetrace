@@ -39,6 +39,7 @@ function makeTable(rows) {
       eq(c, v) { filters.push((r) => r[c] === v); return q; },
       gt(c, v) { filters.push((r) => r[c] > v); return q; },
       is(c, v) { filters.push((r) => (r[c] ?? null) === v); return q; },
+      not(c, op, v) { if (op !== 'is') throw new Error('unexpected not ' + op); filters.push((r) => (r[c] ?? null) !== v); return q; },
       in(c, vs) { filters.push((r) => vs.includes(r[c])); return q; },
       or(s) { filters.push(parseOr(s)); return q; },
       order(c, o = {}) { orders.push([c, o.ascending !== false]); return q; },
@@ -49,7 +50,12 @@ function makeTable(rows) {
         if (table.beforeQuery) table.beforeQuery(table.queries);
         let out = table.rows.filter((r) => filters.every((f) => f(r)));
         out = out.map((r) => ({ r, k: rnd() })).sort((x, y) => {
-          for (const [c, asc] of orders) { if (x.r[c] < y.r[c]) return asc ? -1 : 1; if (x.r[c] > y.r[c]) return asc ? 1 : -1; }
+          for (const [c, asc] of orders) {
+            const a = x.r[c] ?? null; const b = y.r[c] ?? null;
+            if (a === null && b === null) continue;
+            if (a === null || b === null) return (a === null) === asc ? 1 : -1; // Postgres: NULLS LAST ascending
+            if (a < b) return asc ? -1 : 1; if (a > b) return asc ? 1 : -1;
+          }
           return x.k - y.k;
         }).map((x) => ({ ...x.r }));
         if (from != null) out = out.slice(from, to + 1);
@@ -174,6 +180,38 @@ test('DV-210: the URL PostgREST receives (real postgrest-js): keyset filter quot
   assert.equal(p2.get('order'), 'updated_at.asc,id.asc');
   assert.equal(p2.get('limit'), '2');
   assert.match(urls[1].search, /%2B00%3A00/, 'the + of the time zone is encoded, never read as a space');
+});
+
+test('Gate B 6: rows with a NULL updated_at are read too by a full read (fetchAll / fetchSince(null)), once each', async () => {
+  const dated = Array.from({ length: 600 }, (_, i) => ({ id: uid(i + 1), user_id: 'u', updated_at: ts(i + 1), created_at: ts(i + 1) }));
+  const nulls = Array.from({ length: 5 }, (_, i) => ({ id: uid(5000 + i), user_id: 'u', updated_at: null, created_at: ts(i) }));
+  const t = makeTable([...dated, ...nulls]);
+  const base = () => t.query().select('*').eq('user_id', 'u');
+  const all = await pager().fetchAllRows(base, { pageSize: 500 });
+  assert.equal(all.error, null);
+  assert.equal(all.data.length, 605, 'fullImport never treats a NULL-stamped row as gone');
+  assert.equal(new Set(all.data.map((r) => r.id)).size, 605);
+  const full = await pager().fetchByUpdated(base, { since: null, pageSize: 500 });
+  assert.equal(full.data.length, 605);
+  const small = makeTable([...dated.slice(0, 10), ...nulls]);
+  const one = await pager().fetchByUpdated(() => small.query().select('*').eq('user_id', 'u'), { since: null, pageSize: 500 });
+  assert.equal(one.data.length, 15, 'one page: no NULL row twice');
+  assert.equal(new Set(one.data.map((r) => r.id)).size, 15);
+  const inc = await pager().fetchByUpdated(base, { since: ts(598), pageSize: 500 });
+  assert.equal(inc.data.length, 2, 'an incremental pull is unchanged (gt never matches NULL)');
+});
+
+test('Gate B 6: the full read\'s two URLs (real postgrest-js): dated rows without NULLs, then the NULL rows by id', async () => {
+  const { PostgrestClient } = require('@supabase/postgrest-js');
+  const urls = [];
+  const fetch = async (u) => { urls.push(new URL(u).searchParams); return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  const client = new PostgrestClient('https://x.supabase.co/rest/v1', { fetch });
+  await pager().fetchAllRows(() => client.from('food_logs').select('*').eq('user_id', 'u'), { pageSize: 500 });
+  assert.equal(urls.length, 2);
+  assert.equal(urls[0].get('updated_at'), 'not.is.null');
+  assert.equal(urls[0].get('order'), 'updated_at.asc,id.asc');
+  assert.equal(urls[1].get('updated_at'), 'is.null');
+  assert.equal(urls[1].get('order'), 'id.asc');
 });
 
 test('DV-210: lib/sync.js pages every cloud read through the keyset pager (no offset paging left)', () => {
