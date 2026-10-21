@@ -6,7 +6,7 @@
 - naming: the column is `protocols.ends_on`, the **planned end** (a local day `YYYY-MM-DD`). "End date" in this checklist means the planned end, never `ended_at` (the day a protocol was ended).
 - code (expected): screens/TodayScreen.js (prompt, end-date step, course-end question), screens/ProtocolsScreen.js (ProtocolDetail row), screens/components/ProtocolParts.js (DTWheel range), lib/schedule.js (`courseState`, S-15, the only reader of `ends_on`), lib/protocolEnd.js (`setPlannedEnd`, `inactivityDue`, `endNow`, Restart allow-list), lib/wheelPick.js (range option), lib/schema.js + lib/database.js + lib/syncMappers.js + lib/syncCore.js / lib/sync.js (new regular synced column), a Supabase migration (column + `protocols_blank_purged` trigger), i18n ×6.
 - checklist-signed: founder 2026-10-15 ("assino os três", after the Portuguese summary)
-- committed-to: the release after 1.3.0 (founder deferral 2026-10-15, docs/decisions.md "Ship this version to both stores for review now")
+- committed-to: 1.3.2 (founder 2026-10-20 "B, pode seguir": 1.3.1 = option B, docs/decisions.md; first deferred 2026-10-15)
 
 ## Acceptance checklist
 

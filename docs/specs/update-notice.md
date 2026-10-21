@@ -4,7 +4,7 @@
 - merges: A-119's "update required" text (DL-105 minimum version).
 - code (expected): a pure lib for the version rule, the sheet / full screen, Settings › Notificações switch, push registration (app version on the device row), a server field (latest / minimum version, release notes per language) and a sender, Android Play in-app update native module (next native build), i18n ×6.
 - checklist-signed: founder 2026-10-16 ("4 assino")
-- committed-to: the release after 1.3.0 (founder deferral 2026-10-15, docs/decisions.md "Ship this version to both stores for review now")
+- committed-to: 1.3.2 (founder 2026-10-20 "B, pode seguir": 1.3.1 = option B, docs/decisions.md; first deferred 2026-10-15)
 
 ## Acceptance checklist
 
