@@ -29,11 +29,12 @@ function fakeSupabase(mode, writes) {
   };
 }
 
-function profile(mode) {
+function profile(mode, supabase = null) {
   const out = { writes: [], editSheet: [], closedEdit: 0, closedPicker: 0, refetched: 0 };
   const save = loadFn(SETTINGS, 'async function saveProfile(', 'saveProfile', {
     t, friendlyError, normalizeActivityLevel, legacyActivity,
-    supabase: fakeSupabase(mode, out.writes),
+    supabase: supabase || fakeSupabase(mode, out.writes),
+    savingProfile: { current: false },
     // The typed values in Edit profile.
     displayName: 'Sam Carter', birthMonth: 4, birthYear: 1985, gender: 'male', country: 'Portugal',
     primaryGoals: ['fat_loss'], activityLevel: 'moderate', hasProvider: 'yes',
@@ -78,11 +79,12 @@ test('DV-008: the profile write sends only the profile keys (merge, never clobbe
   assert.equal(out.writes[0].data.display_name, 'Sam Carter');
 });
 
-function analytics(mode) {
+function analytics(mode, supabase = null) {
   const out = { writes: [], values: [], errors: [] };
   const toggle = loadFn(SETTINGS, 'async function toggleAnalytics(', 'toggleAnalytics', {
     t, friendlyError,
-    supabase: fakeSupabase(mode, out.writes),
+    supabase: supabase || fakeSupabase(mode, out.writes),
+    analyticsSaved: { current: true }, // what the account holds (fetchUser)
     setAnalyticsEnabled: (v) => out.values.push(v),
     errorSheet: (body) => out.errors.push(body),
   });
@@ -104,4 +106,65 @@ test('DV-008: an analytics switch that saves stays where the user put it, with n
   await toggle(false);
   assert.deepEqual(out.values, [false]);
   assert.deepEqual(out.errors, []);
+});
+
+// A Supabase whose saves wait until the test answers them, in any order.
+function slowSupabase(writes) {
+  const pending = [];
+  return {
+    pending,
+    auth: { updateUser: (attrs) => new Promise((resolve) => { writes.push(attrs); pending.push(resolve); }) },
+  };
+}
+const refused = { data: { user: null }, error: { message: 'Network request failed' } };
+const ok = { data: { user: { id: 'u1' } }, error: null };
+const tick = () => new Promise((r) => setImmediate(r));
+
+test('DV-008: two quick taps on the analytics switch that both fail end on what the account holds', async () => {
+  const writes = [];
+  const supa = slowSupabase(writes);
+  const { out, toggle } = analytics('ok', supa);
+  const a = toggle(false); // on → off
+  const b = toggle(true);  // off → on, before the first answer
+  supa.pending[0](refused); await tick();
+  supa.pending[1](refused); await tick();
+  await Promise.all([a, b]);
+  assert.equal(out.values[out.values.length - 1], true, "the switch shows the account's value (on)");
+});
+
+test("DV-008: the same two failing taps answered in the other order still end on the account's value", async () => {
+  const writes = [];
+  const supa = slowSupabase(writes);
+  const { out, toggle } = analytics('ok', supa);
+  const a = toggle(false);
+  const b = toggle(true);
+  supa.pending[1](refused); await tick();
+  supa.pending[0](refused); await tick();
+  await Promise.all([a, b]);
+  assert.equal(out.values[out.values.length - 1], true);
+});
+
+test('DV-008: after a saved tap, a later failing tap reverts to the newly saved value', async () => {
+  const writes = [];
+  const supa = slowSupabase(writes);
+  const { out, toggle } = analytics('ok', supa);
+  const a = toggle(false); supa.pending[0](ok); await a; // the account now holds off
+  const b = toggle(true); supa.pending[1](refused); await b;
+  assert.equal(out.values[out.values.length - 1], false);
+});
+
+test('DV-008: a double tap on Edit profile Save sends one save; after it is answered, Save works again', async () => {
+  const writes = [];
+  const supa = slowSupabase(writes);
+  const { out, save } = profile('ok', supa);
+  const a = save();
+  const b = save(); // second tap while the first is in flight
+  await tick();
+  assert.equal(writes.length, 1, 'one save in flight');
+  supa.pending[0](refused); await Promise.all([a, b]);
+  assert.equal(out.editSheet.length, 1, 'one error sheet');
+  const c = save(); await tick();
+  assert.equal(writes.length, 2, 'a retry after the answer is sent');
+  supa.pending[1](ok); await c;
+  assert.equal(out.closedEdit, 1);
 });
