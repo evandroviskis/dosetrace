@@ -17,6 +17,17 @@ import { subscribeDevice } from '../lib/deviceRuntime';
 import { createUpdateGate } from '../lib/updateGate';
 import { openSheetCount, onSheetsChange } from '../lib/sheetPresence';
 
+// "Atualizar" with the opt-in question on screen: the answer goes first and is awaited — a yes may
+// show the iOS permission dialog, which must be answered before the App Store opens (otherwise it
+// never resolves, the yes is stored off and the question is never asked again). A failed answer
+// never blocks the update.
+export async function answerThenUpdate(flow, inv, optIn) {
+  if (inv && inv.askOptIn && optIn != null) {
+    try { await flow.answerOptIn(inv.userId, optIn === true); } catch { /* the update still goes */ }
+  }
+  return flow.update('invite');
+}
+
 export function useUpdateNotice({ session, onMain, language, navigationRef, blocked }) {
   const [required, setRequired] = useState(null);
   const [invite, setInvite] = useState(null);
@@ -86,7 +97,7 @@ export function useUpdateNotice({ session, onMain, language, navigationRef, bloc
     ready: ready && !!uid && !!onMain,
     poke: () => getGate().poke(),
     onLater: (optIn) => close(invite, optIn),
-    onUpdate: (optIn) => { const inv = invite; close(inv, optIn); updateFlow().update('invite').catch(() => {}); },
+    onUpdate: (optIn) => { const inv = invite; setInvite(null); answerThenUpdate(updateFlow(), inv, optIn).catch(() => {}); },
     onRequiredUpdate: () => { updateFlow().update('required').catch(() => {}); },
     onRestart: () => { updateFlow().restart().catch(() => {}); },
   };

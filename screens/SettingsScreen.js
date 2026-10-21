@@ -181,6 +181,13 @@ function GroupChevron({ dir, color }) {
   );
 }
 
+// A-127: "Novidades do DoseTrace" shows ON only when the account said yes AND this phone can receive
+// notifications (permission granted). Display only: the account is never rewritten here.
+async function versionNewsShown(meta) {
+  if (!meta || meta.version_news !== true) return false;
+  try { return (await notificationsGranted()) === true; } catch { return false; }
+}
+
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
   const { colors, mode, setMode } = useTheme();
@@ -357,7 +364,7 @@ export default function SettingsScreen({ navigation }) {
       setNotifNames(user.user_metadata?.notif_show_names !== false);
       setVialAlerts(user.user_metadata?.vial_alerts !== false);
       setSilentMode(user.user_metadata?.silent_mode === true);
-      setVersionNews(user.user_metadata?.version_news === true);
+      versionNewsShown(user.user_metadata).then(setVersionNews).catch(() => setVersionNews(false)); // A-127: display only
       setPersistentReminders(user.user_metadata?.persistent_reminders === true);
       // Load profile
       setDisplayName(user.user_metadata?.display_name || '');
