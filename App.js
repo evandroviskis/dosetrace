@@ -483,8 +483,6 @@ export default function App() {
     forgetTodayLayout, // A-135 council: Today's layout memory (keyed by the user id) goes with the account
     clearAIConsent, // DV-007 (DL-55): the AI consent goes with the account
     forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY), // DV-242: whose data this phone holds
-    // DV-009: changes of an account not yet backed up (a revoked session keeps them, never a maybe).
-    countPending: (id) => unsyncedCount(getDB(), id, TABLES, getPendingChanges),
   });
 
   // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).

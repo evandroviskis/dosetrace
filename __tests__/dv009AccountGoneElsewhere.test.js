@@ -1,11 +1,10 @@
 'use strict';
 // DV-009 (S1, DL-85): an account deleted, or a session revoked, from somewhere else is no longer
-// treated as a hiccup. When the auth server itself says so (user_not_found / session_not_found /
-// refresh_token_not_found), the scheduled reminders are cancelled and the phone's data wiped through
-// the "deleted:<id>" marker path; a network failure, a 5xx or a 429 never cancels anything.
-// "Never destroy on a maybe": a revoked session (the account may still exist) whose phone holds
-// changes never backed up keeps the data (the reminders stop, the person signs in again to send
-// them; another account signing in meets the DV-242 sheet).
+// treated as a hiccup. When the auth server itself says so, the scheduled reminders are cancelled;
+// a network failure, a 5xx or a 429 never cancels anything. Only user_not_found from the
+// /auth/v1/user probe (which knows the user id) wipes, and only that account's data, through the
+// "deleted:<id>" marker path. A revoke (session_not_found / refresh_token_not_found) from any
+// source keeps every piece of data (Gate B 1: "never destroy on a maybe").
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createAuthFetch, goneKindOf, probeAccount } = require('../lib/authFetch');
@@ -105,11 +104,17 @@ test('DV-009: a network error (unknown) or an account that exists → nothing ca
   }
 });
 
-test('DV-009: SIGNED_OUT after a refresh refused as revoked, nothing unsent → wiped and reminders cancelled', async () => {
+// Gate B 1 (1.3.1): GoTrue deletes revoked refresh tokens 24 h after revocation and then answers
+// refresh_token_not_found — a refresh cut off mid-rotation, opened > 24 h later, looks exactly like
+// a revoke; a password change elsewhere revokes every other session. Revoked is never a wipe.
+const KEPT = (calls) => !calls.includes('clearDb') && !calls.includes('consent') && !calls.includes('purchases')
+  && !calls.some((c) => c.startsWith('marker:'));
+
+test('DV-009: SIGNED_OUT after a refresh refused as not found, nothing unsent → data kept, reminders cancelled', async () => {
   const p = phoneDeps({ pending: 0 });
-  assert.equal(await afterSignedOut(false, p.d, 'revoked'), 'wiped');
-  assert.ok(p.calls.includes('marker:deleted:u1') && p.calls.includes('cancelNotifs') && p.calls.includes('clearDb'));
-  assert.ok(!p.calls.includes('signOutLocal'), 'no session left to sign out');
+  assert.equal(await afterSignedOut(false, p.d, 'revoked'), 'cancelled');
+  assert.ok(p.calls.includes('cancelNotifs') && p.calls.includes('dismissNotifs'), 'reminders cancelled and delivered ones dismissed');
+  assert.ok(KEPT(p.calls), 'no wipe step and no deleted:<id> marker for a revoke');
 });
 
 test('DV-009: revoked with changes never backed up (or a count that cannot be read) → reminders cancelled, data kept', async () => {
@@ -117,8 +122,32 @@ test('DV-009: revoked with changes never backed up (or a count that cannot be re
     const p = phoneDeps({ pending });
     assert.equal(await afterSignedOut(false, p.d, 'revoked'), 'cancelled');
     assert.ok(p.calls.includes('cancelNotifs') && p.calls.includes('dismissNotifs'));
-    assert.ok(!p.calls.includes('clearDb'), 'never destroy on a maybe');
-    assert.ok(!p.calls.some((c) => c.startsWith('marker:deleted')));
+    assert.ok(KEPT(p.calls), 'never destroy on a maybe');
+  }
+});
+
+test('DV-009: password changed on another phone (the probe says session_not_found) → signed out here, data kept', async () => {
+  const p = phoneDeps({ pending: 0 });
+  const probe = async () => ({ kind: await probeAccount({ fetch: async () => json({ code: 'session_not_found', message: 'Session from session_id claim in JWT does not exist' }, 403), url: URL_, anonKey: 'k', token: 't' }), userId: 'u1' });
+  assert.equal(await checkAccountGone(p.d, probe), 'cancelled');
+  assert.ok(p.calls.includes('signOutLocal') && p.calls.includes('cancelNotifs'));
+  assert.ok(KEPT(p.calls));
+});
+
+test('DV-009: a "deleted" signal without a user id (a SIGNED_OUT) never wipes — only the probe, which knows the id, does', async () => {
+  const p = phoneDeps({ pending: 0 });
+  assert.equal(await afterSignedOut(false, p.d, 'deleted'), 'cancelled');
+  assert.ok(KEPT(p.calls));
+  const q = phoneDeps({ pending: 0 });
+  assert.equal(await afterAccountGone(q.d, { kind: 'deleted', userId: null, hasSession: true }), 'cancelled');
+  assert.ok(KEPT(q.calls));
+});
+
+test('DV-009: a "deleted" signal for user X never wipes rows owned by user Y', async () => {
+  for (const hasSession of [true, false]) {
+    const p = phoneDeps({ owner: 'user-y', pending: 0 });
+    await afterAccountGone(p.d, { kind: 'deleted', userId: 'user-x', hasSession });
+    assert.ok(KEPT(p.calls), `hasSession=${hasSession}`);
   }
 });
 
