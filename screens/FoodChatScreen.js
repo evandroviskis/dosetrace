@@ -474,6 +474,14 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     ]);
   }
   function removeRow(rowId) { deleteFoodLog(rowId); requestSync?.(); refresh(userId); }
+  // DV-226 / AD-01: the Remove entry pill under a refused or too-old message asks first (the
+  // user's typed text); only the sheet's Remove entry deletes it.
+  function confirmRemoveRow(rowId) {
+    alert(t('nutri_delete_confirm'), null, [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('nutri_delete_entry'), style: 'destructive', onPress: () => removeRow(rowId) },
+    ]);
+  }
 
   // ── Thread ─────────────────────────────────────────────────────
   const closedSet = useMemo(() => closedDays(rows), [rows]);
@@ -554,7 +562,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
           <AppBubble>
             <Text style={s.appText}>{t('nutri_too_old')}</Text>
             <View style={s.chips}>
-              <Pill label={t('nutri_delete_entry')} onPress={() => removeRow(x.rowId)} />
+              <Pill label={t('nutri_delete_entry')} onPress={() => confirmRemoveRow(x.rowId)} />
             </View>
           </AppBubble>
         );
@@ -564,7 +572,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             <Text style={s.deflectTitle}>{t('nutri_deflect_title')}</Text>
             <Text style={s.deflectBody}>{t('nutri_deflect_body')}</Text>
             <View style={s.chips}>
-              <Pill label={t('nutri_delete_entry')} onPress={() => removeRow(x.rowId)} />
+              <Pill label={t('nutri_delete_entry')} onPress={() => confirmRemoveRow(x.rowId)} />
             </View>
           </View>
         );
