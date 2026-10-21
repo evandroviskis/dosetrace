@@ -111,5 +111,5 @@ test('the real adapter: live ids only (purged_at is null, unfiltered while the c
   assert.ok(j > 0);
   const fin = s.slice(j, s.indexOf('\n  },', j));
   assert.match(fin, /\.eq\('user_id', userId\)\.in\(column, chunk\)/);
-  assert.match(fin, /\.range\(/);
+  assert.match(fin, /fetchById\(/, 'paged (DV-210: keyset on id, lib/syncPager)');
 });

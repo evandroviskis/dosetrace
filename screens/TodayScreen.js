@@ -1084,7 +1084,8 @@ export default function TodayScreen() {
   // (removes only those entries). Never over another of Today's popups (asked on a later focus).
   function checkOrphans() {
     (async () => {
-      const owner = getLocalDataUserId();
+      let owner = null;
+      try { owner = getLocalDataUserId(); } catch { return; } // unreadable: asked on a later focus
       if (!owner) return;
       const n = await orphanedPendingCount();
       const key = orphanPromptKey(owner);
