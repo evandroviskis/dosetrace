@@ -87,23 +87,50 @@ test('PK-4: the one-pass path is chosen by the marker amountFraction.exactCarry,
   assert.ok(calls > 0, 'an unmarked one is called (any model)');
 });
 
-// ── PK-5: "Doses counted" counts exactly the doses the Est. level at Now sums
-test('PK-5: the dose count is the doses the Est. level at Now sums (Undecanoate on the 3-day window is not 0)', () => {
+// ── PK-5 (final verify 2026-10-20): "Doses contadas" stays exactly what 1.3.0 shows — the doses
+// inside the visible window. Counting the whole look-back (e.g. 767 for BPC-157 twice daily on every
+// window) is a visible change the founder has not seen, so it does not ship in 1.3.1.
+// KNOWN LIMITATION (founder question for 1.3.2, registered by the coordinator): the count and the
+// Est. level do not cover the same doses — Testosterone Undecanoate every 70 days shows 0 doses on the
+// 3-day window next to an Est. level of ~1,000 mg (its doses are older than the window).
+test('PK-5 reverted: "Doses contadas" counts the doses inside the visible window, as in 1.3.0', () => {
   const p = { id: 'tu', type: 'rtu', name: 'Testosterone Undecanoate', dose: '1000', dose_unit: 'mg', interval_days: 70, doses_per_day: 1, reminder_time: '09:00', start_date: iso(now - 1460 * DAY), created_at: new Date(now - 1460 * DAY).toISOString() };
   const e = H.getHalfLifeEntry(M.matchName(p));
   const start = M.curveGridStart(now, 3);
   const doses = M.scheduledDoses(p, e, start, now + 7 * DAY, now);
-  const c = M.doseCounts(doses, start, now);
-  const summed = doses.filter((d) => d <= now);
-  assert.ok(c.counted > 0);
-  assert.equal(c.counted, summed.length);
-  assert.equal(M.levelAt(summed, 1000, e, now), M.levelAt(doses, 1000, e, now), 'levelAt at Now sums exactly those');
-  assert.equal(c.before, doses.filter((d) => d < start).length, 'before the window (counted from the first frame)');
+  const inWindow = doses.filter((ts) => ts >= start && ts <= now).length;
+  assert.equal(inWindow, 0, 'the known limitation above, documented, not a goal');
+  assert.ok(M.levelAt(doses, 1000, e, now) > 500);
   const scr = src('screens/SerumCurveScreen.js');
-  assert.match(scr, /const \{ before: dosesBefore, counted: dosesCounted \} = doseCounts\(doses, start, now\);/);
-  assert.match(scr, /width=\{numW\(single\.dosesCounted\)\}/);
-  assert.match(scr, /let c = singleDosesBefore;/);
-  assert.doesNotMatch(scr, /dosesInWindow/);
+  assert.match(scr, /const dosesInWindow = doses\.filter\(ts => ts >= start && ts <= now\)\.length;/);
+  assert.match(scr, /width=\{numW\(single\.dosesInWindow\)\}/);
+  assert.match(scr, /const statDoses = useDerivedValue\(\(\) => \{\n    const rev = Math\.min\(revealAt\(clock\.value, mNow, mN\), mNow\);\n    let c = 0;/);
+  assert.doesNotMatch(scr, /doseCounts|dosesBefore|dosesCounted/);
+  assert.equal(M.doseCounts, undefined, 'removed: nothing else used it');
+});
+
+// ── Final verify: the dose-list cache is per time zone (a move from America/Phoenix to
+// America/Denver in January has the same local midnights, but Denver's summer days are an hour off)
+test('scheduledDoses cache: a time-zone change never reuses the other zone\'s dose times', () => {
+  const saved = process.env.TZ;
+  try {
+    const p = { id: 'tz', type: 'recon', name: 'BPC-157', dose: '250', dose_unit: 'mcg', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', start_date: '2026-01-01', created_at: '2026-01-01T00:00:00Z' };
+    const e = H.getHalfLifeEntry('BPC-157');
+    const nowTz = Date.UTC(2027, 0, 15, 19, 0); // 12:00 in both zones (UTC−7 in January)
+    const run = () => M.scheduledDoses(p, e, nowTz - 365 * DAY, nowTz + 7 * DAY, nowTz);
+    process.env.TZ = 'America/Phoenix';
+    const phoenix = run();
+    process.env.TZ = 'America/Denver';
+    const denver = run();
+    assert.notEqual(denver, phoenix, 'a new list for the new zone');
+    const july = denver.filter((d) => new Date(d).getMonth() === 6);
+    assert.ok(july.length > 0);
+    for (const d of july) assert.equal(new Date(d).getHours(), 8, 'Denver summer dose at its own 08:00');
+    process.env.TZ = 'America/Phoenix';
+    assert.equal(run(), phoenix, 'and back: the Phoenix list is reused');
+  } finally {
+    process.env.TZ = saved;
+  }
 });
 
 // ── ENG-1: no regeneration on a rebuild (date chip, toggle, reload in the same day)

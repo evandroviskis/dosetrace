@@ -30,7 +30,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, doseCounts,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
@@ -493,8 +493,7 @@ export default function SerumCurveScreen({ embedded = false }) {
       const { points, pre, xs, times, instants } = lineSamples(doses, doseMg, entry, ctx, amountFraction);
       // Exact level at this moment, for the numbers.
       const nowLevel = levelAt(doses, doseMg, entry, now);
-      // PK-5: "Doses counted" = the doses the Est. level at Now sums (the whole look-back up to Now).
-      const { before: dosesBefore, counted: dosesCounted } = doseCounts(doses, start, now);
+      const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       return {
         id: p.id,
         p,
@@ -508,8 +507,7 @@ export default function SerumCurveScreen({ embedded = false }) {
         times,
         instants,
         nowLevel,
-        dosesBefore,
-        dosesCounted,
+        dosesInWindow,
         doses,       // raw dose timestamps, for date-readout math
         // DV-072 C: a hollow tick for a planned dose the Dose log does not show as Taken.
         ticks: doseTicks(p, doses, doseLogs, now),
@@ -715,14 +713,12 @@ export default function SerumCurveScreen({ embedded = false }) {
     // Counts along with the pen, then settles on the exact level at this moment.
     return rev >= mNow ? singleNow : levelAtStep(singlePts, singlePre, modelXs, rev);
   }, [singlePts, singlePre, modelXs, singleNow, mNow, mN]);
-  const singleDosesBefore = single ? single.dosesBefore : 0;
   const statDoses = useDerivedValue(() => {
     const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
-    // the doses before the window are in the level from the first frame; the rest count in as drawn
-    let c = singleDosesBefore;
+    let c = 0;
     for (let i = 0; i < singleDoseIdx.length; i++) if (singleDoseIdx[i] <= rev + 1e-6) c++;
     return c;
-  }, [singleDoseIdx, singleDosesBefore, mNow, mN]);
+  }, [singleDoseIdx, mNow, mN]);
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
   const unitLbl = unitText(model ? model.unit : 'mg', language); // A-134: UI / IE in the app language
@@ -1012,7 +1008,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               </View>
               <View style={s.statCol}>
                 <Text style={s.statCap}>{t('curve_doses_counted')}</Text>
-                <AnimatedNumber value={statDoses} format={cntFmt} style={s.statNum} width={numW(single.dosesCounted)} />
+                <AnimatedNumber value={statDoses} format={cntFmt} style={s.statNum} width={numW(single.dosesInWindow)} />
               </View>
             </View>
           ) : (
