@@ -127,13 +127,16 @@ test('L-26: closeFoodDay writes the durable day_closed marker and cancels that d
 });
 
 // ── L-28: a sync that brings food logs re-plans the 8 PM reminder ──────────────────────────
-test('L-28: after a sync or import the 8 PM reminder (and the day-21 one) is re-planned, at most every 30 s', () => {
+test('L-28: after a sync or import the 8 PM reminder (and the day-21 one) is re-planned when food logs or the open check changed', () => {
   const app = read('App.js');
-  const block = sliceBlock(app, 'const unsubSyncForFood = addSyncListener((e) => {');
+  const block = sliceBlock(app, 'const unsubSyncForFood = addSyncListener(async (e) => {');
   assert.match(block, /if \(e\?\.type !== 'sync_complete' && e\?\.type !== 'import_complete'\) return;/);
-  assert.match(block, /if \(nowTs - lastFoodResync < 30000\) return;/);
-  // R1 (2026-10-20): both through the one full re-plan (serialized, the iPhone 64 guard).
-  assert.match(block, /lastFoodResync = nowTs;[\s\S]*syncAllNotifications\(\)\.catch/);
+  // Final review 2026-10-20 (was "at most every 30 s" on every sync): through the one full re-plan,
+  // only when the pull changed food logs (or the other reminder tables) or the open check.
+  assert.match(block, /if \(syncTouchesReminders\(e, openChanged\)\) syncAllNotifications\(\)\.catch/);
+  const touches = loadFn('App.js', 'function syncTouchesReminders(e, openCheckChanged) {', 'syncTouchesReminders');
+  assert.equal(touches({ type: 'sync_complete', changed: ['food_logs'] }, false), true);
+  assert.equal(touches({ type: 'sync_complete', changed: [] }, true), true);
 });
 
 // ── L-30: the Journey sex prompt → the profile ─────────────────────────────────────────────
