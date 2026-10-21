@@ -93,6 +93,58 @@ test('Screen 4 (pt, en): Use here / Sign out of this phone, locked, no icon', ()
   assert.equal(body(en), 'It\'s in use on the iPhone, and your account stays on one device at a time.\n\nUse here: this phone becomes your account\'s phone, with what\'s in your account, and the iPhone signs out when it\'s back online.\n\nSign out of this phone: you\'re signed out here and DoseTrace\'s data is removed from this phone. Nothing changes on the iPhone.');
 });
 
+// Founder 2026-10-20 on docs/design/a119-new-variants.html: the five Gate B variants (pt is his
+// wording; en from the picture).
+test('Variants 1 (pt, en): the locked sheet when the replaced phone cannot count — option B, the founder\'s title', () => {
+  const v = { kind: 'replaced', at: at(2026, 10, 15, 9, 10), summary: null, unknown: true };
+  const pt = C.verdictSheet({ t: tOf('pt'), language: 'pt', verdict: v, now: NOW, onRetry: () => {} });
+  assert.equal(pt.title, 'Não foi possível verificar este celular');
+  assert.equal(body(pt), 'Sua conta foi aberta em outro aparelho. Antes de tirar a conta deste celular, o app precisa contar o que ainda não tem backup aqui, e não conseguiu agora. Nada foi apagado.\n\nO app também tenta de novo sozinho sempre que é aberto.');
+  assert.deepEqual(pt.buttons.map((b) => b.label), ['Tentar de novo']);
+  assert.equal(pt.locked, true);
+  const en = C.verdictSheet({ t: tOf('en'), language: 'en', verdict: v, now: NOW, onRetry: () => {} });
+  assert.equal(en.title, 'Couldn\'t check this phone');
+  assert.equal(body(en), 'Your account was opened on another device. Before taking your account off this phone, the app needs to count what isn\'t backed up here yet, and it couldn\'t just now. Nothing was removed.\n\nThe app also tries again by itself every time it opens.');
+  assert.deepEqual(en.buttons.map((b) => b.label), ['Try again']);
+});
+
+test('Variants 2 (pt, en): screen 2 without a date — approved as drawn', () => {
+  const v = { kind: 'replaced', at: null, summary: { count: 0, byKind: {}, from: null, to: null, refused: 0 } };
+  assert.equal(body(C.verdictSheet({ t: tOf('pt'), language: 'pt', verdict: v, now: NOW })), 'Como a conta fica em um aparelho por vez, você vai sair dela neste celular e os dados do DoseTrace serão apagados daqui. Tudo o que já tinha backup continua na sua conta.');
+  assert.equal(body(C.verdictSheet({ t: tOf('en'), language: 'en', verdict: v, now: NOW })), 'Your account stays on one device at a time, so you\'ll be signed out on this phone and its DoseTrace data will be removed. Everything that was backed up stays in your account.');
+});
+
+test('Variants 3 (pt, en): screen 4 with changes not backed up — option B, singular and plural', () => {
+  const many = { device: iPhone, summary: { count: 3, byKind: { dose: 2, weighIn: 1 }, from: '2026-10-12', to: '2026-10-14', refused: 0 } };
+  const one = { device: iPhone, summary: { count: 1, byKind: { dose: 1 }, from: '2026-10-12', to: '2026-10-12', refused: 0 } };
+  const ptMany = body(C.askSheet({ t: tOf('pt'), language: 'pt', ask: many, now: NOW }));
+  assert.ok(ptMany.startsWith('Ela está em uso no iPhone, e a conta fica em um aparelho por vez.\n\nEste celular tem 3 alterações ainda sem backup: 2 doses e 1 pesagem, de 12 a 14 de out. Elas não estão na sua conta e, seja qual for a sua escolha, serão apagadas deste celular.\n\nUsar aqui:'), ptMany);
+  assert.equal(T.pt.dev_ask_unsent_many, 'Este celular tem {n} alterações ainda sem backup: {what}. Elas não estão na sua conta e, seja qual for a sua escolha, serão apagadas deste celular.');
+  assert.equal(T.pt.dev_ask_unsent_one, 'Este celular tem 1 alteração ainda sem backup: {what}. Ela não está na sua conta e, seja qual for a sua escolha, será apagada deste celular.');
+  assert.match(body(C.askSheet({ t: tOf('pt'), language: 'pt', ask: one, now: NOW })), /Este celular tem 1 alteração ainda sem backup: 1 dose[^.]*\. Ela não está na sua conta e, seja qual for a sua escolha, será apagada deste celular\./);
+  assert.ok(body(C.askSheet({ t: tOf('en'), language: 'en', ask: many, now: NOW })).includes('This phone has 3 changes not backed up yet: 2 doses and 1 weigh-in from Oct 12 to 14. They aren\'t in your account and, whichever you choose, they\'ll be removed from this phone.'));
+  assert.match(body(C.askSheet({ t: tOf('en'), language: 'en', ask: one, now: NOW })), /This phone has 1 change not backed up yet: 1 dose[^.]*\. It isn't in your account and, whichever you choose, it'll be removed from this phone\./);
+});
+
+test('Variants 4 (pt, en): screen 4 when the count could not be read — option B', () => {
+  const ask = { device: iPhone, summary: null, unknown: true };
+  assert.ok(body(C.askSheet({ t: tOf('pt'), language: 'pt', ask, now: NOW })).includes('por vez.\n\nO app não conseguiu contar o que ainda não tem backup neste celular. Seja qual for a sua escolha, o que não teve backup será apagado daqui.\n\nUsar aqui:'));
+  assert.ok(body(C.askSheet({ t: tOf('en'), language: 'en', ask, now: NOW })).includes('The app couldn\'t count what isn\'t backed up on this phone yet. Whichever you choose, whatever wasn\'t backed up will be removed from here.\n\nUse here:'));
+});
+
+test('Variants 5 (pt, en): the deletion wait has its own title, in Settings and on the 18+ path', () => {
+  assert.equal(T.pt.settings_delete_device_wait_title, 'Não foi possível excluir a conta');
+  assert.equal(T.pt.settings_delete_device_wait, 'Este celular ainda não foi confirmado como o aparelho da sua conta, então nada foi excluído. Confira sua conexão e tente de novo daqui a pouco.');
+  assert.equal(T.en.settings_delete_device_wait_title, 'Couldn\'t delete your account');
+  for (const l of LANGS) assert.ok(T[l].settings_delete_device_wait_title, l);
+  for (const f of ['screens/SettingsScreen.js', 'screens/AgeConfirmScreen.js']) {
+    const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+    const line = src.split('\n').find((x) => x.includes('result.deviceWait'));
+    assert.ok(line && line.includes("t('settings_delete_device_wait_title')") && line.includes("t('settings_delete_device_wait')"), `${f}: ${line}`);
+    assert.ok(!line.includes("t('error')"), `${f}: no generic "Error" title`);
+  }
+});
+
 test('Screens 3 / 3b / 5a / 5b (pt, en): sign-out never blocked, the truth, and the last full backup', () => {
   const s3 = { count: 3, byKind: { dose: 2, weighIn: 1 }, from: '2026-10-12', to: '2026-10-14', refused: 0 };
   const last = at(2026, 10, 14, 21, 32);

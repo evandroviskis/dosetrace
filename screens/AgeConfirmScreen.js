@@ -122,7 +122,7 @@ export default function AgeConfirmScreen({ session }) {
       if (result.syncBusy) { setBusy(null); ok(t('settings_delete_syncbusy_title'), t('settings_delete_syncbusy_body'), 'refresh'); return; }
       if (result.offline) { setBusy(null); ok(t('error'), t('settings_delete_offline')); return; }
       if (result.replaced) { setBusy(null); return; } // A-119 OD-10: screen 2 takes over, nothing was deleted
-      if (result.deviceWait) { setBusy(null); ok(t('error'), t('settings_delete_device_wait')); return; } // Gate B M4
+      if (result.deviceWait) { setBusy(null); ok(t('settings_delete_device_wait_title'), t('settings_delete_device_wait')); return; } // Gate B M4; title: founder 2026-10-20
       if (result.appleManualRevokeNeeded) {
         setBusy(null);
         setSheet({
