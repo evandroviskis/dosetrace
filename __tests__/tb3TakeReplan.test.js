@@ -55,7 +55,7 @@ test('R2: a run that read the rows before the take and finishes after the cancel
     usesServerPush: () => false, getCachedUser: async () => ({ id: 'u', user_metadata: {} }), cancelAllDoseReminders: async () => {},
     getActiveProtocols: () => [{ id: 3 }], orphanDoseIds: () => [], getActiveVials: () => [], Platform: { OS: 'ios' },
     doseBudget: () => ({ perProtocol: 24, windowDays: 3 }),
-    iosDoseShares: async () => null, // DV-053 sharing is tested in rem132Schedule
+    iosDoseShares: async () => null, iosOtherPendingNow: async () => null, // DV-053 / F6 sharing is tested in rem132Schedule, rem132GateB
 
     getNotifications: () => ({ getAllScheduledNotificationsAsync: async () => [...scheduled].map((identifier) => ({ identifier })), cancelScheduledNotificationAsync: async (id) => { scheduled.delete(id); } }),
     scheduleDoseReminder: async () => { calls += 1; const handled = state.taken; await sleep(calls === 1 ? 50 : 1); if (handled) scheduled.delete('dose-3-2026-10-17-t0'); else scheduled.add('dose-3-2026-10-17-t0'); },

@@ -212,7 +212,7 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
   const f = make(
     (...a) => { calls.push(['restoreDB', ...a]); return 'active'; }, (id) => (id === 7 ? { id: 70 } : null), rec('updateVial'), (id) => ({ id, name: 'BPC-157' }),
     // DV-051: every protocol write re-plans through afterProtocolChange (doses + summary + vial alerts).
-    (o) => { calls.push(o && o.saved ? ['schedule', o.saved.id] : ['replan', ...((o && o.removedIds) || [])]); return Promise.resolve(); },
+    (o) => { calls.push(o && o.saved ? ['schedule', o.saved.id] : ['replan']); return Promise.resolve(); },
     rec('fetchProtocols'), rec('notify'), rec('requestSync'), rec('permanentDelete'), (cfg) => { sheet = cfg; },
     (k) => ({ protocols_purge_title_single: 'Delete this protocol forever?', protocols_purge_body_single: 'Its dose history, vials and reminders are removed from all your devices.', settings_delete_forever: 'Delete forever', cancel: 'Cancel' }[k] || k),
     (p) => p.name,
@@ -233,7 +233,7 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
   assert.equal(sheet.body, 'Its dose history, vials and reminders are removed from all your devices.');
   assert.deepEqual(sheet.buttons.map((b) => [b.label, b.kind]), [['Cancel', 'secondary'], ['Delete forever', 'danger']]);
   sheet.buttons[1].onPress();
-  assert.deepEqual(calls, [['permanentDelete', 9], ['cancelReminders', 9], ['dismissBanners', 9], ['replan', 9], ['setTrashSel', null], ['fetchProtocols'], ['notify', 'protocol'], ['requestSync']]);
+  assert.deepEqual(calls, [['permanentDelete', 9], ['cancelReminders', 9], ['dismissBanners', 9], ['replan'], ['setTrashSel', null], ['fetchProtocols'], ['notify', 'protocol'], ['requestSync']]);
   // The database functions come from lib/database (one implementation, now used here only).
   assert.match(PRO, /restoreProtocol as restoreProtocolDB/);
   assert.match(PRO, /\bgetDeletedProtocols\b/);

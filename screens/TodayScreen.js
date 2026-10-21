@@ -28,7 +28,7 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, scheduleDoseReminder, syncAllDoseReminders, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
+import { syncVialAlerts, afterProtocolChange, syncAllDoseReminders, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
@@ -749,7 +749,8 @@ export default function TodayScreen() {
     if (!p) return;
     continueProtocolCourse(p.id);
     const fresh = getProtocolById(p.id);
-    if (fresh) scheduleDoseReminder(fresh).catch(() => {});
+    // Gate B F4: through the one full re-plan (dose budget with the vials, the lock, the 64 guard).
+    if (fresh) afterProtocolChange({ saved: fresh }).catch(() => {});
     closeProtocolQuestion();
   }
   // The course-end text: the approved one on the end date; the date itself when asked later or for a
@@ -1510,12 +1511,12 @@ export default function TodayScreen() {
       insertVial(vial);
       if (protocolUpdate) updateProtocol(continuationProtocol.id, protocolUpdate);
 
-      const updatedProtocol = getProtocolById(continuationProtocol.id);
-      if (updatedProtocol) scheduleDoseReminder(updatedProtocol).catch(() => {});
+      // Gate B F4: the new vial re-plans everything once (doses, its expiry alert, the summary, the
+      // iPhone 64 guard) through the one full resync.
+      afterProtocolChange().catch(() => {});
 
       closeVialPrompt();
       fetchProtocols();
-      syncVialAlerts().catch(() => {});
       requestSync();
     } catch (err) {
       setVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: okButton() });

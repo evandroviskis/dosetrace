@@ -67,13 +67,21 @@ test('DV-045: the refresh registration time is stored at the first registration 
   assert.match(sliceBlock(read('lib/notifications.js'), 'export async function readReminderHealth('), /dosetrace_refresh_registered_at/);
 });
 
-// ── DV-047: Silent mode as the account has it now ──────────────────────────────────────────────
-function silentReader({ fresh, cached }) {
-  const deps = { getFreshUser: async () => fresh, getCachedUser: async () => cached, _silent: null, _silentAt: 0, SILENT_TTL_MS: 30000 };
-  return loadFn('lib/notifications.js', 'async function silentNow(', 'silentNow', deps);
+// ── DV-047 (Gate B F1 form): Silent is re-read from the cached user at every full resync, and every
+// protocol / vial change re-plans through that full resync (no network user read, F1) ───────────
+function silentPair(user) {
+  const src = read('lib/notifications.js');
+  const body = ['let _silent = null;', sliceBlock(src, 'function resetSilent('), sliceBlock(src, 'async function silentNow(')].join('\n');
+  // eslint-disable-next-line no-new-func
+  return new Function('getCachedUser', `${body}\nreturn { resetSilent, silentNow };`)(async () => user.current);
 }
-test('DV-047: cache false, user_metadata true → scheduleDoseReminder schedules nothing', async () => {
-  const silentNow = silentReader({ fresh: { user_metadata: { silent_mode: true } }, cached: { user_metadata: { silent_mode: false } } });
+test('DV-047: Silent switched on (cached user now true) → the next full resync, and every schedule after it, schedules nothing', async () => {
+  const user = { current: { user_metadata: { silent_mode: false } } };
+  const s = silentPair(user);
+  assert.equal(await s.silentNow(), false);
+  user.current = { user_metadata: { silent_mode: true } }; // the switch, here or synced from another phone
+  s.resetSilent(); // every full resync starts here (syncAllNotificationsNow)
+  const silentNow = s.silentNow;
   const scheduleReq = loadFn('lib/notifications.js', 'async function scheduleReq(', 'scheduleReq', { silentNow, androidChannelRequest: plan.androidChannelRequest, withFireMs: plan.withFireMs, Platform: { OS: 'ios' } });
   const N = fakeN();
   const schedule = loadFn('lib/notifications.js', 'export async function scheduleDoseReminder(', 'scheduleDoseReminder', {
@@ -86,22 +94,9 @@ test('DV-047: cache false, user_metadata true → scheduleDoseReminder schedules
   const start = new Date(); start.setDate(start.getDate() - 1);
   await schedule({ id: 1, user_id: 'u1', reminder_time: '08:00,20:00', interval_days: 1, start_date: plan.ymd(start), type: 'oral' }, 24, 10);
   assert.equal(N.added.length, 0, 'nothing scheduled while the account says Silent');
-  // The account says not silent: the reminders are scheduled.
-  const on = silentReader({ fresh: { user_metadata: {} }, cached: { user_metadata: { silent_mode: true } } });
-  assert.equal(await on(), false);
-  // Offline / no fresh read: the cached value as before.
-  assert.equal(await silentReader({ fresh: null, cached: { user_metadata: { silent_mode: true } } })(), true);
-});
-test('DV-047: the fresh read never goes to the network in the background run or a headless action', async () => {
-  let asked = 0;
-  const req = () => ({ supabase: { auth: { getUser: async () => { asked++; return { data: { user: { user_metadata: { silent_mode: true } } } }; } } } });
-  const bg = loadFn('lib/notifications.js', 'async function getFreshUser(', 'getFreshUser', { _background: true, AppState: { currentState: 'active' }, require: req });
-  assert.equal(await bg(), null);
-  const headless = loadFn('lib/notifications.js', 'async function getFreshUser(', 'getFreshUser', { _background: false, AppState: { currentState: 'background' }, require: req });
-  assert.equal(await headless(), null);
-  assert.equal(asked, 0);
-  const fg = loadFn('lib/notifications.js', 'async function getFreshUser(', 'getFreshUser', { _background: false, AppState: { currentState: 'active' }, require: req });
-  assert.equal((await fg()).user_metadata.silent_mode, true);
+  // Protocol and vial changes no longer schedule on their own: they go through the full resync.
+  assert.doesNotMatch(read('screens/ProtocolsScreen.js'), /scheduleDoseReminder\(/);
+  assert.doesNotMatch(read('screens/TodayScreen.js'), /scheduleDoseReminder\(/);
 });
 
 // ── DV-048 (AD-25): "Nothing new logged" goes through the Silent gate and the dose channel ──────
@@ -128,18 +123,19 @@ test('DV-048: Silent on → "Nothing new logged" is not posted; off → posted o
 });
 
 // ── DV-051: one re-plan after a protocol / vial write ──────────────────────────────────────────
-test('DV-051: afterProtocolChange re-plans doses, the morning summary and the vial alerts; a delete cancels first', async () => {
+test('DV-051 (Gate B F5): afterProtocolChange is the full resync (doses, summary, vial alerts, snoozes, the 64 guard); a save may ask', async () => {
   const calls = [];
   const fn = loadFn('lib/notifications.js', 'export async function afterProtocolChange(', 'afterProtocolChange', {
-    cancelDoseReminder: async (id) => calls.push(['cancel', id]), syncAllDoseReminders: async () => calls.push(['doses']),
-    syncMorningSummary: async () => calls.push(['summary']), syncVialAlerts: async () => calls.push(['vials']),
+    syncAllNotifications: async () => calls.push(['resync']),
     askPermissionForReminders: async (ps) => calls.push(['ask', ps.map((p) => p.id)]),
   });
-  await fn({ removedIds: [4] });
-  assert.deepEqual(calls, [['cancel', 4], ['doses'], ['summary'], ['vials']]);
+  await fn();
+  assert.deepEqual(calls, [['resync']]);
   calls.length = 0;
   await fn({ saved: { id: 9 } });
-  assert.deepEqual(calls, [['doses'], ['summary'], ['vials'], ['ask', [9]]]);
+  assert.deepEqual(calls, [['resync'], ['ask', [9]]]);
+  const now = sliceBlock(read('lib/notifications.js'), 'async function syncAllNotificationsNow(');
+  for (const k of ['syncAllDoseReminders()', 'syncVialAlerts()', 'syncMorningSummary()', 'restoreSnoozes()', 'enforcePendingCap(']) assert.ok(now.includes(k), k);
 });
 test('DV-051: delete a protocol → the summary plan excludes it (every Protocols write goes through afterProtocolChange)', () => {
   // The summary is planned from the ACTIVE protocols, so the re-plan after the delete leaves it out.
@@ -150,7 +146,7 @@ test('DV-051: delete a protocol → the summary plan excludes it (every Protocol
   const src = read('screens/ProtocolsScreen.js');
   assert.doesNotMatch(src, /scheduleDoseReminder\(/, 'no write re-plans only its doses any more');
   for (const fnName of ['async function deleteProtocol(id) {', 'function deleteEndedProtocol(p) {', 'function confirmPurge(ids) {']) {
-    assert.match(sliceBlock(src, fnName), /afterProtocolChange\(\{ removedIds: /, fnName);
+    assert.match(sliceBlock(src, fnName), /cancelDoseReminder\([^)]*\)\.catch[\s\S]*afterProtocolChange\(\)\.catch/, fnName);
   }
   for (const fnName of ['async function restoreProtocol(id) {', 'function refillVial(id) {', 'function refillOralBottle(id) {']) {
     assert.match(sliceBlock(src, fnName), /afterProtocolChange\(/, fnName);
@@ -181,7 +177,7 @@ test('DV-052: pull with a Taken row for today → the sync reports dose_logs and
   assert.equal(plan.syncEventNeedsResync({ type: 'import_complete' }), true);
   // Wiring: the pass reports the tables, the event carries them, App.js re-plans on them.
   assert.match(read('lib/syncPassCore.js'), /return \{ ran: true, changed \};/);
-  assert.match(read('lib/sync.js'), /\{ type: 'sync_complete', changed: \(r && r\.changed\) \|\| \[\] \}/);
+  assert.match(read('lib/sync.js'), /\{ type: 'sync_complete', changed: \(r && r\.changed\) \|\| \[\], refused:/);
   assert.match(read('App.js'), /if \(syncEventNeedsResync\(e\)\) syncAllNotifications\(\)\.catch/);
 });
 
@@ -194,17 +190,18 @@ function iosPlanned(protocolCount, vials) {
   for (let i = 1; i <= protocolCount; i++) {
     slotsById[i] = plan.doseSlots({ protocol: { id: i, reminder_time: '08:00,14:00,20:00', interval_days: 1, start_date: '2026-10-01' }, now, windowDays: b.windowDays, persistent: true });
   }
-  const shares = plan.allocateSoonest(slotsById, b.total);
+  const shares = plan.allocateSoonest(slotsById, b.total, now.getTime());
   const doses = Object.values(shares.counts).reduce((a, n) => a + n, 0);
   return { doses, total: doses + vials + plan.IOS_OTHER_RESERVED, shares, slotsById };
 }
 test('DV-053: 25 protocols + 10 vials (every other kind at its most) → planned ≤ 64', () => {
   const r = iosPlanned(25, 10);
   assert.ok(r.total <= 64, `planned ${r.total}`);
-  // Soonest first: every reminder kept fires before every reminder left out, and the time of the
-  // first one left out is recorded (nothing dropped silently).
+  // Soonest first (main reminders before repeats days out, Gate B F6): every main reminder kept fires
+  // before every main reminder left out, and the time of the first main left out is recorded
+  // (nothing dropped silently).
   const kept = []; const left = [];
-  for (const id of Object.keys(r.slotsById)) r.slotsById[id].forEach((s, i) => (i < r.shares.counts[id] ? kept : left).push(s.fireMs));
+  for (const id of Object.keys(r.slotsById)) r.slotsById[id].forEach((s, i) => { if (s.kind === 'main') (i < r.shares.counts[id] ? kept : left).push(s.fireMs); });
   assert.ok(Math.max(...kept) <= Math.min(...left));
   assert.equal(r.shares.untilMs, Math.min(...left));
   for (const [n, v] of [[1, 0], [10, 8], [40, 20], [60, 60]]) assert.ok(iosPlanned(n, v).total <= 64 || v > 64 - plan.IOS_OTHER_RESERVED, `n=${n} v=${v}`);
@@ -238,41 +235,12 @@ test('DV-054: onboarding "Not now" → boot and sign-in never call the permissio
   assert.doesNotMatch(app, /requestNotificationPermissions/, 'App.js never asks');
   assert.doesNotMatch(sliceBlock(read('lib/notifications.js'), 'export async function registerPushToken('), /requestNotificationPermissions|requestPermissionsAsync/);
 });
-test('DV-054: the first save (or first sync arrival) of a protocol with a reminder time asks once', async () => {
-  const store = memStore();
-  let asked = 0;
-  const fn = loadFn('lib/notifications.js', 'export async function askPermissionForReminders(', 'askPermissionForReminders', {
-    reminderTimes: plan.reminderTimes, AsyncStorage: store, PERMISSION_ASKED_KEY: 'P',
-    requestNotificationPermissions: async () => { asked++; return false; }, syncAllNotifications: async () => {}, registerPushToken: async () => {},
-  });
-  assert.equal(await fn([]), false, 'no protocol → not asked');
-  assert.equal(asked, 0);
-  assert.equal(await fn([{ id: 1, reminder_time: '08:00' }]), true);
-  assert.equal(await fn([{ id: 2, reminder_time: '09:00' }]), false, 'never twice on this phone');
-  assert.equal(asked, 1);
+// The ask itself (undecided only, never twice, never on a replaced phone): rem132GateB "F3".
+test('DV-054: the save of a protocol and the sync arrival are where it is asked', () => {
+  assert.match(sliceBlock(read('lib/notifications.js'), 'export async function afterProtocolChange('), /askPermissionForReminders\(\[saved\]\)/);
   assert.match(read('App.js'), /askPermissionForArrivedProtocols\(\)\.catch/);
 });
-
-// ── DV-055: the weekly check-in as dated one-shots ─────────────────────────────────────────────
-test('DV-055: the plan returns dated triggers for the next Sundays at 10:00, no weekly repeat', async () => {
-  const wed = new Date(2026, 9, 21, 12, 0, 0, 0).getTime(); // Wednesday
-  const p = plan.checkinPlan(wed, 3);
-  assert.deepEqual(p.map((x) => x.id), ['checkin-2026-10-25', 'checkin-2026-11-01', 'checkin-2026-11-08']);
-  for (const x of p) { const d = new Date(x.fireMs); assert.equal(d.getDay(), 0); assert.equal(d.getHours(), 10); }
-  const sunAfter = new Date(2026, 9, 25, 11, 0, 0, 0).getTime(); // Sunday after 10:00 → next week
-  assert.equal(plan.checkinPlan(sunAfter, 1)[0].id, 'checkin-2026-11-01');
-  const N = fakeN(['checkin-weekly']);
-  const fn = loadFn('lib/notifications.js', 'export async function syncCheckinReminder(', 'syncCheckinReminder', {
-    getNotifications: () => N, getCachedUser: async () => ({ id: 'u', user_metadata: {} }), getT: async () => (k) => k,
-    checkinPlan: plan.checkinPlan, CHECKIN_WEEKS: plan.CHECKIN_WEEKS, Platform: { OS: 'android' },
-    scheduleReq: async (n, req) => n.scheduleNotificationAsync(req),
-    cancelUnwanted: loadFn('lib/notifications.js', 'async function cancelUnwanted(', 'cancelUnwanted'),
-  });
-  await fn();
-  assert.ok(N.added.length === 3 && N.added.every((r) => r.trigger.type === 'date' && Number.isFinite(r.trigger.date)));
-  assert.ok(!N.scheduled.has('checkin-weekly'), 'the old repeating check-in is cancelled');
-  assert.doesNotMatch(sliceBlock(read('lib/notifications.js'), 'export async function syncCheckinReminder('), /type: 'weekly'/);
-});
+// DV-055 (dated one-shots) was replaced by Gate B F2: one repeating weekly trigger, rem132GateB "F2".
 
 // ── DV-224: a snoozed persistent reminder's +5/+10 repeats are not re-added ─────────────────────
 test('DV-224: stored snooze for t0 + resync at slot + 1 min → no dose-…-t0-f* scheduled', async () => {

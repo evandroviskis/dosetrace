@@ -36,7 +36,7 @@ test('TB3-1: an older run that finishes last never re-arms a slot handled after 
     getActiveVials: () => [],
     Platform: { OS: 'ios' },
     doseBudget: () => ({ perProtocol: 24, windowDays: 3 }),
-    iosDoseShares: async () => null, // DV-053 sharing is tested in rem132Schedule
+    iosDoseShares: async () => null, iosOtherPendingNow: async () => null, // DV-053 / F6 sharing is tested in rem132Schedule, rem132GateB
 
     // The real one reads the day's rows, then awaits the notification calls: model that gap.
     scheduleDoseReminder: async () => {
@@ -62,7 +62,7 @@ test('TB3-1: a run that throws does not block the next one', async () => {
     usesServerPush: () => false,
     getCachedUser: async () => { n += 1; if (n === 1) throw new Error('boom'); return null; },
     cancelAllDoseReminders: async () => {}, getActiveProtocols: () => [], getNotifications: () => null,
-    orphanDoseIds: () => [], getActiveVials: () => [], Platform: { OS: 'ios' }, doseBudget: () => ({}), scheduleDoseReminder: async () => {}, iosDoseShares: async () => null,
+    orphanDoseIds: () => [], getActiveVials: () => [], Platform: { OS: 'ios' }, doseBudget: () => ({}), scheduleDoseReminder: async () => {}, iosDoseShares: async () => null, iosOtherPendingNow: async () => null,
   };
   const syncAll = loadSync(fakes);
   await syncAll();

@@ -48,9 +48,10 @@ test("DV-050: setLanguage('pt') → a resync is requested (after the choice is s
   const calls = [];
   const changed = loadFn('lib/notifications.js', 'export async function onAppLanguageChanged(', 'onAppLanguageChanged', {
     syncNotificationChannels: async () => calls.push('channels'), syncAllNotifications: async () => calls.push('resync'),
+    restoreSnoozes: async () => calls.push('snoozes'), // Gate B F8: the snoozed copies are re-worded too
   });
   await changed();
-  assert.deepEqual(calls, ['channels', 'resync']);
+  assert.deepEqual(calls, ['channels', 'resync', 'snoozes']);
 });
 
 // ── DV-141: Android channel names in the app language ──────────────────────────────────────────

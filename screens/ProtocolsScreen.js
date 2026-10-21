@@ -1339,7 +1339,7 @@ export default function ProtocolsScreen() {
           onPress: () => {
             softDeleteProtocol(p.id);
             cancelDoseReminder(p.id).catch(() => {});
-            afterProtocolChange({ removedIds: [p.id] }).catch(() => {});
+            afterProtocolChange().catch(() => {});
             fetchProtocols();
             notifyDataChanged('protocol');
             requestSync();
@@ -1449,7 +1449,7 @@ export default function ProtocolsScreen() {
               cancelDoseReminder(id).catch(() => {});
               dismissDeliveredDoseReminders(id).catch(() => {});
             });
-            afterProtocolChange({ removedIds: ids }).catch(() => {});
+            afterProtocolChange().catch(() => {});
             setTrashSel(null);
             fetchProtocols();
             notifyDataChanged('protocol');
@@ -2143,7 +2143,7 @@ export default function ProtocolsScreen() {
             deactivateVialsByProtocol(id);
             cancelDoseReminder(id).catch(() => {});
             dismissDeliveredDoseReminders(id).catch(() => {}); // clear any lingering banner
-            afterProtocolChange({ removedIds: [id] }).catch(() => {});
+            afterProtocolChange().catch(() => {});
             if (target) Analytics.protocolDeactivated(target);
             closeProtocol(); // back to the list (and off the book's right page)
             fetchProtocols();

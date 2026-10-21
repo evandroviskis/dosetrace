@@ -128,7 +128,8 @@ function handlers(p) {
     markProtocolStillGoing: (id) => { calls.push(['still', id]); return true; },
     setProtocolPlannedEnd: (id, key) => { calls.push(['plannedEnd', id, key]); return key >= '2026-10-21'; },
     getProtocolById: (id) => ({ id }),
-    scheduleDoseReminder: async (q) => { calls.push(['schedule', q.id]); },
+    // Gate B F4 (1.3.2): "Continue" re-plans through the one full resync.
+    afterProtocolChange: async (o) => { calls.push(['schedule', o.saved.id]); },
     AsyncStorage: { removeItem: async (k) => { calls.push(['removeKey', k]); } },
     closeProtocolQuestion: () => calls.push(['close']),
     requestSync: () => calls.push(['sync']),

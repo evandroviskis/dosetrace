@@ -192,5 +192,7 @@ test('BR-1: a failed reality-check read is "unknown" for the schedulers, never "
   const ok = loadFn('lib/realityCheck.js', 'export async function getRealityStart(', 'getRealityStart', deps(false));
   assert.equal(await ok({ strict: true }), null, 'a real "no open check" is still null');
   const n = require('node:fs').readFileSync(require('node:path').join(__dirname, '../lib/notifications.js'), 'utf8');
-  assert.equal((n.match(/getRealityStart\(\{ strict: true \}\)/g) || []).length, 2, 'both schedulers ask strictly');
+  // Both schedulers and (Gate B F6) the iPhone budget's count of the other kinds ask strictly.
+  assert.equal((n.match(/getRealityStart\(\{ strict: true \}\)/g) || []).length, 3, 'every reminder path asks strictly');
+  assert.doesNotMatch(n, /getRealityStart\(\)/);
 });
