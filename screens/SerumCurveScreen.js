@@ -5,10 +5,10 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   Pressable,
   PixelRatio,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import { axisLabels } from '../lib/curveAxis';
 import { useWindowSize } from '../lib/windowSize';
 import GradSwitch from '../components/GradSwitch';

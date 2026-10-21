@@ -20,6 +20,8 @@
 // follows the app's foodNudgeDays rule (window, same-day skip, backoff). Prunes dead tokens.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// A-156: the push language is on the token row (the app never writes user_metadata.language).
+import { tokenLanguage, selectWithOptionalLanguage } from '../_shared/pushLanguage.js';
 import {
   dueDateKeys, reminderSlots, morningSummaryPlan, localParts, foodNudgeDays,
   type Protocol,
@@ -101,10 +103,12 @@ Deno.serve(async (req) => {
     // 1. Every registered ANDROID device. iOS is intentionally local-only
     //    (usesServerPush() is Android-only on the client), so sending server pushes
     //    to iOS tokens would DOUBLE-FIRE against the local schedule. Filter here.
-    const { data: tokens, error: tokErr } = await admin
-      .from('push_tokens')
-      .select('user_id, expo_token, platform, timezone')
-      .eq('platform', 'android');
+    //    The language column (A-156, migration 20261021230000_push_tokens_language.sql) is optional:
+    //    before that migration the read goes again without it and the pushes are in English.
+    const { data: tokens, error: tokErr } = await selectWithOptionalLanguage(
+      (cols: string) => admin.from('push_tokens').select(cols).eq('platform', 'android'),
+      'user_id, expo_token, platform, timezone',
+    );
     if (tokErr) throw tokErr;
     if (!tokens || tokens.length === 0) {
       return json({ ok: true, tokens: 0, sent: 0, dry: DRY_RUN });
@@ -135,19 +139,18 @@ Deno.serve(async (req) => {
       .eq('outcome', 'Taken')
       .gte('logged_at', since);
 
-    // 4. Preferences per user: dose_reminders (defaults on), language and the food
+    // 4. Preferences per user: dose_reminders (defaults on) and the food
     //    switch. The open reality check comes from reality_check_open (below).
-    const prefByUser = new Map<string, { enabled: boolean; lang: string; rcDate: string | null; foodOn: boolean }>();
+    const prefByUser = new Map<string, { enabled: boolean; rcDate: string | null; foodOn: boolean }>();
     for (const uid of userIds) {
-      let enabled = true; let lang = 'en'; let rcDate: string | null = null; let foodOn = true;
+      let enabled = true; let rcDate: string | null = null; let foodOn = true;
       try {
         const { data: u } = await admin.auth.admin.getUserById(uid);
         const meta = u?.user?.user_metadata || {};
         if (meta.dose_reminders === false) enabled = false;
-        if (typeof meta.language === 'string') lang = meta.language;
         if (meta.food_reminders === false) foodOn = false; // the user's Settings off-switch
-      } catch { /* default on/en */ }
-      prefByUser.set(uid, { enabled, lang, rcDate, foodOn });
+      } catch { /* default on */ }
+      prefByUser.set(uid, { enabled, rcDate, foodOn });
     }
 
     // The open reality check per user — the synced reality_check_open table (S-03),
@@ -179,8 +182,8 @@ Deno.serve(async (req) => {
       const tz = tok.timezone || 'UTC';
       let lp;
       try { lp = localParts(now, tz); } catch { lp = localParts(now, 'UTC'); }
-      const pref = prefByUser.get(tok.user_id) || { enabled: true, lang: 'en', rcDate: null, foodOn: true };
-      const lang = pref.lang;
+      const pref = prefByUser.get(tok.user_id) || { enabled: true, rcDate: null, foodOn: true };
+      const lang = tokenLanguage(tok);
       const protos = protosByUser.get(tok.user_id) || [];
       const nowMin = mod(lp.hour, lp.minute);
       const channelId = 'dose-reminders';

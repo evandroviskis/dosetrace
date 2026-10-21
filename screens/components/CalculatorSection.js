@@ -29,7 +29,8 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { numbersWeight } from '../../lib/numbersWeight';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import { useWindowSize } from '../../lib/windowSize';
 import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';

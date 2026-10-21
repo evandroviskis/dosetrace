@@ -3,7 +3,8 @@
 // choice), the bottom picker sheet that holds the iPhone wheel, the vial cells (one cell
 // per dose, remaining in data) and the enlarged syringe ruler. Theme tokens only.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Pressable, Modal, StyleSheet, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import Svg, { Rect, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';

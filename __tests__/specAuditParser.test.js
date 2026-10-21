@@ -110,10 +110,14 @@ test('council fix 6: the real deferred specs still read as deferred against the 
   const ROOT = path.join(__dirname, '..');
   const ledger = fs.readFileSync(path.join(ROOT, 'docs/decisions.md'), 'utf8');
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8')).expo.version;
-  for (const file of ['one-active-device.md', 'still-going-end-date.md', 'update-notice.md']) {
+  for (const file of ['one-active-device.md', 'still-going-end-date.md']) {
     const text = fs.readFileSync(path.join(ROOT, 'docs/specs', file), 'utf8');
     assert.equal(isDeferred(text, version, { ledger, file }), true, file);
   }
+  // A-127 review item 10 (2026-10-20): update-notice.md is committed to 1.3.2 now (ledger "1.3.1 =
+  // option B"), so spec-audit blocks on it instead of reading it as deferred.
+  const un = fs.readFileSync(path.join(ROOT, 'docs/specs', 'update-notice.md'), 'utf8');
+  assert.equal(isDeferred(un, version, { ledger, file: 'update-notice.md' }), false, 'update-notice.md is committed to 1.3.2');
   // spec-audit itself reads the ledger.
   assert.match(fs.readFileSync(path.join(ROOT, 'scripts/spec-audit.cjs'), 'utf8'), /isDeferred\(text, version, \{ ledger, file: f \}\)/);
 });

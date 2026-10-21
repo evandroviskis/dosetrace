@@ -21,7 +21,8 @@ import { getDraft, setDraft, clearDraft } from '../../lib/draftStore';
 
 // BK-14 / A-77: typed changes are kept per entry until Save or Cancel (app lifetime only).
 export const editorDraftKey = (row) => (row ? 'foodChat:editor:' + (row.id != null ? row.id : row.local_id) : null);
-import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';

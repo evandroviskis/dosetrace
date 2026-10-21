@@ -9,7 +9,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   Linking,
   Share,
   TextInput,
@@ -17,6 +16,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import Svg, { Path } from 'react-native-svg';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -40,7 +40,8 @@ import { hasPremium, getBillingStore } from '../lib/entitlement';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
-import { syncAllNotifications, readReminderHealth } from '../lib/notifications';
+import { syncAllNotifications, readReminderHealth, registerPushToken, askNotificationPermission, notificationsGranted } from '../lib/notifications';
+import { updateFlow } from '../lib/updateRuntime';
 import { reminderChecks, scheduleState, blockingCount, setupRowState } from '../lib/reminderHealth';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
@@ -192,6 +193,7 @@ export default function SettingsScreen({ navigation }) {
   const [notifNames, setNotifNames] = useState(true); // lock-screen privacy: compound names in notifications
   const [vialAlerts, setVialAlerts] = useState(true);
   const [silentMode, setSilentMode] = useState(false);
+  const [versionNews, setVersionNews] = useState(false); // A-127 UN-5: off unless the person said yes
   const [persistentReminders, setPersistentReminders] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -355,6 +357,7 @@ export default function SettingsScreen({ navigation }) {
       setNotifNames(user.user_metadata?.notif_show_names !== false);
       setVialAlerts(user.user_metadata?.vial_alerts !== false);
       setSilentMode(user.user_metadata?.silent_mode === true);
+      setVersionNews(user.user_metadata?.version_news === true);
       setPersistentReminders(user.user_metadata?.persistent_reminders === true);
       // Load profile
       setDisplayName(user.user_metadata?.display_name || '');
@@ -386,6 +389,30 @@ export default function SettingsScreen({ navigation }) {
     }
     // Re-sync all notifications to respect the new preference
     syncAllNotifications().catch(() => {});
+  }
+
+  // A-127 UN-5 / UN-6: "Novidades do DoseTrace" — the one place the yes / no lives after the
+  // invitation. Saved like the other switches (a failed save reverts and says so); a yes registers
+  // this phone for the push; the answer ends the invitation's question on this phone.
+  async function toggleVersionNews(val) {
+    // ON needs the notification permission: the system dialog only while it is undetermined (AD-88);
+    // denied or not granted → the switch stays off and nothing is saved or registered.
+    if (val) {
+      try { await askNotificationPermission(); } catch { /* read below */ }
+      let granted = false;
+      try { granted = await notificationsGranted(); } catch { granted = false; }
+      if (!granted) { setVersionNews(false); return; }
+    }
+    setVersionNews(val);
+    let error = null;
+    try { ({ error } = await supabase.auth.updateUser({ data: { version_news: val } })); } catch (e) { error = e; }
+    if (error) {
+      setVersionNews(!val);
+      errorSheet(friendlyError(error, t, 'error_save_failed'));
+      return;
+    }
+    updateFlow().noteSettingsAnswer(user && user.id, val).catch(() => {});
+    if (val) registerPushToken().catch(() => {});
   }
 
   async function toggleAnalytics(val) {
@@ -841,6 +868,20 @@ export default function SettingsScreen({ navigation }) {
           <GradSwitch
             value={vialAlerts}
             onValueChange={(v) => toggleNotificationPref('vial_alerts', v, setVialAlerts)}
+          />
+        </View>
+        {/* A-127 (picture a127-update-notice screen 5): after the vial alerts, before Silent mode. */}
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <FeatureIcon name="download" size={28} color={colors.text} />
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_version_news')}</Text>
+              <Text style={s.rowSub}>{t('settings_version_news_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={versionNews}
+            onValueChange={toggleVersionNews}
           />
         </View>
         <View style={s.row}>

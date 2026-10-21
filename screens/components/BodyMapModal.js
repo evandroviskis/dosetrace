@@ -40,12 +40,12 @@ import {
   Image,
   Pressable,
   TouchableOpacity,
-  Modal,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
 } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import { useWindowSize } from '../../lib/windowSize';
 import Svg, { Ellipse, Circle, Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';

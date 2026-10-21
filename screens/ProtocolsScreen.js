@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   Pressable,
   StyleSheet,
-  Modal,
   TextInput,
   Platform,
   Keyboard,
   Linking,
   ActivityIndicator,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import { useWindowSize } from '../lib/windowSize';
 import { MONO } from '../lib/fonts';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';

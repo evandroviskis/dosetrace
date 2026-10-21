@@ -193,9 +193,10 @@ test('F8: a language change re-words the snoozed copies too', async () => {
   const calls = [];
   const changed = loadFn('lib/notifications.js', 'export async function onAppLanguageChanged(', 'onAppLanguageChanged', {
     syncNotificationChannels: async () => calls.push('channels'), syncAllNotifications: async () => calls.push('resync'), restoreSnoozes: async (o) => calls.push(['snoozes', o]),
+    registerPushToken: async (o) => calls.push(['push', o]), // A-127 / A-156: the push row follows the language
   });
   await changed();
-  assert.deepEqual(calls, ['channels', 'resync', ['snoozes', { relanguage: true }]]);
+  assert.deepEqual(calls, ['channels', 'resync', ['snoozes', { relanguage: true }], ['push', { ifChanged: false }]]);
   const t = Object.assign((k) => T.pt[k] || k, { language: 'pt' });
   const content = loadFn('lib/notifications.js', 'function snoozeContent(', 'snoozeContent', {
     fill: loadFn('lib/notifications.js', 'function fill(', 'fill'), decimalText: String, unitText: (u) => u, protocolDisplayName: (p) => p.name,

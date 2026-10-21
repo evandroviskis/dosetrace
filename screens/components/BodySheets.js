@@ -3,7 +3,8 @@
 // heads the prototype uses (Cancel · title · Save, and title · round ×), and the toast line
 // a sheet shows over itself ("Enter the vaccine name first."). Theme tokens only.
 import { useMemo } from 'react';
-import { View, Text, TouchableOpacity, Modal, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import Modal from '../../components/PresenceModal';
 import { useTheme } from '../../lib/theme';
 import { useSheetGap } from '../../components/useSheetInset';
 import useSheetKeyboard from '../../components/useSheetKeyboard';

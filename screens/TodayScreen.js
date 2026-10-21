@@ -5,11 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Modal,
   TextInput,
   AppState,
   Platform,
 } from 'react-native';
+import Modal from '../components/PresenceModal';
 import { readCheckNow } from '../lib/realityCheckNow';
 import { loadAlertInputs } from '../lib/todayAlertsLoad';
 import { whenAllSettled, deferred } from '../lib/firstLoad';
