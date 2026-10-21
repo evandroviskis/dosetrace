@@ -60,14 +60,46 @@ test('R1: timeout, the check also times out → stay paused (no resume), offline
   assert.deepEqual(calls, ['pause', 'post', 'check', 'settled']);
 });
 
-test('R1: a 401 whose refresh is refused as an invalid refresh token → the account is gone → ok', async () => {
+// Re-verification 1 (1.3.1): a refused refresh token is not proof of deletion (a session revoked
+// elsewhere answers the same) — the account is asked; only user_not_found from /auth/v1/user is gone.
+const refreshNotFound = async () => ({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'refresh_token_not_found', message: 'Invalid Refresh Token: Refresh Token Not Found' } });
+
+test('R1: a 401 whose refresh is refused as not found, and the check says user_not_found → the account is gone → ok', async () => {
   const { del, calls } = load({
     deleteUser: async () => json({ error: 'Invalid session' }, 401),
-    userCheck: async () => { throw new Error('not asked'); },
-    refresh: async () => ({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'refresh_token_not_found', message: 'Invalid Refresh Token: Refresh Token Not Found' } }),
+    userCheck: async () => json({ code: 'user_not_found', msg: 'User from sub claim in JWT does not exist' }, 403),
+    refresh: refreshNotFound,
   });
   assert.deepEqual(await del(), { ok: true, appleManualRevokeNeeded: false });
-  assert.deepEqual(calls, ['pause', 'post', 'settled']);
+  assert.deepEqual(calls, ['pause', 'post', 'check', 'settled']);
+});
+
+test('Re-verify 1: a 401 whose refresh is refused as not found, and the check says session_not_found (revoked elsewhere) → never ok', async () => {
+  const { del, calls } = load({
+    deleteUser: async () => json({ error: 'Invalid session' }, 401),
+    userCheck: async () => json({ code: 'session_not_found', message: 'Session from session_id claim in JWT does not exist' }, 403),
+    refresh: refreshNotFound,
+  });
+  assert.deepEqual(await del(), { offline: true });
+  assert.ok(!calls.includes('settled'));
+  assert.ok(calls.includes('resume'));
+});
+
+test('Re-verify 1: a network error and a session revoked elsewhere (session_not_found) → offline, never ok', async () => {
+  const { del, calls } = load({
+    deleteUser: async () => { throw new TypeError('Network request failed'); },
+    userCheck: async () => json({ code: 'session_not_found', message: 'Session from session_id claim in JWT does not exist' }, 403),
+  });
+  assert.deepEqual(await del(), { offline: true });
+  assert.deepEqual(calls, ['pause', 'post', 'check', 'resume']);
+});
+
+test('Re-verify 1: a plain 404 from the check is unknown, never gone', async () => {
+  for (const answer of [() => json({}, 404), () => json({ message: 'Not Found' }, 404), () => json({ msg: 'invalid refresh token' }, 400)]) {
+    const { del, calls } = load({ deleteUser: async () => { throw new TypeError('Network request failed'); }, userCheck: async () => answer() });
+    assert.deepEqual(await del(), { offline: true });
+    assert.ok(!calls.includes('settled'));
+  }
 });
 
 // DV-009 lost-response half (Gate B 2, 1.3.1): a network error does not tell "never left" from "the
