@@ -39,6 +39,7 @@ function phone({ pendingRows = 0, syncedRows = 1, label = { id: 'user-a', email:
     removeRcStart: async () => calls.push('rc'),
     clearRealityDeviceFlags: async () => calls.push('flags'),
     cancelAllNotifications: async () => calls.push('cancelNotifs'),
+    dismissAllNotifications: async () => calls.push('dismissNotifs'),
     clearAllDrafts: () => calls.push('drafts'),
     resetAllSelections: () => calls.push('selections'),
     removeQuestions: async () => calls.push('questions'),
@@ -147,4 +148,87 @@ test('DV-242: the App holds the UI while the owner is another account and wires 
   assert.match(app, /guardSignedIn\(/);
   assert.match(app, /name="AccountHold"/);
   assert.doesNotMatch(app, /if \(localUid && localUid !== session\.user\.id\) \{\s*clearLocalDatabase\(\);/, 'no silent discard left');
+});
+
+// ── Gate B review (1.3.1) ─────────────────────────────────────────────
+
+test('Gate B 5: the discard cancels and dismisses A\'s reminders BEFORE it clears the database (a kill in between never leaves them firing for B)', async () => {
+  const p = phone({ pendingRows: 0, syncedRows: 2 });
+  await G.guardSignedIn(p.d, { sessionUser: B });
+  const at = (s) => p.calls.indexOf(s);
+  assert.ok(at('cancelNotifs') >= 0 && at('dismissNotifs') >= 0 && at('clearDb') >= 0);
+  assert.ok(at('cancelNotifs') < at('clearDb'), 'cancel first');
+  assert.ok(at('dismissNotifs') < at('clearDb'), 'dismiss first');
+  const app = read('App.js');
+  const deps = app.slice(app.indexOf('const guardDeps = () => ({'), app.indexOf('});', app.indexOf('const guardDeps = () => ({')));
+  assert.match(deps, /dismissAllNotifications,/);
+});
+
+test('Gate B 3: the guard fails closed — an owner that cannot be read holds and shows the sheet (Discard always there)', async () => {
+  const p = phone({ pendingRows: 0 });
+  p.d.getLocalOwner = () => { throw new Error('database is locked'); };
+  assert.equal(await G.guardSignedIn(p.d, { sessionUser: B }), 'held');
+  assert.equal(p.asked.length, 1);
+  assert.equal(p.asked[0].previous, null);
+  assert.equal(p.rows().length, 1, 'nothing discarded');
+  const sheet = G.accountAskSheet((k) => translations.en[k], { previous: null, onSave() {}, onDiscard() {} });
+  assert.ok(sheet.buttons.some((b) => b.label === translations.en.account_guard_discard), 'Discard is offered: nobody is trapped');
+});
+
+test('Gate B 3: App turns an unexpected guard error into the sheet, never into "continue"', () => {
+  const app = read('App.js');
+  assert.doesNotMatch(app, /catch \{ guard = 'continue'; \}/);
+  assert.equal(app.split('catch { guard = failClosed(session.user); }').length - 1, 2, 'both paths');
+});
+
+test('Gate B 3: a sync pass whose owner check fails does not run (fail closed)', async () => {
+  for (const deps of [
+    { getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => { throw new Error('locked'); } },
+    { getCachedUser: async () => { throw new Error('no session read'); }, getLocalDataUserId: () => null },
+  ]) {
+    const ran = [];
+    const syncPass = loadFn('lib/sync.js', 'async function syncPass(', 'syncPass', {
+      _deletionPaused: false, _isOnline: true, notifyListeners: () => {}, console, ownerBlocksSync: G.ownerBlocksSync,
+      pushPendingChanges: async () => ran.push('push'), pullCloudChanges: async () => ran.push('pull'), ...deps,
+    });
+    await syncPass();
+    assert.deepEqual(ran, []);
+  }
+});
+
+test('Gate B 4: "Discard and continue" when the session cannot be read → the sheet comes back with an error, nothing discarded', async () => {
+  const p = phone({ pendingRows: 2 });
+  await G.guardSignedIn(p.d, { sessionUser: B });
+  const last = p.asked[0];
+  p.d.getSession = async () => { throw new Error('Network request failed'); };
+  const r = await G.discardAndContinue(p.d, { lastAsk: last });
+  assert.equal(r.status, 'retry');
+  assert.equal(p.asked.length, 2, 'asked again');
+  assert.equal(p.asked[1].previous, 'a@example.com');
+  assert.equal(p.asked[1].error, true);
+  assert.equal(p.rows().length, 3, 'nothing discarded');
+  const sheet = G.accountAskSheet((k) => translations.pt[k], { previous: 'a@example.com', error: true, onSave() {}, onDiscard() {} });
+  assert.equal(sheet.note, translations.pt.error_generic, 'an existing error line, in the app language');
+  assert.equal(sheet.buttons.length, 2, 'both choices still there to retry');
+  // Retry with the session back → the discard runs and B continues.
+  p.d.getSession = async () => ({ user: B });
+  const ok = await G.discardAndContinue(p.d, { lastAsk: last });
+  assert.equal(ok.status, 'continue');
+  assert.equal(ok.session.user.id, 'user-b');
+  assert.equal(p.rows().length, 0);
+});
+
+test('Gate B 4: "Sign in as A first" whose local sign-out fails → the sheet comes back with an error, nothing discarded', async () => {
+  const p = phone({ pendingRows: 2 });
+  await G.guardSignedIn(p.d, { sessionUser: B });
+  p.d.signOutLocally = async () => ({ signedOut: false });
+  assert.equal(await G.resolveAccountAsk('save', p.d, { lastAsk: p.asked[0] }), 'retry');
+  assert.equal(p.asked.length, 2);
+  assert.equal(p.asked[1].error, true);
+  assert.equal(p.rows().length, 3);
+});
+
+test('Gate B 4: App\'s Discard goes through discardAndContinue and keeps the last sheet to bring back', () => {
+  const app = read('App.js');
+  assert.match(app, /discardAndContinue\(guardDeps\(\), \{ lastAsk: lastAskRef\.current \}\)/);
 });

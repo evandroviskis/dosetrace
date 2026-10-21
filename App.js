@@ -12,7 +12,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, App
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete, takeAccountGone, probeAccountGone } from './lib/supabase';
-import { guardSignedIn, resolveAccountAsk, accountAskSheet, ownerBlocksSync, OWNER_KEY } from './lib/accountGuard';
+import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, ownerBlocksSync, OWNER_KEY } from './lib/accountGuard';
 import { clearAIConsent } from './lib/aiConsent';
 import { TABLES, getPendingChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
@@ -264,7 +264,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed
   // up. Locked: the person picks one of the two (lib/accountGuard).
   const accountSheet = accountAsk
-    ? accountAskSheet(t, { previous: accountAsk.previous, onSave: onAccountSave, onDiscard: onAccountDiscard })
+    ? accountAskSheet(t, { previous: accountAsk.previous, error: !!accountAsk.error, onSave: onAccountSave, onDiscard: onAccountDiscard })
     : null;
 
   // Signup confirmation came back through the deep link — the user has no other way to
@@ -496,21 +496,31 @@ export default function App() {
     removeRcStart: () => AsyncStorage.removeItem(RC_START_KEY),
     clearRealityDeviceFlags, // S-03 per-device flags
     cancelAllNotifications, // the prior user's dose reminders never fire for the new one
+    dismissAllNotifications, // Gate B 5: nor do the ones already delivered stay on the lock screen
     clearAllDrafts, // S-26 BK-14: typed-but-unsaved text stays with its account
     resetAllSelections, // S-26: no open right-page item from the other account
     removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
     clearAIConsent, // DV-007
-    ask: (a) => setAccountAsk(a),
+    getSession: async () => { const { data } = await supabase.auth.getSession(); return (data && data.session) || null; },
+    ask: (a) => { lastAskRef.current = a; setAccountAsk(a); },
     // "Sign in as {previous} first": this account signs out on this phone only — not an intended
     // sign-out, so nothing is wiped; the previous account's rows wait for it.
     signOutLocally: () => wipeDeps().signOutLocally(),
   });
   // The local data owner is another account → the UI holds (no screen of this account shows it).
   const sessionUid = (session && session.user && session.user.id) || null;
-  const accountHeld = useMemo(() => {
+  const lastAskRef = useRef(null); // the last cross-account sheet, to bring back on a failed choice
+  const ownerHeld = useMemo(() => {
     if (!sessionUid) return false;
     try { return ownerBlocksSync(getLocalDataUserId(), sessionUid); } catch { return false; }
   }, [sessionUid, guardTick]);
+  // Gate B 3: an open sheet holds too (the guard failed closed: the owner could not be read).
+  const accountHeld = !!sessionUid && (ownerHeld || !!accountAsk);
+  // An unexpected guard error never means "continue": the sheet, with Discard always offered.
+  const failClosed = (user) => {
+    try { guardDeps().ask({ previous: null, pending: null, userId: user && user.id }); } catch { /* ignore */ }
+    return 'held';
+  };
   const accountHeldRef = useRef(false);
   accountHeldRef.current = accountHeld;
 
@@ -536,18 +546,19 @@ export default function App() {
 
   // DV-242: the two choices of the cross-account sheet.
   const onAccountSave = () => {
-    resolveAccountAsk('save', guardDeps(), {})
+    resolveAccountAsk('save', guardDeps(), { lastAsk: lastAskRef.current })
       .then(() => setAuthEntry({ mode: 'signin', consent: false }))
       .catch(() => {});
   };
+  // Gate B 4: a session that cannot be read brings the sheet back with an error (retry), never a
+  // holding screen without buttons.
   const onAccountDiscard = async () => {
-    let s = null;
-    try { const { data } = await supabase.auth.getSession(); s = data && data.session; } catch { s = null; }
-    if (!s || !s.user) return;
-    await resolveAccountAsk('discard', guardDeps(), { sessionUser: s.user });
+    const r = await discardAndContinue(guardDeps(), { lastAsk: lastAskRef.current });
+    if (r.status !== 'continue') return;
+    lastAskRef.current = null;
     setGuardTick((n) => n + 1);
     startSyncEngine();
-    await continueSignedIn(s).catch(() => {});
+    await continueSignedIn(r.session).catch(() => {});
   };
 
   registerWipe(wipeDeps); // account deletion wipes at once with the same steps (lib/accountActions)
@@ -796,7 +807,7 @@ export default function App() {
         // different user is discarded before importing — after a warning when some of it was never
         // backed up (DV-242, AD-102 = B; lib/accountGuard). Held → the sheet decides; nothing more.
         let guard = 'continue';
-        try { guard = await guardSignedIn(guardDeps(), { sessionUser: session.user }); } catch { guard = 'continue'; }
+        try { guard = await guardSignedIn(guardDeps(), { sessionUser: session.user }); } catch { guard = failClosed(session.user); }
         setGuardTick((n) => n + 1);
         if (guard === 'continue') await continueSignedIn(session);
         // DV-009: an account deleted or a session revoked elsewhere (the server says so; a network
@@ -840,7 +851,7 @@ export default function App() {
         // backed up → a warning first ("Sign in as {previous} first, to save" / "Discard and
         // continue"); until the choice nothing syncs or imports (lib/accountGuard).
         let guard = 'continue';
-        try { guard = await guardSignedIn(guardDeps(), { sessionUser: session.user }); } catch { guard = 'continue'; }
+        try { guard = await guardSignedIn(guardDeps(), { sessionUser: session.user }); } catch { guard = failClosed(session.user); }
         setGuardTick((n) => n + 1);
         if (guard !== 'continue') return;
         startSyncEngine();
