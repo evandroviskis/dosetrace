@@ -463,7 +463,8 @@ test('UN-5 Settings › Notifications: "Novidades do DoseTrace" after the vial a
   const silent = body.indexOf("t('settings_silent')");
   assert.ok(vial > 0 && news > vial && silent > news, 'order as drawn');
   assert.match(body, /toggleVersionNews/);
-  assert.match(src, /setVersionNews\(user\.user_metadata\?\.version_news === true\)/);
+  // Follow-up 2026-10-20: shown ON only with version_news true AND the permission granted (__tests__/a127Followups.test.js F-2).
+  assert.match(src, /versionNewsShown\(user\.user_metadata\)\.then\(setVersionNews\)/);
   assert.match(body, /FeatureIcon name="download"/);
 });
 
