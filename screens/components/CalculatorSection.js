@@ -946,8 +946,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         { label: t('cal_rc_stop_confirm'), kind: 'danger', onPress: async () => {
+          const stoppedStart = rcStart ? String(rcStart.date).slice(0, 10) : null;
           setRcStart(null);
           await clearRealityStart();
+          // The stopped check's typed calorie average goes with it (it is keyed by the start date, so a
+          // new check started on that date would reuse it as its intake). Only that entry: result
+          // sources and the rest of the payload stay (merge, never clobber).
+          if (stoppedStart) {
+            const sameStart = (v) => !!(v && v.rcTypedKcal && String(v.rcTypedKcal.start).slice(0, 10) === stoppedStart);
+            const clearTyped = typedIntakePatch(stoppedStart, null);
+            setRcInputs(prev => (sameStart(prev) ? mergeCalcInputs(prev, clearTyped) : prev));
+            const saved = await getCalcInputs().catch(() => null);
+            if (sameStart(saved)) await saveCalcInputs(clearTyped).catch(() => {});
+          }
           calcChanged();
           syncRealityCheckReminder().catch(() => {});
           syncFoodLogReminder().catch(() => {});
@@ -1544,7 +1555,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <TouchableOpacity style={s.btnO} onPress={openRcStart} activeOpacity={0.75} accessibilityRole="button">
             <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
           </TouchableOpacity>
-          {/* AD-91: no Stop here — nothing is running; the saved results stay. */}
+          {/* AD-91: Stop only while a check is open. A check open yet counted as saved (checkSaved)
+              shows this view, so it keeps its Stop; a finished result with nothing running has none. */}
+          {rcStart ? stopLink : null}
         </>
       ) : (
         // Part 9: not run yet — the row opens the start sheet.
