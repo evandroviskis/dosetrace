@@ -52,6 +52,7 @@ import {
 } from '../../lib/energyCalc';
 import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
+import { createScreenSave } from '../../lib/calcInputsSync';
 import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -212,7 +213,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [bfMsg, setBfMsg] = useState(false);
 
   const loadedRef = useRef(false);
-  const screenSaved = useRef(null); // DV-010: the inputs as this screen loaded / last saved them
+  // DV-010: the inputs as this screen loaded / last SAVED them (lib/calcInputsSync createScreenSave).
+  const screenSave = useRef(null);
+  if (!screenSave.current) screenSave.current = createScreenSave(saveCalcInputs);
   const userIdRef = useRef(null);
   const migratedRef = useRef(false); // legacy metadata->table migration ran this session
 
@@ -326,7 +329,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       if (saved.waist != null) setWaist(savedFieldText(saved.waist, language));
     }
     // DV-010 (Gate B 1.3.1 item 5): what this screen shows; its saves send only the keys edited here.
-    screenSaved.current = saved && typeof saved === 'object' ? saved : null;
+    screenSave.current.loaded(saved);
     loadedRef.current = true;
     setLoaded(true);
   }
@@ -387,7 +390,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const inputsSave = useRef(null);
   // DV-010: each save is compared with what the screen loaded / last saved (another phone's values
   // pulled while this screen is open are never sent back as this phone's edit).
-  if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => { const base = screenSaved.current || {}; screenSaved.current = { ...base, ...payload }; return saveCalcInputs(payload, { screenBase: base }).then(calcChanged); }, 900); // synced table + user_metadata mirror
+  if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => screenSave.current.save(payload).then(calcChanged), 900); // synced table + user_metadata mirror
   useEffect(() => {
     if (!loadedRef.current) return;
     // oneCard marks a payload saved by this version (PO-13: a weight + body fat payload

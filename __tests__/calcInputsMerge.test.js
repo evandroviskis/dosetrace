@@ -19,13 +19,13 @@ let clock = 0;
 const now = () => `2026-10-20T10:00:${String(++clock).padStart(2, '0')}.000Z`;
 
 // The real saveCalcInputs of lib/realityCheck.js on one phone's SQLite.
-function phone(db, { migrated = true, meta = null } = {}) {
+function phone(db, { migrated = true, meta = null, signedOut = { now: false } } = {}) {
   const getCalcInputsRow = (uid) => db.getFirstSync(
     `SELECT * FROM calc_inputs WHERE user_id = ? AND sync_status != 'deleted' ORDER BY updated_at DESC, id DESC LIMIT 1`, [uid]);
   const upsertCalcInputs = (uid, text, changes) => recordCalcInputs(db, uid, text, changes, now());
   const mirrored = [];
   const save = loadFn('lib/realityCheck.js', 'export async function saveCalcInputs(', 'saveCalcInputs', {
-    getCachedUser: async () => ({ id: USER, user_metadata: meta ? { calc_inputs: meta } : {} }),
+    getCachedUser: async () => (signedOut.now ? null : { id: USER, user_metadata: meta ? { calc_inputs: meta } : {} }),
     isMigrated: async () => migrated,
     getCalcInputsRow, upsertCalcInputs, mergeCalcInputs, calcInputsChanges,
     requestSync: () => {},
@@ -238,11 +238,40 @@ test('Gate B 5: A changes the weight; B, with Your numbers still open on the old
 
 test('Gate B 5: Your numbers saves against what the screen loaded / last saved (a ref), not the current row', () => {
   const calc = read('screens/components/CalculatorSection.js');
-  assert.match(calc, /screenSaved\.current = saved && typeof saved === 'object' \? saved : null;/);
-  assert.match(calc, /createDebouncedSave\(\(payload\) => \{ const base = screenSaved\.current \|\| \{\}; screenSaved\.current = \{ \.\.\.base, \.\.\.payload \}; return saveCalcInputs\(payload, \{ screenBase: base \}\)\.then\(calcChanged\); \}, 900\)/);
+  assert.match(calc, /screenSave\.current = createScreenSave\(saveCalcInputs\)/);
+  assert.match(calc, /screenSave\.current\.loaded\(saved\);/);
+  assert.match(calc, /createDebouncedSave\(\(payload\) => screenSave\.current\.save\(payload\)\.then\(calcChanged\), 900\)/);
   // a number saved by an older build and the same number as typed text are no change
   assert.deepEqual(calcInputsChanges({ weight: 86.5, age: 41 }, { weight: '86.5', age: '41' }), {});
   assert.deepEqual(calcInputsChanges({ weight: 0 }, { weight: '' }), { weight: '' }, 'an emptied field is a change');
+});
+
+test('Re-verification A: a save that did not happen (no user for a moment) never moves the screen\'s snapshot -> that edit and a later one both reach the cloud', async () => {
+  const { createScreenSave } = require('../lib/calcInputsSync');
+  const cloud = makeCloud();
+  const signedOut = { now: false };
+  const B = phone(makeDb(), { signedOut });
+  await B.save(calcState());
+  await syncPass(B.db, cloud);
+  const screen = createScreenSave(B.save);
+  screen.loaded(B.payload());
+  signedOut.now = true;                                         // session read failed for this save
+  assert.equal(await screen.save(calcState({ weight: '85' })), false, 'nothing written');
+  signedOut.now = false;
+  assert.equal(await screen.save(calcState({ weight: '85', height: '182' })), true); // the user edits another field
+  await syncPass(B.db, cloud);
+  assert.equal(cloudPayload(cloud).weight, '85', 'the edit whose save failed still goes up');
+  assert.equal(cloudPayload(cloud).height, '182');
+  // a save that throws before writing does not move it either
+  const boom = createScreenSave(async () => { throw new Error('db'); });
+  boom.loaded({ weight: '88.4' });
+  await assert.rejects(boom.save({ weight: '80' }));
+  const seen = [];
+  const after = createScreenSave(async (p, o) => { seen.push(o.screenBase); return true; });
+  after.loaded({ weight: '88.4' });
+  await after.save({ weight: '80' });
+  await after.save({ weight: '80', height: '1' });
+  assert.deepEqual(seen, [{ weight: '88.4' }, { weight: '80' }], 'moved only after a write');
 });
 
 test('Gate B 8: the user_metadata mirror carries only the keys changed here, over the metadata as it is (never this phone\'s stale copy)', async () => {
