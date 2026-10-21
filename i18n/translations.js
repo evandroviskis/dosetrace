@@ -9,14 +9,17 @@ export const LANGUAGES = [
 
 export const translations = {
   'en': {
-    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
-    dev_counting_title: "Checking this phone",
-    dev_counting_body: "Your account was opened on another device. Before signing you out here, the app needs to count what this phone hasn't backed up yet, and that didn't work just now. Nothing was removed.",
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_counting_title: "Couldn't check this phone",
+    dev_counting_body: "Your account was opened on another device. Before taking your account off this phone, the app needs to count what isn't backed up here yet, and it couldn't just now. Nothing was removed.",
     dev_counting_retry: "Try again",
-    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
-    dev_ask_unsent_one: "This phone has 1 change not backed up yet: {what}. It isn't in your account, and either choice removes it from this phone.",
-    dev_ask_unsent_many: "This phone has {n} changes not backed up yet: {what}. They aren't in your account, and either choice removes them from this phone.",
+    dev_counting_auto: "The app also tries again by itself every time it opens.",
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_ask_unsent_one: "This phone has 1 change not backed up yet: {what}. It isn't in your account and, whichever you choose, it'll be removed from this phone.",
+    dev_ask_unsent_many: "This phone has {n} changes not backed up yet: {what}. They aren't in your account and, whichever you choose, they'll be removed from this phone.",
+    dev_ask_unknown_removes: "Whichever you choose, whatever wasn't backed up will be removed from here.",
     settings_delete_device_wait: "This phone isn't confirmed as your account's phone yet, so nothing was deleted. Check your connection and try again in a moment.",
+    settings_delete_device_wait_title: "Couldn't delete your account",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} at {time}",
     dev_named_in: "on the {name}",
@@ -2451,14 +2454,17 @@ export const translations = {
   },
 
   'es': {
-    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
-    dev_counting_title: "Comprobando este teléfono",
-    dev_counting_body: "Tu cuenta se abrió en otro dispositivo. Antes de cerrar la sesión aquí, la app tiene que contar lo que este teléfono aún no tiene en copia de seguridad, y eso no funcionó ahora. No se borró nada.",
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_counting_title: "No se pudo comprobar este teléfono",
+    dev_counting_body: "Tu cuenta se abrió en otro dispositivo. Antes de quitar la cuenta de este teléfono, la app tiene que contar lo que aún no tiene copia de seguridad aquí, y ahora no pudo. No se borró nada.",
     dev_counting_retry: "Intentar de nuevo",
-    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
-    dev_ask_unsent_one: "Este teléfono tiene 1 cambio aún sin copia de seguridad: {what}. No está en tu cuenta, y con cualquiera de las dos opciones se borra de este teléfono.",
-    dev_ask_unsent_many: "Este teléfono tiene {n} cambios aún sin copia de seguridad: {what}. No están en tu cuenta, y con cualquiera de las dos opciones se borran de este teléfono.",
+    dev_counting_auto: "La app también lo vuelve a intentar sola cada vez que se abre.",
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_ask_unsent_one: "Este teléfono tiene 1 cambio aún sin copia de seguridad: {what}. No está en tu cuenta y, elijas lo que elijas, se borrará de este teléfono.",
+    dev_ask_unsent_many: "Este teléfono tiene {n} cambios aún sin copia de seguridad: {what}. No están en tu cuenta y, elijas lo que elijas, se borrarán de este teléfono.",
+    dev_ask_unknown_removes: "Elijas lo que elijas, lo que no tenga copia de seguridad se borrará de aquí.",
     settings_delete_device_wait: "Este teléfono aún no está confirmado como el de tu cuenta, así que no se eliminó nada. Revisa tu conexión y vuelve a intentarlo en un momento.",
+    settings_delete_device_wait_title: "No se pudo eliminar la cuenta",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} a las {time}",
     dev_named_in: "en el {name}",
@@ -4893,14 +4899,17 @@ export const translations = {
   },
 
   'pt': {
-    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
-    dev_counting_title: "Verificando este celular",
-    dev_counting_body: "Sua conta foi aberta em outro aparelho. Antes de sair dela aqui, o app precisa contar o que ainda não tem backup neste celular, e isso não deu certo agora. Nada foi apagado.",
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_counting_title: "Não foi possível verificar este celular",
+    dev_counting_body: "Sua conta foi aberta em outro aparelho. Antes de tirar a conta deste celular, o app precisa contar o que ainda não tem backup aqui, e não conseguiu agora. Nada foi apagado.",
     dev_counting_retry: "Tentar de novo",
-    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
-    dev_ask_unsent_one: "Este celular tem 1 alteração ainda sem backup: {what}. Ela não está na sua conta, e as duas opções a apagam deste celular.",
-    dev_ask_unsent_many: "Este celular tem {n} alterações ainda sem backup: {what}. Elas não estão na sua conta, e as duas opções as apagam deste celular.",
+    dev_counting_auto: "O app também tenta de novo sozinho sempre que é aberto.",
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_ask_unsent_one: "Este celular tem 1 alteração ainda sem backup: {what}. Ela não está na sua conta e, seja qual for a sua escolha, será apagada deste celular.",
+    dev_ask_unsent_many: "Este celular tem {n} alterações ainda sem backup: {what}. Elas não estão na sua conta e, seja qual for a sua escolha, serão apagadas deste celular.",
+    dev_ask_unknown_removes: "Seja qual for a sua escolha, o que não teve backup será apagado daqui.",
     settings_delete_device_wait: "Este celular ainda não foi confirmado como o aparelho da sua conta, então nada foi excluído. Confira sua conexão e tente de novo daqui a pouco.",
+    settings_delete_device_wait_title: "Não foi possível excluir a conta",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} às {time}",
     dev_named_in: "no {name}",
@@ -7334,14 +7343,17 @@ export const translations = {
     ap_mixed_old: "Para um frasco misturado há mais de um ano, coloque a data no formulário.",
   },
   'fr': {
-    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
-    dev_counting_title: "Vérification de ce téléphone",
-    dev_counting_body: "Votre compte a été ouvert sur un autre appareil. Avant de vous déconnecter ici, l'app doit compter ce que ce téléphone n'a pas encore sauvegardé, et cela n'a pas fonctionné pour l'instant. Rien n'a été supprimé.",
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_counting_title: "Impossible de vérifier ce téléphone",
+    dev_counting_body: "Votre compte a été ouvert sur un autre appareil. Avant de retirer votre compte de ce téléphone, l'app doit compter ce qui n'est pas encore sauvegardé ici, et elle n'y est pas arrivée pour l'instant. Rien n'a été supprimé.",
     dev_counting_retry: "Réessayer",
-    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
-    dev_ask_unsent_one: "Ce téléphone a 1 modification pas encore sauvegardée : {what}. Elle n'est pas dans votre compte, et les deux choix la suppriment de ce téléphone.",
-    dev_ask_unsent_many: "Ce téléphone a {n} modifications pas encore sauvegardées : {what}. Elles ne sont pas dans votre compte, et les deux choix les suppriment de ce téléphone.",
+    dev_counting_auto: "L'app réessaie aussi d'elle-même à chaque ouverture.",
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_ask_unsent_one: "Ce téléphone a 1 modification pas encore sauvegardée : {what}. Elle n'est pas dans votre compte et, quel que soit votre choix, elle sera supprimée de ce téléphone.",
+    dev_ask_unsent_many: "Ce téléphone a {n} modifications pas encore sauvegardées : {what}. Elles ne sont pas dans votre compte et, quel que soit votre choix, elles seront supprimées de ce téléphone.",
+    dev_ask_unknown_removes: "Quel que soit votre choix, ce qui n'a pas été sauvegardé sera supprimé de ce téléphone.",
     settings_delete_device_wait: "Ce téléphone n'est pas encore confirmé comme celui de votre compte, donc rien n'a été supprimé. Vérifiez votre connexion et réessayez dans un instant.",
+    settings_delete_device_wait_title: "Impossible de supprimer le compte",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} à {time}",
     dev_named_in: "sur votre {name}",
@@ -9775,14 +9787,17 @@ export const translations = {
     ap_mixed_old: "Pour un flacon reconstitué il y a plus d'un an, indiquez la date dans le formulaire.",
   },
   'de': {
-    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
-    dev_counting_title: "Dieses Handy wird geprüft",
-    dev_counting_body: "Dein Konto wurde auf einem anderen Gerät geöffnet. Bevor du hier abgemeldet wirst, muss die App zählen, was auf diesem Handy noch nicht gesichert ist, und das hat gerade nicht geklappt. Es wurde nichts gelöscht.",
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_counting_title: "Dieses Handy konnte nicht geprüft werden",
+    dev_counting_body: "Dein Konto wurde auf einem anderen Gerät geöffnet. Bevor dein Konto von diesem Handy entfernt wird, muss die App zählen, was hier noch nicht gesichert ist, und das hat gerade nicht geklappt. Es wurde nichts gelöscht.",
     dev_counting_retry: "Erneut versuchen",
-    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
-    dev_ask_unsent_one: "Auf diesem Handy ist 1 Änderung noch nicht gesichert: {what}. Sie ist nicht in deinem Konto, und bei beiden Optionen wird sie von diesem Handy gelöscht.",
-    dev_ask_unsent_many: "Auf diesem Handy sind {n} Änderungen noch nicht gesichert: {what}. Sie sind nicht in deinem Konto, und bei beiden Optionen werden sie von diesem Handy gelöscht.",
+    dev_counting_auto: "Die App versucht es außerdem bei jedem Öffnen von selbst noch einmal.",
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_ask_unsent_one: "Auf diesem Handy ist 1 Änderung noch nicht gesichert: {what}. Sie ist nicht in deinem Konto und wird, egal wie du dich entscheidest, von diesem Handy gelöscht.",
+    dev_ask_unsent_many: "Auf diesem Handy sind {n} Änderungen noch nicht gesichert: {what}. Sie sind nicht in deinem Konto und werden, egal wie du dich entscheidest, von diesem Handy gelöscht.",
+    dev_ask_unknown_removes: "Egal wie du dich entscheidest, wird alles, was nicht gesichert ist, von diesem Handy gelöscht.",
     settings_delete_device_wait: "Dieses Handy ist noch nicht als Gerät deines Kontos bestätigt, deshalb wurde nichts gelöscht. Prüfe deine Verbindung und versuche es gleich noch einmal.",
+    settings_delete_device_wait_title: "Konto konnte nicht gelöscht werden",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} um {time}",
     dev_named_in: "auf deinem {name}",
@@ -12217,14 +12232,17 @@ export const translations = {
   },
 
   'it': {
-    // A-119 Gate B round 2 (replaced phone, count not readable yet) — awaiting the founder's text approval
-    dev_counting_title: "Verifica di questo telefono",
-    dev_counting_body: "Il tuo account è stato aperto su un altro dispositivo. Prima di farti uscire qui, l'app deve contare ciò che questo telefono non ha ancora nel backup, e al momento non ci è riuscita. Non è stato eliminato nulla.",
+    // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_counting_title: "Impossibile verificare questo telefono",
+    dev_counting_body: "Il tuo account è stato aperto su un altro dispositivo. Prima di togliere l'account da questo telefono, l'app deve contare ciò che qui non ha ancora un backup, e al momento non ci è riuscita. Non è stato eliminato nulla.",
     dev_counting_retry: "Riprova",
-    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — awaiting the founder's text approval
-    dev_ask_unsent_one: "Su questo telefono c'è 1 modifica non ancora nel backup: {what}. Non è nel tuo account, e con entrambe le scelte viene eliminata da questo telefono.",
-    dev_ask_unsent_many: "Su questo telefono ci sono {n} modifiche non ancora nel backup: {what}. Non sono nel tuo account, e con entrambe le scelte vengono eliminate da questo telefono.",
+    dev_counting_auto: "L'app riprova anche da sola ogni volta che viene aperta.",
+    // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
+    dev_ask_unsent_one: "Su questo telefono c'è 1 modifica non ancora nel backup: {what}. Non è nel tuo account e, qualunque cosa tu scelga, verrà eliminata da questo telefono.",
+    dev_ask_unsent_many: "Su questo telefono ci sono {n} modifiche non ancora nel backup: {what}. Non sono nel tuo account e, qualunque cosa tu scelga, verranno eliminate da questo telefono.",
+    dev_ask_unknown_removes: "Qualunque cosa tu scelga, ciò che non ha un backup verrà eliminato da qui.",
     settings_delete_device_wait: "Questo telefono non è ancora confermato come quello del tuo account, quindi non è stato eliminato nulla. Controlla la connessione e riprova tra poco.",
+    settings_delete_device_wait_title: "Impossibile eliminare l'account",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} alle {time}",
     dev_named_in: "sul tuo {name}",

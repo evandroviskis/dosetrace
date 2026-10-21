@@ -101,19 +101,25 @@ test('R2-2 (dbl2.cjs): concurrent checks run an owed rebuild once; a racing pass
 });
 
 // ── 3. Screen 4's count is what "Use here" discards ──────────────────────────────────────────
-test('R2-3: "Use here" starts its own keep point — an older takeover key never keeps rows screen 4 said it removes', async () => {
+// Round 3 (finding 3) changed the rule this test pins: an unsettled takeover key from an earlier
+// attempt on this phone now keeps its (lower) point — what was typed since then is the person's — and
+// screen 4 counts by that same rule. The intent stays: screen 4's count is exactly what "Use here"
+// removes (see also __tests__/a119Round3.test.js R3-3).
+test('R2-3: screen 4\'s count is exactly what "Use here" removes, with an older takeover key on this phone', async () => {
   const cloud = makeDeviceCloud(); cloud.addUser(U);
   const A = phone(cloud, 'dev-A', U); await A.signIn();
   const kv = memKv();
   const B = phone(cloud, 'dev-B', U, { kv, session: '2026-10-15T09:00:00.000Z' });
-  // An old takeover key from an earlier attempt on this phone (its seq is 0).
-  await kv.setItem('dosetrace_device_takeover', JSON.stringify({ userId: U, seq: 0 }));
   addProtocol(B.db, U, { name: 'old-local' });
+  // An unsettled takeover key from an earlier attempt on this phone, after 'old-local'.
+  await kv.setItem('dosetrace_device_takeover', JSON.stringify({ userId: U, seq: readChangeSeq(B.db) }));
+  addProtocol(B.db, U, { name: 'typed-since' });
   await B.flow.gate(U, 'startup'); // screen 4
   const ask = (await B.state()).ask;
   assert.equal(ask.summary.count, 1);
   await B.useHere();
   assert.equal(B.db.getFirstSync(`SELECT COUNT(*) AS n FROM protocols WHERE name = 'old-local'`).n, 0, 'removed, as screen 4 said');
+  assert.equal(B.db.getFirstSync(`SELECT COUNT(*) AS n FROM protocols WHERE name = 'typed-since'`).n, 1, 'kept: typed after the earlier attempt');
   assert.equal((await B.state()).notice.own.count, 1);
 });
 

@@ -790,7 +790,8 @@ export default function App() {
         if (!step.held) {
           // One-time move of the open reality check + calculator inputs into the
           // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
-          await runRealityMigration().catch(() => {});
+          // A-119 round 3: never while a takeover's rebuild is queued (step.migrate).
+          if (step.migrate) await runRealityMigration().catch(() => {});
 
           // Schedule reminders AFTER the initial import — otherwise fresh
           // installs sync notifications against an empty local DB.
@@ -869,7 +870,9 @@ export default function App() {
 
         // One-time move of the open reality check + calculator inputs into the
         // synced tables (S-03), after the import and BEFORE scheduling reminders.
-        await runRealityMigration().catch(() => {});
+        // A-119 round 3: not while the takeover's rebuild is queued — its pull and its writes would
+        // land in the old copy before the rebuild judges it (lib/signInDevice migrate).
+        if (step.migrate) await runRealityMigration().catch(() => {});
 
         // Schedule reminders AFTER the import so they reflect the user's data
         // AD-88 (DV-054): never a permission request at sign-in (the sync listener asks once when
