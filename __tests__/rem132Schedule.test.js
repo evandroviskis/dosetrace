@@ -192,7 +192,8 @@ function iosPlanned(protocolCount, vials) {
   }
   const shares = plan.allocateSoonest(slotsById, b.total, now.getTime());
   const doses = Object.values(shares.counts).reduce((a, n) => a + n, 0);
-  return { doses, total: doses + vials + plan.IOS_OTHER_RESERVED, shares, slotsById };
+  // iPhone schedules at most the soonest IOS_EXPIRY_CAP expiry alerts (re-verification 2026-10-20).
+  return { doses, total: doses + Math.min(vials, plan.IOS_EXPIRY_CAP) + plan.IOS_OTHER_RESERVED, shares, slotsById };
 }
 test('DV-053: 25 protocols + 10 vials (every other kind at its most) → planned ≤ 64', () => {
   const r = iosPlanned(25, 10);
@@ -204,7 +205,7 @@ test('DV-053: 25 protocols + 10 vials (every other kind at its most) → planned
   for (const id of Object.keys(r.slotsById)) r.slotsById[id].forEach((s, i) => { if (s.kind === 'main') (i < r.shares.counts[id] ? kept : left).push(s.fireMs); });
   assert.ok(Math.max(...kept) <= Math.min(...left));
   assert.equal(r.shares.untilMs, Math.min(...left));
-  for (const [n, v] of [[1, 0], [10, 8], [40, 20], [60, 60]]) assert.ok(iosPlanned(n, v).total <= 64 || v > 64 - plan.IOS_OTHER_RESERVED, `n=${n} v=${v}`);
+  for (const [n, v] of [[1, 0], [10, 8], [40, 20], [60, 60]]) assert.ok(iosPlanned(n, v).total <= 64, `n=${n} v=${v}`); // the expiry cap keeps even 60 vials under 64
 });
 test('DV-053: the guard keeps the soonest 64 and records when the first one cut would have fired', () => {
   const list = Array.from({ length: 70 }, (_, i) => ({ identifier: `n${i}`, content: { data: { type: 'dose_reminder', fireMs: 1000 + (69 - i) } } }));

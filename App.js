@@ -34,7 +34,7 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
 import { initPurchases, logOutPurchases } from './lib/purchases';
 import { registerReminderRefresh } from './lib/backgroundTasks';
-import { initNotifications, askPermissionForArrivedProtocols, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
+import { initNotifications, askPermissionForArrivedProtocols, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
 import { notifTapTarget, responseKey, syncEventNeedsResync } from './lib/notificationPlan';
 import { readAppLanguage } from './lib/appLanguage';
@@ -741,10 +741,10 @@ export default function App() {
       if (!e.refused && nowTs - lastPermissionAsk > 60000) { lastPermissionAsk = nowTs; askPermissionForArrivedProtocols().catch(() => {}); }
       if (nowTs - lastFoodResync < 30000) return;
       lastFoodResync = nowTs;
-      syncFoodLogReminder().catch(() => {});
-      // A Stop (or new check) pulled from another device must also cancel / re-arm
-      // the day-21 weigh-in reminder here, not only on the next cold start (FX-9).
-      syncRealityCheckReminder().catch(() => {});
+      // The 8 PM food question and (a Stop or new check pulled from another device) the day-21
+      // weigh-in are re-planned here, not only on the next cold start (FX-9) — through the one full
+      // resync (R1, 2026-10-20: serialized, the iPhone 64 guard).
+      syncAllNotifications().catch(() => {});
     });
 
     // Resolve the first-launch intro flag; the loading gate holds until it's

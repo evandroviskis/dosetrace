@@ -55,8 +55,13 @@ test('F2: 6 weeks without an open → the check-in still fires (one repeating we
 function asker({ status, verdict = null }) {
   const calls = { requested: 0 };
   const N = { getPermissionsAsync: async () => ({ status }), requestPermissionsAsync: async () => { calls.requested++; return { status: 'granted' }; } };
+  // Re-verification: the ask itself is askNotificationPermission (shared with A-127).
+  const inner = loadFn('lib/notifications.js', 'export async function askNotificationPermission(', 'askNotificationPermission', {
+    getNotifications: () => N, AsyncStorage: memStore(verdict ? { V: verdict } : {}), DEVICE_VERDICT_KEY: 'V',
+    syncAllNotifications: async () => {}, registerPushToken: async () => {}, _askInFlight: null,
+  });
   const fn = loadFn('lib/notifications.js', 'export async function askPermissionForReminders(', 'askPermissionForReminders', {
-    reminderTimes: plan.reminderTimes, getNotifications: () => N, AsyncStorage: memStore(verdict ? { V: verdict } : {}), DEVICE_VERDICT_KEY: 'V',
+    askNotificationPermission: inner, reminderTimes: plan.reminderTimes, getNotifications: () => N, AsyncStorage: memStore(verdict ? { V: verdict } : {}), DEVICE_VERDICT_KEY: 'V',
     syncAllNotifications: async () => {}, registerPushToken: async () => {}, _askInFlight: null,
     // What 95bdc1a used (its own flag + the generic request, which asks unless granted).
     PERMISSION_ASKED_KEY: 'P',
@@ -151,12 +156,12 @@ test('F6: three heavy persistent protocols → the main reminders cover the most
   const DAY = 86400000;
   const mainDays = new Set(r.kept.filter((s) => s.kind === 'main').map((s) => s.dayKey));
   const farRepeats = r.kept.filter((s) => s.kind === 'followup' && s.fireMs - r.now.getTime() > DAY);
-  // 64 − 20 vials − 12 others = 32 slots. Today (from 06:00): 9 mains + their 18 repeats = 27; then
-  // tomorrow's MAIN reminders (5 of them) before any repeat a day or more out. Soonest-first alone
-  // kept 3 mains + 2 repeats there.
+  // 64 − 8 expiry alerts (the iPhone cap, re-verification) − 12 others = 44 slots. Today (from 06:00):
+  // 9 mains + their 18 repeats = 27; then the MAIN reminders of the next days (9 + 8) before any
+  // repeat a day or more out. Soonest-first alone kept tomorrow's repeats instead.
   const mains = r.kept.filter((s) => s.kind === 'main').length;
-  assert.equal(mains, 14, `main reminders kept: ${mains}`);
-  assert.ok(mainDays.size >= 2, `main days ${mainDays.size}`);
+  assert.equal(mains, 26, `main reminders kept: ${mains}`);
+  assert.ok(mainDays.size >= 3, `main days ${mainDays.size}`);
   assert.equal(farRepeats.length, 0, 'no repeat a day or more out while a main reminder is left out');
 });
 test('F6: only the kinds really scheduled are reserved (food, weigh-in, check-in off → more dose reminders)', () => {
@@ -167,9 +172,10 @@ test('F6: only the kinds really scheduled are reserved (food, weigh-in, check-in
 });
 test('F6: 43 vials → no dose budget is negative; 20 vials → 64 − 20 − others', () => {
   const other = plan.iosOtherPending({ summaries: 7, checkin: 1 });
-  assert.equal(plan.doseBudget({ os: 'ios', protocolCount: 3, expiryAlerts: 43, otherPending: other }).total, 64 - 43 - other);
-  assert.equal(plan.doseBudget({ os: 'ios', protocolCount: 3, expiryAlerts: 60, otherPending: other }).total, 0);
-  assert.equal(plan.doseBudget({ os: 'ios', protocolCount: 3, expiryAlerts: 20, otherPending: other }).total, 64 - 20 - other);
+  // Re-verification 2026-10-20: at most 8 expiry alerts are scheduled on iPhone (the soonest), so
+  // 20, 43 or 60 alerting vials all leave the dose reminders 64 − 8 − others.
+  for (const v of [20, 43, 60]) assert.equal(plan.doseBudget({ os: 'ios', protocolCount: 3, expiryAlerts: v, otherPending: other }).total, 64 - 8 - other, `${v} vials`);
+  assert.equal(plan.doseBudget({ os: 'ios', protocolCount: 3, expiryAlerts: 5, otherPending: other }).total, 64 - 5 - other);
   // The vials counted are the ones that really get an expiry alert.
   assert.match(sliceBlock(NOTIF, 'async function syncAllDoseRemindersNow('), /vialExpiryPlan\(/);
 });

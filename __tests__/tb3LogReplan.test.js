@@ -52,7 +52,7 @@ function logFns(w) {
     syncVialAlerts: async () => {}, requestSync: noop, fetchLogs: noop,
     embedded: false, onChanged: null, setLogSheet: noop, t: (k) => k, friendlyError: () => '',
     updateDoseLog: (id, fields) => { const l = w.logs.find((x) => x.id === id); if (l) Object.assign(l, fields); },
-    syncAllDoseReminders: w.syncAllDoseReminders,
+    syncAllNotifications: w.syncAllDoseReminders, // R1 (2026-10-20): the screens re-plan through the one full resync
   };
   return {
     applyDelete: loadFn('screens/LogScreen.js', 'async function applyDelete(log) {', 'applyDelete', deps),
@@ -86,14 +86,14 @@ test('TB3-2: the Dose log made-complete path and Today\'s afterLogChange re-plan
   const { read } = require('./helpers/extractFn');
   const { sliceBlock } = require('./helpers/extractFn');
   const log = read('screens/LogScreen.js');
-  assert.match(log, /import \{ syncVialAlerts, syncAllDoseReminders \} from '\.\.\/lib\/notifications';/);
+  assert.match(log, /import \{ syncAllNotifications \} from '\.\.\/lib\/notifications';/);
   const mark = sliceBlock(log, 'function markRowTaken(row, site) {');
-  assert.ok(mark.indexOf('syncAllDoseReminders().catch(() => {});') > mark.indexOf('recordDoseTaken('), 'after the take');
+  assert.ok(mark.indexOf('syncAllNotifications().catch(() => {});') > mark.indexOf('recordDoseTaken('), 'after the take');
   let called = 0;
   const after = loadFn('screens/TodayScreen.js', 'function afterLogChange() {', 'afterLogChange', {
     setUndoData: noop, wasDeleted: () => false, fetchProtocols: noop, fetchTodayLogs: noop, fetchPendingYesterday: noop,
     fetchStreakData: noop, fetchProtocolStreaks: noop, fetchLastSites: noop,
-    syncAllDoseReminders: async () => { called += 1; },
+    syncAllNotifications: async () => { called += 1; },
   });
   after();
   assert.equal(called, 1, 'Today\'s right-page Dose log change re-plans');

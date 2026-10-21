@@ -39,7 +39,7 @@ import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
-import { syncFoodLogReminder, closeFoodDay } from '../lib/notifications';
+import { syncAllNotifications, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
 import { useUnfoldToPage } from '../components/BookPanes';
@@ -116,7 +116,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (!id) return [];
     const r = getFoodLogsSince(id, localDaysAgoISO(366)) || [];
     setRows(r);
-    syncFoodLogReminder().catch(() => {});
+    syncAllNotifications().catch(() => {});
     return r;
   }
 

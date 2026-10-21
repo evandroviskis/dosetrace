@@ -112,9 +112,9 @@ function fnCode(name) {
 
 test('A-141 (6): Today\'s Undo and Skip re-plan the dose reminders right away (switches respected)', () => {
   const undo = fnCode('applyUndo');
-  assert.ok(undo.indexOf('syncAllDoseReminders()') > undo.indexOf('deleteDoseLog(id)'), 'Undo re-plans after its writes');
+  assert.ok(undo.indexOf('syncAllNotifications()') > undo.indexOf('deleteDoseLog(id)'), 'Undo re-plans after its writes');
   const skip = fnCode('skipDose');
-  assert.ok(skip.indexOf('syncAllDoseReminders()') > skip.indexOf('recordSkipToday('), 'Skip re-plans after its write');
+  assert.ok(skip.indexOf('syncAllNotifications()') > skip.indexOf('recordSkipToday('), 'Skip re-plans after its write');
 });
 
 test('A-141 (6): the Reminder check does not count a Skipped slot as an owed (missing) reminder', () => {

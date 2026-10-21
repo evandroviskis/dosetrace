@@ -20,7 +20,7 @@ import { scanMissedDoses, recordDoseTaken } from '../lib/doseActions';
 import { requestSync } from '../lib/sync';
 import { summarizeStored, describeStored } from '../lib/injectionSites';
 import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose';
-import { syncVialAlerts, syncAllDoseReminders } from '../lib/notifications';
+import { syncAllNotifications } from '../lib/notifications';
 import { friendlyError } from '../lib/friendlyError';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate } from '../lib/localeFormat';
@@ -154,8 +154,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       res = recordDoseTaken(protocolId, { dayKey: Number.isFinite(atMs) ? dayKeyOf(atMs) : undefined, slotMs: Number.isFinite(atMs) ? atMs : undefined, flipRowId: id, injectionSite: site || null });
     } catch { res = null; }
     if (!res) { writeOutcome(id, site ? { outcome: 'Taken', injection_site: site } : { outcome: 'Taken' }); return; }
-    syncVialAlerts().catch(() => {});
-    syncAllDoseReminders().catch(() => {}); // test build 3 council item 2: the slot is handled now
+    syncAllNotifications().catch(() => {}); // test build 3 council item 2: the slot is handled now
     requestSync();
     fetchLogs();
     if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows
@@ -169,7 +168,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   function writeOutcome(logId, fields) {
     try {
       updateDoseLog(logId, fields);
-      syncAllDoseReminders().catch(() => {}); // test build 3 council item 2: Skipped / Taken / Missed change the plan
+      syncAllNotifications().catch(() => {}); // test build 3 council item 2: Skipped / Taken / Missed change the plan
       requestSync();
       fetchLogs();
       if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows
@@ -339,10 +338,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
           updateVial(id, fields);
         }
         if (plan.oralRestore) updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
-        if (plan.vialRestore || plan.oralRestore) syncVialAlerts().catch(() => {});
+        if (plan.vialRestore || plan.oralRestore) syncAllNotifications().catch(() => {});
       } catch { /* supply update is best-effort */ }
       // Test build 3 council item 2: a deleted Taken row of a slot still ahead is owed again.
-      syncAllDoseReminders().catch(() => {});
+      syncAllNotifications().catch(() => {});
       requestSync();
       fetchLogs();
       if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows

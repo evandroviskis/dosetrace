@@ -50,7 +50,7 @@ import {
   targetProjection, seriesRatePerWeek, goalsForTdee, TARGET_MIN_WINDOW_DAYS,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
-import { syncRealityCheckReminder, syncFoodLogReminder, REALITY_CHECK_DAYS } from '../../lib/notifications';
+import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
@@ -911,8 +911,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     clearDraft('progress:rcWeigh');
     await setRealityStart(start);
     calcChanged();
-    syncRealityCheckReminder().catch(() => {});
-    syncFoodLogReminder().catch(() => {});
+    syncAllNotifications().catch(() => {});
   }
 
   // Start over (after "Start over?"): clear the open check and its reminders (back to
@@ -921,8 +920,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setRcStart(null);
     await clearRealityStart();
     calcChanged();
-    syncRealityCheckReminder().catch(() => {});
-    syncFoodLogReminder().catch(() => {});
+    syncAllNotifications().catch(() => {});
   }
   function confirmResetRealityCheck() {
     setConfirm({
@@ -950,8 +948,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           await clearRealityStart();
           if (userIdRef.current) { clearRealityChecks(userIdRef.current); requestSync?.(); }
           calcChanged();
-          syncRealityCheckReminder().catch(() => {});
-          syncFoodLogReminder().catch(() => {});
+          syncAllNotifications().catch(() => {});
         } },
       ],
     });
@@ -979,8 +976,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setRcStart(null);
     await clearRealityStart();
     calcChanged();
-    syncRealityCheckReminder().catch(() => {});
-    syncFoodLogReminder().catch(() => {});
+    syncAllNotifications().catch(() => {});
   }
 
   // Calories typed by hand (founder 2026-10-02): one average per day for the open check,

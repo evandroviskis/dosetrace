@@ -145,8 +145,7 @@ test('FX-5: clearRealityStart executes stopRealityCheckPlan — stops the rows A
   const body = src.slice(src.indexOf('export async function clearRealityStart'), src.indexOf('export async function getCalcInputs'));
   assert.match(body, /stopRealityCheckPlan\(/);
   assert.match(body, /stopOpenRealityChecks\(/);
-  assert.match(body, /syncRealityCheckReminder\(/);
-  assert.match(body, /syncFoodLogReminder\(/);
+  assert.match(body, /syncAllNotifications\(/); // R1 (2026-10-20): both reminders through the one full re-plan
 });
 
 // Re-review #2: a Stop before this account migrated leaves a STOPPED row behind,

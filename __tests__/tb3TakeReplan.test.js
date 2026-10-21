@@ -30,7 +30,7 @@ function fnCode(name) {
 test('R2: markTaken re-plans the reminders right after its cancel', () => {
   const m = fnCode('markTaken');
   const cancel = m.indexOf('cancelTodaysDoseReminders(protocol.id');
-  const replan = m.indexOf('syncAllDoseReminders().catch(() => {});', cancel);
+  const replan = m.indexOf('syncAllNotifications().catch(() => {});', cancel); // R1: the one full re-plan
   assert.ok(cancel > 0, 'the take cancels today\'s slots');
   assert.ok(replan > cancel, 'then re-plans through the lock');
 });

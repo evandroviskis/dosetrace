@@ -28,7 +28,7 @@ import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orph
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { syncVialAlerts, afterProtocolChange, syncAllDoseReminders, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
+import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
@@ -872,7 +872,7 @@ export default function TodayScreen() {
     fetchProtocols();
     fetchStreakData();
     fetchProtocolStreaks();
-    syncVialAlerts().catch(() => {});
+    syncAllNotifications().catch(() => {});
     requestSync();
   }
 
@@ -1094,7 +1094,7 @@ export default function TodayScreen() {
       cancelTodaysDoseReminders(protocol.id, Math.max(newTakenToday, opts.cancelUpTo || 0)).catch(() => {});
       // Review of ed5d8bf item 2: the cancel runs outside the reminder lock; a run that read the rows
       // before this take could re-arm the slot after it. The lock's next run reads the take.
-      syncAllDoseReminders().catch(() => {});
+      syncAllNotifications().catch(() => {});
 
       // Vial and oral supply already moved (once) inside recordDoseTaken.
       // The vial prompt FOLLOWS the write (S-25), after the site picker has closed — and after
@@ -1102,7 +1102,7 @@ export default function TodayScreen() {
       if (res.vialFinished && protocol.type === 'recon') queueVialPrompt(protocol, logId);
       const oralPrevUnitsTaken = res.oralPrevUnitsTaken;
       if (res.vialId || oralPrevUnitsTaken != null) fetchProtocols();
-      syncVialAlerts().catch(() => {});
+      // (The vial alerts are part of the one full re-plan above — R1, 2026-10-20.)
       requestSync();
 
       // The Undo bar time is armed by the effect that pauses behind pop-ups (lib/undoBar.js).
@@ -1353,7 +1353,7 @@ export default function TodayScreen() {
       }
       // A-141 (6) (DL-09): the reminders follow the outcome the Undo restored — back to Skipped
       // stays silent, back to nothing is reminded again (the take had cancelled it).
-      syncAllDoseReminders().catch(() => {});
+      syncAllNotifications().catch(() => {});
       // The "start a new vial?" prompt of the undone dose must not stay up.
       if (plan.closeVialPrompt) {
         if (continuationProtocol && continuationProtocol.id === record.protocolId) closeVialPrompt();
@@ -1363,7 +1363,7 @@ export default function TodayScreen() {
       fetchPendingYesterday();
       fetchStreakData();
       fetchProtocolStreaks();
-      syncVialAlerts().catch(() => {});
+      // (The vial alerts are part of the one full re-plan above — R1, 2026-10-20.)
       requestSync();
     } catch { /* ignore */ }
   }
@@ -1386,7 +1386,7 @@ export default function TodayScreen() {
         fetchPageLogs();
         setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
         fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line
-        syncAllDoseReminders().catch(() => {}); // A-141 (6) (DL-08): a skipped slot is never reminded
+        syncAllNotifications().catch(() => {}); // A-141 (6) (DL-08): a skipped slot is never reminded
         Analytics.doseLogged({ name: protocol.name, type: protocol.type, outcome: 'Skipped' });
         setTimeout(checkStillGoingWhenSynced, 450); // A-121 SG-17: a Skip also answers the last slot
         requestSync();
@@ -2023,7 +2023,7 @@ export default function TodayScreen() {
     fetchStreakData();
     fetchProtocolStreaks();
     fetchLastSites();
-    syncAllDoseReminders().catch(() => {}); // test build 3 council item 2: a Dose log change re-plans
+    syncAllNotifications().catch(() => {}); // test build 3 council item 2: a Dose log change re-plans
   }
 
 

@@ -20,7 +20,7 @@ import { supabase, getCachedUser } from '../../lib/supabase';
 import { friendlyError } from '../../lib/friendlyError';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
-import { syncFoodLogReminder } from '../../lib/notifications';
+import { syncAllNotifications } from '../../lib/notifications';
 import FeatureIcon from '../../components/FeatureIcon';
 import { DTSheet } from './ProtocolParts';
 
@@ -104,7 +104,7 @@ export function FoodReminderRow() {
       setSheet({ icon: 'warning', title: t('error'), body: friendlyError(error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
-    syncFoodLogReminder().catch(() => {});
+    syncAllNotifications().catch(() => {});
   }
   return (
     <View style={s.remindRow}>
