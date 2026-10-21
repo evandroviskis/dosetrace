@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
 const { makeDb, makeCloud } = require('./helpers/syncHarness');
 const { loadFn, read, sliceBlock } = require('./helpers/extractFn');
 const { pushPending } = require('../lib/syncCore');
-const { typedIntakePatch } = require('../lib/realityCheckRules');
+const { typedIntakePatch, typedIntakeFor } = require('../lib/realityCheckRules');
 const { mergeCalcInputs } = require('../lib/realityCheckStore');
 const babel = require('@babel/core');
 
@@ -161,10 +161,12 @@ test('DV-004: Stop clears the typed calorie average of the stopped check only (a
   const p = phone();
   const inputs = { weightKg: 88, rcTypedKcal: { start: '2026-10-15', kcal: 2100 }, rcResultSources: { '2026-09-01': 'typed' } };
   const calls = await stopNow(p, { inputs });
-  assert.equal(calls.inputs.rcTypedKcal, null, 'the stopped check\'s typed average is cleared in the synced payload');
+  // The clear is tied to the stopped check (DV-004 Gate B: { start, kcal: null }, never a bare null).
+  assert.deepEqual(calls.inputs.rcTypedKcal, { start: '2026-10-15', kcal: null }, 'the stopped check\'s typed average is cleared in the synced payload');
+  assert.equal(typedIntakeFor(calls.inputs, '2026-10-15'), null, 'a new check on that start date finds no typed average');
   assert.deepEqual(calls.inputs.rcResultSources, { '2026-09-01': 'typed' }, 'kept results keep their source');
   assert.equal(calls.inputs.weightKg, 88, 'nothing else in the payload changes (merge, never clobber)');
-  assert.equal(calls.shown.rcTypedKcal, null, 'and on screen');
+  assert.equal(typedIntakeFor(calls.shown, '2026-10-15'), null, 'and on screen');
 });
 
 test('DV-004: a typed average tied to another start date is not touched by Stop', async () => {
