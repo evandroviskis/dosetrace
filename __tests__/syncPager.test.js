@@ -191,10 +191,14 @@ test('Gate B 6: rows with a NULL updated_at are read too by a full read (fetchAl
   assert.equal(all.error, null);
   assert.equal(all.data.length, 605, 'fullImport never treats a NULL-stamped row as gone');
   assert.equal(new Set(all.data.map((r) => r.id)).size, 605);
+  // Re-verification D: the NULL pass runs only where a missing row causes a delete (fetchAllRows);
+  // an ordinary full pull (fetchSince with no watermark) makes no extra request.
+  const before = t.queries;
   const full = await pager().fetchByUpdated(base, { since: null, pageSize: 500 });
-  assert.equal(full.data.length, 605);
+  assert.equal(full.data.length, 600, 'dated rows only');
+  assert.equal(t.queries - before, 2, 'two keyset pages, no NULL request');
   const small = makeTable([...dated.slice(0, 10), ...nulls]);
-  const one = await pager().fetchByUpdated(() => small.query().select('*').eq('user_id', 'u'), { since: null, pageSize: 500 });
+  const one = await pager().fetchAllRows(() => small.query().select('*').eq('user_id', 'u'), { pageSize: 500 });
   assert.equal(one.data.length, 15, 'one page: no NULL row twice');
   assert.equal(new Set(one.data.map((r) => r.id)).size, 15);
   const inc = await pager().fetchByUpdated(base, { since: ts(598), pageSize: 500 });
