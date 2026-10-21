@@ -227,7 +227,7 @@ test('Re-verify 2: an owner that cannot be read holds and asks Try again / Sign 
 // "Try again" / "Sign out" / phone words.
 const UNREADABLE = {
   en: ['Couldn\u2019t check this phone', 'The app couldn\u2019t see which account the data saved here belongs to. Nothing was deleted. Try again, or sign out and sign back in.'],
-  pt: ['N\u00e3o deu para conferir este celular', 'O app n\u00e3o conseguiu ver de qual conta s\u00e3o os dados guardados aqui. Nada foi apagado. Tente novamente ou saia e entre de novo.'],
+  pt: ['Não foi possível verificar os dados deste celular', 'O app não conseguiu identificar a qual conta pertencem os dados salvos neste celular. Nenhum dado foi apagado. Tente novamente ou saia da conta e entre de novo.'], // formal register, founder 2026-10-20
   es: ['No se pudo comprobar este tel\u00e9fono', 'La app no pudo ver a qu\u00e9 cuenta pertenecen los datos guardados aqu\u00ed. No se ha borrado nada. Vuelve a intentarlo, o cierra sesi\u00f3n y vuelve a iniciarla.'],
   fr: ['Impossible de v\u00e9rifier ce t\u00e9l\u00e9phone', 'L\u2019app n\u2019a pas pu savoir \u00e0 quel compte appartiennent les donn\u00e9es enregistr\u00e9es ici. Rien n\u2019a \u00e9t\u00e9 supprim\u00e9. R\u00e9essayez, ou d\u00e9connectez-vous puis reconnectez-vous.'],
   de: ['Dieses Handy konnte nicht gepr\u00fcft werden', 'Die App konnte nicht erkennen, zu welchem Konto die hier gespeicherten Daten geh\u00f6ren. Es wurde nichts gel\u00f6scht. Versuch es erneut oder melde dich ab und wieder an.'],
