@@ -390,7 +390,14 @@ export default function SettingsScreen({ navigation }) {
 
   async function toggleAnalytics(val) {
     setAnalyticsEnabled(val);
-    await supabase.auth.updateUser({ data: { analytics_opt_in: val } });
+    // DV-008 / DL-56: a refused save (offline) must not LOOK saved: revert and say so
+    // (same pattern as toggleNotificationPref). Only its own key is written (merge).
+    let error = null;
+    try { ({ error } = await supabase.auth.updateUser({ data: { analytics_opt_in: val } })); } catch (e) { error = e; }
+    if (error) {
+      setAnalyticsEnabled(!val);
+      errorSheet(friendlyError(error, t, 'error_save_failed'));
+    }
   }
 
   async function saveProfile() {
@@ -411,7 +418,9 @@ export default function SettingsScreen({ navigation }) {
       return;
     }
     try {
-      await supabase.auth.updateUser({
+      // DV-008 / DL-56: updateUser RESOLVES { error } when the save is refused (offline): that
+      // is a failure too — Edit profile stays open with the typed values and the error sheet shows.
+      const res = await supabase.auth.updateUser({
         data: {
           display_name: displayName.trim() || null,
           gender: gender || null,
@@ -428,6 +437,7 @@ export default function SettingsScreen({ navigation }) {
           has_provider: hasProvider || null,
         },
       });
+      if (res && res.error) throw res.error;
       setShowCountryPicker(false);
       setShowEditProfile(false);
       fetchUser();
