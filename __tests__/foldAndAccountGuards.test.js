@@ -30,17 +30,17 @@ test('BK-10: MainActivity handles smallestScreenSize itself (no activity restart
 });
 
 test('BK-14 / S-25: the cross-account guard also clears drafts, open items and open site questions', () => {
+  // DV-242 (1.3.1): both guards (cold start and SIGNED_IN) go through lib/accountGuard, whose
+  // discard runs these steps (behaviour: __tests__/dv242CrossAccountWarn.test.js).
   const app = read('App.js');
-  const marker = 'if (localUid && localUid !== session.user.id) {';
-  const starts = [];
-  for (let i = app.indexOf(marker); i >= 0; i = app.indexOf(marker, i + 1)) starts.push(i);
-  assert.equal(starts.length, 2, 'both guards (cold start and SIGNED_IN)');
-  for (const i of starts) {
-    const block = app.slice(i, app.indexOf('} catch', i));
-    assert.match(block, /clearAllDrafts\(\)/);
-    assert.match(block, /resetAllSelections\(\)/);
-    assert.match(block, /AsyncStorage\.removeItem\(QUESTIONS_KEY\)/);
-  }
+  assert.equal(app.split('guard = await guardSignedIn(guardDeps(), { sessionUser: session.user })').length - 1, 2, 'both guards (cold start and SIGNED_IN)');
+  const at = app.indexOf('const guardDeps = () => ({');
+  const deps = app.slice(at, app.indexOf('});', at));
+  assert.match(deps, /clearAllDrafts,/);
+  assert.match(deps, /resetAllSelections,/);
+  assert.match(deps, /removeQuestions: \(\) => AsyncStorage\.removeItem\(QUESTIONS_KEY\)/);
+  const discard = read('lib/accountGuard.js');
+  for (const step of ['d.clearAllDrafts', 'd.resetAllSelections', 'd.removeQuestions']) assert.ok(discard.includes(step), step);
 });
 
 // Council (release + QA) 2026-10-01: the "preview" (internal) profile had no env, and

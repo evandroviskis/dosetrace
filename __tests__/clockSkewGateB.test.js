@@ -386,7 +386,8 @@ test('CS-20 chain: a hook dropped in the background, then the foreground resume 
   assert.equal(pushes, 0, 'the hook was dropped');
   // App.js's resume handler, with the real isForegroundStale.
   const app = read('App.js');
-  assert.match(app, /if \(!isForegroundStale\(nowTs, lastFgSync\)\) return;\s*lastFgSync = nowTs;\s*supabase\.auth\.getSession\(\)\.then\(\(\{ data: \{ session \} \}\) => \{[\s\S]{0,200}if \(session\?\.user\?\.id\) \{ requestSync\(\);/);
+  // DV-242 (1.3.1): not while another account's data waits for the cross-account choice.
+  assert.match(app, /if \(!isForegroundStale\(nowTs, lastFgSync\)\) return;\s*lastFgSync = nowTs;\s*supabase\.auth\.getSession\(\)\.then\(\(\{ data: \{ session \} \}\) => \{[\s\S]{0,400}if \(session\?\.user\?\.id && !accountHeldRef\.current\) \{\s*requestSync\(\);/);
   const isForegroundStale = loadFn('lib/stillGoingGate.js', 'export function isForegroundStale(', 'isForegroundStale', { FOREGROUND_FRESH_MS: 60000 });
   let lastFgSync = 0;
   const onActive = (nowTs) => { fg = true; if (!isForegroundStale(nowTs, lastFgSync)) return; lastFgSync = nowTs; requestSync(); };
