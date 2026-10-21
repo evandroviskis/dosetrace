@@ -36,7 +36,7 @@ function phone(cloud, deviceId, userId, opts = {}) {
     appVersion: opts.version || '1.3.1',
     store: kv,
     secret: { get: async () => p.secret, set: async (v) => { p.secret = v; }, remove: async () => { p.secret = null; } },
-    summarize: async (uid) => summarizeUnsent(db, [uid]),
+    summarize: async (uid, o) => summarizeUnsent(db, [uid], o || {}),
     changeSeq: () => readChangeSeq(db),
     rebuild: async (uid, o) => rebuildFromCloud(db, view, uid, { keep: o && o.keep }),
     requestPass: () => { p.passesAsked = (p.passesAsked || 0) + 1; },

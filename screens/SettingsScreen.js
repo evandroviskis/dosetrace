@@ -653,7 +653,7 @@ export default function SettingsScreen({ navigation }) {
       // A-119 OD-10: this phone is no longer the account's; nothing was deleted and screen 2 takes over.
       if (result.replaced) { setSheet(null); return; }
       // Gate B M4: this phone's own takeover is not confirmed yet — nothing was deleted; say so.
-      if (result.deviceWait) { errorSheet(t('settings_delete_device_wait')); return; }
+      if (result.deviceWait) { notice(t('settings_delete_device_wait_title'), t('settings_delete_device_wait'), 'warning'); return; }
 
       // The account + data are deleted. If the user signed in with Apple but we
       // had no stored token to auto-revoke (a pre-feature account, or a transient
