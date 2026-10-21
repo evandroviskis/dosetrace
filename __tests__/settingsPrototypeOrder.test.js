@@ -103,6 +103,28 @@ test('a group card = name + summary + a round arrow in one card; the rows open i
   assert.match(card, /<GroupChevron dir=\{open \? 'up' : 'down'\} color=\{colors\.ink\} \/>/);
 });
 
+// DV-007 = A (founder 2026-10-20, docs/design/dv007-ai-consent-withdraw.html): the "AI use" switch
+// joins Data & privacy right after "Usage analytics"; the six prototype rows keep their order.
+test('Data & privacy rows: the six prototype rows in order, with AI use right after Usage analytics', () => {
+  const body = region(SET, 'function renderPrivacyBody()', 'function renderSupportBody()');
+  inOrder(body, [
+    "t('settings_privacy_policy')",
+    "t('settings_terms')",
+    "t('settings_disclaimer')",
+    "t('settings_analytics')",
+    "t('settings_ai_use')",
+    "t('settings_report_title')",
+    "t('settings_export_title')",
+  ], 'Data & privacy');
+  // Nothing else between Usage analytics and AI use, and between AI use and the report.
+  const between = body.slice(body.indexOf("t('settings_analytics')"), body.indexOf("t('settings_report_title')"));
+  assert.equal(between.split('<GradSwitch').length - 1, 2, 'two switches: analytics, then AI use');
+  assert.equal(body.split("t('settings_ai_use')").length - 1, 2, 'AI use: its label and its switch name, once each');
+  for (const lang of Object.keys(translations)) {
+    assert.ok(translations[lang].settings_ai_use && translations[lang].settings_ai_use_sub, `${lang}: AI use strings`);
+  }
+});
+
 test('Sign out and Delete account sit in their own card, outside every group (Sign out first, Delete in the danger color)', () => {
   const actions = region(SET, 'function renderAccountActions()', '\n  }\n');
   inOrder(actions, ['onPress={handleSignOut}', "t('settings_signout')", 'onPress={handleDeleteAccount}', "t('settings_delete')"], 'actions card');

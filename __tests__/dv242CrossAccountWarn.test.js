@@ -197,7 +197,8 @@ test('Gate B 5: the discard cancels and dismisses A\'s reminders BEFORE it clear
 
 // Re-verification 2: an owner that cannot be read may be THIS account's own unsent rows — Discard
 // would wipe them. The fail-closed sheet offers Try again (and Sign out, which keeps the data),
-// never Discard. Existing strings only: error / error_generic / pw_try_again / settings_signout.
+// never Discard. DV-242 option B (founder 2026-10-20): its own title and body, not the generic
+// error / error_generic; the buttons stay pw_try_again / settings_signout.
 test('Re-verify 2: an owner that cannot be read holds and asks Try again / Sign out — never Discard', async () => {
   const p = phone({ pendingRows: 0 });
   p.d.getLocalOwner = () => { throw new Error('database is locked'); };
@@ -211,11 +212,46 @@ test('Re-verify 2: an owner that cannot be read holds and asks Try again / Sign 
     const labels = sheet.buttons.map((b) => b.label);
     assert.ok(!labels.includes(t('account_guard_discard')), `${lang}: no Discard`);
     assert.ok(labels.includes(t('pw_try_again')) && labels.includes(t('settings_signout')), `${lang}: Try again + Sign out`);
-    assert.equal(sheet.title, t('error'));
-    assert.equal(sheet.body, t('error_generic'));
+    assert.equal(sheet.title, t('account_guard_unreadable_title'));
+    assert.equal(sheet.body, t('account_guard_unreadable_msg'));
+    assert.notEqual(sheet.title, t('error'), `${lang}: not the reused generic title`);
+    assert.notEqual(sheet.body, t('error_generic'), `${lang}: not the reused generic line`);
+    assert.equal(sheet.note, undefined, `${lang}: no error line on the first ask`);
     assert.equal(sheet.locked, true);
     assert.ok(labels.every((l) => typeof l === 'string' && l), `${lang}: every string exists`);
   }
+});
+
+// DV-242 option B, approved 2026-10-20 (docs/design/dv242-other-account-sheet.html): the words of
+// the unreadable-owner sheet, in all six languages; one term per concept with the app's own
+// "Try again" / "Sign out" / phone words.
+const UNREADABLE = {
+  en: ['Couldn\u2019t check this phone', 'The app couldn\u2019t see which account the data saved here belongs to. Nothing was deleted. Try again, or sign out and sign back in.'],
+  pt: ['N\u00e3o deu para conferir este celular', 'O app n\u00e3o conseguiu ver de qual conta s\u00e3o os dados guardados aqui. Nada foi apagado. Tente novamente ou saia e entre de novo.'],
+  es: ['No se pudo comprobar este tel\u00e9fono', 'La app no pudo ver a qu\u00e9 cuenta pertenecen los datos guardados aqu\u00ed. No se ha borrado nada. Vuelve a intentarlo, o cierra sesi\u00f3n y vuelve a iniciarla.'],
+  fr: ['Impossible de v\u00e9rifier ce t\u00e9l\u00e9phone', 'L\u2019app n\u2019a pas pu savoir \u00e0 quel compte appartiennent les donn\u00e9es enregistr\u00e9es ici. Rien n\u2019a \u00e9t\u00e9 supprim\u00e9. R\u00e9essayez, ou d\u00e9connectez-vous puis reconnectez-vous.'],
+  de: ['Dieses Handy konnte nicht gepr\u00fcft werden', 'Die App konnte nicht erkennen, zu welchem Konto die hier gespeicherten Daten geh\u00f6ren. Es wurde nichts gel\u00f6scht. Versuch es erneut oder melde dich ab und wieder an.'],
+  it: ['Impossibile verificare questo telefono', 'L\u2019app non \u00e8 riuscita a capire a quale account appartengono i dati salvati qui. Non \u00e8 stato eliminato nulla. Riprova, oppure esci e accedi di nuovo.'],
+};
+test('DV-242 B: the unreadable-owner sheet has its own title and body in all six languages', () => {
+  assert.deepEqual(Object.keys(translations).sort(), Object.keys(UNREADABLE).sort());
+  for (const [lang, [title, body]] of Object.entries(UNREADABLE)) {
+    const tr = translations[lang];
+    assert.equal(tr.account_guard_unreadable_title, title, `${lang} title`);
+    assert.equal(tr.account_guard_unreadable_msg, body, `${lang} body`);
+    if (lang !== 'en') {
+      assert.notEqual(tr.account_guard_unreadable_title, translations.en.account_guard_unreadable_title, `${lang}: translated`);
+      assert.notEqual(tr.account_guard_unreadable_msg, translations.en.account_guard_unreadable_msg, `${lang}: translated`);
+    }
+    assert.doesNotMatch(title + body, /\p{Extended_Pictographic}/u, `${lang}: no emoji`);
+  }
+  // The sheet still says "Try again" / "Sign out" with the app's own buttons (one term per concept).
+  const guard = read('lib/accountGuard.js');
+  const fn = guard.slice(guard.indexOf('function accountAskSheet('));
+  assert.match(fn, /title: t\('account_guard_unreadable_title'\)/);
+  assert.match(fn, /body: t\('account_guard_unreadable_msg'\)/);
+  assert.match(fn, /label: t\('settings_signout'\), kind: 'secondary', onPress: onSignOut/);
+  assert.match(fn, /label: t\('pw_try_again'\), kind: 'primary', onPress: onRetry/);
 });
 
 test('Re-verify 2: Try again runs the guard once more — readable now → it continues', async () => {

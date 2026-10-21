@@ -137,3 +137,175 @@ test('DV-007: the App wires clearAIConsent into the wipe steps and the cross-acc
   assert.match(app, /clearAIConsent,/, 'wipeDeps carries clearAIConsent');
   assert.match(read('lib/accountGuard.js'), /d\.clearAIConsent/, 'the cross-account discard clears it too');
 });
+
+// ── DV-007 = A (founder 2026-10-20, docs/design/dv007-ai-consent-withdraw.html): the "AI use"
+// switch in Settings › Data & privacy. ON = this account's consent is granted. OFF withdraws at
+// once (nothing deleted, no sheet). ON shows the AI consent sheet every AI feature shows, and the
+// switch stays ON only after "Agree". Runs the real lib/aiUseSwitch over the real consent functions.
+const { createAIUseSwitch } = require('../lib/aiUseSwitch');
+const { translations } = require('../i18n/translations');
+
+function settingsSwitch(store, who) {
+  const m = consentModule(store, who);
+  const calls = [];
+  const out = { on: null, sheet: null, calls, m };
+  const sw = createAIUseSwitch();
+  const t = (k) => translations.en[k];
+  const d = {
+    t,
+    has: async () => { calls.push('has'); return m.has(); },
+    grant: async () => { calls.push('grant'); return m.grant(); },
+    revoke: async () => { calls.push('revoke'); return m.revoke(); },
+    setOn: (v) => { out.on = v; },
+    showSheet: (cfg) => { calls.push('sheet'); out.sheet = cfg; },
+    openPrivacy: () => { calls.push('privacy'); },
+  };
+  out.load = () => sw.load(d);
+  out.tap = (v) => sw.toggle(v, d);
+  out.press = async (kind) => {
+    const b = out.sheet.buttons.find((x) => x.kind === kind);
+    if (b.onPress) await b.onPress();
+  };
+  return out;
+}
+
+test('DV-007 A: switch OFF → revokeAIConsent at once, nothing else (no sheet, no grant, nothing deleted)', async () => {
+  const store = makeStore({ other_key: 'kept' });
+  const who = { id: 'user-a' };
+  const s = settingsSwitch(store, who);
+  await s.m.grant();
+  await s.load();
+  assert.equal(s.on, true, 'granted → the switch shows ON');
+  s.calls.length = 0;
+  await s.tap(false);
+  assert.deepEqual(s.calls, ['revoke'], 'only the withdrawal');
+  assert.equal(s.on, false);
+  assert.equal(s.sheet, null, 'no sheet');
+  assert.equal(await s.m.has(), false, 'withdrawn');
+  assert.equal(store._m.get('other_key'), 'kept', 'nothing else on the phone changes');
+});
+
+test('DV-007 A: switch ON → the existing AI consent sheet; Agree → granted and ON', async () => {
+  const store = makeStore();
+  const s = settingsSwitch(store, { id: 'user-a' });
+  await s.load();
+  assert.equal(s.on, false);
+  s.calls.length = 0;
+  await s.tap(true);
+  assert.deepEqual(s.calls, ['sheet'], 'the sheet first, nothing granted yet');
+  assert.equal(s.on, false, 'still OFF while the sheet is open');
+  const en = translations.en;
+  assert.equal(s.sheet.icon, 'ai_spark');
+  assert.equal(s.sheet.title, en.ai_consent_title);
+  assert.equal(s.sheet.body, en.ai_consent_body);
+  assert.equal(s.sheet.link.label, en.ai_consent_privacy);
+  assert.deepEqual(s.sheet.buttons.map((b) => [b.label, b.kind]), [[en.cancel, 'secondary'], [en.ai_consent_agree, 'primary']]);
+  assert.equal(await s.m.has(), false, 'not granted before Agree');
+  await s.press('primary');
+  assert.ok(s.calls.includes('grant'));
+  assert.equal(await s.m.has(), true);
+  assert.equal(s.on, true);
+});
+
+test('DV-007 A: switch ON → Cancel, the policy link or closing the sheet → stays OFF, nothing granted', async () => {
+  for (const how of ['cancel', 'link', 'dismiss']) {
+    const store = makeStore();
+    const s = settingsSwitch(store, { id: 'user-a' });
+    await s.load();
+    await s.tap(true);
+    if (how === 'cancel') await s.press('secondary');
+    if (how === 'link') { s.sheet.link.onPress(); assert.ok(s.calls.includes('privacy')); }
+    if (how === 'dismiss' && s.sheet.onDismiss) await s.sheet.onDismiss();
+    assert.ok(!s.calls.includes('grant'), `${how}: never granted`);
+    assert.equal(await s.m.has(), false, `${how}: no consent`);
+    assert.equal(s.on, false, `${how}: the switch stays OFF`);
+  }
+});
+
+test('DV-007 A: the switch is per account — another account, a sign-out or the 1.3.0 flag shows OFF', async () => {
+  const store = makeStore({ dosetrace_ai_extraction_consent_v4: 'granted' });
+  const who = { id: 'user-a' };
+  const s = settingsSwitch(store, who);
+  await s.load();
+  assert.equal(s.on, false, 'after the 1.3.1 update everybody starts not granted');
+  await s.tap(true);
+  await s.press('primary');
+  assert.equal(s.on, true);
+  who.id = 'user-b';
+  await s.load();
+  assert.equal(s.on, false, 'another account on the same phone: OFF');
+  who.id = null;
+  await s.load();
+  assert.equal(s.on, false, 'signed out: OFF');
+  who.id = 'user-a';
+  await s.load();
+  assert.equal(s.on, true, 'A again (no wipe between): still A\'s consent');
+  await s.m.clear(); // the intended sign-out wipe / the cross-account discard
+  await s.load();
+  assert.equal(s.on, false, 'after the wipe: OFF');
+});
+
+test('DV-007 A: a withdrawal that cannot be recorded shows what is stored, never a false OFF', async () => {
+  const store = makeStore();
+  const s = settingsSwitch(store, { id: 'user-a' });
+  await s.m.grant();
+  await s.load();
+  store.setItem = async () => { throw new Error('disk full'); };
+  await s.tap(false);
+  assert.equal(await s.m.has(), true, 'still granted on the phone');
+  assert.equal(s.on, true, 'the switch says so');
+});
+
+test('DV-007 A: a slow first read never overwrites the person\'s tap', async () => {
+  const store = makeStore();
+  const s = settingsSwitch(store, { id: 'user-a' });
+  await s.m.grant();
+  const load = s.load(); // still reading
+  await s.tap(false);
+  await load;
+  assert.equal(s.on, false);
+  assert.equal(await s.m.has(), false);
+});
+
+test('DV-007 A: the AI use row strings, in all six languages', () => {
+  const want = {
+    en: ['AI use', 'What you send to the AI features goes to Claude (Anthropic)'],
+    pt: ['Uso de IA', 'O que você envia às funções de IA vai para o Claude (Anthropic)'],
+    es: ['Uso de IA', 'Lo que envías a las funciones de IA va a Claude (Anthropic)'],
+    fr: ['Utilisation de l’IA', 'Ce que vous envoyez aux fonctions d’IA est transmis à Claude (Anthropic)'],
+    de: ['KI-Nutzung', 'Was du an die KI-Funktionen sendest, geht an Claude (Anthropic)'],
+    it: ['Uso dell’IA', 'Ciò che invii alle funzioni di IA arriva a Claude (Anthropic)'],
+  };
+  assert.deepEqual(Object.keys(translations).sort(), Object.keys(want).sort());
+  for (const [lang, [label, sub]] of Object.entries(want)) {
+    assert.equal(translations[lang].settings_ai_use, label, `${lang} label`);
+    assert.equal(translations[lang].settings_ai_use_sub, sub, `${lang} sub-line`);
+    if (lang !== 'en') assert.notEqual(translations[lang].settings_ai_use_sub, want.en[1], `${lang}: translated`);
+  }
+});
+
+test('DV-007 A: Settings wires the switch row, reads it per account on focus, and never sends it anywhere', () => {
+  const SET = read('screens/SettingsScreen.js');
+  const lib = read('lib/aiUseSwitch.js');
+  const body = SET.slice(SET.indexOf('function renderPrivacyBody()'), SET.indexOf('function renderSupportBody()') > 0 ? SET.indexOf('function renderSupportBody()') : undefined);
+  const a = body.indexOf("t('settings_analytics')");
+  const ai = body.indexOf("t('settings_ai_use')");
+  const rep = body.indexOf("t('settings_report_title')");
+  assert.ok(a > 0 && ai > a && rep > ai, 'AI use sits right after Usage analytics, before the adherence report');
+  const row = body.slice(ai - 400, rep);
+  assert.match(row, /<FeatureIcon name="ai_spark" size=\{28\} color=\{colors\.text\} \/>/);
+  assert.match(row, /<Text style=\{s\.rowSub\}>\{t\('settings_ai_use_sub'\)\}<\/Text>/);
+  assert.match(row, /<GradSwitch\s+value=\{aiUseOn\}\s+onValueChange=\{toggleAIUse\}/);
+  assert.match(row, /accessibilityLabel=\{t\('settings_ai_use'\)\}/);
+  // Read per account each time Settings is shown (fetchUser runs on focus).
+  const fetchUser = SET.slice(SET.indexOf('async function fetchUser()'), SET.indexOf('async function toggleNotificationPref('));
+  assert.match(fetchUser, /aiUse\.load\(aiUseDeps\(\)\)/);
+  assert.match(SET, /import \{ hasAIConsent, grantAIConsent, revokeAIConsent, AI_PRIVACY_URL \} from '\.\.\/lib\/aiConsent';/);
+  // Never sent: no account write, no network, in the switch or its wiring.
+  const toggle = SET.slice(SET.indexOf('function aiUseDeps()'), SET.indexOf('async function toggleNotificationPref('));
+  for (const src of [lib, toggle]) {
+    assert.doesNotMatch(src, /updateUser|supabase|fetch\(|user_metadata|Analytics/);
+    assert.doesNotMatch(src, /#[0-9a-fA-F]{3,8}\b|'white'|'black'|rgba?\(/);
+    assert.doesNotMatch(src, /\p{Extended_Pictographic}/u);
+  }
+});

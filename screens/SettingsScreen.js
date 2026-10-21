@@ -59,6 +59,8 @@ import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended, orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
 import { orphanedSheet } from '../lib/orphanedPending';
 import { protocolDisplayName } from '../lib/protocolName';
+import { hasAIConsent, grantAIConsent, revokeAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
+import { createAIUseSwitch } from '../lib/aiUseSwitch';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
 // the report is made from the rows already on the phone (no scan from a half-synced phone). The
@@ -203,6 +205,9 @@ export default function SettingsScreen({ navigation }) {
   const deleteOpening = useRef(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
   const analyticsSaved = useRef(true); // DV-008: the value the account holds (a failed tap reverts to it)
+  // DV-007 = A: the "AI use" switch shows this account's AI consent (on this phone, per account).
+  const [aiUseOn, setAiUseOn] = useState(false);
+  const [aiUse] = useState(createAIUseSwitch);
   const savingProfile = useRef(false); // DV-008: Edit profile Save in flight (a double tap sends one save)
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -347,6 +352,7 @@ export default function SettingsScreen({ navigation }) {
     bl.then(setBillingStore, () => setBillingStore(null));
     const user = await getCachedUser();
     setUser(user);
+    aiUse.load(aiUseDeps()); // per account: signed out or another account → OFF
     // Real subscription status (non-throwing; defaults to false on failure)
     hasPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
@@ -373,6 +379,23 @@ export default function SettingsScreen({ navigation }) {
       setActivityLevel(activitySourceKey(user.user_metadata, await getCalcInputs().catch(() => null)));
       setHasProvider(user.user_metadata?.has_provider || '');
     }
+  }
+
+  // DV-007 = A (lib/aiUseSwitch): OFF withdraws at once; ON asks with the AI features' own sheet.
+  function aiUseDeps() {
+    return {
+      t,
+      has: hasAIConsent,
+      grant: grantAIConsent,
+      revoke: revokeAIConsent,
+      setOn: setAiUseOn,
+      showSheet: setSheet,
+      openPrivacy: () => Linking.openURL(AI_PRIVACY_URL).catch(() => {}),
+    };
+  }
+
+  function toggleAIUse(val) {
+    aiUse.toggle(val, aiUseDeps());
   }
 
   async function toggleNotificationPref(key, val, setter) {
@@ -954,6 +977,20 @@ export default function SettingsScreen({ navigation }) {
           <GradSwitch
             value={analyticsEnabled}
             onValueChange={toggleAnalytics}
+          />
+        </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <FeatureIcon name="ai_spark" size={28} color={colors.text} />
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_ai_use')}</Text>
+              <Text style={s.rowSub}>{t('settings_ai_use_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={aiUseOn}
+            onValueChange={toggleAIUse}
+            accessibilityLabel={t('settings_ai_use')}
           />
         </View>
         <TouchableOpacity
