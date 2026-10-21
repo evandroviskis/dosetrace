@@ -133,15 +133,28 @@ test('DV-242: a sync pass never runs while the local data belongs to another acc
   assert.equal(G.ownerBlocksSync('user-a', 'user-b'), true);
   assert.equal(G.ownerBlocksSync('user-b', 'user-b'), false);
   assert.equal(G.ownerBlocksSync(null, 'user-b'), false);
-  const ran = [];
-  const syncPass = loadFn('lib/sync.js', 'async function syncPass(', 'syncPass', {
-    _deletionPaused: false, _isOnline: true, notifyListeners: () => {}, console,
-    getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => 'user-a', ownerBlocksSync: G.ownerBlocksSync,
-    pushPendingChanges: async () => ran.push('push'), pullCloudChanges: async () => ran.push('pull'),
-  });
-  await syncPass();
+  const { ran, pass } = syncSteps({ getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => 'user-a' });
+  await pass();
   assert.deepEqual(ran, [], 'no push, no pull under B with A\'s data');
+  const same = syncSteps({ getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => 'user-b' });
+  await same.pass();
+  assert.deepEqual(same.ran, ['push', 'pull'], 'B\'s own data syncs as before');
 });
+
+// lib/sync.js's real push / pull wrappers and its owner check, with syncCore's steps faked.
+function syncSteps(deps) {
+  const ran = [];
+  const base = { getDB: () => ({}), cloud: {}, ownerBlocksSync: G.ownerBlocksSync, ...deps };
+  const ownerBlocksThisSync = loadFn('lib/sync.js', 'function ownerBlocksThisSync(', 'ownerBlocksThisSync', base);
+  const all = { ...base, ownerBlocksThisSync, pushPending: async () => ran.push('push'), pullChanges: async () => ran.push('pull') };
+  const push = loadFn('lib/sync.js', 'async function pushPendingChanges(', 'pushPendingChanges', all);
+  const pull = loadFn('lib/sync.js', 'async function pullCloudChanges(', 'pullCloudChanges', all);
+  const syncPass = loadFn('lib/sync.js', 'async function syncPass(', 'syncPass', {
+    _deletionPaused: false, _isOnline: true, notifyListeners: () => {}, console: { warn() {} },
+    pushPendingChanges: push, pullCloudChanges: pull,
+  });
+  return { ran, pass: syncPass };
+}
 
 test('DV-242: the App holds the UI while the owner is another account and wires both paths through the guard', () => {
   const app = read('App.js');
@@ -186,12 +199,8 @@ test('Gate B 3: a sync pass whose owner check fails does not run (fail closed)',
     { getCachedUser: async () => ({ id: 'user-b' }), getLocalDataUserId: () => { throw new Error('locked'); } },
     { getCachedUser: async () => { throw new Error('no session read'); }, getLocalDataUserId: () => null },
   ]) {
-    const ran = [];
-    const syncPass = loadFn('lib/sync.js', 'async function syncPass(', 'syncPass', {
-      _deletionPaused: false, _isOnline: true, notifyListeners: () => {}, console, ownerBlocksSync: G.ownerBlocksSync,
-      pushPendingChanges: async () => ran.push('push'), pullCloudChanges: async () => ran.push('pull'), ...deps,
-    });
-    await syncPass();
+    const { ran, pass } = syncSteps(deps);
+    await pass();
     assert.deepEqual(ran, []);
   }
 });

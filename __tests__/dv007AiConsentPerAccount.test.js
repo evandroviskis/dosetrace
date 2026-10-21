@@ -57,7 +57,7 @@ test('DV-007: A grants, B signs in on the same phone → B is asked (consent is 
   assert.equal(await m.has(), false, 'B never consented');
 });
 
-test('DV-007: the record carries the consent version and the date; the account copy is a merge write of ai_consent only', async () => {
+test('DV-007: the record carries the consent version and the date, on this phone only', async () => {
   const store = makeStore();
   const updates = [];
   const m = consentModule(store, { id: 'user-a' }, updates);
@@ -69,8 +69,19 @@ test('DV-007: the record carries the consent version and the date; the account c
   assert.equal(rec.status, 'granted');
   assert.equal(rec.version, 4);
   assert.ok(Date.parse(rec.at) >= before - 1000, 'dated');
-  assert.equal(updates.length, 1);
-  assert.deepEqual(Object.keys(updates[0].data), ['ai_consent'], 'only the ai_consent key is written (merge, never clobber)');
+});
+
+// Gate B 6 (1.3.1): the user_metadata.ai_consent copy was never read, is not valid proof (DL-83)
+// and cost a USER_UPDATED event and a session rewrite on every grant. Gone.
+test('Gate B 6: granting or withdrawing the consent makes no auth call', async () => {
+  const store = makeStore();
+  const calls = [];
+  const m = consentModule(store, { id: 'user-a' }, calls);
+  await m.grant();
+  await m.revoke();
+  assert.deepEqual(calls, [], 'no updateUser / auth call');
+  assert.doesNotMatch(SRC, /updateUser|supabase\.auth/);
+  assert.doesNotMatch(SRC, /import \{[^}]*\bsupabase\b[^}]*\} from '\.\/supabase'/);
 });
 
 test('DV-007: grant then revoke → no consent; the withdrawal is recorded with its date', async () => {
