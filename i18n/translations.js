@@ -5246,7 +5246,7 @@ export const translations = {
     today_section_progress: 'Seu progresso',
     today_all_done: 'Tudo em dia por hoje',
     notif_morning_title: "Bom dia",
-    notif_morning_body: 'Aqui está um resumo das suas doses de hoje — dê uma olhada para não esquecer nenhuma.',
+    notif_morning_body: 'Aqui está o resumo das suas doses de hoje.',
     notif_morning_due_body: 'Hoje: {list}.',
     notif_morning_next_body: 'Nada hoje. Próxima dose em {days} dias.',
     notif_morning_next1_body: 'Nada hoje. Próxima dose amanhã.',
@@ -6109,7 +6109,7 @@ export const translations = {
     cal_rc_why_1: 'Uma calculadora genérica usou seu peso total, não sua massa magra — só isso já pode errar por algumas centenas de kcal.',
     cal_rc_why_2: 'O nível de atividade é o campo em que as pessoas mais exageram. Na dúvida, escolha um nível abaixo.',
     cal_rc_why_3: 'À medida que você perde peso, um corpo menor queima menos — sua meta antiga agora está mais perto da manutenção.',
-    cal_rc_why_4: 'O consumo costuma ser maior do que a gente lembra. Essa é a causa mais comum de todas.',
+    cal_rc_why_4: 'O consumo costuma ser maior do que lembramos. Essa é a causa mais comum de todas.',
     cal_rc_why_5: 'Água e glicogênio podem mascarar a perda de gordura por semanas — veja as explicações abaixo.',
     cal_rc_unreliable_note: 'O consumo informado pela própria pessoa costuma errar em 20-40%, e esse erro passa para este número. Se parecer baixo demais, isso já é um sinal de que você come mais do que imagina.',
     cal_rc_too_short: 'Esse intervalo é curto demais. Use pesagens com pelo menos 14 dias de diferença para um número confiável.',
@@ -6186,8 +6186,8 @@ export const translations = {
     cal_wi_note: 'O que você mudar aqui atualiza seu progresso, sua meta e seus números reais.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_wi_delete: 'Excluir pesagem', // fix or delete a weigh-in (founder 2026-10-02)
     cal_wi_del_title: 'Excluir esta pesagem?', // fix or delete a weigh-in (founder 2026-10-02)
-    cal_wi_del_body: '{date} · {weight}. Seu progresso, sua meta e seus números reais são recalculados sem essa pesagem. Não dá para desfazer.', // fix or delete a weigh-in (founder 2026-10-02)
-    cal_wi_rc_start: 'Esta pesagem dá início à medição dos seus números reais: dá para corrigir, mas não para excluir.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_del_body: '{date} · {weight}. Seu progresso, sua meta e seus números reais são recalculados sem essa pesagem. Esta ação não pode ser desfeita.', // fix or delete a weigh-in (founder 2026-10-02)
+    cal_wi_rc_start: 'Esta pesagem dá início à medição dos seus números reais: ela pode ser corrigida, mas não excluída.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_wi_invalid: 'Digite um peso entre 25 e 300 kg (55–660 lb); gordura corporal de 3 a 70%.', // fix or delete a weigh-in (founder 2026-10-02)
     cal_weighins_need_more: 'A partir de duas pesagens, você vê uma tendência.',
     cal_show_all: 'Ver tudo',
@@ -6218,11 +6218,11 @@ export const translations = {
     export_no_vaccines: 'Nenhuma vacina registrada.',
     export_exported_prefix: 'Exportado em',
     cal_expl_scale_title: 'Por que a balança engana (água e glicogênio)',
-    cal_expl_scale_body: 'O peso na balança não é só gordura. O glicogênio — o carboidrato que seus músculos armazenam como energia — retém cerca de 3 g de água para cada grama de glicogênio, e seu corpo guarda por volta de 400–500 g dele. Só de sair de pouco glicogênio (músculos vazios) para os músculos cheios, a balança já pode variar 1,5–2 kg sem que nada disso seja gordura. Some o sódio, uma refeição grande, o ciclo menstrual, o estresse e a digestão normal, e 1–3 kg de oscilação diária é perfeitamente normal. Quem está de fato em déficit calórico pode ver a balança subir por uma semana inteira. Não dá para calcular essa variação: pese-se sempre nas mesmas condições (de manhã, depois de ir ao banheiro, antes de comer) e avalie a tendência por semanas, não por dias.',
+    cal_expl_scale_body: 'O peso na balança não é só gordura. O glicogênio — o carboidrato que seus músculos armazenam como energia — retém cerca de 3 g de água para cada grama de glicogênio, e seu corpo guarda por volta de 400–500 g dele. Só de sair de pouco glicogênio (músculos vazios) para os músculos cheios, a balança já pode variar 1,5–2 kg sem que nada disso seja gordura. Some o sódio, uma refeição grande, o ciclo menstrual, o estresse e a digestão normal, e 1–3 kg de oscilação diária é perfeitamente normal. Quem está de fato em déficit calórico pode ver a balança subir por uma semana inteira. Não é possível calcular essa variação: pese-se sempre nas mesmas condições (de manhã, depois de ir ao banheiro, antes de comer) e avalie a tendência por semanas, não por dias.',
     cal_expl_deficit_title: 'Por que "500 kcal = 0,5 kg/semana" deixa de funcionar',
-    cal_expl_deficit_body: 'A regra de "500 kcal por dia = 0,5 kg por semana" vem da ideia de que meio quilo de gordura contém cerca de 3.500 kcal. É uma boa aproximação de curto prazo, mas pressupõe que seu metabolismo nunca muda. À medida que você perde peso, um corpo menor queima menos calorias, então sua manutenção cai junto — a perda real é uma curva que achata, não uma linha reta. Esperar uma linha reta e bater no inevitável platô é uma das maiores razões pelas quais as pessoas acham que algo está errado. Recalcule a cada poucos quilos e reduza a meta conforme seu corpo muda.',
+    cal_expl_deficit_body: 'A regra de "500 kcal por dia = 0,5 kg por semana" vem da ideia de que meio quilo de gordura contém cerca de 3.500 kcal. É uma boa aproximação de curto prazo, mas pressupõe que seu metabolismo nunca muda. À medida que você perde peso, um corpo menor queima menos calorias, então sua manutenção cai junto — a perda real é uma curva que achata, não uma linha reta. Esperar uma linha reta e chegar ao inevitável platô é uma das maiores razões pelas quais as pessoas concluem que algo está errado. Recalcule a cada poucos quilos e reduza a meta conforme seu corpo muda.',
     cal_expl_measure_title: 'Por que as medidas superam a balança',
-    cal_expl_measure_body: 'Uma fita métrica na cintura é barata e acompanha a perda de gordura muito mais claramente do que a balança, que sofre interferência da água, da comida e do glicogênio. Se você come bem abaixo da manutenção, pode perder um pouco de massa magra junto com a gordura, então a balança estagna e você acha que está falhando. Mas se sua cintura diminui enquanto o peso não sai do lugar, isso é recomposição: progresso real que você nunca veria só com a balança. Meça no mesmo ponto, logo de manhã, a cada poucas semanas.',
+    cal_expl_measure_body: 'Uma fita métrica na cintura é barata e acompanha a perda de gordura muito mais claramente do que a balança, que sofre interferência da água, da comida e do glicogênio. Se você come bem abaixo da manutenção, pode perder um pouco de massa magra junto com a gordura, então a balança estagna e você conclui que não está progredindo. Mas se sua cintura diminui enquanto o peso não sai do lugar, isso é recomposição: progresso real que você nunca veria só com a balança. Meça no mesmo ponto, logo de manhã, a cada poucas semanas.',
     cal_expl_comp_title: 'Por que o gasto diário muda',
     cal_expl_comp_body: 'Seu gasto diário não é um número fixo. O músculo queima mais em repouso do que a gordura, então ao ganhar músculo ele sobe, e ao perder peso — sobretudo massa magra — ele desce. É normal, não um erro. Por isso, uma medição de meses atrás pode hoje dar um número alto ou baixo demais. Meça de novo seus números reais a cada poucas semanas, para eles acompanharem o corpo que você tem agora.',
     vax_disclaimer: 'Você insere seus próprios registros de vacinas. O DoseTrace os guarda e organiza — nunca indica quais vacinas tomar nem quando. Para qualquer dúvida médica, consulte um profissional qualificado.',
@@ -6615,7 +6615,7 @@ export const translations = {
     protocols_add_reminder: '+ Lembrete',
     protocols_delete: 'Excluir',
     protocols_delete_confirm: 'Tem certeza?',
-    protocols_delete_confirm_settings: 'Este protocolo vai para Excluídos recentemente, no final da sua lista, e fica lá até você excluí-lo para sempre, então dá para restaurá-lo quando quiser. Enquanto estiver lá, as doses dele não aparecem no Registro de doses.',
+    protocols_delete_confirm_settings: 'Este protocolo vai para Excluídos recentemente, no final da sua lista, e fica lá até você excluí-lo para sempre, e pode ser restaurado quando você quiser. Enquanto estiver lá, as doses dele não aparecem no Registro de doses.',
     protocols_delete_title: 'Excluir protocolo',
     protocols_new_protocol: 'Novo protocolo',
     protocols_edit_protocol: 'Editar protocolo',
@@ -7257,7 +7257,7 @@ export const translations = {
     ap_opt_form: "Continuar no formulário",
     ap_fit_explain_powder: "Veja por que não cabe: o seu frasco tem {amount} {unit} em {water} ml, então cada 1 ml tem {perml} {dunit}. {dose} {dunit} precisam de {ml} ml, e a sua seringa comporta {holds} ml.",
     ap_fit_explain_ready: "Veja por que não cabe: cada 1 ml do seu frasco tem {conc} {unit}. {dose} {dunit} precisam de {ml} ml, e a sua seringa comporta {holds} ml.",
-    ap_fit_fact_ml: "{dose} {unit} são {ml} ml de líquido. A sua seringa comporta {holds} ml, então não dá para puxar de uma vez. É preciso uma seringa que comporte pelo menos {ml} ml.",
+    ap_fit_fact_ml: "{dose} {unit} são {ml} ml de líquido. A sua seringa comporta {holds} ml, então não é possível aspirar tudo de uma vez. É preciso uma seringa que comporte pelo menos {ml} ml.",
     ap_fit_fact_powder: 'Num frasco de pó, a quantidade de água define quanto há em cada ml. Confirme com o seu fornecedor quanto líquido o frasco comporta. Um frasco que já foi misturado não muda mais.',
     ap_fit_fact_ready: "Seringas de 2, 3 e 5 ml são para aplicação intramuscular.",
     ap_fit_fact_who: "Como ajustar é uma pergunta para o seu profissional de saúde.",
