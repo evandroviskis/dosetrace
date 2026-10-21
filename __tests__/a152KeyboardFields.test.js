@@ -37,8 +37,10 @@ function jsFiles(dir) {
   return out;
 }
 
-// Fields (TextInput, AuthField) not inside an open Modal / BottomSheet / SheetModal / DTSheet.
-const CONTAINER = /<(Modal|BottomSheet|SheetModal|DTSheet)\b|<\/(Modal|BottomSheet|SheetModal|DTSheet)>/g;
+// Fields (TextInput, AuthField) not inside an open Modal / BottomSheet / SheetModal. DTSheet is not a
+// container: it takes a config, never children, so its self-closing tag must not open a scope (DV-003
+// put one inside the food editor's Modal and every field after it read as "inside a sheet").
+const CONTAINER = /<(Modal|BottomSheet|SheetModal)\b|<\/(Modal|BottomSheet|SheetModal)>/g;
 const FIELD = /<(TextInput|AuthField)\b/g;
 function pageFields(src) {
   const events = [];

@@ -37,6 +37,7 @@ import { localISO, localDaysAgoISO } from '../../lib/localDate';
 import { dayChoice, pickDay, stepEarlier, earlierBounds } from '../../lib/foodEntryDay';
 import { CrossMark } from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
+import { DTSheet } from './ProtocolParts';
 
 import { formatDate } from '../../lib/localeFormat';
 
@@ -59,6 +60,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const nameRefs = useRef([]);
   const [items, setItems] = useState([]);
   const [date, setDate] = useState(null);
+  const [askSheet, setAskSheet] = useState(null); // DV-003: the delete asks first (AD-01)
   const key = editorDraftKey(row);
   const loadedKey = useRef(null);
 
@@ -98,12 +100,23 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
     const orig = safeItems(row.parsed_items);
     // A fixed item (name or numbers) is the user's and needs no follow-up (lib/nutrition).
     const cleaned = editedItems(orig, items);
-    if (!cleaned.length) { deleteFoodLog(row.id); done(); return; }
+    if (!cleaned.length) { confirmRemoveEntry(); return; } // no items left = the entry goes: ask first
     const sum = (k) => Math.round(cleaned.reduce((a, it) => a + (Number(it[k]) || 0), 0));
     updateFoodLog(row.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g'), fat_g: sum('fat_g'), entry_date: date || row.entry_date });
     done();
   }
-  function remove() { if (row) { deleteFoodLog(row.id); done(); } }
+  function remove() { if (row) confirmRemoveEntry(); }
+  // DV-003 / AD-01: every delete asks first (DoseTrace sheet: Cancel · red Remove entry). Cancel
+  // keeps the editor open with the typed changes; only the sheet's Remove entry deletes the meal.
+  function confirmRemoveEntry() {
+    setAskSheet({
+      title: t('nutri_delete_confirm'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('nutri_delete_entry'), kind: 'danger', onPress: () => { deleteFoodLog(row.id); done(); } },
+      ],
+    });
+  }
 
   return (
     <Modal visible={!!row} transparent animationType="fade" onRequestClose={cancel}>
@@ -180,6 +193,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
         </Animated.View>
         </View>
       </KeyboardAvoidingView>
+      <DTSheet config={askSheet} onClose={() => setAskSheet(null)} />
     </Modal>
   );
 }
