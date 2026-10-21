@@ -24,14 +24,14 @@ import { AnimatedNumber, clamp01, eOutQuad, eInOutSine, eOutCubic, invInOutSine,
 
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
-import { getHistoryProtocols, getBiomarkers } from '../lib/database';
+import { getHistoryProtocols, getBiomarkers, getLogsSince } from '../lib/database';
 import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
-import { sampleLevels } from '../lib/curveSampling';
+import { sampleLevelsAt } from '../lib/curveSampling';
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, curveSampleTimes, doseTicks, readoutMoment, CURVE_MAX_PAST_DAYS,
 } from '../lib/serumModel';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
@@ -78,52 +78,64 @@ function revealAt(t, nowIdx, nSteps) {
 }
 
 // Path for a level series, drawn up to `rev` steps on an x-domain of `domN` steps.
+// DV-068: the samples are the 6 h grid plus every dose instant and Now (lib/serumModel
+// curveSampleTimes); `xs[i]` is sample i's exact position in steps.
 // `pre[i]` is the level just BEFORE sample i (excluding a dose landing exactly on
-// it), so a dose draws as a vertical jump instead of a ramp that starts 6h early.
-// `from` is the first step drawn: 0 for the estimate up to Now, Now's step for the
-// dashed projection after it (DESIGN.md §7: projections are dashed).
-function seriesD(pts, pre, rev, domN, yMax, g, from) {
+// it), so a dose draws as a vertical jump at its own time instead of a ramp.
+// `from` is the first step drawn: 0 for the estimate up to Now, Now's step (a sample) for
+// the dashed projection after it (DESIGN.md §7: projections are dashed).
+function seriesD(pts, pre, xs, rev, domN, yMax, g, from) {
   'worklet';
   const n = pts.length;
-  const last = Math.min(rev, n - 1, domN);
-  if (last <= from || yMax <= 0 || domN <= 0) return 'M ' + g.L + ' ' + g.B;
+  const empty = 'M ' + g.L + ' ' + g.B;
+  if (!n) return empty;
+  const last = Math.min(rev, xs[n - 1], domN);
+  if (last <= from || yMax <= 0 || domN <= 0) return empty;
   const w = g.R - g.L, h = g.B - g.T;
-  const k = Math.floor(last);
+  let j0 = 0;
+  while (j0 < n - 1 && xs[j0] < from) j0++;
   let d = '';
-  for (let i = from; i <= k; i++) {
-    const x = (g.L + (i / domN) * w).toFixed(1);
-    if (i > from && pre[i] !== pts[i]) d += ' L ' + x + ' ' + (g.B - (pre[i] / yMax) * h).toFixed(1);
-    d += (i === from ? 'M ' : ' L ') + x + ' ' + (g.B - (pts[i] / yMax) * h).toFixed(1);
+  let k = -1;
+  for (let i = j0; i < n && xs[i] <= last; i++) {
+    const x = (g.L + (xs[i] / domN) * w).toFixed(1);
+    if (i > j0 && pre[i] !== pts[i]) d += ' L ' + x + ' ' + (g.B - (pre[i] / yMax) * h).toFixed(1);
+    d += (i === j0 ? 'M ' : ' L ') + x + ' ' + (g.B - (pts[i] / yMax) * h).toFixed(1);
+    k = i;
   }
-  const f = last - k;
-  if (f > 0 && k + 1 < n) {
+  if (k < 0) return empty;
+  if (k + 1 < n && last > xs[k]) {
+    const f = (last - xs[k]) / (xs[k + 1] - xs[k]);
     const v = pts[k] + (pre[k + 1] - pts[k]) * f;
-    d += ' L ' + (g.L + ((k + f) / domN) * w).toFixed(1) + ' ' + (g.B - (v / yMax) * h).toFixed(1);
+    d += ' L ' + (g.L + (last / domN) * w).toFixed(1) + ' ' + (g.B - (v / yMax) * h).toFixed(1);
   }
   return d;
 }
 
-function levelAtStep(pts, pre, s) {
+// The drawn level at step position s (between two samples: the straight segment the path draws).
+function levelAtStep(pts, pre, xs, s) {
   'worklet';
   const n = pts.length;
-  if (s <= 0) return pts[0] || 0;
-  if (s >= n - 1) return pts[n - 1] || 0;
-  const k = Math.floor(s), f = s - k;
-  if (f === 0) return pts[k];
-  return pts[k] + (pre[k + 1] - pts[k]) * f;
+  if (!n) return 0;
+  if (s <= xs[0]) return pts[0] || 0;
+  if (s >= xs[n - 1]) return pts[n - 1] || 0;
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (xs[mid] <= s) lo = mid; else hi = mid; }
+  if (xs[lo] === s) return pts[lo];
+  const f = (s - xs[lo]) / (xs[hi] - xs[lo]);
+  return pts[lo] + (pre[hi] - pts[lo]) * f;
 }
 
 // One curve (a compound or a combined total), driven entirely on the UI thread:
 // solid up to Now (the estimate), dashed after it (the projection).
-function CurveLine({ points, pre, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, stroke, strokeWidth }) {
+function CurveLine({ points, pre, xs, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, stroke, strokeWidth }) {
   const past = useAnimatedProps(() => ({
-    d: seriesD(points, pre, Math.min(revealAt(clock.value, nowIdx, nSteps), nowIdx), domainN.value, yMaxS.value, geo, 0),
+    d: seriesD(points, pre, xs, Math.min(revealAt(clock.value, nowIdx, nSteps), nowIdx), domainN.value, yMaxS.value, geo, 0),
     opacity: ready.value,
-  }), [points, pre, nowIdx, nSteps, geo]);
+  }), [points, pre, xs, nowIdx, nSteps, geo]);
   const ahead = useAnimatedProps(() => ({
-    d: seriesD(points, pre, revealAt(clock.value, nowIdx, nSteps), domainN.value, yMaxS.value, geo, nowIdx),
+    d: seriesD(points, pre, xs, revealAt(clock.value, nowIdx, nSteps), domainN.value, yMaxS.value, geo, nowIdx),
     opacity: ready.value,
-  }), [points, pre, nowIdx, nSteps, geo]);
+  }), [points, pre, xs, nowIdx, nSteps, geo]);
   // Explicit dash on both: react-native-svg keeps a prior dash when the prop returns to undefined.
   return (
     <>
@@ -134,29 +146,29 @@ function CurveLine({ points, pre, clock, domainN, yMaxS, ready, geo, nowIdx, nSt
 }
 
 // The pen dot that leads each line while it draws, then a soft "breath" at Now.
-function PenDot({ points, pre, clock, domainN, yMaxS, geo, nowIdx, nSteps, color }) {
+function PenDot({ points, pre, xs, clock, domainN, yMaxS, geo, nowIdx, nSteps, color }) {
   const dot = useAnimatedProps(() => {
     const t = clock.value;
     const rev = Math.min(revealAt(t, nowIdx, nSteps), nowIdx);
     const w = geo.R - geo.L, h = geo.B - geo.T;
     return {
       cx: geo.L + (rev / domainN.value) * w,
-      cy: geo.B - (levelAtStep(points, pre, rev) / yMaxS.value) * h,
+      cy: geo.B - (levelAtStep(points, pre, xs, rev) / yMaxS.value) * h,
       opacity: t > 60 && t < C_DRAW ? 1 : 0,
     };
-  }, [points, pre, nowIdx, nSteps, geo]);
+  }, [points, pre, xs, nowIdx, nSteps, geo]);
   const halo = useAnimatedProps(() => {
     const t = clock.value;
     const w = geo.R - geo.L, h = geo.B - geo.T;
     const drawing = t > 60 && t < C_DRAW;
     const rev = drawing ? Math.min(revealAt(t, nowIdx, nSteps), nowIdx) : nowIdx;
-    const pos = { cx: geo.L + (rev / domainN.value) * w, cy: geo.B - (levelAtStep(points, pre, rev) / yMaxS.value) * h };
+    const pos = { cx: geo.L + (rev / domainN.value) * w, cy: geo.B - (levelAtStep(points, pre, xs, rev) / yMaxS.value) * h };
     if (drawing) return { ...pos, r: 8, opacity: 0.2 };
     const b = (t - (C_DRAW + C_RISE + C_PROJ)) / C_BREATH;
     if (b < 0 || b >= 1) return { ...pos, r: 4, opacity: 0 };
     const ph = (b * 2) % 1;
     return { ...pos, r: 4 + 8 * eOutQuad(ph), opacity: 0.28 * (1 - ph) };
-  }, [points, pre, nowIdx, nSteps, geo]);
+  }, [points, pre, xs, nowIdx, nSteps, geo]);
   return (
     <>
       <ACircle animatedProps={halo} fill={color} />
@@ -276,6 +288,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const [readoutDate, setReadoutDate] = useState(null); // ISO 'YYYY-MM-DD'; null = today
   const [showReadoutPicker, setShowReadoutPicker] = useState(false);
   const [labDates, setLabDates] = useState([]);         // distinct blood-exam dates
+  const [doseLogs, setDoseLogs] = useState([]);         // DV-072 C: Dose log rows, for the hollow ticks only
   // Founder 2026-10-02: the curve opens on the last 3 days (a new protocol fills the chart);
   // choosing an earlier date in "Estimate on a date" reaches the chart back to it.
   const pastDays = curveWindowDays(readoutDate, todayISO());
@@ -334,6 +347,11 @@ export default function SerumCurveScreen({ embedded = false }) {
     const marks = getBiomarkers(user.id) || [];
     const uniq = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
     setLabDates(uniq);
+    // DV-072 C: the Dose log over the longest window the chart can show (read only; the level
+    // stays the planned schedule — the rows only mark which planned ticks are hollow).
+    try {
+      setDoseLogs(getLogsSince(user.id, new Date(Date.now() - (CURVE_MAX_PAST_DAYS + 2) * 24 * 3600 * 1000).toISOString()) || []);
+    } catch { setDoseLogs([]); }
   }
 
   // One muted line per reason a compound isn't on the curve.
@@ -404,24 +422,29 @@ export default function SerumCurveScreen({ embedded = false }) {
     const selected = protocols.filter(p => selectedIds.includes(p.id));
     if (!selected.length) return null;
     const now = Date.now();
-    // Align the 6h sampling grid to 00/06/12/18 local time. Doses are placed at
-    // 12:00, so every dose lands exactly ON a sample — otherwise a fast compound
-    // (t½ ≲ 2h) sampled at arbitrary times of day draws near-zero or random
-    // spikes that change with the minute you open the screen.
+    // The 6h sampling grid is aligned to 00/06/12/18 local time; DV-068: doses are not
+    // snapped onto it — every dose instant and Now are samples too (curveSampleTimes), so a
+    // fast compound (t½ ≲ 2h) draws its spike at its real time and the line ends on Now.
     const start = curveGridStart(now, pastDays);
     const end = now + futureDays * 24 * 3600 * 1000;
     const nSteps = Math.round((end - start) / stepMs);
 
-    const series = selected.map(p => {
+    const base = selected.map(p => {
       const entry = getHalfLifeEntry(matchName(p));
+      // Dose events come from the protocol's SCHEDULE at its own dose times (lib/serumModel
+      // scheduledDoses, DV-069), not from hand-logged doses (1.3.1 keeps the planned curve).
+      return { p, entry, doses: scheduledDoses(p, entry, start, end, now) };
+    });
+    // One shared set of sample moments for every line (the combined total adds point by point).
+    const times = curveSampleTimes(start, stepMs, nSteps, base.map(b => b.doses), now);
+    const xs = times.map(ts => (ts - start) / stepMs);
+
+    const series = base.map(({ p, entry, doses }) => {
       const doseMg = doseInCurveUnit(parseDecimal(p.dose), p.dose_unit, entry) || 0;
       const halfLifeMs = entry.hours * 3600 * 1000;
-      // Dose events come from the protocol's SCHEDULE, not from hand-logged doses
-      // (lib/serumModel scheduledDoses), snapped onto this 6h sample grid.
-      const doses = scheduledDoses(p, entry, start, end, now);
       // A-93: sorted doses in a moving window (same numbers, far fewer calls — lib/curveSampling).
-      const { points, pre } = sampleLevels(doses, doseMg, entry, start, stepMs, nSteps, amountFraction);
-      // Exact level at this moment (not the last 6h sample), for the numbers.
+      const { points, pre } = sampleLevelsAt(doses, doseMg, entry, times, amountFraction);
+      // Exact level at this moment, for the numbers.
       const nowLevel = levelAt(doses, doseMg, entry, now);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       return {
@@ -436,6 +459,8 @@ export default function SerumCurveScreen({ embedded = false }) {
         nowLevel,
         dosesInWindow,
         doses,       // raw dose timestamps, for date-readout math
+        // DV-072 C: a hollow tick for a planned dose the Dose log does not show as Taken.
+        ticks: doseTicks(p, doses, doseLogs, now),
         doseMg,
         unit: curveUnit(entry),
         halfLifeMs,
@@ -455,9 +480,9 @@ export default function SerumCurveScreen({ embedded = false }) {
     const combined = Object.entries(bySubstance)
       .filter(([, members]) => members.length >= 2)
       .map(([sub, members]) => {
-        const points = new Array(nSteps + 1).fill(0);
-        const pre = new Array(nSteps + 1).fill(0);
-        for (const ser of members) for (let i = 0; i <= nSteps; i++) { points[i] += ser.points[i]; pre[i] += ser.pre[i]; }
+        const points = new Array(times.length).fill(0);
+        const pre = new Array(times.length).fill(0);
+        for (const ser of members) for (let i = 0; i < times.length; i++) { points[i] += ser.points[i]; pre[i] += ser.pre[i]; }
         const nowLevel = members.reduce((sum, m) => sum + m.nowLevel, 0);
         return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points, pre, nowLevel };
       });
@@ -466,15 +491,16 @@ export default function SerumCurveScreen({ embedded = false }) {
     // (taller) combined totals — so every line is directly comparable.
     let max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
-    // Last sample at or before now — rounding up could count a dose later today.
-    const nowIdx = Math.min(nSteps, Math.floor((now - start) / stepMs));
     // Exact position of this moment (fractional step) — the Now marker and dots
     // sit here, at the same exact level the numbers show.
     const nowF = Math.min(nSteps, (now - start) / stepMs);
+    // DV-068: Now is a sample, so the solid estimate ends exactly there (a dose later today is
+    // never drawn solid) and the dashed projection starts there.
+    const nowIdx = nowF;
     // A-30 (a): before this moment the lines are estimated from the start date (declared history).
     const estBefore = estimatedBeforeMs(selected, start);
-    return { series, combined, max, nowIdx, nowF, nSteps, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
-  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays]);
+    return { series, combined, max, nowIdx, nowF, nSteps, xs, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
+  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs]);
 
   // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
   // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
@@ -496,12 +522,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const winStart = model ? model.start : now - pastDays * 24 * 3600 * 1000;
   const winEnd = now + futureDays * 24 * 3600 * 1000;
   const readoutISO = readoutDate || todayISO();
-  const readoutRaw = new Date(readoutISO + 'T12:00:00').getTime();
-  // On the sample grid (same snap as the doses), so a clock change never moves
-  // the readout off the line or across a dose.
-  // Today reads at THIS moment (same as the Est. level stat), not noon.
-  const readoutT = readoutISO === todayISO() ? (model ? model.now : now)
-    : model ? model.start + Math.round((readoutRaw - model.start) / stepMs) * stepMs : readoutRaw;
+  // DV-068: today reads at THIS moment (same as the Est. level stat); any other date at its own
+  // local noon, exact (doses are no longer on the 6 h grid, so neither is the readout).
+  const readoutT = readoutMoment(readoutISO, todayISO(), model ? model.now : now);
   // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
   const levelAtDate = (ser, T) => levelAt(ser.doses, ser.doseMg, ser.entry, T);
   // The same for a chosen date past the projection: its own scheduled doses up to that date.
@@ -623,6 +646,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const singlePts = single ? single.points : null;
   const singlePre = single ? single.pre : null;
   const singleNow = single ? single.nowLevel : 0;
+  const modelXs = model ? model.xs : null;
   const singleDoseIdx = useMemo(() => {
     if (!single || !model) return [];
     return single.doses
@@ -630,11 +654,11 @@ export default function SerumCurveScreen({ embedded = false }) {
       .filter((i) => i >= 0 && i <= model.nowIdx);
   }, [single, model]);
   const statLevel = useDerivedValue(() => {
-    if (!singlePts) return 0;
+    if (!singlePts || !modelXs) return 0;
     const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
     // Counts along with the pen, then settles on the exact level at this moment.
-    return rev >= mNow ? singleNow : levelAtStep(singlePts, singlePre, rev);
-  }, [singlePts, singlePre, singleNow, mNow, mN]);
+    return rev >= mNow ? singleNow : levelAtStep(singlePts, singlePre, modelXs, rev);
+  }, [singlePts, singlePre, modelXs, singleNow, mNow, mN]);
   const statDoses = useDerivedValue(() => {
     const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
     let c = 0;
@@ -787,11 +811,14 @@ export default function SerumCurveScreen({ embedded = false }) {
                   </SvgText>
                 </React.Fragment>
               ))}
-              {/* a short tick under the axis for every scheduled dose in the window */}
-              {model && model.max > 0 && model.series.map(ser => ser.doses
-                .filter(ts => ts >= model.start && ts <= model.start + model.nSteps * stepMs)
-                .map(ts => {
+              {/* a short tick under the axis for every scheduled dose in the window, at its exact
+                  time; DV-072 C: hollow when the Dose log does not show it as Taken (Skipped,
+                  Missed, not answered yet) — the level itself stays the planned one */}
+              {model && model.max > 0 && model.series.map(ser => ser.ticks
+                .filter(k => k.ts >= model.start && k.ts <= model.start + model.nSteps * stepMs)
+                .map(({ ts, hollow }) => {
                   const x = xForIndex((ts - model.start) / stepMs);
+                  if (hollow) return <Rect key={`tk-${ser.id}-${ts}`} x={x - 1.5} y={PLOT_BOTTOM + 2} width={3} height={5} fill="none" stroke={lineColor(ser)} strokeWidth={1} />;
                   return <Line key={`tk-${ser.id}-${ts}`} x1={x} y1={PLOT_BOTTOM + 2} x2={x} y2={PLOT_BOTTOM + 7} stroke={lineColor(ser)} strokeWidth={1.4} />;
                 }))}
               <SvgText x={2} y={PLOT_TOP + 2} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="start">{unitLbl}</SvgText>
@@ -833,7 +860,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model && model.max > 0 && model.series.map(ser => (
                 <CurveLine
                   key={ser.id}
-                  points={ser.points} pre={ser.pre}
+                  points={ser.points} pre={ser.pre} xs={model.xs}
                   clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={lineColor(ser)}
@@ -844,7 +871,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model && model.max > 0 && showCombined && model.combined.map(c => (
                 <CurveLine
                   key={c.id}
-                  points={c.points} pre={c.pre}
+                  points={c.points} pre={c.pre} xs={model.xs}
                   clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={colors.ink} strokeWidth={3.2}
@@ -855,7 +882,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <DoseDrop key={dp.key} clock={clock} hit={dp.hit} x={dp.x} y={dp.y} color={dp.color} showDrop={introFx.showDrop} />
               ))}
               {introFx && model && model.max > 0 && model.series.map(ser => (
-                <PenDot key={`pen-${ser.id}`} points={ser.points} pre={ser.pre} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={lineColor(ser)} />
+                <PenDot key={`pen-${ser.id}`} points={ser.points} pre={ser.pre} xs={model.xs} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={lineColor(ser)} />
               ))}
               {/* dots marking each line's level right now */}
               <AG animatedProps={markerProps}>
@@ -889,6 +916,8 @@ export default function SerumCurveScreen({ embedded = false }) {
               <View style={s.legendKey}><View style={s.lgSolid} /><Text style={s.legendKeyText}>{t('curve_lg_estimate')}</Text></View>
               <View style={s.legendKey}><View style={s.lgDash}>{[0, 1, 2].map(k => <View key={k} style={s.lgDashBit} />)}</View><Text style={s.legendKeyText}>{t('curve_lg_projection')}</Text></View>
               <View style={s.legendKey}><View style={s.lgTick} /><Text style={s.legendKeyText}>{t('curve_lg_doses')}</Text></View>
+              {/* DV-072 C: the hollow tick — a planned dose the Dose log does not show as Taken */}
+              <View style={s.legendKey}><View style={s.lgTickHollow} /><Text style={s.legendKeyText}>{t('curve_lg_not_taken')}</Text></View>
             </View>
 
             {/* Projection horizon: the shared bar */}
@@ -1073,6 +1102,9 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model.series.some(ser => ser.fromBlend) && (
                 <Text style={[s.foot, s.noteSep]}>{t('blend_curve_caveat')}</Text>
               )}
+              {/* DV-005 / AD-95 interim: past dates are drawn with the current dose and schedule
+                  (dated dose versions come in 1.3.2) */}
+              <Text style={[s.foot, s.noteSep]}>{t('curve_current_dose_note')}</Text>
             </View>
           )}
 
@@ -1161,6 +1193,7 @@ function makeStyles(c) {
     lgDash: { width: 18, height: 2, flexDirection: 'row', justifyContent: 'space-between' },
     lgDashBit: { width: 4, height: 2, backgroundColor: c.data },
     lgTick: { width: 2, height: 8, backgroundColor: c.data },
+    lgTickHollow: { width: 4, height: 8, borderWidth: 1, borderColor: c.data },
     rangeLabel: { flex: 1, fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
     chip: { alignSelf: 'flex-start', minHeight: 26, borderRadius: 13, borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 2, justifyContent: 'center' },
     chipText: { fontSize: 12, fontWeight: '500', color: c.ink2 },

@@ -47,6 +47,6 @@ User-visible copy (picture first, ×6 natively, descriptive only — never "you 
 | PK-14 | Future-dated Taken row and unparseable logged_at: excluded, no exception. | missing | curveBadTimestamps.test.js | |
 | PK-15 | Testosterone Undecanoate 1000 mg logged 300 days ago contributes 1000 × 2^(−300/90) mg; the log query reaches ≥ 540 days back. | missing | curveLookback.test.js | |
 | PK-16 | Deterministic; a Missed→Taken flip changes the level on the next compute; curve and tile update after focus and after sync (device). | missing | curveRecompute.test.js + device | |
-| PK-17 | A hollow tick for every logged-era planned slot without a Taken row, none for Taken. | missing | curveTicks.test.js | |
+| PK-17 | A hollow tick for every logged-era planned slot without a Taken row, none for Taken. | partial | __tests__/curveTicks.test.js (1.3.1, DV-072 C: the level stays planned; device render in both themes owed) | |
 | PK-18 | Disclaimer, legend, the "time you marked them" note and the update notice ×6, parity green; no advice words in the curve strings; both themes on device. | missing | i18n parity, curveCopyNoAdvice.test.js, render pass | |
-| PK-19 | The plan uses the user's own times: daily 22:00 at 13:00 → today's dose not in the level now, planned at 22:00 (DV-069). | missing | curveOwnTimes.test.js | |
+| PK-19 | The plan uses the user's own times: daily 22:00 at 13:00 → today's dose not in the level now, planned at 22:00 (DV-069). | partial | __tests__/curveExactTime.test.js "DV-069: a daily 22:00 protocol is drawn at 22:00" (+ Berlin file; device check owed) | |

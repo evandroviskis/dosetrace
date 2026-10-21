@@ -32,7 +32,8 @@ test('3-day window: picking an earlier date still works — the chart reaches ba
   const src = curve();
   assert.match(src, /const pastDays = curveWindowDays\(readoutDate, todayISO\(\)\);/);
   assert.match(src, /const start = curveGridStart\(now, pastDays\);/);
-  assert.match(src, /\[protocols, selectedIds, t, colors\.data, showCombined, futureDays, pastDays\]/, 'the model follows the window');
+  // 1.3.1 DV-072 C: the model also follows the Dose log (hollow ticks).
+  assert.match(src, /\[protocols, selectedIds, t, colors\.data, showCombined, futureDays, pastDays, doseLogs\]/, 'the model follows the window');
   assert.match(src, /t\('curve_last_days'\)\} \{pastDays\}\{du\}/, 'the range line names the real window (day letter per language: curveDayUnit)');
   assert.match(src, /−\{pastDays\}\{du\}/, 'the axis names the real window');
 });
@@ -45,7 +46,7 @@ test('3-day window: the estimate itself never changes — doses before the windo
   const end = now + 7 * 86400000;
   const d14 = serum.scheduledDoses(p, entry, serum.curveGridStart(now), end, now);
   const d3 = serum.scheduledDoses(p, entry, serum.curveGridStart(now, 3), end, now);
-  // The same doses (grid-snapped the same way) → the same level at any moment in the window.
+  // The same doses (exact instants since DV-068, whatever the window) → the same level at any moment.
   for (const T of [now, now - 2 * 86400000, now + 5 * 86400000]) {
     assert.ok(Math.abs(serum.levelAt(d14, 100, entry, T) - serum.levelAt(d3, 100, entry, T)) < 1e-9);
   }
