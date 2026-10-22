@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
+import { clearAnalyticsQueue, noteAnalyticsChoice } from '../lib/analytics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText, storeKey } from '../lib/storeText';
 import { formatDate, decimalText, unitText } from '../lib/localeFormat';
@@ -356,6 +357,7 @@ export default function SettingsScreen({ navigation }) {
     // Real subscription status (non-throwing; defaults to false on failure)
     hasPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
+      noteAnalyticsChoice(user.id, user.user_metadata?.analytics_opt_in !== false); // the background check (lib/analytics)
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
       analyticsSaved.current = user.user_metadata?.analytics_opt_in !== false;
       setDoseReminders(user.user_metadata?.dose_reminders !== false);
@@ -416,6 +418,11 @@ export default function SettingsScreen({ navigation }) {
 
   async function toggleAnalytics(val) {
     setAnalyticsEnabled(val);
+    // Council regulatory review (1.3.1): switching off clears the background queue and remembers
+    // the opt-out on this phone at once, started before the save and finished before this returns
+    // (a refused save keeps the intent: nothing waiting is sent; the next foreground event reads
+    // the account's own choice again).
+    const stopQueue = !val ? Promise.all([clearAnalyticsQueue(), noteAnalyticsChoice(user && user.id, false)]).catch(() => {}) : null;
     // DV-008 / DL-56: a refused save (offline) must not LOOK saved: revert to what the account
     // holds (not !val: two quick failing taps would end on a value never stored) and say so.
     // Only its own key is written (merge).
@@ -426,7 +433,9 @@ export default function SettingsScreen({ navigation }) {
       errorSheet(friendlyError(error, t, 'error_save_failed'));
     } else {
       analyticsSaved.current = val;
+      if (val) await noteAnalyticsChoice(user && user.id, true);
     }
+    if (stopQueue) await stopQueue;
   }
 
   async function saveProfile() {

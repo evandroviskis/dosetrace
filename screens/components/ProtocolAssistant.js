@@ -28,7 +28,9 @@ import { createSession } from '../../lib/assistantSession';
 // mixedOn, editing }. catalog: { recon, rtu, oral: [{ key, label }] }.
 // onFinish(kind, result): kind = save | fill | handback; result = { form, mixedOn, notMixed }.
 // scanLabel(fromCamera) → Promise<{ vial } | { error: { title, body } } | null> (the vial-scan path).
-export default function ProtocolAssistant({ door, form, ctx, catalog, t, language, onFinish, scanLabel, registerClose }) {
+// askConsent() → Promise<boolean>: the AI consent, checked before EVERY send to the AI (council
+// regulatory review 1.3.1: it can be withdrawn while the window is open); false → nothing is sent.
+export default function ProtocolAssistant({ door, form, ctx, catalog, t, language, onFinish, scanLabel, registerClose, askConsent }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   // A-134: the app's lines write IU as the language does (UI / IE); display only, never the draft.
@@ -44,6 +46,14 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
   const [photoChoice, setPhotoChoice] = useState(null);
   const scrollRef = useRef(null);
   const finished = useRef(false);
+  const asking = useRef(false); // the consent sheet is up: a second tap sends nothing
+
+  // Before every send to the AI: the consent as it is NOW (fails closed without a check).
+  async function consentNow() {
+    if (asking.current || !askConsent) return false;
+    asking.current = true;
+    try { return (await askConsent()) === true; } catch { return false; } finally { asking.current = false; }
+  }
 
   const now = () => new Date();
   const formatDay = (iso) => formatDate(iso, language, 'weekdayDayMonth', now());
@@ -108,6 +118,8 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
     // Plain numbers ("7 ml", "20 mg", "3") are read on the phone; anything else goes to the AI.
     const local = A.localUnderstand(step, typed, language);
     if (local) { setText(''); setConv(A.answerText(conv, typed, local)); return; }
+    // Withdrawn meanwhile → the consent sheet; declined → nothing sent, the text stays in the box.
+    if (!(await consentNow())) return;
     setBusy(true);
     const started = await session.current.ensureStarted();
     if (started.error) { setBusy(false); startFailed(started.error); return; }
@@ -125,6 +137,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
 
   async function photo(fromCamera) {
     if (!scanLabel || !conv) return;
+    if (!(await consentNow())) return; // the label photo goes to the AI too
     setBusy(true);
     const started = await session.current.ensureStarted(); // the label path is a use too
     if (started.error) { setBusy(false); startFailed(started.error); return; }
