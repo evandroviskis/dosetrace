@@ -2070,6 +2070,8 @@ export default function TodayScreen() {
     const lastSiteName = lastSite ? describeStored(lastSite.stored, t) : null;
     const name = p.compound_id ? t(p.compound_id) : p.name;
     const { draw, syr } = doseDraw(p);
+    // A-166: the arithmetic under the computed draw; the star only when there is a note.
+    const drawNote = draw && draw.drawUnits && !draw.unitMismatch ? volumeNote(p, draw, syr, t, language) : null;
     // BK-8: the dose open on the right page has an ink outline (book layout only). The card is
     // today's dose of this protocol; yesterday's pending slot is selected on its own row.
     const picked = book && isPickedDose(p.id, todayKey);
@@ -2137,14 +2139,14 @@ export default function TodayScreen() {
           <View style={s.draw}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{drawLine(draw, syr, language).big}<Text style={s.drawUnit}>{drawLine(draw, syr, language).small}</Text><Text style={s.calcMark}>*</Text></Text>
+              <Text style={s.drawVal}>{drawLine(draw, syr, language).big}<Text style={s.drawUnit}>{drawLine(draw, syr, language).small}</Text>{drawNote ? <Text style={s.calcMark}>*</Text> : null}</Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
             {draw.exceedsSyringe && (
               <Text style={s.drawWarn}>{exceedsMessage(t, draw, syr, language)}</Text>
             )}
             {/* A-166: the computed draw is starred; its arithmetic in the user's numbers. */}
-            <Text style={s.calcNote}>{volumeNote(p, draw, syr, t, language)}</Text>
+            {drawNote ? <Text style={s.calcNote}>{drawNote}</Text> : null}
           </View>
         )}
         {/* Part 7: Day X of Y, the last site (full name) and the streak on one line that

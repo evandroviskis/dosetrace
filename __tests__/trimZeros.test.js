@@ -57,8 +57,9 @@ test('Protocols volume and concentration render sites go through trimZeros', () 
   // (founder 2026-10-02: every shown number also takes the app language's decimal —
   // decimalText(trimZeros(x), language) — "0,5 ml" in Portuguese; the trim is unchanged.)
   // protocol page syringe calculator: the Volume read
-  // A-166 (2026-10-22): the Volume read is computed, so it carries the "*" (mark).
-  assert.match(PROTOCOLS, /<ReadValue s=\{s\} mark text=\{`\$\{decimalText\(trimZeros\(draw\.drawML\), language\)\}\\u00A0ml`\} \/>/); // no-break before the unit (m2); A-136 (4) ReadValue
+  // A-166 (2026-10-22): the Volume read is computed, so it carries the "*" (mark) — only when it
+  // has its note (council (4), 2026-10-22).
+  assert.match(PROTOCOLS, /<ReadValue s=\{s\} mark=\{!!note\} text=\{`\$\{decimalText\(trimZeros\(draw\.drawML\), language\)\}\\u00A0ml`\} \/>/); // no-break before the unit (m2); A-136 (4) ReadValue
   // zoomed syringe sheet readout: units untouched, ml trimmed
   assert.match(PROTOCOLS, /\{decimalText\(draw\.drawUnits, language\)\}u<\/Text> · \{decimalText\(trimZeros\(draw\.drawML\), language\)\} ml/);
   // dose details (recon): diluent amount and concentration
@@ -66,11 +67,14 @@ test('Protocols volume and concentration render sites go through trimZeros', () 
   // A-166 (2026-10-22): both concentration rows read lib/calcNote concentrationText, the text the
   // arithmetic note quotes too (so row and note never differ); the trim lives there now.
   assert.match(PROTOCOLS, /value: concentrationText\(p, language\) \|\| `—/);
-  assert.match(CALCNOTE, /decimalText\(trimZeros\(v\.toFixed\(2\)\), language\)/);
+  // Council (2), 2026-10-22: 2 decimals from 1 up, trimmed; 4 significant digits under 1 (never "0 mg/ml").
+  assert.match(CALCNOTE, /if \(v >= 1\) return trimZeros\(v\.toFixed\(2\)\);/);
+  assert.match(CALCNOTE, /decimalText\(concentrationDigits\(v\), language\)/);
   assert.match(CALCNOTE, /const v = parseDecimal\(p\.amount\) \/ parseDecimal\(p\.water\);/);
   // dose details (rtu): concentration and vial size
   assert.match(PROTOCOLS, /p\.concentration \? \{ label: t\('protocols_concentration'\), value: concentrationText\(p, language\), mono: true \} : null/);
-  assert.match(CALCNOTE, /`\$\{decimalText\(trimZeros\(p\.concentration\), language\)\}\$\{NB\}\$\{unitText\(p\.concentration_unit \|\| 'mg', language\)\}\/ml`/);
+  // Council (3), 2026-10-22: the stored value is read with parseDecimal (storedNumber) before it is trimmed.
+  assert.match(CALCNOTE, /`\$\{decimalText\(trimZeros\(c == null \? p\.concentration : c\), language\)\}\$\{NB\}\$\{unitText\(massUnitOf\(p\), language\)\}\/ml`/);
   assert.match(PROTOCOLS, /value: `\$\{decimalText\(trimZeros\(vial\.water_ml\), language\)\} ml`/);
   // collapsed card size fallback (rtu concentration)
   assert.match(PROTOCOLS, /return `\$\{decimalText\(trimZeros\(p\.concentration\), language\)\}\\u00A0\$\{unitText\(p\.concentration_unit \|\| 'mg', language\)\}\/ml`;/);

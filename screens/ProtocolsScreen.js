@@ -375,6 +375,8 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
   const over = units > syringeMax;
   const alt = altMass(p.dose, p.dose_unit, language);
   const reading = drawReading(draw, syringeMax); // ml on a 2 / 3 / 5 ml syringe (AP-21)
+  // A-166 council (4): the star comes after the whole value, unit included, and only with a note.
+  const note = volumeNote(p, draw, syringeMax, t, language);
 
   return (
     <View style={s.hobj}>
@@ -391,8 +393,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
           <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
           <View style={s.bigRow}>
             <Text style={[s.drawBig, over && s.drawBigRisk]}>{decimalText(reading.ml ? trimZeros(reading.value) : reading.value, language)}</Text>
-            <Text style={s.calcMarkBig}>*</Text>
-            <Text style={s.drawBigUnit}>{reading.ml ? 'ml' : t('protocols_syringe_units')}</Text>
+            <Text style={s.drawBigUnit}>{reading.ml ? 'ml' : t('protocols_syringe_units')}{note ? <Text style={s.calcMark}>*</Text> : null}</Text>
           </View>
         </View>
         {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
@@ -410,7 +411,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
       <View style={s.reads}>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_volume')}</Text>
-          <ReadValue s={s} mark text={`${decimalText(trimZeros(draw.drawML), language)}\u00A0ml`} />
+          <ReadValue s={s} mark={!!note} text={`${decimalText(trimZeros(draw.drawML), language)}\u00A0ml`} />
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_dose')}</Text>
@@ -422,7 +423,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
           <ReadValue s={s} text={syringeSizeLabel(syringeMax, language)} />
         </View>
       </View>
-      <Text style={s.calcNote}>{volumeNote(p, draw, syringeMax, t, language)}</Text>
+      {note ? <Text style={s.calcNote}>{note}</Text> : null}
       <Text style={s.disclaimer}>{t('protocols_calc_disclaimer')}</Text>
     </View>
   );
@@ -446,6 +447,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
   const ok = !!(draw && draw.drawML && draw.valid);
   const syringeMax = (p && p.syringe_size) || 100;
   const units = ok ? Number(draw.drawUnits) : 0;
+  const note = ok ? volumeNote(p, draw, syringeMax, t, language) : null;
   // The sheet is at most 560 wide (520 inside its padding), not the window (A-76). The
   // ruler is the prototype overlay (part 7): 1640 wide, opened with the dose centred.
   const zoomView = Math.min(windowWidth - 72, 520);
@@ -461,7 +463,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
               {t('protocols_syringe_draw_to')} {isMlSyringe(syringeMax)
                 ? <Text style={s.zoomReadoutVal}>{decimalText(trimZeros(draw.drawML), language)} ml</Text>
                 : <><Text style={s.zoomReadoutVal}>{decimalText(draw.drawUnits, language)}u</Text> · {decimalText(trimZeros(draw.drawML), language)} ml</>}
-              <Text style={s.calcMark}>*</Text>
+              {note ? <Text style={s.calcMark}>*</Text> : null}
             </Text>
             <ScrollView
               horizontal
@@ -471,7 +473,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
             >
               <SyringeRuler units={units} size={syringeMax} />
             </ScrollView>
-            <Text style={s.calcNote}>{volumeNote(p, draw, syringeMax, t, language)}</Text>
+            {note ? <Text style={s.calcNote}>{note}</Text> : null}
             <TouchableOpacity style={s.btnPrimary} onPress={onClose} accessibilityRole="button">
               <Text style={s.btnPrimaryText}>{t('done')}</Text>
             </TouchableOpacity>
@@ -781,6 +783,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   ];
   let doseRows = [];
   if (p.type === 'recon') {
+    const concNote = concentrationNote(p, t, language);
     doseRows = [
       { label: t('protocols_compound_amount'), value: `${decimalText(p.amount, language)}\u00A0${unitText(p.unit, language)}`, mono: true },
       p.diluent ? { label: t('protocols_diluent'), value: diluentLabel(p.diluent, t) } : null,
@@ -790,8 +793,8 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
         label: t('protocols_concentration'),
         value: concentrationText(p, language) || `—\u00A0${unitText(p.unit, language)}/ml`,
         mono: true,
-        mark: true,
-        note: concentrationNote(p, t, language),
+        mark: !!concNote,
+        note: concNote,
       },
       { label: t('protocols_desired_dose'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`, mono: true },
     ];
@@ -3607,7 +3610,6 @@ const protocolsGraduated = (c) => ({
   // A-166: the arithmetic line under a computed value, and its "*".
   calcNote: { fontSize: 13, lineHeight: 18, color: c.ink3, fontVariant: ['tabular-nums'] },
   calcMark: { color: c.ink2, fontWeight: '500' },
-  calcMarkBig: { fontSize: 26, fontWeight: '500', color: c.ink2, alignSelf: 'flex-start', marginTop: 4, marginLeft: 1, marginRight: 2 },
   nearest: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
   vialHead: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   vialSub: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
