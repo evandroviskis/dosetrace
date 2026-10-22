@@ -6,7 +6,7 @@
 - guardrails: account and support messages only — never health, dose or treatment guidance (AI/no-advice line); the panel shows that rule in the dialog. No e-mail or health data in the push payload beyond the message itself.
 - related: docs/review/features.md A-163; dosetrace-admin docs/specs/admin-panel.md Phase 3 (3.1 login, 3.2 write gate); docs/specs/server-reminders.md (Expo push, push_tokens); docs/specs/update-notice.md (one screen per open); privacy policy section 4.
 - code (expected): admin repo api/adm-messages.js + web/adm.html (Mensagem button, dialog, history, Withdraw); one migration (team_messages table + RLS, send log, rate-limit RPC); the app: lib/teamMessages.js (fetch/sync/read), a sheet on Today (option A), Settings › Support › Team messages screen, notification tap routing, i18n in 6 languages; privacy policy sentence (app + dosetrace.io).
-- checklist-signed: pending
+- checklist-signed: 2026-10-22 by the founder ("assino a lista das mensagens")
 - committed-to: panel part — admin Phase 3 (after 3.2); app part — 1.3.2 (1.3.1 scope closed; founder may pull it in)
 
 ## Acceptance checklist
