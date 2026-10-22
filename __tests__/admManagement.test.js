@@ -549,10 +549,10 @@ function accPure() {
   return (0, eval)('(function(){' + m[1] + '\nreturn {accPlatform:accPlatform,accSort:accSort,accFilter:accFilter};})()');
 }
 const ACC_ROWS = [
-  { email: 'zoe@x.y', created: '2026-10-01', provider: 'google', apple: false, pu: ['android'], ua: [], onboarded: true, confirmed: true, protocols_live: 2, last_sign_in: '2026-10-10' },
-  { email: 'Adam@x.y', created: '2026-10-12', provider: 'apple', apple: true, pu: [], ua: [], onboarded: false, confirmed: true, protocols_live: 0, last_sign_in: '2026-10-12' },
-  { email: 'mia@x.y', created: '2026-09-20', provider: 'email', apple: false, pu: [], ua: [], onboarded: true, confirmed: false, protocols_live: 1, last_sign_in: null },
-  { email: 'annruiz.51171@gmail.com', created: '2026-10-05', provider: 'google', apple: false, pu: [], ua: ['android'], onboarded: false, confirmed: true, protocols_live: 0, last_sign_in: '2026-10-05', excepted: true },
+  { email: 'zoe@x.y', created: '2026-10-01', provider: 'google', apple: false, pu: ['android'], ua: [], onboarded: true, confirmed: true, has_active_protocol: true, last_sign_in: '2026-10-10' },
+  { email: 'Adam@x.y', created: '2026-10-12', provider: 'apple', apple: true, pu: [], ua: [], onboarded: false, confirmed: true, has_active_protocol: false, last_sign_in: '2026-10-12' },
+  { email: 'mia@x.y', created: '2026-09-20', provider: 'email', apple: false, pu: [], ua: [], onboarded: true, confirmed: false, has_active_protocol: true, last_sign_in: null },
+  { email: 'annruiz.51171@gmail.com', created: '2026-10-05', provider: 'google', apple: false, pu: [], ua: ['android'], onboarded: false, confirmed: true, has_active_protocol: false, last_sign_in: '2026-10-05', excepted: true },
 ];
 test('Contas sort: every column sorts both ways (email case-insensitive, date, login, platform, onboarding, protocols, last sign-in)', () => {
   const { accSort } = accPure();
@@ -564,12 +564,14 @@ test('Contas sort: every column sorts both ways (email case-insensitive, date, l
   assert.deepEqual(em(accSort(ACC_ROWS, 'provider', 'asc')).slice(0, 1), ['Adam@x.y']);
   assert.deepEqual(em(accSort(ACC_ROWS, 'platform', 'asc')).map((e) => e[0]), ['z', 'a', 'A', 'm'], 'android, android, ios, unknown');
   assert.deepEqual(em(accSort(ACC_ROWS, 'onboarded', 'desc')).slice(0, 2).sort(), ['mia@x.y', 'zoe@x.y']);
-  assert.deepEqual(em(accSort(ACC_ROWS, 'protocols', 'desc')), ['zoe@x.y', 'mia@x.y', 'Adam@x.y', 'annruiz.51171@gmail.com']);
+  // US4: yes/no (has_active_protocol) instead of a count; yes first when descending, stable otherwise.
+  assert.deepEqual(em(accSort(ACC_ROWS, 'protocols', 'desc')).slice(0, 2).sort(), ['mia@x.y', 'zoe@x.y']);
+  assert.deepEqual(em(accSort(ACC_ROWS, 'protocols', 'asc')).slice(0, 2).sort(), ['Adam@x.y', 'annruiz.51171@gmail.com']);
   assert.deepEqual(em(accSort(ACC_ROWS, 'last', 'desc'))[0], 'Adam@x.y');
   assert.equal(em(accSort(ACC_ROWS, 'last', 'asc'))[0], 'mia@x.y', 'missing last sign-in sorts first ascending');
   assert.equal(ACC_ROWS[0].email, 'zoe@x.y', 'input not mutated');
 });
-test('Contas filters: platform, login, onboarding, live protocols, rule and search combine with AND', () => {
+test('Contas filters: platform, login, onboarding, active protocol (yes/no), rule and search combine with AND', () => {
   const { accFilter } = accPure();
   const em = (rows) => rows.map((r) => r.email).sort();
   const F = (o) => Object.assign({ q: '', platform: 'all', provider: 'all', onboarded: 'all', protocols: 'all', rule: false }, o);
@@ -596,7 +598,7 @@ test('Bug (founder 2026-10-17): the "Contas de teste" view was empty live — th
   const realFetch = global.fetch;
   global.fetch = F.withAuth(async (url) => {
     const u = String(url); const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    if (u.endsWith('/rpc/admin_accounts_list')) return json({ test_excluded: 87, by_rule: 76, tests: [{ email: 'a.1@gmail.com', kind: 'rule' }, { email: 'b@x.y', kind: 'list' }], rows: [{ email: 'c@x.y', created: '2026-10-01', provider: 'google', apple: false, pu: [], ua: [], onboarded: false, confirmed: true, protocols_live: 0, last_sign_in: null, excepted: false }] });
+    if (u.endsWith('/rpc/admin_accounts_list')) return json({ test_excluded: 87, by_rule: 76, tests: [{ email: 'a.1@gmail.com', kind: 'rule' }, { email: 'b@x.y', kind: 'list' }], rows: [{ email: 'c@x.y', created: '2026-10-01', provider: 'google', apple: false, pu: [], ua: [], onboarded: false, confirmed: true, has_active_protocol: false, last_sign_in: null, excepted: false }] });
     if (u.endsWith('/rpc/admin_accounts')) return json({ accounts: FIX, protocols_live: 1 });
     return json({});
   });

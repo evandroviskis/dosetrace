@@ -2,7 +2,7 @@
 -- TM-12, TM-18 and TM-21; signed by the founder 2026-10-22). Mirrors supabase_admin_rpcs.sql section
 -- "A-163 team messages" (__tests__/admMessages.test.js keeps every function body identical in both files).
 --
--- STATUS: NOT APPLIED. Apply only with the founder's go, as ONE transaction, BEFORE deploying the
+-- STATUS: APPLIED in production 2026-10-22 (founder go). Do not re-apply or roll back. Original note: applied as ONE transaction, BEFORE deploying the
 -- panel code: api/adm-messages.js calls admin_message_info, admin_message_begin, admin_message_finish
 -- and admin_message_withdraw. Until it is applied the Mensagem dialog answers "not configured" and
 -- nothing is stored or pushed; Premium and reading the panel are unaffected.

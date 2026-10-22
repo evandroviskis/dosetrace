@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const F = require('./helpers/admAuthFake.js');
+const { latestFn } = require('./helpers/sqlLatest.js');
 
 const ROOT = path.join(__dirname, '..');
 const API_DIR = path.join(ROOT, 'api');
@@ -489,7 +490,8 @@ test('PR8 SQL: admin_actions_log has the handoff columns, no e-mail and no healt
   }
   assert.equal(tableIn(MIG), tableIn(SQL), 'same table in both files');
   for (const fn of ['admin_premium_target', 'admin_action_begin', 'admin_action_finish', 'admin_accounts_list']) {
-    assert.equal(sqlFnIn(MIG, fn), sqlFnIn(SQL, fn), fn + ' identical in the migration and supabase_admin_rpcs.sql');
+    // 3.3 redefines admin_accounts_list (has_active_protocol): the versioned SQL carries the newest migration's body.
+    assert.equal(latestFn(fn), sqlFnIn(SQL, fn), fn + ' identical in the newest migration and supabase_admin_rpcs.sql');
     assert.match(sqlFnIn(MIG, fn), /security definer/);
   }
   for (const sig of ['admin_premium_target\\(uuid\\)', 'admin_action_begin\\(uuid, uuid, text, uuid, timestamptz, text\\)', 'admin_action_finish\\(bigint, text, int, jsonb, jsonb, jsonb\\)']) {
@@ -499,7 +501,7 @@ test('PR8 SQL: admin_actions_log has the handoff columns, no e-mail and no healt
     }
   }
   assert.match(MIG, /^begin;$/m); assert.match(MIG, /^commit;$/m);
-  assert.match(MIG, /STATUS: NOT APPLIED/);
+  assert.match(MIG, /STATUS: APPLIED 2026-10-22/); assert.ok(!/NOT APPLIED/.test(MIG), 'live since 2026-10-22 (DT Council: no re-apply by mistake)');
   assert.ok(!/(alter|update|insert into|delete from)\s+auth\./i.test(MIG), 'nothing in the auth schema');
 });
 
@@ -833,9 +835,9 @@ test('3.2 page: the Premium styles use the panel tokens only (no raw colours, bo
   assert.match(HTML, /id="prem"/);
 });
 
-test('3.2 page: the Contas rows and the test-accounts view have a Premium button that opens the dialog by account id; the write goes to /api/adm-premium with the step-up first', () => {
-  assert.match(HTML, /onclick="openPremium\(\\''\+esc\(r\.id\)\+'\\'\)"/);
-  assert.match(HTML, /onclick="openPremium\(\\''\+esc\(x\.id\)\+'\\'\)"/);
+test('3.2 page: the Premium dialog opens by account id from the selected account\'s Opções menu (founder 2026-10-22: no row buttons); the write goes to /api/adm-premium with the step-up first', () => {
+  assert.match(HTML, /window\.openPremium\(id,k==='premium'\?null:k\)/);
+  assert.ok(!/onclick="openPremium\(/.test(HTML), 'no per-row button');
   const m = HTML.match(/function premSend\(\)\{[\s\S]*?\n  \}/);
   assert.ok(m, 'premSend');
   assert.match(m[0], /AUTH\.needsStepUp\(\)/);

@@ -2,7 +2,7 @@
 -- founder 2026-10-21). Mirrors supabase_admin_rpcs.sql (the panel's versioned SQL; a test keeps the
 -- admin_mark_test body identical in both files).
 --
--- STATUS: NOT APPLIED. Apply only with the founder's go, as ONE transaction, BEFORE deploying the 3.1
+-- STATUS: APPLIED 2026-10-21 (founder go). Do not re-apply or roll back. Original note: applied as ONE transaction, BEFORE deploying the 3.1
 -- code: the new api/adm.js reads admin_users and calls admin_mark_test(p_emails, p_mark, p_actor).
 -- Between this apply and the deploy, the live (old) panel cannot mark test accounts (its 2-argument
 -- call is refused, nothing is written); reading is unaffected.

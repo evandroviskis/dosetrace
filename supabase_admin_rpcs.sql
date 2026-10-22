@@ -342,6 +342,8 @@ $$;
 -- last_sign_in is display only (spec MV-0: never used for churn).
 -- 3.2 (2026-10-22): rows and tests carry the account id, so the Premium dialog names the account by its
 -- Supabase id (= the RevenueCat app_user_id). Migration 20261022120000_admin_actions_log.sql.
+-- 3.3 (US4, founder Q3 2026-10-21): has_active_protocol (yes/no) replaced the protocols_live count
+-- (migration 20261022200000_admin_users_tab.sql). The pre-3.3 body is in git history.
 create or replace function public.admin_accounts_list()
  returns jsonb
  language sql
@@ -367,7 +369,7 @@ as $$
                    from auth.sessions s where s.user_id = u.id) x where x.k is not null), '[]'::jsonb),
         'onboarded', coalesce(u.raw_user_meta_data ? 'onboarded_at', false),
         'confirmed', u.email_confirmed_at is not null,
-        'protocols_live', (select count(*) from public.protocols p where p.user_id = u.id and p.deleted_at is null),
+        'has_active_protocol', exists (select 1 from public.protocols p where p.user_id = u.id and p.deleted_at is null and p.active is true),
         'last_sign_in', case when u.last_sign_in_at is null then null else to_char(u.last_sign_in_at at time zone 'UTC', 'YYYY-MM-DD') end,
         'excepted', exists (select 1 from public.admin_test_exceptions x where x.email = lower(u.email))
       ) order by u.created_at desc)
@@ -560,6 +562,9 @@ begin
 end;
 $$;
 
+-- TM-25 (founder 2026-10-22): each history row also says whether the message was translated; A-163 review fix
+-- (Gate B 2026-10-22): only tokens whose newest push_tokens row belongs to the recipient (a shared phone).
+-- (migration 20261022200000_admin_users_tab.sql). The A-163 body is in git history.
 create or replace function public.admin_message_info(p_user_id uuid)
  returns jsonb
  language sql
@@ -574,10 +579,11 @@ as $$
                      then lower(left(u.raw_user_meta_data->>'language', 2)) end,
     'silent', coalesce(u.raw_user_meta_data->>'silent_mode', '') = 'true',
     'tokens', coalesce((select jsonb_agg(jsonb_build_object('token', p.expo_token, 'platform', lower(coalesce(p.platform, ''))) order by p.updated_at desc)
-                          from public.push_tokens p where p.user_id = u.id), '[]'::jsonb),
+                          from public.push_tokens p where p.user_id = u.id
+                           and not exists (select 1 from public.push_tokens q where q.expo_token = p.expo_token and q.user_id <> u.id and q.updated_at > p.updated_at)), '[]'::jsonb),
     'history', coalesce((select jsonb_agg(to_jsonb(h) order by h.created_at desc) from (
                   select m.id, m.body, m.created_at, m.read_at, m.withdrawn_at, l.devices, l.accepted, l.failed,
-                         coalesce(l.result->'body'->>'silent', '') = 'true' as silent
+                         coalesce(l.result->'body'->>'silent', '') = 'true' as silent, coalesce(l.translated, false) as translated
                     from public.team_messages m
                     left join public.admin_actions_log l on l.message_id = m.id and l.action = 'message_send'
                    where m.user_id = u.id
@@ -586,7 +592,9 @@ as $$
     from auth.users u where u.id = p_user_id;
 $$;
 
-create or replace function public.admin_message_begin(p_request_id uuid, p_actor uuid, p_user_id uuid, p_body text)
+-- TM-25 (founder 2026-10-22): p_translated (default false) is stored in the log row; the 4-argument
+-- A-163 version is dropped by migration 20261022200000_admin_users_tab.sql.
+create or replace function public.admin_message_begin(p_request_id uuid, p_actor uuid, p_user_id uuid, p_body text, p_translated boolean default false)
  returns jsonb
  language plpgsql
  security definer
@@ -623,8 +631,8 @@ begin
   end if;
   if not exists (select 1 from auth.users where id = p_user_id) then return jsonb_build_object('state', 'not_found'); end if;
   insert into public.team_messages (user_id, body) values (p_user_id, p_body) returning * into m;
-  insert into public.admin_actions_log (request_id, actor, action, user_id, message_id)
-    values (p_request_id, p_actor, 'message_send', p_user_id, m.id)
+  insert into public.admin_actions_log (request_id, actor, action, user_id, message_id, translated)
+    values (p_request_id, p_actor, 'message_send', p_user_id, m.id, coalesce(p_translated, false))
     returning id into new_id;
   return jsonb_build_object('state', 'started', 'id', new_id, 'message_id', m.id, 'created_at', m.created_at);
 end;
@@ -697,10 +705,175 @@ $$;
 revoke execute on function public.team_message_mark_read(uuid, timestamptz) from public, anon;
 grant execute on function public.team_message_mark_read(uuid, timestamptz) to authenticated;
 revoke execute on function public.admin_message_info(uuid) from public, anon, authenticated;
-revoke execute on function public.admin_message_begin(uuid, uuid, uuid, text) from public, anon, authenticated;
+revoke execute on function public.admin_message_begin(uuid, uuid, uuid, text, boolean) from public, anon, authenticated;
 revoke execute on function public.admin_message_finish(bigint, int, int, int, int, jsonb) from public, anon, authenticated;
 revoke execute on function public.admin_message_withdraw(uuid, uuid, uuid, uuid) from public, anon, authenticated;
 grant execute on function public.admin_message_info(uuid) to service_role;
-grant execute on function public.admin_message_begin(uuid, uuid, uuid, text) to service_role;
+grant execute on function public.admin_message_begin(uuid, uuid, uuid, text, boolean) to service_role;
 grant execute on function public.admin_message_finish(bigint, int, int, int, int, jsonb) to service_role;
 grant execute on function public.admin_message_withdraw(uuid, uuid, uuid, uuid) to service_role;
+
+-- ===========================================================================
+-- 3.3 Users tab (docs/specs/admin-panel.md Phase 3 › 3.3, US2/US4/US5/US8) and A-163 TM-25 (automatic
+-- translation of a team message). Migration 20261022200000_admin_users_tab.sql — STATUS: NOT APPLIED.
+-- admin_actions_log gains resend_confirmation and translated; admin_translate_usage counts AI translations
+-- (60 per hour per admin, who and when only); admin_account_card is the account card (the only health key is
+-- has_active_protocol); admin_resend_begin gates "Resend confirmation e-mail" (no force sign-out, no delete).
+-- The redefined admin_accounts_list, admin_message_info and admin_message_begin bodies are above, in place.
+-- ===========================================================================
+do $$
+declare c record;
+begin
+  for c in
+    select distinct con.conname from pg_constraint con
+      join pg_attribute a on a.attrelid = con.conrelid and a.attnum = any (con.conkey)
+     where con.conrelid = 'public.admin_actions_log'::regclass and con.contype = 'c' and a.attname in ('action', 'reason')
+  loop
+    execute format('alter table public.admin_actions_log drop constraint %I', c.conname);
+  end loop;
+end;
+$$;
+alter table public.admin_actions_log add constraint admin_actions_log_action_check
+  check (action in ('premium_grant', 'premium_revoke', 'premium_change_end', 'message_send', 'message_withdraw', 'resend_confirmation'));
+alter table public.admin_actions_log add constraint admin_actions_log_reason_check
+  check ((action like 'premium\_%' and reason is not null and char_length(reason) between 1 and 200) or ((action like 'message\_%' or action = 'resend_confirmation') and reason is null));
+alter table public.admin_actions_log add column if not exists translated boolean check (translated is null or action = 'message_send');
+
+create table if not exists public.admin_translate_usage (
+  id bigserial primary key,
+  actor uuid not null,
+  at timestamptz not null default now()
+);
+create index if not exists admin_translate_usage_actor_at on public.admin_translate_usage (actor, at desc);
+alter table public.admin_translate_usage enable row level security;
+revoke all on table public.admin_translate_usage from public, anon, authenticated, service_role;
+revoke all on sequence public.admin_translate_usage_id_seq from public, anon, authenticated, service_role;
+
+create or replace function public.admin_translate_take(p_actor uuid)
+ returns jsonb
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $$
+declare
+  n int;
+  t0 timestamptz;
+begin
+  if p_actor is null then raise exception 'actor required'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('admin_translate:' || p_actor::text, 0));
+  delete from public.admin_translate_usage where actor = p_actor and at < now() - interval '1 day';
+  select count(*), min(at) into n, t0 from public.admin_translate_usage where actor = p_actor and at > now() - interval '1 hour';
+  if n >= 60 then
+    return jsonb_build_object('state', 'limited', 'retry_after', greatest(1, ceil(extract(epoch from (t0 + interval '1 hour' - now())))::int));
+  end if;
+  insert into public.admin_translate_usage (actor) values (p_actor);
+  return jsonb_build_object('state', 'ok', 'used', n + 1);
+end;
+$$;
+
+create or replace function public.admin_account_card(p_user_id uuid)
+ returns jsonb
+ language plpgsql
+ stable
+ security definer
+ set search_path to 'public', 'auth'
+as $$
+declare
+  u auth.users;
+  v_seen timestamptz;
+  v_seen_ok boolean := false;
+  v_ver text;
+  v_ver_ok boolean := false;
+begin
+  select * into u from auth.users where id = p_user_id;
+  if not found then return null; end if;
+  -- Read only what exists: A-119's user_devices (last seen + version), else app_releases' push_tokens.app_version.
+  if to_regclass('public.user_devices') is not null then
+    execute 'select max(last_seen_at), (array_agg(app_version order by last_seen_at desc nulls last))[1] from public.user_devices where user_id = $1'
+      into v_seen, v_ver using p_user_id;
+    v_seen_ok := true;
+    v_ver_ok := true;
+  elsif exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'push_tokens' and column_name = 'app_version') then
+    execute 'select (array_agg(app_version order by updated_at desc nulls last))[1] from public.push_tokens where user_id = $1 and app_version is not null'
+      into v_ver using p_user_id;
+    v_ver_ok := true;
+  end if;
+  return jsonb_build_object(
+    'user_id', u.id,
+    'email', lower(u.email),
+    'created_at', u.created_at,
+    'provider', coalesce(u.raw_app_meta_data->>'provider', ''),
+    'email_confirmed_at', u.email_confirmed_at,
+    'last_sign_in_at', u.last_sign_in_at,
+    'apple', coalesce(u.raw_app_meta_data->>'provider', '') = 'apple',
+    'pu', coalesce((select jsonb_agg(distinct lower(p.platform)) from public.push_tokens p where p.user_id = u.id and p.platform is not null), '[]'::jsonb),
+    'ua', coalesce((select jsonb_agg(distinct x.k) from (
+             select case when s.user_agent ~* '(okhttp|android)' then 'android'
+                         when s.user_agent ~* '(cfnetwork|darwin)' then 'ios' end as k
+               from auth.sessions s where s.user_id = u.id) x where x.k is not null), '[]'::jsonb),
+    'onboarded', coalesce(u.raw_user_meta_data ? 'onboarded_at', false),
+    'test_kind', public.admin_test_kind(u.email),
+    'has_active_protocol', exists (select 1 from public.protocols p where p.user_id = u.id and p.deleted_at is null and p.active is true),
+    'last_seen_at', v_seen,
+    'last_seen_measured', v_seen_ok,
+    'app_version', v_ver,
+    'app_version_measured', v_ver_ok,
+    'history', coalesce((select jsonb_agg(to_jsonb(h) order by h.at desc) from (
+                  select l.at, l.action, l.status from public.admin_actions_log l where l.user_id = u.id
+                  union all
+                  select a.at, a.action, 'ok' from public.admin_audit_log a where a.email = lower(u.email)
+                  order by 1 desc limit 20) h), '[]'::jsonb)
+  );
+end;
+$$;
+
+create or replace function public.admin_resend_begin(p_request_id uuid, p_actor uuid, p_user_id uuid)
+ returns jsonb
+ language plpgsql
+ security definer
+ set search_path to 'public', 'auth'
+as $$
+declare
+  r public.admin_actions_log;
+  n int;
+  t0 timestamptz;
+  new_id bigint;
+  u auth.users;
+begin
+  if p_request_id is null or p_actor is null or p_user_id is null then raise exception 'request_id, actor and user_id required'; end if;
+  perform pg_advisory_xact_lock(least(hashtextextended('admin_actions:' || p_actor::text, 0), hashtextextended('admin_actions:' || p_user_id::text, 0)));
+  perform pg_advisory_xact_lock(greatest(hashtextextended('admin_actions:' || p_actor::text, 0), hashtextextended('admin_actions:' || p_user_id::text, 0)));
+  select * into r from public.admin_actions_log where request_id = p_request_id;
+  if found then
+    if r.actor <> p_actor or r.action <> 'resend_confirmation' or r.user_id <> p_user_id then
+      return jsonb_build_object('state', 'conflict');
+    end if;
+    if r.status = 'pending' then return jsonb_build_object('state', 'in_progress'); end if;
+    return jsonb_build_object('state', 'existing', 'http', r.http, 'result', r.result);
+  end if;
+  select * into u from auth.users where id = p_user_id;
+  if not found then return jsonb_build_object('state', 'not_found'); end if;
+  if u.email_confirmed_at is not null then return jsonb_build_object('state', 'refused', 'code', 'already_confirmed'); end if;
+  if coalesce(u.raw_app_meta_data->>'provider', '') <> 'email' then return jsonb_build_object('state', 'refused', 'code', 'not_email_signup'); end if;
+  select count(*), min(at) into n, t0 from public.admin_actions_log where actor = p_actor and at > now() - interval '1 hour';
+  if n >= 30 then
+    return jsonb_build_object('state', 'limited', 'scope', 'actor', 'retry_after', greatest(1, ceil(extract(epoch from (t0 + interval '1 hour' - now())))::int));
+  end if;
+  select max(at) into t0 from public.admin_actions_log
+   where user_id = p_user_id and action = 'resend_confirmation' and status in ('ok', 'pending') and at > now() - interval '1 hour';
+  if t0 is not null then
+    return jsonb_build_object('state', 'limited', 'scope', 'account', 'retry_after', greatest(1, ceil(extract(epoch from (t0 + interval '1 hour' - now())))::int));
+  end if;
+  insert into public.admin_actions_log (request_id, actor, action, user_id)
+    values (p_request_id, p_actor, 'resend_confirmation', p_user_id)
+    returning id into new_id;
+  return jsonb_build_object('state', 'started', 'id', new_id);
+end;
+$$;
+
+revoke execute on function public.admin_translate_take(uuid) from public, anon, authenticated;
+revoke execute on function public.admin_account_card(uuid) from public, anon, authenticated;
+revoke execute on function public.admin_resend_begin(uuid, uuid, uuid) from public, anon, authenticated;
+grant execute on function public.admin_translate_take(uuid) to service_role;
+grant execute on function public.admin_account_card(uuid) to service_role;
+grant execute on function public.admin_resend_begin(uuid, uuid, uuid) to service_role;

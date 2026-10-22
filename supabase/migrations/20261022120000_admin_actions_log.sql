@@ -2,7 +2,7 @@
 -- signed by the founder 2026-10-21). Mirrors supabase_admin_rpcs.sql section "3.2 Premium" (the
 -- panel's versioned SQL; __tests__/admPremium.test.js keeps every body identical in both files).
 --
--- STATUS: NOT APPLIED. Apply only with the founder's go, as ONE transaction, BEFORE deploying the 3.2
+-- STATUS: APPLIED 2026-10-22 (founder go). Do not re-apply or roll back. Original note: applied as ONE transaction, BEFORE deploying the 3.2
 -- code: api/adm-premium.js calls admin_premium_target, admin_action_begin and admin_action_finish, and
 -- the Contas tab needs the account id that admin_accounts_list now returns. Until it is applied the
 -- Premium button answers "not configured" and nothing is written; reading the panel is unaffected.

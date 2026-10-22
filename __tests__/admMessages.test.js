@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const F = require('./helpers/admAuthFake.js');
+const { latestFn } = require('./helpers/sqlLatest.js');
 
 const ROOT = path.join(__dirname, '..');
 const HTML = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
@@ -149,7 +150,7 @@ test('TM-1/TM-8 (GET): the account behind the id with its app language, the fixe
   assert.deepEqual(g.json.devices, { count: 2, platforms: ['ios', 'android'] });
   assert.ok(!g.body.includes('ExponentPushToken'), 'push tokens never leave the server');
   assert.deepEqual(g.json.history.map((h) => h.id), [recent.id, old.id], 'newest first');
-  assert.deepEqual(Object.keys(g.json.history[0]).sort(), ['accepted', 'body', 'created_at', 'devices', 'failed', 'id', 'read_at', 'silent', 'withdrawn_at']);
+  assert.deepEqual(Object.keys(g.json.history[0]).sort(), ['accepted', 'body', 'created_at', 'devices', 'failed', 'id', 'read_at', 'silent', 'translated', 'withdrawn_at'] /* TM-25 adds translated */);
   assert.equal(g.headers['cache-control'], 'no-store');
   assert.equal(expoCalls(g).length, 0, 'reading never pushes');
   const q = await get(world(), '?user_id=' + QUIET);
@@ -321,7 +322,7 @@ test('TM-7: every send writes ONE log row: the admin user id, the account user i
   assert.ok(!JSON.stringify(row.result).includes('@'));
   assert.ok(!JSON.stringify(row.result).includes(MSG), 'the log keeps the outcome, not the text');
   const begin = (await post(world(), sendBody({ request_id: RID(26) }))).calls.find((c) => c.url.endsWith('/rpc/admin_message_begin'));
-  assert.deepEqual(Object.keys(begin.body).sort(), ['p_actor', 'p_body', 'p_request_id', 'p_user_id']);
+  assert.deepEqual(Object.keys(begin.body).sort(), ['p_actor', 'p_body', 'p_request_id', 'p_translated', 'p_user_id'], 'TM-25 adds p_translated');
   // invalid or unknown → nothing logged
   const V = world();
   await post(V, sendBody({ request_id: RID(27), user_id: GHOST }));
@@ -436,19 +437,22 @@ test('TM-7 SQL: admin_actions_log gains message_send / message_withdraw, message
   assert.ok(!/add column[^;]*email/i.test(MIG));
 });
 
-test('TM-21 SQL: the panel functions run as definer for service_role only (never anon / authenticated); the migration is one transaction, NOT APPLIED, touches nothing in auth; bodies identical in supabase_admin_rpcs.sql', () => {
+test('TM-21 SQL: the panel functions run as definer for service_role only (never anon / authenticated); the migration is one transaction, marked APPLIED (live since 2026-10-22), touches nothing in auth; bodies identical in supabase_admin_rpcs.sql', () => {
   for (const sig of ['admin_message_info\\(uuid\\)', 'admin_message_begin\\(uuid, uuid, uuid, text\\)', 'admin_message_finish\\(bigint, int, int, int, int, jsonb\\)', 'admin_message_withdraw\\(uuid, uuid, uuid, uuid\\)']) {
-    for (const src of [MIG, SQL]) {
+    // The versioned SQL carries TM-25's 5-argument admin_message_begin (checked in admTranslate.test.js).
+    for (const src of sig.startsWith('admin_message_begin') ? [MIG] : [MIG, SQL]) {
       assert.match(src, new RegExp('revoke execute on function public\\.' + sig + ' from public, anon, authenticated;'));
       assert.match(src, new RegExp('grant execute on function public\\.' + sig + ' to service_role;'));
     }
   }
   for (const fn of FNS) {
     assert.match(sqlFnIn(MIG, fn), /security definer/);
-    assert.equal(sqlFnIn(MIG, fn), sqlFnIn(SQL, fn), fn + ' identical in the migration and supabase_admin_rpcs.sql');
+    // 3.3 / TM-25 redefine admin_message_begin and admin_message_info: the versioned SQL carries the newest body.
+    assert.equal(latestFn(fn), sqlFnIn(SQL, fn), fn + ' identical in the newest migration and supabase_admin_rpcs.sql');
   }
   assert.match(MIG, /^begin;$/m); assert.match(MIG, /^commit;$/m);
-  assert.match(MIG, /STATUS: NOT APPLIED/);
+  // DT Council 2026-10-22: the header says it is live, so nobody re-applies or rolls it back by mistake.
+  assert.match(MIG, /STATUS: APPLIED in production 2026-10-22 \(founder go\)/); assert.ok(!/NOT APPLIED/.test(MIG));
   assert.ok(!/(alter|update|insert into|delete from)\s+auth\./i.test(MIG), 'nothing in the auth schema');
   const info = sqlFnIn(MIG, 'admin_message_info');
   assert.match(info, /raw_user_meta_data->>'silent_mode'/, 'Silent mode = user_metadata.silent_mode (lib/notifications.js)');
@@ -475,7 +479,7 @@ function msgPure(lang) {
   const L = lang || 'en';
   const t = (k, v) => { let s = T[L][k] != null ? T[L][k] : T.en[k]; assert.ok(s != null, 'missing key ' + k); if (v) for (const p of Object.keys(v)) s = String(s).split('{' + p + '}').join(v[p]); return s; };
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const P = (0, eval)('(function(){' + m[1] + '\nreturn {MSG_MAX:MSG_MAX,msgLen:msgLen,msgCanSend:msgCanSend,msgDialogHtml:msgDialogHtml,msgErrKey:msgErrKey,msgSender:msgSender,msgDoneKey:msgDoneKey,msgDevLabel:msgDevLabel,msgPreviewBody:msgPreviewBody};})()');
+  const P = (0, eval)('(function(){' + m[1] + '\nreturn {MSG_MAX:MSG_MAX,msgLen:msgLen,msgCanSend:msgCanSend,msgDialogHtml:msgDialogHtml,msgErrKey:msgErrKey,msgSender:msgSender,msgDoneKey:msgDoneKey,msgDevLabel:msgDevLabel,msgPreviewBody:msgPreviewBody,msgContentBlock:msgContentBlock};})()');
   return { P, t, esc, T };
 }
 const INFO = (o) => Object.assign({ language: 'pt', title: TITLES.pt, silent: false, devices: { count: 2, platforms: ['ios', 'android'] }, history: [] }, o || {});
@@ -484,9 +488,11 @@ const H_OLD = { id: RID(90), body: MSG.replace('1 ano', '6 meses'), created_at: 
 const H_NEW = { id: RID(91), body: MSG, created_at: '2026-10-22T10:14:00.000Z', read_at: null, withdrawn_at: null, devices: 2, accepted: 2, failed: 0 };
 const H_WD = { id: RID(92), body: 'enviada por engano', created_at: '2026-10-21T09:00:00.000Z', read_at: null, withdrawn_at: '2026-10-21T09:01:00.000Z', devices: 0, accepted: 0, failed: 0 };
 
-test('TM-1 page: every Contas row and every test account has a "Mensagem" button next to "Premium" that opens the send dialog for that account id', () => {
-  assert.match(HTML, /'<div class="ms-acts"><button class="pm-rowbtn" onclick="openPremium\(\\''\+esc\(r\.id\)\+'\\'\)">'\+esc\(t\('pm_btn'\)\)\+'<\/button><button class="pm-rowbtn" onclick="openMessage\(\\''\+esc\(r\.id\)\+'\\'\)">'\+esc\(t\('ms_btn'\)\)\+'<\/button><\/div>'/);
-  assert.match(HTML, /'<div class="ms-acts"><button class="pm-rowbtn" onclick="openPremium\(\\''\+esc\(x\.id\)\+'\\'\)">'\+esc\(t\('pm_btn'\)\)\+'<\/button><button class="pm-rowbtn" onclick="openMessage\(\\''\+esc\(x\.id\)\+'\\'\)">'\+esc\(t\('ms_btn'\)\)\+'<\/button><\/div>'/);
+// TM-1 as changed by the founder 2026-10-22: no "Mensagem" button per row; the selected account's single
+// Opções menu (3.3) has "Enviar mensagem" for real and test accounts alike (admAccounts.test.js covers the menu).
+test('TM-1 page: the selected account\'s Opções menu opens the send dialog for that account id (real and test accounts); no per-row button', () => {
+  assert.match(HTML, /if\(k==='message'\)\{usCloseMenu\(\);window\.openMessage\(id\);/);
+  assert.ok(!/onclick="openMessage\(/.test(HTML), 'no per-row button');
   assert.match(HTML, /window\.openMessage=function\(id\)\{/);
   assert.match(HTML, /<div id="msg" role="dialog" aria-modal="true" aria-labelledby="ms-t"><div class="pdlg" id="msg-box"><\/div><\/div>/);
   assert.match(HTML, /AUTH\.api\('GET',null,'\/api\/adm-messages\?user_id='\+encodeURIComponent\(id\)\)/);
@@ -502,12 +508,16 @@ test('TM-2 page: the dialog shows the app language, the devices with notificatio
   const h = P.msgDialogHtml(ST(), t, esc);
   assert.ok(h.includes('<dt>Idioma do app</dt><dd>Português</dd>'));
   assert.ok(h.includes('<dt>Aparelhos com notificações</dt><dd>2 (iPhone, Android)</dd>'));
-  assert.equal(T.pt.ms_rule, 'Somente avisos de conta e suporte. Nunca escreva orientação de saúde, dose ou tratamento.');
+  // DT Council 2026-10-22: the signed rule gains products, sellers and links.
+  assert.equal(T.pt.ms_rule, 'Somente avisos de conta e suporte. Nunca escreva orientação de saúde, dose ou tratamento, e nunca cite produtos, vendedores ou links.');
   assert.ok(h.includes('<p class="pm-note warn">' + T.pt.ms_rule + '</p>'), 'the rule, as signed');
   assert.ok(h.includes(TITLES.pt) && h.includes(T.pt.ms_title_fixed));
   assert.match(h, /<textarea class="linp ms-ta" id="ms-text" maxlength="200"/);
   assert.ok(h.includes('<span class="ms-num" id="ms-num">0 / 200</span>'));
-  assert.ok(h.includes(T.pt.ms_hint_lang));
+  // TM-25 (founder 2026-10-22): with the app language known the panel translates before sending, so the hint says so;
+  // "sent exactly as typed" stays for an account whose language is not reported.
+  assert.ok(h.includes(t('ms_tr_hint', { l: 'Português' })));
+  assert.ok(P.msgDialogHtml(ST({ info: INFO({ language: null, title: TITLES.en }) }), t, esc).includes(T.pt.ms_hint_lang));
   assert.ok(h.includes(T.pt.ms_preview) && h.includes(T.pt.ms_preview_empty) && h.includes(T.pt.ms_preview_note));
   assert.match(h, /<img src="\/assets\/app-icon-120\.png" alt="" width="30" height="30">/);
   assert.ok(fs.existsSync(path.join(ROOT, 'web', 'assets', 'app-icon-120.png')), 'the app icon asset');
@@ -637,13 +647,63 @@ test('TM-10: every ms_ label exists in all 6 languages (parity); Portuguese is f
   assert.equal(T.pt.ms_btn, 'Mensagem'); assert.equal(T.pt.ms_send, 'Enviar'); assert.equal(T.pt.ms_read, 'Lida'); assert.equal(T.pt.ms_unread, 'Não lida');
 });
 
-test('TM-10: the message styles use the panel tokens only (both themes), the dialog fits 420 px (wraps, no fixed widths), and the row buttons sit side by side', () => {
+test('TM-10: the message styles use the panel tokens only (both themes) and the dialog fits 420 px (wraps, no fixed widths)', () => {
   const css = HTML.match(/\/\* \[messages-css-start\] \*\/([\s\S]*?)\/\* \[messages-css-end\] \*\//);
   assert.ok(css, 'messages css block');
   assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|\bwhite\b|\bblack\b/i.test(css[1].replace(/#msg\b/g, '').replace(/#ms-[a-z]+/g, '').replace(/white-space/g, '')), 'tokens only');
   assert.match(css[1], /#msg \.pdlg\{[^}]*max-width:520px[^}]*width:100%/);
   assert.match(css[1], /overflow-wrap:anywhere/);
   assert.match(css[1], /@media\(max-width:480px\)/);
-  assert.match(css[1], /\.ms-acts\{display:flex;gap:6px;justify-content:flex-end/);
+  assert.ok(!/\.ms-acts\{/.test(css[1]), 'the row-button style left with the row buttons (3.3 Opções)');
   assert.ok(!/width:\s*[5-9]\d\dpx|width:\s*\d{4}px/.test(css[1].replace(/max-width:\s*\d+px/g, '')), 'no fixed width wider than a phone');
+});
+
+// A-163 review fix (Gate B, 2026-10-22): push_tokens is keyed on (user_id, expo_token), so one phone can sit under
+// two accounts (A signed out, B signed in on the same phone). A message to A must never reach that phone: only a
+// token whose NEWEST push_tokens row (by updated_at) belongs to the recipient is used. The table is live, so the
+// fix is a CREATE OR REPLACE of admin_message_info in the 3.3 migration (behaviour proven in the Postgres rehearsal).
+test('A-163 review fix SQL: admin_message_info sends only to tokens whose newest push_tokens row belongs to the recipient (a phone now used by another account gets nothing); newest migration = versioned SQL', () => {
+  const fn = latestFn('admin_message_info');
+  assert.match(fn, /from public\.push_tokens p where p\.user_id = u\.id\s+and not exists \(select 1 from public\.push_tokens q where q\.expo_token = p\.expo_token and q\.user_id <> u\.id and q\.updated_at > p\.updated_at\)/);
+  assert.equal(fn, sqlFnIn(SQL, 'admin_message_info'), 'identical in supabase_admin_rpcs.sql');
+  const [file, src] = require('./helpers/sqlLatest.js').latestMigrationWith('admin_message_info');
+  assert.notEqual(file, '20261022180000_team_messages.sql', 'a new migration, the applied one is not edited');
+  assert.ok(!/create table[^;]*team_messages|alter table public\.push_tokens/i.test(src), 'function only: no table change');
+});
+
+// DT Council 2026-10-22 (regulatory): a team message never carries a link or web address, an e-mail address or a
+// discount / coupon code. Refused server side before anything is stored or pushed; the dialog says why (6 languages)
+// and the rule text names it ("nunca produtos, vendedores ou links").
+const BLOCKED = [
+  ['Veja em https://exemplo.com/oferta', 'blocked_link'], ['Acesse http://x.y', 'blocked_link'], ['Visite www.exemplo.com.br', 'blocked_link'],
+  ['Compre em loja.com agora', 'blocked_link'], ['Mais em dosetrace.io', 'blocked_link'], ['Detalhes: farmacia.com.br', 'blocked_link'], ['see shop.app', 'blocked_link'],
+  ['Escreva para vendas@loja.com', 'blocked_email'], ['contact me: a.b@c.de', 'blocked_email'],
+  ['Use o cupom DOSE20 na compra', 'blocked_code'], ['Seu código promocional: ABC123', 'blocked_code'], ['promo code SAVE15', 'blocked_code'], ['Gutschein XMAS2026', 'blocked_code'], ['Use VERAO2026 hoje', 'blocked_code'],
+];
+const ALLOWED = [MSG, 'Seu acesso Premium termina em 22/10/2027.', 'A versão 1.3.1 já está no Google Play.', 'Toque em Ajustes › Ver planos › Restaurar compras.', 'Recebemos o seu e-mail, obrigado.', 'Corrigimos o erro no Android 14.', 'Your Premium access is active. Thank you!'];
+test('Content rule (server): a link / web address, an e-mail address or a discount code → 400 with its own code before any call; ordinary account and support text passes', withEnv(async () => {
+  const C = api().contentBlock;
+  assert.equal(typeof C, 'function');
+  for (const [s, code] of BLOCKED) assert.equal(C(s), code, s);
+  for (const s of ALLOWED) assert.equal(C(s), null, s);
+  for (const [s, code] of BLOCKED.slice(0, 3).concat(BLOCKED.slice(7, 8), BLOCKED.slice(9, 10))) {
+    const W = world();
+    const r = await post(W, sendBody({ text: s }));
+    assert.equal(r.code, 400, s); assert.equal(r.json.code, code);
+    assert.equal(r.dataCalls.length, 0, 'nothing read, stored or pushed');
+    assert.equal(W.msgs.length, 0); assert.equal(W.pushes.length, 0);
+  }
+}));
+test('Content rule (page): the same rule while typing (Enviar disabled, the reason shown), every reason in 6 languages, and the rule text names products, sellers and links', () => {
+  const { P, t, esc, T } = msgPure('pt');
+  for (const [s, code] of BLOCKED) assert.equal(P.msgContentBlock(s), code, 'page = server: ' + s);
+  for (const s of ALLOWED) assert.equal(P.msgContentBlock(s), null, s);
+  const h = P.msgDialogHtml(ST({ text: 'Use o cupom DOSE20 na compra' }), t, esc);
+  assert.match(h, /id="ms-go" data-ms="go" disabled/);
+  assert.ok(h.includes(T.pt.ms_e_blocked_code));
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['ms_e_blocked_link', 'ms_e_blocked_email', 'ms_e_blocked_code']) assert.ok(T[l][k], l + ' ' + k);
+  for (const c of ['blocked_link', 'blocked_email', 'blocked_code']) assert.equal(P.msgErrKey(400, c), 'ms_e_' + c);
+  assert.equal(T.pt.ms_rule, 'Somente avisos de conta e suporte. Nunca escreva orientação de saúde, dose ou tratamento, e nunca cite produtos, vendedores ou links.');
+  assert.match(T.en.ms_rule, /products, sellers or links/);
+  for (const [l, w] of [['es', /enlaces/], ['fr', /liens/], ['de', /Links/], ['it', /link/]]) assert.match(T[l].ms_rule, w, l);
 });
