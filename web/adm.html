@@ -168,10 +168,10 @@
   .lmsg.err{color:var(--bad)}
   .lwho{font-size:13px;color:var(--muted);margin:0 0 14px;overflow-wrap:anywhere}
   .lwho b{color:var(--ink);font-weight:600}
-  .lqr{display:flex;gap:14px;align-items:center;margin:0 0 14px}
-  .lqr .qrw{flex:none;display:block;width:112px;height:112px;background:var(--qrbg);border:1px solid var(--line);border-radius:8px;padding:6px}
+  .lqr{display:flex;flex-direction:column;gap:12px;align-items:center;margin:0 0 14px}
+  .lqr .qrw{flex:none;display:block;width:232px;height:232px;max-width:100%;background:var(--qrbg);border:1px solid var(--line);border-radius:8px;padding:6px}
   .lqr .qrw img{display:block;width:100%;height:100%}
-  .lqr .key{font-size:12px;color:var(--muted);min-width:0}
+  .lqr .key{font-size:12px;color:var(--muted);min-width:0;align-self:stretch;text-align:center}
   .lqr .key code{display:block;margin-top:4px;color:var(--ink);font-size:12.5px;background:var(--surface2);border-radius:5px;padding:3px 6px;letter-spacing:.05em;overflow-wrap:anywhere}
   #stepup{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;z-index:90;padding:16px}
   #stepup .ldlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;max-width:380px;width:100%}

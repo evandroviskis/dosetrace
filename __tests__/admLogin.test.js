@@ -571,3 +571,10 @@ test('AU9: the login styles use the panel tokens only (no raw colours); the QR b
   assert.equal((roots.match(/--qrbg:/g) || []).length, 2, '--qrbg in dark and light');
   for (const id of ['li-email', 'li-password', 'li-code', 'stepup']) assert.ok(HTML.includes('id="' + id + '"') || HTML.includes("id=\"" + id + "\""), id);
 });
+
+test('AU1 page (first-time setup): the QR is big enough for a phone camera (founder 2026-10-22: 112 px was too small) and sits on its own row above the key', () => {
+  const qrw = HTML.match(/\.lqr \.qrw\{[^}]*\}/)[0];
+  const w = Number((qrw.match(/width:(\d+)px/) || [])[1]);
+  assert.ok(w >= 220, 'QR box at least 220 px, got ' + w);
+  assert.match(HTML.match(/\.lqr\{[^}]*\}/)[0], /flex-direction:column/);
+});
