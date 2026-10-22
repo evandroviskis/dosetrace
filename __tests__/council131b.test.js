@@ -133,11 +133,20 @@ const section = (body, n) => {
   return parts.slice(i + 1, j);
 };
 
+// Founder 2026-10-22 ("aprovo"): the team-messages paragraph ends with the AI-translation line (TM-25).
+const AI_LINE = {
+  en: 'Messages we write to you may be translated by our AI provider.',
+  pt: 'As mensagens que escrevemos para você podem ser traduzidas pelo nosso provedor de IA.',
+  es: 'Los mensajes que te escribimos pueden traducirse con nuestro proveedor de IA.',
+  fr: "Les messages que nous vous écrivons peuvent être traduits par notre fournisseur d'IA.",
+  de: 'Nachrichten, die wir dir schreiben, können von unserem KI-Anbieter übersetzt werden.',
+  it: 'I messaggi che ti scriviamo possono essere tradotti dal nostro fornitore di IA.',
+};
 test('council 4: section 4 of the in-app policy ends with the approved team-messages paragraph, in each language', () => {
   const { translations: tr } = require('../i18n/translations');
   for (const l of LANGS) {
     const s4 = section(tr[l].settings_privacy_body, 4);
-    assert.equal(s4[s4.length - 1], PARA[l], `${l}: the last paragraph of section 4`);
+    assert.equal(s4[s4.length - 1], PARA[l] + ' ' + AI_LINE[l], `${l}: the last paragraph of section 4, with the AI-translation line`);
     assert.equal(tr[l].settings_privacy_body.split(PARA[l]).length, 2, `${l}: once`);
   }
 });
