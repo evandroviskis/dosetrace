@@ -5,6 +5,11 @@
 // keyboard has opened, again once the spacer has laid out (a lift before that stopped short: the
 // page could not scroll that far yet — the protocol page's note on the Fold, A-152), and again
 // while a multiline field grows. Rule: lib/keyboardLift.
+// Android: the keyboard's screenY is measured from the top of the window and a page's
+// measureInWindow from the bottom of the status bar (RN 0.81 edge to edge), so each lift measures
+// that shift on the scroll view (measure pageY - measureInWindow y) and the rule moves the keyboard
+// into the field's space (A-152, Fold 7 cover 2026-10-21: the Waist field stopped 42.3 dp short).
+// iPhone: no shift, no extra measure.
 // enabled = false turns it off (no listeners, no spacer, no lift): a sheet whose
 // KeyboardAvoidingView already lifts it on iPhone uses it on Android only (food editor, Fold
 // 2026-10-17, foodEditorKeyboard.test.js).
@@ -12,8 +17,8 @@
 // ScrollView that is the sole place to type in its window (a Modal's form): on a page a sheet's
 // field would move the page behind it.
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, TextInput, View } from 'react-native';
-import { liftScrollY } from '../lib/keyboardLift';
+import { Keyboard, Platform, TextInput, View } from 'react-native';
+import { liftScrollY, windowShift } from '../lib/keyboardLift';
 
 export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
   const auto = !!(opts && opts.auto);
@@ -31,14 +36,22 @@ export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
     try { return TextInput.State.currentlyFocusedInput(); } catch { return null; }
   }
 
+  // How far measureInWindow's origin sits below screenY's, on the scroll view (A-152).
+  function measureShift(sv, sy, done) {
+    if (Platform.OS !== 'android' || !sv.measure) { done(0); return; }
+    sv.measure((x, y, w, h, pageX, pageY) => done(windowShift(pageY, sy)));
+  }
+
   function lift() {
     const node = focusedNode();
     const sv = scroll.current;
     if (!node || !sv || kbTop.current == null || !node.measureInWindow || !sv.measureInWindow) return;
     sv.measureInWindow((sx, sy) => {
-      node.measureInWindow((fx, fy, fw, fh) => {
-        const y = liftScrollY({ fieldTop: fy, fieldBottom: fy + fh, kbTop: kbTop.current, viewTop: sy, scrollY: scrollY.current });
-        if (y != null) sv.scrollTo({ y, animated: true });
+      measureShift(sv, sy, (shift) => {
+        node.measureInWindow((fx, fy, fw, fh) => {
+          const y = liftScrollY({ fieldTop: fy, fieldBottom: fy + fh, kbTop: kbTop.current, viewTop: sy, scrollY: scrollY.current, windowShift: shift });
+          if (y != null) sv.scrollTo({ y, animated: true });
+        });
       });
     });
   }
