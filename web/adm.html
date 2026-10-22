@@ -1145,7 +1145,8 @@
   function liBtn(key){return '<button class="lbtn" type="submit"'+(LI.busy?' disabled':'')+'>'+esc(t(key))+'</button>';}
   // [qr-src-start]
   // Supabase's enrol answer carries the QR as SVG markup (older servers: already a data: URI). Only SVG is shown.
-  function qrSrc(q){q=String(q||'');var pre='data:image/svg+xml;utf-8,';if(q.indexOf(pre)===0)q=q.slice(pre.length);return /^\s*(<\?xml[^>]*>\s*)?<svg[\s>]/i.test(q)?pre+encodeURIComponent(q):'';}
+  // Supabase draws it with SVGo: an XML declaration and a comment come before <svg> (live 2026-10-22).
+  function qrSrc(q){q=String(q||'');var pre='data:image/svg+xml;utf-8,';if(q.indexOf(pre)===0)q=q.slice(pre.length);return /^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(q)?pre+encodeURIComponent(q):'';}
   // [qr-src-end]
   function groupKey(k){return String(k||'').replace(/(.{4})(?=.)/g,'$1 ');}
   function renderLogin(){
