@@ -373,6 +373,16 @@ test('AU9 errors: wrong e-mail or password, wrong or expired code, too many atte
   assert.ok(!e2.calls.some((c) => /verify$/.test(c.url)));
 });
 
+test('AU1 page (first-time setup): the QR image source works whether Supabase returns raw SVG or a data: URI, and anything else is refused', () => {
+  const m = HTML.match(/\/\/ \[qr-src-start\]([\s\S]*?)\/\/ \[qr-src-end\]/);
+  assert.ok(m, 'qr src helper block');
+  const qrSrc = (0, eval)('(function(){' + m[1] + '\nreturn qrSrc;})()');
+  assert.equal(qrSrc('<svg a="1"></svg>'), 'data:image/svg+xml;utf-8,' + encodeURIComponent('<svg a="1"></svg>'));
+  assert.equal(qrSrc('data:image/svg+xml;utf-8,<svg></svg>'), 'data:image/svg+xml;utf-8,' + encodeURIComponent('<svg></svg>'));
+  assert.equal(qrSrc('javascript:alert(1)'), '');
+  assert.equal(qrSrc(null), '');
+});
+
 // ------------------------------------------------------------------ AU8: session storage and age (page)
 test('AU8 page: a stored session older than 12 h → "session expired" with 0 requests, and the stored session is removed', async () => {
   const e = pageEnv({ saved: savedSession('admin', { ageS: 12 * 3600 + 30 }) });
