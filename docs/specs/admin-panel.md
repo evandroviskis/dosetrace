@@ -133,13 +133,15 @@ checklist-signed: pending (founder)
 - **Scope lines.** When this checklist is signed, the Scope lines "View-only" and "Out of scope until the founder specs them" above are rewritten to point here. That edit happens at signing, not now.
 
 #### 3.1 Admin login (prerequisite for every write)
+- **Founder answers to the 3.1 picture (2026-10-21, in chat):** the panel account is **his own app account, hello@dosetrace.io**, for now (Q1 = b; recommendation was a separate account — accepted risk: a test on that account, e.g. a password change or delete, also affects panel access; app tests run on the test account per the standing rule). Second factor: **an authenticator app (TOTP) only, never an e-mail code**. Session: **12 h**. Backup for the code (Q3): not answered yet — recommendation (a) enrol two authenticators (phone + password manager).
+
 
 **Design:**
 - **Sign-in:** Supabase Auth, e-mail + password, then a TOTP code (Supabase MFA, `aal2`). The page uses only the project's public anon key; no service key and no admin secret ever reach the page.
 - **First-time setup:** an allow-listed account with no TOTP factor is shown the enrolment screen (QR code + manual key, shown once) right after the password step. An account with a factor never sees enrolment again.
 - **Allow-list:** `admin_users (user_id uuid primary key, role text check (role in ('viewer','admin')), added_at timestamptz)`. RLS on, no policies, service_role only. Rows are added by SQL only, with the founder's go.
 - **Server check on every `/api/adm*` request (GET included):** verify the Supabase JWT server-side; require `aal2`; require `user_id` in `admin_users`; writes also need role `admin` and a TOTP verification within the last 15 minutes (step-up). The actor written to every log row is the `user_id`.
-- **Session:** kept in `sessionStorage` only (gone when the tab closes), never `localStorage`, never in a URL. Maximum panel session age: founder picks in the 3.1 picture (recommendation 12 h). After it, or after a refused refresh, the page shows "session expired" and loads no data.
+- **Session:** kept in `sessionStorage` only (gone when the tab closes), never `localStorage`, never in a URL. Maximum panel session age: **12 h** (founder 2026-10-21). After it, or after a refused refresh, the page shows "session expired" and loads no data.
 - **Origin and headers:** a POST whose `Origin` is not `https://dosetrace.io` is refused first. `Cache-Control: no-store` on every admin response. A Content-Security-Policy for `/adm`. No `console.*` in `api/`.
 - **Phase 2d test marking** moves behind the new session (role admin + step-up). Its rows TM1–TM11 stay as they are.
 - **Screens (picture `docs/design/adm-31-login.html`):** sign-in, TOTP code, first-time setup, errors (wrong e-mail or password, wrong or expired code, too many attempts, no connection), not authorised, session expired, and the step-up dialog before a change.
