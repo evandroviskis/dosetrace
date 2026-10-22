@@ -380,7 +380,7 @@ function pageT() {
 test('#013 labels: event-based numbers (usage events, scans per day) say they include test accounts, in 6 languages, and the label is used by the adoption card and the Compare scans row', () => {
   const { html, T } = pageT();
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].incl_test_ev, `${l} incl_test_ev`);
-  assert.equal(T.pt.incl_test_ev, 'Inclui contas de teste (não dá para separar)');
+  assert.equal(T.pt.incl_test_ev, 'Inclui contas de teste (não é possível separá-las)'); // formal pt, founder rule 2026-10-20
   assert.ok((html.match(/t\('incl_test_ev'\)/g) || []).length >= 2, 'used at least twice (adoption card, scans row)');
 });
 test('#013 alignment: W4 and the funnel count only live (not deleted) protocols, like the totals', () => {
