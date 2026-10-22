@@ -67,7 +67,7 @@ function installFetch(opts) {
     calls.push({ url: u, method: (init && init.method) || 'GET', headers, body });
     const auth = authAnswer(u, headers, o);
     if (auth) return auth;
-    if (o.data) return o.data(u, body);
+    if (o.data) return o.data(u, body, init || {});
     return json({});
   };
   return {
