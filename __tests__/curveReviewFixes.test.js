@@ -169,6 +169,7 @@ test('ENG-2: the Dose log read reaches the longest window (367 days); 967 days s
   assert.equal(M.CURVE_LOG_LOOKBACK_DAYS, M.CURVE_MAX_PAST_DAYS + 2);
   assert.match(src('screens/SerumCurveScreen.js'), /getLogsSince\(userId, new Date\(Date\.now\(\) - CURVE_LOG_LOOKBACK_DAYS \* 24 \* 3600 \* 1000\)\.toISOString\(\)\)/);
   const row = src('docs/specs/curve-logged-doses.md').split('\n').find((l) => l.startsWith('| PK-15 |'));
-  assert.match(row, /\| partial \|/);
+  // Recorded missing (spec audit 2026-10-21): only the schedule part is built in 1.3.1; the logged-dose part is AD-96 B.
+  assert.match(row, /\| missing \| schedule part only \(1\.3\.1\)/);
   assert.match(row, /log read 967 d ships with AD-96 B, 1\.3\.2/);
 });

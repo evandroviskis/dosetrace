@@ -35,3 +35,19 @@ test('A-138: no navy splash left; the app icon is unchanged', () => {
   assert.equal(app.android.adaptiveIcon.backgroundColor, '#0C2340'); // icon, not the splash
   assert.equal(app.userInterfaceStyle, 'automatic'); // the dark splash follows the phone
 });
+
+// Release review 2026-10-21: without the expo-splash-screen plugin, prebuild takes the LEGACY Android
+// path (windowBackground layer-list), so Android 12+ (the Fold) shows the system splash with the navy
+// launcher icon before the ground appears. The plugin, with the same image and both grounds, gives the
+// Android 12+ splash API its background and dark variant; iOS reads the same props.
+test('A-138: the expo-splash-screen plugin carries the droplet on both grounds (Android 12+ splash API)', () => {
+  const entry = (app.plugins || []).find((p) => Array.isArray(p) && p[0] === 'expo-splash-screen');
+  assert.ok(entry, 'expo-splash-screen plugin entry');
+  const c = entry[1];
+  assert.equal(c.image, './assets/splash-icon.png');
+  assert.equal(c.imageWidth, 200);
+  assert.equal(String(c.backgroundColor).toUpperCase(), grounds[0]);
+  assert.equal(String(c.dark.backgroundColor).toUpperCase(), grounds[1]);
+  assert.equal(c.dark.image, './assets/splash-icon.png');
+  assert.ok(require('../package.json').dependencies['expo-splash-screen'], 'dependency installed');
+});
