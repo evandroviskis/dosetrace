@@ -11,8 +11,8 @@ checklist-signed: pending (founder brief "ADMIN PANEL SESSION — full redo", 20
   - `api/adm.js`: the Vercel function behind `/api/adm`.
   - `supabase_admin_rpcs.sql`: the panel's SQL, versioned.
   - This spec.
-- **View-only.** Nothing on the panel writes data.
-- **Out of scope until the founder specs them:** login/password, and granting or revoking Premium.
+- **Writes:** only what Phase 2d and Phase 3 (signed 2026-10-21) allow, behind the 3.1 login.
+- **Login, Premium, Users tab, AI helper:** specified in Phase 3 below.
 - **Never touched from this work:** the mobile app (`screens/`, `lib/`, `components/`, `i18n/`, `app.json`) and `docs/review/features.md`.
 
 ## Status legend
@@ -113,7 +113,7 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 
 checklist-signed: 2026-10-21 by the founder ("assino a fase 3 e aprovo o login"); the 3.1 login picture docs/design/adm-31-login.html approved the same day; built by Claude Code in the DoseTrace session (founder: "Faz aqui entao")
 
-**Status:** spec and pictures only (2026-10-21). Nothing is built, pushed, deployed or applied. Input: the handoff `docs/handoffs/admin-panel-users-premium-ai.md` in the main repo (sections 0–8) and the founder's answers to its section 8, **founder 2026-10-21 (via Cowork)**. No code starts until the founder signs this checklist and picks the picture of each screen.
+**Status:** 3.1 built on `feature/admin-panel` 2026-10-21 (rows AU1–AU9 `[~]`, evidence on each row); NOT pushed, NOT deployed, migration NOT applied. 3.2–3.5 not started. Earlier status: spec and pictures only (2026-10-21). Input: the handoff `docs/handoffs/admin-panel-users-premium-ai.md` in the main repo (sections 0–8) and the founder's answers to its section 8, **founder 2026-10-21 (via Cowork)**. No code starts until the founder signs this checklist and picks the picture of each screen.
 
 **Founder decisions this phase applies (founder 2026-10-21 (via Cowork)):**
 - **Q1 Premium durations:** 7 days, 1 month, 3 months, 1 year, custom date, and "Lifetime" (end date 2099-12-31). Lifetime stays disabled until PR13 passes on the test phone.
@@ -148,15 +148,15 @@ checklist-signed: 2026-10-21 by the founder ("assino a fase 3 e aprovo o login")
 
 | ID | Criterion | Status | Evidence |
 |---|---|---|---|
-| AU1 | `/adm` requires Supabase sign-in plus TOTP (`aal2`); an account not in `admin_users` sees "not authorised" and gets no data (0 data requests after the refusal) | [ ] | test + live check |
-| AU2 | Every `/api/adm*` endpoint returns 401 without a valid JWT, 401 for an `aal1` session, 403 for a non-allow-listed user, and 403 on a write for a `viewer`; the old `ADMIN_TOKEN` alone → 401 | [ ] | tests |
-| AU3 | A write more than 15 min after the last TOTP check opens the step-up dialog; the server refuses the write without a fresh check (401 `step_up_required`) | [ ] | test + render both themes |
-| AU4 | A POST with a foreign `Origin` → 403 before anything else (no JWT check, no database call) | [ ] | test |
-| AU5 | `admin_users` has RLS on and service_role only; anon → 401/42501 | [ ] | live SQL check |
-| AU6 | **Old door removed in the same change:** `web/adm.html` has no `prompt(` and no `dt_adm_token`; `api/adm.js` no longer reads `ADMIN_TOKEN`; the Phase 2d POST requires the session (role admin + step-up). Founder 2026-10-21 (via Cowork) order: login first | [ ] | static test + live check |
-| AU7 | **App users unaffected:** no project-wide Supabase Auth setting changes (JWT expiry, session time-box, inactivity timeout, MFA enforcement); an app sign-in on the test account still works after the deploy | [ ] | Supabase Auth settings read before/after + device check on evandro1985@gmail.com |
-| AU8 | Session in `sessionStorage` only; sign-out and tab close remove it; a session older than the chosen maximum age → "session expired" screen and 0 data requests | [ ] | tests + headless render |
-| AU9 | The login screens (sign-in, code, first-time setup, each error, not authorised, session expired, step-up) match the picked picture: labels in 6 languages (parity test), tokens only, desktop + 420 px with no horizontal scroll, both themes | [ ] | parity test + screenshots |
+| AU1 | `/adm` requires Supabase sign-in plus TOTP (`aal2`); an account not in `admin_users` sees "not authorised" and gets no data (0 data requests after the refusal) | [~] | admLogin.test.js "AU1 page…" (4 tests) + AU2 server tests; headless: noauth = 1 refused check, 0 after. The allow-list is checked right after the password, before any TOTP step, so a non-admin account is never offered TOTP setup. Live check after deploy |
+| AU2 | Every `/api/adm*` endpoint returns 401 without a valid JWT, 401 for an `aal1` session, 403 for a non-allow-listed user, and 403 on a write for a `viewer`; the old `ADMIN_TOKEN` alone → 401 | [~] | admLogin.test.js "AU2: …" (10 tests, every api/adm*.js); adm.test.js rewritten for the session. An aal1 session of a non-listed account gets 403 (allow-list first) |
+| AU3 | A write more than 15 min after the last TOTP check opens the step-up dialog; the server refuses the write without a fresh check (401 `step_up_required`) | [~] | "AU3 server…" (3) + "AU3 page…" (2) + "AU3 static"; captures /private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/471f2548-5ba0-4cd3-9104-9a98d6108669/scratchpad/adm31/stepup-{light,dark}-{1280,420}.png. Live: confirm the TOTP amr time advances on a re-check |
+| AU4 | A POST with a foreign `Origin` → 403 before anything else (no JWT check, no database call) | [~] | "AU4: …" (foreign, http, look-alike and missing Origin → 403, 0 calls) |
+| AU5 | `admin_users` has RLS on and service_role only; anon → 401/42501 | [~] | SQL written, NOT applied: supabase/migrations/20261021000000_admin_users.sql + supabase_admin_rpcs.sql; "AU5 SQL…" (2). Live SQL check after the founder's go |
+| AU6 | **Old door removed in the same change:** `web/adm.html` has no `prompt(` and no `dt_adm_token`; `api/adm.js` no longer reads `ADMIN_TOKEN`; the Phase 2d POST requires the session (role admin + step-up). Founder 2026-10-21 (via Cowork) order: login first | [~] | "AU6: …" static + AU2/AU3 server tests; TM1–TM3 moved onto the session. The ADMIN_TOKEN env var in Vercel can be deleted after the deploy is verified. Live check after deploy |
+| AU7 | **App users unaffected:** no project-wide Supabase Auth setting changes (JWT expiry, session time-box, inactivity timeout, MFA enforcement); an app sign-in on the test account still works after the deploy | [~] | "AU7 static": only user-level Auth endpoints, no admin/Management API, migration touches no auth schema. Settings before/after + device check still owed (founder) |
+| AU8 | Session in `sessionStorage` only; sign-out and tab close remove it; a session older than the chosen maximum age → "session expired" screen and 0 data requests | [~] | "AU8 server" + "AU8 page…" (5) + "AU8 static"; headless expired = 0 /api/adm requests; captures /private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/471f2548-5ba0-4cd3-9104-9a98d6108669/scratchpad/adm31/expired-*.png |
+| AU9 | The login screens (sign-in, code, first-time setup, each error, not authorised, session expired, step-up) match the picked picture: labels in 6 languages (parity test), tokens only, desktop + 420 px with no horizontal scroll, both themes | [~] | "AU9: …" (3) + parity test; 40 renders (10 screens × light/dark × 1280/420, no horizontal scroll, no CSP violation) in captures /private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/471f2548-5ba0-4cd3-9104-9a98d6108669/scratchpad/adm31/; founder eyeball owed |
 
 #### 3.2 Feature A: Premium (grant, change end date, revoke)
 
@@ -261,17 +261,18 @@ The "Should" items S1–S7 (handoff section 5) come after 3.4, each specced when
 
 ## Auth
 
-- **Header-only.** The only accepted credential is `Authorization: Bearer <ADMIN_TOKEN>`.
-- **Refusals.** A token-like query parameter (`t`, `token`, `admin_token`, `access_token`) is refused with 401 even when the header is valid. Cookies and the body are never read.
-- **Fail closed.** No `ADMIN_TOKEN` set → 503.
-- **ADMIN_TOKEN rotation.** The redo brief (2026-09-27) reported a rotation that day. The founder decision of 2026-09-27 19:53 ET makes the push wait until the founder rotates ADMIN_TOKEN in Vercel, so the rotation is treated as **pending, done by the founder right before the push**. It is **not verified**: this session has no Vercel access. The value is never written anywhere in the repo.
-- **Post-deploy checks.** Run by the founder after the push. `$ADMIN_TOKEN` comes from the password manager and is never pasted into chat.
+Since 3.1 (built 2026-10-21, not yet deployed) the shared admin token is gone. The rules below replace it; rows AU1–AU9 are the contract.
+
+- **Credential.** The admin's own Supabase session: `Authorization: Bearer <access token>`, header only. Cookies and the body are never read. A token-like query parameter (`t`, `token`, `admin_token`, `access_token`) is still refused with 401.
+- **Server order** (`api/_admAuth.js`, used by every `api/adm*.js`): a write from an Origin other than `https://dosetrace.io` → 403 first; no token → 401; Supabase not configured or unreachable → 503; token not accepted by Supabase Auth → 401; not in `admin_users` → 403; not `aal2` → 401 `aal2_required`; password sign-in older than 12 h → 401 `session_expired`; writes also need role `admin` (403) and a TOTP check within 15 min (401 `step_up_required`).
+- **Page.** `web/adm.html` signs in with the public anon key (the one in `eas.json`), keeps the aal2 session in `sessionStorage` only, and offers TOTP setup only to an allow-listed account. CSP and security headers for `/adm` are in `vercel.json`.
+- **Post-deploy checks** (founder, after the migration and the deploy):
   ```bash
-  curl -s -o /dev/null -w "%{http_code}\n" "https://dosetrace.io/api/adm?t=x"
-  curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $ADMIN_TOKEN" "https://dosetrace.io/api/adm?t=x"
-  curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $ADMIN_TOKEN" "https://dosetrace.io/api/adm"
+  curl -s -o /dev/null -w "%{http_code}\n" "https://dosetrace.io/api/adm"                       # 401
+  curl -s -o /dev/null -w "%{http_code}\n" "https://dosetrace.io/api/adm?t=x"                   # 401
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Origin: https://evil.example" "https://dosetrace.io/api/adm"   # 403
   ```
-  Expected results, in order: `401`, `401`, `200`.
+  Then sign in on https://dosetrace.io/adm as hello@dosetrace.io (first time: TOTP setup), and confirm the numbers load.
 
 ## Panel rules (shown on the panel's Data sources section)
 
