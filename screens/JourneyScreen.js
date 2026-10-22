@@ -29,6 +29,7 @@ import FoodChatScreen from './FoodChatScreen';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
+import { usePremiumUpdates } from '../lib/usePremium';
 import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
 import { curveReloadOnSync, sameCurveLevel } from '../lib/curveReload';
@@ -114,6 +115,11 @@ export default function JourneyScreen() {
       setLevel((prev) => (sameCurveLevel(prev, next) ? prev : next));
     } catch { setLevel(null); }
   }, []);
+  // A-164: a Premium change made elsewhere (panel, store expiry, refund) applies while open.
+  usePremiumUpdates((pro) => {
+    setPremium(pro);
+    if (!pro) setLevel(null); else loadLevel().catch(() => {});
+  });
   useFocusEffect(useCallback(() => {
     let alive = true;
     hasPremium().then(async (pro) => {
