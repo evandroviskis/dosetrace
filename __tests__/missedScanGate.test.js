@@ -262,19 +262,23 @@ test('A-123 (3): only the covered slot\'s Missed row goes — the other slot\'s 
   const cloud = makeCloud();
   const B = makeDb();
   const p = await seedProtocol(B, cloud, { times: '08:00,20:00', dpd: 2 });
-  await syncedRow(B, cloud, p, 'Missed', at(1, 8));
-  const eveningMiss = await syncedRow(B, cloud, p, 'Missed', at(1, 20));
-  await syncedRow(B, cloud, p, 'Taken', at(2, 8, 5)); // the user's own rows on other days
-  await syncedRow(B, cloud, p, 'Skipped', at(2, 20));
-  await otherPhoneLogs(cloud, p.remote, 'Taken', at(1, 8, 15)); // only the morning dose was taken
+  // Two days back, not yesterday: a Missed row less than 12 h old is not due yet and goes anyway
+  // (notYetDueMissedRows, LATE_MS), so 'yesterday 20:00' failed whenever the suite ran before 08:00.
+  await syncedRow(B, cloud, p, 'Missed', at(2, 8));
+  const eveningMiss = await syncedRow(B, cloud, p, 'Missed', at(2, 20));
+  await syncedRow(B, cloud, p, 'Taken', at(3, 8, 5)); // the user's own rows on other days
+  await syncedRow(B, cloud, p, 'Skipped', at(3, 20));
+  await syncedRow(B, cloud, p, 'Taken', at(1, 8, 5)); // yesterday both taken, so the scan writes nothing new
+  await syncedRow(B, cloud, p, 'Taken', at(1, 20, 5));
+  await otherPhoneLogs(cloud, p.remote, 'Taken', at(2, 8, 15)); // only the morning dose was taken
   const sync = fakeSync(true);
-  const { scan } = phone(B, sync, { sinceMs: at(2, 0).getTime() });
+  const { scan } = phone(B, sync, { sinceMs: at(3, 0).getTime() });
   await pullChanges(B, cloud, USER);
   sync.emit({ type: 'sync_complete' });
   await scan();
   const missed = liveRows(B, 'Missed');
-  assert.deepEqual(missed.map((r) => r.id), [eveningMiss], 'yesterday 20:00 stays Missed (nothing covers it)');
-  assert.equal(liveRows(B, 'Taken').length, 2, 'every Taken row stays');
+  assert.deepEqual(missed.map((r) => r.id), [eveningMiss], 'the 20:00 miss stays (nothing covers it)');
+  assert.equal(liveRows(B, 'Taken').length, 4, 'every Taken row stays');
   assert.equal(liveRows(B, 'Skipped').length, 1, 'every Skipped row stays');
 });
 
