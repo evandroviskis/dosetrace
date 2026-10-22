@@ -155,7 +155,7 @@
   .linp::placeholder{color:var(--muted);opacity:1}
   .linp:focus{outline:none;border-color:var(--accent)}
   .linp.errb{border-color:var(--bad)}
-  .linp.code{font-size:22px;letter-spacing:.42em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
+  .linp.code{font-size:22px;letter-spacing:.42em;text-indent:.42em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
   .lbtn{display:block;width:100%;font:inherit;font-weight:700;text-align:center;border-radius:9px;padding:9px 13px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);margin-top:4px}
   .lbtn.sec{background:var(--surface2);border-color:var(--line);color:var(--ink);font-weight:600}
   .lbtn:disabled{opacity:.6;cursor:default}
@@ -1151,7 +1151,7 @@
       var eb=LI.error==='li_err_creds'?' errb':'';
       c='<form class="lcard" id="li-form" novalidate>'+liSteps(1)+'<h4>'+esc(t('li_signin_title'))+'</h4><p class="lsub">'+esc(t('li_signin_sub'))+'</p>'
         +'<div class="lfld"><label for="li-email">'+esc(t('li_email'))+'</label><input class="linp'+eb+'" id="li-email" type="email" autocomplete="username" placeholder="'+esc(t('li_email_ph'))+'" value="'+esc(LI.email)+'"></div>'
-        +'<div class="lfld"><label for="li-password">'+esc(t('li_password'))+'</label><input class="linp'+eb+'" id="li-password" type="password" autocomplete="current-password"></div>'
+        +'<div class="lfld"><label for="li-password">'+esc(t('li_password'))+'</label><input class="linp'+eb+'" id="li-password" type="password" autocomplete="current-password" placeholder="••••••••••"></div>'
         +liMsg()+liBtn('li_continue')+'<p class="lfine">'+esc(t('li_fine'))+'</p></form>';
     } else if(sc==='code'){
       c='<form class="lcard" id="li-form" novalidate>'+liSteps(2)+'<h4>'+esc(t('li_code_title'))+'</h4><p class="lsub">'+esc(t('li_code_sub'))+'</p>'
