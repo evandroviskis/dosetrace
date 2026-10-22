@@ -12,12 +12,14 @@
     --ink:#EAF2FB; --muted:#8FA6BD; --accent:#4FA3E8; --accent2:#46C6EE;
     --good:#2CD3A7; --warn:#E8B54F; --bad:#E8776B;
     --navbg:rgba(12,27,46,.92); --accent-ink:#04121f; --scrim:rgba(4,10,18,.6);
+    --qrbg:#FFFFFF;
   }
   :root[data-theme="light"]{
     --bg:#EEF3F9; --surface:#FFFFFF; --surface2:#F1F5FA; --line:#D6E0EC;
     --ink:#0C2340; --muted:#5A7085; --accent:#2A78C2; --accent2:#2AA0C8;
     --good:#159A78; --warn:#B5831C; --bad:#CC4B3D;
     --navbg:rgba(238,243,249,.92); --accent-ink:#FFFFFF; --scrim:rgba(12,27,46,.45);
+    --qrbg:#FFFFFF;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -139,10 +141,49 @@
   #gloss h4{margin:0 0 8px;font-size:16px}
   #gloss p{margin:0;color:var(--muted);line-height:1.55}
   #gloss button{margin-top:16px}
+  /* [login-css-start] */
+  /* 3.1 login screens and the step-up dialog (picture docs/design/adm-31-login.html). Tokens only. */
+  .lcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 22px 18px;max-width:380px;margin:34px auto 0}
+  .lcard h4,.ldlg h4{margin:0 0 4px;font-size:18px;letter-spacing:-.01em}
+  .lcard .lsub,.ldlg .lsub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .lsteps{display:flex;gap:6px;margin:0 0 14px}
+  .lsteps span{flex:1;height:4px;border-radius:2px;background:var(--surface2)}
+  .lsteps span.on{background:var(--accent)}
+  .lfld{margin:0 0 12px}
+  .lfld label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 4px}
+  .linp{display:block;width:100%;font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;min-height:38px}
+  .linp::placeholder{color:var(--muted);opacity:1}
+  .linp:focus{outline:none;border-color:var(--accent)}
+  .linp.errb{border-color:var(--bad)}
+  .linp.code{font-size:22px;letter-spacing:.42em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
+  .lbtn{display:block;width:100%;font:inherit;font-weight:700;text-align:center;border-radius:9px;padding:9px 13px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);margin-top:4px}
+  .lbtn.sec{background:var(--surface2);border-color:var(--line);color:var(--ink);font-weight:600}
+  .lbtn:disabled{opacity:.6;cursor:default}
+  .lbtns{display:flex;gap:8px;margin-top:6px}
+  .lbtns .lbtn{margin-top:0}
+  .llink{display:block;width:100%;text-align:center;margin-top:12px;font-size:13px;color:var(--accent);background:none;border:none;padding:4px}
+  .llink:hover{text-decoration:underline}
+  .lfine{color:var(--muted);font-size:12px;margin:12px 0 0;text-align:center}
+  .lmsg{font-size:13px;margin:0 0 12px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface2)}
+  .lmsg.err{color:var(--bad)}
+  .lwho{font-size:13px;color:var(--muted);margin:0 0 14px;overflow-wrap:anywhere}
+  .lwho b{color:var(--ink);font-weight:600}
+  .lqr{display:flex;gap:14px;align-items:center;margin:0 0 14px}
+  .lqr .qrw{flex:none;display:block;width:112px;height:112px;background:var(--qrbg);border:1px solid var(--line);border-radius:8px;padding:6px}
+  .lqr .qrw img{display:block;width:100%;height:100%}
+  .lqr .key{font-size:12px;color:var(--muted);min-width:0}
+  .lqr .key code{display:block;margin-top:4px;color:var(--ink);font-size:12.5px;background:var(--surface2);border-radius:5px;padding:3px 6px;letter-spacing:.05em;overflow-wrap:anywhere}
+  #stepup{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;z-index:90;padding:16px}
+  #stepup .ldlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;max-width:380px;width:100%}
+  #stepup .ldlg h4{font-size:16px;margin-bottom:6px}
+  #stepup .ldlg .lsub{margin-bottom:14px}
+  @media(max-width:480px){.lcard{padding:18px 16px 16px;margin-top:22px}}
+  /* [login-css-end] */
 </style>
 </head>
 <body>
 <div class="wrap" id="app"><div class="center" id="boot">Loading…</div></div>
+<div id="stepup" role="dialog" aria-modal="true" aria-labelledby="su-t"><div class="ldlg"><h4 id="su-t"></h4><p class="lsub" id="su-p"></p><form id="su-form" novalidate><div class="lfld"><label for="su-code" id="su-l"></label><input class="linp code" id="su-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="______"></div><p class="lmsg err" id="su-err" role="alert" hidden></p><div class="lbtns"><button class="lbtn sec" type="button" id="su-cancel"></button><button class="lbtn" type="submit" id="su-go"></button></div></form></div></div>
 <div id="gloss"><div class="box"><h4 id="gloss-t"></h4><p id="gloss-p"></p><div id="gloss-body"></div><button id="gloss-close" onclick="document.getElementById('gloss').style.display='none'">Close</button></div></div>
 
 <script>
@@ -153,12 +194,12 @@
   var LANGS=[['en','English'],['es','Español'],['pt','Português'],['fr','Français'],['de','Deutsch'],['it','Italiano']];
   var T={
     en:{
+      // 3.1 login (docs/design/adm-31-login.html)
+      li_signin_title:"Sign in", li_signin_sub:"Access is limited to authorised accounts.", li_email:"Email", li_email_ph:"name@example.com", li_password:"Password", li_continue:"Continue", li_fine:"Your session ends when you close the tab or after 12 hours.", li_code_title:"Verification code", li_code_sub:"Enter the 6-digit code from your authenticator app.", li_code:"Code", li_verify:"Verify", li_back:"Back", li_enrol_title:"Set up two-step verification", li_enrol_sub:"Scan the QR code with your authenticator app, then enter the 6-digit code.", li_enrol_key:"Can't scan? Enter this key:", li_enrol_on:"Turn on", li_qr_alt:"QR code for your authenticator app", li_err_creds:"Incorrect email or password.", li_err_code:"Incorrect or expired code. Try again.", li_err_many:"Too many attempts. Wait 5 minutes and try again.", li_err_conn:"Couldn't reach the server. Check your connection and try again.", li_noauth_title:"This account can't access the panel", li_noauth_sub:"No data was loaded. Sign in with an authorised account.", li_signed_as:"Signed in as", li_signout:"Sign out", li_exp_title:"Your session has expired", li_exp_sub:"For your security, sign in again. Nothing was changed.", li_exp_again:"Sign in again", li_step_title:"Confirm your code to continue", li_step_sub:"Changes need a fresh code when your last check was more than 15 minutes ago.", err_notconf:"The panel is not configured on the server yet.",
       updated:'Updated {d}', refresh:'Refresh', loading:'Loading…', close:'Close',
-      need_link:"This page needs the admin token. Reload the page to enter it.",
-      err_unauth:"Unauthorized — the admin token is missing or wrong. Reload the page to enter it again.", act_title:"Activation", act_def:"accounts registered in the last 30 days that logged at least one dose", act_window:"registered between today and 30 days ago (31 UTC calendar days, today included); doses with no date limit", act_source:"Source: Supabase · auth.users, dose_logs", act_test:"test accounts excluded", act_how:"how we calculate it", act_na:"Unavailable: the Phase 2 SQL (admin_accounts) is not applied.", win_n:"{n} days",
+      act_title:"Activation", act_def:"accounts registered in the last 30 days that logged at least one dose", act_window:"registered between today and 30 days ago (31 UTC calendar days, today included); doses with no date limit", act_source:"Source: Supabase · auth.users, dose_logs", act_test:"test accounts excluded", act_how:"how we calculate it", act_na:"Unavailable: the Phase 2 SQL (admin_accounts) is not applied.", win_n:"{n} days",
       tab_mgmt:"Management", tab_details:"Details", details_note:"Secondary numbers. Unless stated, these still include test accounts.", nav_headline:"New customers", nav_funnel:"Funnel", nav_recon:"Reconciliation", nav_charts:"Charts", nav_activity:"Activity & totals", sec_headline:"New customers", sec_funnel:"Funnel — accounts created in the window", sec_recon:"Reconciliation — stores vs Supabase vs RevenueCat", sec_charts:"Charts", sec_activity:"Activity & totals", mv_na:"Management view unavailable: the Phase 2 SQL (admin_accounts) is not applied yet.", h_title:"New customers · {n} days", h_prev:"Previous {n} days: {p}", h_real_all:"Real customers · all time", h_real_all_sub:"Test accounts excluded", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Unknown", pf_mixed:"{n} with conflicting signals", win_range:"{a} to {b} · full UTC days", w0:"Store downloads", w1:"Accounts created", w2:"Email confirmed or signed in", w3:"Onboarded", w4:"At least 1 protocol", w5:"At least 1 dose logged", w6:"Premium (store purchase)", of_w1:"{p}% of W1", nm:"Not measured", nm_stores:"needs the Apple vendor number and the Play bucket", st_apple:"Apple", st_google:"Google Play", st_redl:"{n} redownloads", st_dev:"{n} device installs", st_days:"{r} of {d} days with a report · latest {l}", st_nodays:"no report in this window", nm_apple:"needs the Apple vendor number", nm_google:"needs the Play bucket", st_err:"store request failed ({s})", st_test:"Stores include test installs", nm_premium:"needs RevenueCat key permission and the subscriptions path", nm_rc_perm:"key needs customers:read", nm_rc_conf:"RevenueCat key not configured", nm_rc_err:"RevenueCat request failed ({s})", nm_match:"Account match failed ({s}); those IDs stay unclassified.", late_note:"Later steps count anything reached up to now.", x1:"Store downloads", x2:"Supabase accounts created", x2_all:"all", x2_test:"test", x2_real:"real", x3:"RevenueCat IDs · first seen or purchased", x3_env:"all environments", x4:"of which anonymous ($RCAnonymousID, created at sign-out)", x5:"of which matching a Supabase account", x5_split:"real {r} · test {t}", x6:"of which with no Supabase account (likely deleted accounts)", x_check_ok:"Check: X3 = X4 + X5 + X6", x_check_bad:"Check failed: X3 differs from X4 + X5 + X6 by {n}", x_gap:"Real accounts in this window not matched to a RevenueCat ID: {n} (never signed in, or first seen by RevenueCat on another day)", g1_t:"New customers per day, by platform", g1_q:"Is acquisition growing, and on which platform?", g2_t:"Weekly signup cohorts — retention", g2_q:"Do new customers keep using the app week after week?", g2_floor:"A floor: \"active\" means any tracked event, and there is no app-open event. The current week is partial.", g3_t:"Premium conversion by signup week", g3_q:"What share of each signup week becomes paid Premium, and how fast?", g_cohort:"Signup week", g_size:"Accounts", rule_test2:"Test accounts never appear in any Supabase number (one list: admin_test_accounts + admin_is_test). RevenueCat and store numbers cannot be filtered by account and include test purchases, IDs and installs.", sort_hint:"click a column to sort", fl_platform:"Platform", fl_login:"Sign-in", fl_onboarding:"Onboarding", fl_protocols:"Live protocols", fl_rule:"matches the rule", o_all:"all", o_with:"with", o_without:"without", o_yes:"yes", o_no:"no", acc_search:"search by email", f_all:"all", f_not_onboarded:"not onboarded", f_no_protocol:"no live protocol", f_google:"Google sign-in", f_rule:"matches the rule", btn_mark:"Mark as test", btn_unmark:"Unmark test", confirm_mark:"Mark these {n} accounts as test?", confirm_unmark:"Unmark these {n} accounts?", btn_confirm:"Confirm", btn_cancel:"Cancel", view_real:"Real accounts", view_tests:"Test accounts", badge_rule:"test (rule)", badge_list:"test (list)", badge_domain:"test (domain)", badge_exc:"not test (your decision)", by_rule_n:"{n} accounts by the rule", select_all:"select all shown", write_ok:"Saved: {n} accounts changed. Reloading…", write_err:"Nothing was changed: {m}", n_selected:"{n} selected", incl_test_ev:"Includes test accounts (cannot be separated)", tab_accounts:"Accounts", acc_title:"Real accounts, newest first", acc_email:"Email", acc_created:"Created", acc_method:"Sign-in", acc_platform:"Platform", acc_onboarding:"Onboarding", acc_protocols:"Live protocols", acc_last_sign_in:"Last sign-in", acc_yes:"yes", acc_no:"no", acc_unconfirmed:"email not confirmed", acc_summary:"By sign-in: {prov} · onboarding: {on} yes / {off} no · platform: iOS {ios}, Android {and}, unknown {unk}", acc_na:"Unavailable: admin_accounts_list is not applied yet.", excluded_n:"{n} test accounts excluded from every Supabase number", incl_test:"includes test purchases, IDs and installs (cannot be filtered by account)", rule_rcids:"RevenueCat IDs are not customers: sign-outs and deleted accounts create extra IDs.", s_window_note:"Different window from the Management tab, not comparable with it.",
       nav_sources:"Data sources", sec_sources:"Data sources", src_btn:"Source · range", ds_rules:"Rules", ds_id:"ID", ds_metric:"Metric", ds_source:"Source", ds_def:"Definition", ds_range:"Range", ds_proven:"Proven", ds_not_proven:"not yet proven", ds_proven_on:"proven {d}", ds_def_lang:"Definitions are in English for now.", rule_utc:"Supabase days are UTC calendar days.", rule_test:"Counts include test accounts.", rule_active:"Analytics are anonymous since 2026-10-04: events carry no account. Event counts are events, not people; there are no active-user or retention numbers.", rule_window:"Compare only has the last 180 days loaded (older periods show 0). Product lists and Audience load all-time rows and filter them by the first Compare period.",
-      err_notconf:'Panel not configured yet (ADMIN_TOKEN not set).',
       err_failed:'Request failed ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Switch to light theme', theme_dark:'Switch to dark theme',
       nav_overview:'Overview', nav_compare:'Compare', nav_engagement:'Engagement', nav_retention:'Retention', nav_product:'Product', nav_revenue:'Revenue', nav_audience:'Audience', nav_stores:'Stores',
@@ -200,12 +241,12 @@
       gl_active_t:'Active users', gl_active_d:'Unique users who triggered any tracked event in the selected period.'
     },
     es:{
+      // 3.1 login (docs/design/adm-31-login.html)
+      li_signin_title:"Iniciar sesión", li_signin_sub:"Acceso solo para cuentas autorizadas.", li_email:"Correo electrónico", li_email_ph:"nombre@ejemplo.com", li_password:"Contraseña", li_continue:"Continuar", li_fine:"La sesión termina al cerrar la pestaña o a las 12 horas.", li_code_title:"Código de verificación", li_code_sub:"Introduce el código de 6 dígitos de tu app de autenticación.", li_code:"Código", li_verify:"Verificar", li_back:"Volver", li_enrol_title:"Activa la verificación en dos pasos", li_enrol_sub:"Escanea el código QR con tu app de autenticación e introduce el código de 6 dígitos.", li_enrol_key:"¿No puedes escanearlo? Introduce esta clave:", li_enrol_on:"Activar", li_qr_alt:"Código QR para tu app de autenticación", li_err_creds:"Correo o contraseña incorrectos.", li_err_code:"Código incorrecto o caducado. Inténtalo de nuevo.", li_err_many:"Demasiados intentos. Espera 5 minutos y vuelve a intentarlo.", li_err_conn:"No se ha podido conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.", li_noauth_title:"Esta cuenta no tiene acceso al panel", li_noauth_sub:"No se ha cargado ningún dato. Inicia sesión con una cuenta autorizada.", li_signed_as:"Sesión iniciada como", li_signout:"Cerrar sesión", li_exp_title:"Tu sesión ha caducado", li_exp_sub:"Por seguridad, vuelve a iniciar sesión. No se ha cambiado nada.", li_exp_again:"Iniciar sesión de nuevo", li_step_title:"Confirma el código para continuar", li_step_sub:"Para hacer cambios se pide un código nuevo si la última verificación fue hace más de 15 minutos.", err_notconf:"El panel aún no está configurado en el servidor.",
       updated:'Actualizado {d}', refresh:'Actualizar', loading:'Cargando…', close:'Cerrar',
-      need_link:"Esta página necesita el token de administrador. Recarga la página para introducirlo.",
-      err_unauth:"No autorizado — falta el token de administrador o es incorrecto. Recarga la página para introducirlo de nuevo.", act_title:"Activación", act_def:"cuentas registradas en los últimos 30 días que registraron al menos una dosis", act_window:"registro entre hoy y hace 30 días (31 días de calendario UTC, hoy incluido); dosis sin límite de fecha", act_source:"Fuente: Supabase · auth.users, dose_logs", act_test:"cuentas de prueba excluidas", act_how:"cómo lo calculamos", act_na:"No disponible: el SQL de la fase 2 (admin_accounts) no está aplicado.", win_n:"{n} días",
+      act_title:"Activación", act_def:"cuentas registradas en los últimos 30 días que registraron al menos una dosis", act_window:"registro entre hoy y hace 30 días (31 días de calendario UTC, hoy incluido); dosis sin límite de fecha", act_source:"Fuente: Supabase · auth.users, dose_logs", act_test:"cuentas de prueba excluidas", act_how:"cómo lo calculamos", act_na:"No disponible: el SQL de la fase 2 (admin_accounts) no está aplicado.", win_n:"{n} días",
       tab_mgmt:"Gestión", tab_details:"Detalles", details_note:"Cifras secundarias. Salvo indicación, aún incluyen cuentas de prueba.", nav_headline:"Clientes nuevos", nav_funnel:"Embudo", nav_recon:"Conciliación", nav_charts:"Gráficos", nav_activity:"Actividad y totales", sec_headline:"Clientes nuevos", sec_funnel:"Embudo — cuentas creadas en la ventana", sec_recon:"Conciliación — tiendas vs Supabase vs RevenueCat", sec_charts:"Gráficos", sec_activity:"Actividad y totales", mv_na:"Vista de gestión no disponible: el SQL de la fase 2 (admin_accounts) aún no está aplicado.", h_title:"Clientes nuevos · {n} días", h_prev:"{n} días anteriores: {p}", h_real_all:"Clientes reales · todo el historial", h_real_all_sub:"Cuentas de prueba excluidas", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Desconocido", pf_mixed:"{n} con señales contradictorias", win_range:"{a} a {b} · días UTC completos", w0:"Descargas en tiendas", w1:"Cuentas creadas", w2:"Email confirmado o sesión iniciada", w3:"Onboarding completado", w4:"Al menos 1 protocolo", w5:"Al menos 1 dosis registrada", w6:"Premium (compra en tienda)", of_w1:"{p}% de W1", nm:"No medido", nm_stores:"requiere el número de proveedor de Apple y el bucket de Play", st_apple:"Apple", st_google:"Google Play", st_redl:"{n} reinstalaciones", st_dev:"{n} instalaciones en dispositivos", st_days:"{r} de {d} días con informe · último {l}", st_nodays:"sin informe en este período", nm_apple:"requiere el número de proveedor de Apple", nm_google:"requiere el bucket de Play", st_err:"falló la consulta a la tienda ({s})", st_test:"Las tiendas incluyen instalaciones de prueba", nm_premium:"requiere permiso de la clave de RevenueCat y la ruta de suscripciones", nm_rc_perm:"la clave necesita customers:read", nm_rc_conf:"clave de RevenueCat no configurada", nm_rc_err:"la solicitud a RevenueCat falló ({s})", nm_match:"Falló la correspondencia de cuentas ({s}); esos IDs quedan sin clasificar.", late_note:"Los pasos posteriores cuentan todo lo alcanzado hasta ahora.", x1:"Descargas en tiendas", x2:"Cuentas de Supabase creadas", x2_all:"todas", x2_test:"prueba", x2_real:"reales", x3:"IDs de RevenueCat · vistos por primera vez o con compra", x3_env:"todos los entornos", x4:"de ellos anónimos ($RCAnonymousID, creados al cerrar sesión)", x5:"de ellos con cuenta de Supabase", x5_split:"reales {r} · prueba {t}", x6:"de ellos sin cuenta de Supabase (probablemente cuentas eliminadas)", x_check_ok:"Comprobación: X3 = X4 + X5 + X6", x_check_bad:"Comprobación fallida: X3 difiere de X4 + X5 + X6 en {n}", x_gap:"Cuentas reales de esta ventana sin ID de RevenueCat: {n} (nunca iniciaron sesión, o RevenueCat las vio otro día)", g1_t:"Clientes nuevos por día, por plataforma", g1_q:"¿Crece la adquisición y en qué plataforma?", g2_t:"Cohortes semanales de registro — retención", g2_q:"¿Los clientes nuevos siguen usando la app semana tras semana?", g2_floor:"Un mínimo: \"activo\" es cualquier evento registrado y no hay evento de apertura de la app. La semana actual está incompleta.", g3_t:"Conversión a Premium por semana de registro", g3_q:"¿Qué parte de cada semana de registro pasa a Premium de pago, y con qué rapidez?", g_cohort:"Semana de registro", g_size:"Cuentas", rule_test2:"Las cuentas de prueba nunca aparecen en ninguna cifra de Supabase (una lista: admin_test_accounts + admin_is_test). Las cifras de RevenueCat y de las tiendas no se pueden filtrar por cuenta e incluyen compras, IDs e instalaciones de prueba.", sort_hint:"clic en una columna para ordenar", fl_platform:"Plataforma", fl_login:"Acceso", fl_onboarding:"Onboarding", fl_protocols:"Protocolos activos", fl_rule:"coincide con la regla", o_all:"todas", o_with:"con", o_without:"sin", o_yes:"sí", o_no:"no", acc_search:"buscar por email", f_all:"todas", f_not_onboarded:"sin onboarding", f_no_protocol:"sin protocolo activo", f_google:"acceso con Google", f_rule:"coincide con la regla", btn_mark:"Marcar como prueba", btn_unmark:"Quitar marca de prueba", confirm_mark:"¿Marcar estas {n} cuentas como prueba?", confirm_unmark:"¿Quitar la marca de prueba de estas {n} cuentas?", btn_confirm:"Confirmar", btn_cancel:"Cancelar", view_real:"Cuentas reales", view_tests:"Cuentas de prueba", badge_rule:"prueba (regla)", badge_list:"prueba (lista)", badge_domain:"prueba (dominio)", badge_exc:"no es prueba (tu decisión)", by_rule_n:"{n} cuentas por la regla", select_all:"seleccionar todas las mostradas", write_ok:"Guardado: {n} cuentas cambiadas. Recargando…", write_err:"No se cambió nada: {m}", n_selected:"{n} seleccionadas", incl_test_ev:"Incluye cuentas de prueba (no se pueden separar)", tab_accounts:"Cuentas", acc_title:"Cuentas reales, las más recientes primero", acc_email:"Email", acc_created:"Creada", acc_method:"Acceso", acc_platform:"Plataforma", acc_onboarding:"Onboarding", acc_protocols:"Protocolos activos", acc_last_sign_in:"Último acceso", acc_yes:"sí", acc_no:"no", acc_unconfirmed:"email sin confirmar", acc_summary:"Por acceso: {prov} · onboarding: {on} sí / {off} no · plataforma: iOS {ios}, Android {and}, desconocida {unk}", acc_na:"No disponible: admin_accounts_list aún no está aplicado.", excluded_n:"{n} cuentas de prueba excluidas de todas las cifras de Supabase", incl_test:"incluye compras, IDs e instalaciones de prueba (no se puede filtrar por cuenta)", rule_rcids:"Los IDs de RevenueCat no son clientes: los cierres de sesión y las cuentas eliminadas crean IDs extra.", s_window_note:"Ventana distinta de la pestaña Gestión; no son comparables.",
       nav_sources:"Fuentes de datos", sec_sources:"Fuentes de datos", src_btn:"Fuente · rango", ds_rules:"Reglas", ds_id:"ID", ds_metric:"Métrica", ds_source:"Fuente", ds_def:"Definición", ds_range:"Rango", ds_proven:"Verificado", ds_not_proven:"aún no verificado", ds_proven_on:"verificado {d}", ds_def_lang:"Por ahora las definiciones están en inglés.", rule_utc:"Los días de Supabase son días naturales UTC.", rule_test:"Los recuentos incluyen cuentas de prueba.", rule_active:"La analítica es anónima desde el 4/10/2026: los eventos no llevan cuenta. Los recuentos de eventos son eventos, no personas; no hay cifras de usuarios activos ni de retención.", rule_window:"Comparar solo tiene cargados los últimos 180 días (los periodos anteriores muestran 0). Las listas de Producto y Audiencia cargan filas de todo el historial y se filtran por el primer periodo de Comparar.",
-      err_notconf:'El panel aún no está configurado (ADMIN_TOKEN no definido).',
       err_failed:'La solicitud falló ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Cambiar a tema claro', theme_dark:'Cambiar a tema oscuro',
       nav_overview:'Resumen', nav_compare:'Comparar', nav_engagement:'Interacción', nav_retention:'Retención', nav_product:'Producto', nav_revenue:'Ingresos', nav_audience:'Audiencia', nav_stores:'Tiendas',
@@ -247,12 +288,12 @@
       gl_active_t:'Usuarios activos', gl_active_d:'Usuarios únicos que activaron algún evento registrado en el periodo seleccionado.'
     },
     pt:{
+      // 3.1 login (docs/design/adm-31-login.html)
+      li_signin_title:"Entrar", li_signin_sub:"Acesso restrito a contas autorizadas.", li_email:"E-mail", li_email_ph:"nome@exemplo.com", li_password:"Senha", li_continue:"Continuar", li_fine:"A sessão termina ao fechar a aba ou após 12 horas.", li_code_title:"Código de verificação", li_code_sub:"Digite o código de 6 dígitos do seu aplicativo autenticador.", li_code:"Código", li_verify:"Verificar", li_back:"Voltar", li_enrol_title:"Ative a verificação em duas etapas", li_enrol_sub:"Leia o código QR com o aplicativo autenticador e digite o código de 6 dígitos.", li_enrol_key:"Não consegue ler? Digite esta chave:", li_enrol_on:"Ativar", li_qr_alt:"Código QR para o aplicativo autenticador", li_err_creds:"E-mail ou senha incorretos.", li_err_code:"Código incorreto ou expirado. Tente novamente.", li_err_many:"Muitas tentativas. Aguarde 5 minutos e tente novamente.", li_err_conn:"Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.", li_noauth_title:"Esta conta não tem acesso ao painel", li_noauth_sub:"Nenhum dado foi carregado. Entre com uma conta autorizada.", li_signed_as:"Conectado como", li_signout:"Sair", li_exp_title:"Sua sessão expirou", li_exp_sub:"Por segurança, entre novamente. Nada foi alterado.", li_exp_again:"Entrar novamente", li_step_title:"Confirme o código para continuar", li_step_sub:"Alterações pedem um código novo quando a última verificação tem mais de 15 minutos.", err_notconf:"O painel ainda não está configurado no servidor.",
       updated:'Atualizado {d}', refresh:'Atualizar', loading:'Carregando…', close:'Fechar',
-      need_link:"Esta página precisa do token de administrador. Recarregue a página para inseri-lo.",
-      err_unauth:"Não autorizado — o token de administrador está ausente ou incorreto. Recarregue a página para inseri-lo de novo.", act_title:"Ativação", act_def:"usuários cadastrados nos últimos 30 dias que registraram pelo menos uma dose", act_window:"cadastro entre hoje e 30 dias atrás (31 dias de calendário UTC, hoje incluído); doses sem limite de data", act_source:"Fonte: Supabase · auth.users, dose_logs", act_test:"contas de teste excluídas", act_how:"como calculamos", act_na:"Indisponível: o SQL da fase 2 (admin_accounts) não foi aplicado.", win_n:"{n} dias",
+      act_title:"Ativação", act_def:"usuários cadastrados nos últimos 30 dias que registraram pelo menos uma dose", act_window:"cadastro entre hoje e 30 dias atrás (31 dias de calendário UTC, hoje incluído); doses sem limite de data", act_source:"Fonte: Supabase · auth.users, dose_logs", act_test:"contas de teste excluídas", act_how:"como calculamos", act_na:"Indisponível: o SQL da fase 2 (admin_accounts) não foi aplicado.", win_n:"{n} dias",
       tab_mgmt:"Gestão", tab_details:"Detalhes", details_note:"Números secundários. Salvo indicação, ainda incluem contas de teste.", nav_headline:"Novos clientes", nav_funnel:"Funil", nav_recon:"Conciliação", nav_charts:"Gráficos", nav_activity:"Atividade e totais", sec_headline:"Novos clientes", sec_funnel:"Funil — contas criadas na janela", sec_recon:"Conciliação — lojas vs Supabase vs RevenueCat", sec_charts:"Gráficos", sec_activity:"Atividade e totais", mv_na:"Visão de gestão indisponível: o SQL da fase 2 (admin_accounts) ainda não foi aplicado.", h_title:"Novos clientes · {n} dias", h_prev:"{n} dias anteriores: {p}", h_real_all:"Clientes reais · todo o histórico", h_real_all_sub:"Contas de teste excluídas", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Desconhecido", pf_mixed:"{n} com sinais conflitantes", win_range:"{a} a {b} · dias UTC completos", w0:"Downloads nas lojas", w1:"Contas criadas", w2:"Email confirmado ou login feito", w3:"Onboarding concluído", w4:"Pelo menos 1 protocolo", w5:"Pelo menos 1 dose registrada", w6:"Premium (compra na loja)", of_w1:"{p}% de W1", nm:"Não medido", nm_stores:"precisa do número de fornecedor da Apple e do bucket do Play", st_apple:"Apple", st_google:"Google Play", st_redl:"{n} reinstalações", st_dev:"{n} instalações em aparelhos", st_days:"{r} de {d} dias com relatório · último {l}", st_nodays:"sem relatório neste período", nm_apple:"precisa do número de fornecedor da Apple", nm_google:"precisa do bucket do Play", st_err:"a consulta à loja falhou ({s})", st_test:"As lojas incluem instalações de teste", nm_premium:"precisa de permissão da chave do RevenueCat e do caminho de assinaturas", nm_rc_perm:"a chave precisa de customers:read", nm_rc_conf:"chave do RevenueCat não configurada", nm_rc_err:"a requisição ao RevenueCat falhou ({s})", nm_match:"Falha ao cruzar contas ({s}); esses IDs ficam sem classificação.", late_note:"As etapas seguintes contam tudo o que foi alcançado até agora.", x1:"Downloads nas lojas", x2:"Contas do Supabase criadas", x2_all:"todas", x2_test:"teste", x2_real:"reais", x3:"IDs do RevenueCat · vistos pela primeira vez ou com compra", x3_env:"todos os ambientes", x4:"dos quais anônimos ($RCAnonymousID, criados no logout)", x5:"dos quais com conta no Supabase", x5_split:"reais {r} · teste {t}", x6:"dos quais sem conta no Supabase (provavelmente contas excluídas)", x_check_ok:"Verificação: X3 = X4 + X5 + X6", x_check_bad:"Verificação falhou: X3 difere de X4 + X5 + X6 em {n}", x_gap:"Contas reais desta janela sem ID do RevenueCat: {n} (nunca fizeram login, ou o RevenueCat as viu em outro dia)", g1_t:"Novos clientes por dia, por plataforma", g1_q:"A aquisição está crescendo, e em qual plataforma?", g2_t:"Coortes semanais de cadastro — retenção", g2_q:"Os novos clientes continuam usando o app semana após semana?", g2_floor:"Um piso: \"ativo\" é qualquer evento registrado e não existe evento de abertura do app. A semana atual está incompleta.", g3_t:"Conversão para Premium por semana de cadastro", g3_q:"Que parte de cada semana de cadastro vira Premium pago, e em quanto tempo?", g_cohort:"Semana de cadastro", g_size:"Contas", rule_test2:"Contas de teste nunca aparecem em nenhum número do Supabase (uma lista: admin_test_accounts + admin_is_test). Os números do RevenueCat e das lojas não podem ser filtrados por conta e incluem compras, IDs e instalações de teste.", sort_hint:"clique numa coluna para ordenar", fl_platform:"Plataforma", fl_login:"Login", fl_onboarding:"Onboarding", fl_protocols:"Protocolos ativos", fl_rule:"bate com a regra", o_all:"todas", o_with:"com", o_without:"sem", o_yes:"sim", o_no:"não", acc_search:"buscar por email", f_all:"todas", f_not_onboarded:"sem onboarding", f_no_protocol:"sem protocolo ativo", f_google:"login com Google", f_rule:"bate com a regra", btn_mark:"Marcar como teste", btn_unmark:"Desmarcar teste", confirm_mark:"Marcar estas {n} contas como teste?", confirm_unmark:"Desmarcar estas {n} contas?", btn_confirm:"Confirmar", btn_cancel:"Cancelar", view_real:"Contas reais", view_tests:"Contas de teste", badge_rule:"teste (regra)", badge_list:"teste (lista)", badge_domain:"teste (domínio)", badge_exc:"não é teste (sua decisão)", by_rule_n:"{n} contas pela regra", select_all:"selecionar todas as mostradas", write_ok:"Salvo: {n} contas alteradas. Recarregando…", write_err:"Nada foi alterado: {m}", n_selected:"{n} selecionadas", incl_test_ev:"Inclui contas de teste (não dá para separar)", tab_accounts:"Contas", acc_title:"Contas reais, mais recentes primeiro", acc_email:"Email", acc_created:"Criada", acc_method:"Login", acc_platform:"Plataforma", acc_onboarding:"Onboarding", acc_protocols:"Protocolos ativos", acc_last_sign_in:"Último login", acc_yes:"sim", acc_no:"não", acc_unconfirmed:"email não confirmado", acc_summary:"Por login: {prov} · onboarding: {on} sim / {off} não · plataforma: iOS {ios}, Android {and}, desconhecida {unk}", acc_na:"Indisponível: admin_accounts_list ainda não foi aplicado.", excluded_n:"{n} contas de teste excluídas de todos os números do Supabase", incl_test:"inclui compras, IDs e instalações de teste (não dá para filtrar por conta)", rule_rcids:"IDs do RevenueCat não são clientes: logouts e contas excluídas criam IDs extras.", s_window_note:"Janela diferente da aba Gestão; não são comparáveis.",
       nav_sources:"Fontes de dados", sec_sources:"Fontes de dados", src_btn:"Fonte · período", ds_rules:"Regras", ds_id:"ID", ds_metric:"Métrica", ds_source:"Fonte", ds_def:"Definição", ds_range:"Período", ds_proven:"Comprovado", ds_not_proven:"ainda não comprovado", ds_proven_on:"comprovado {d}", ds_def_lang:"Por enquanto as definições estão em inglês.", rule_utc:"Os dias do Supabase são dias corridos em UTC.", rule_test:"As contagens incluem contas de teste.", rule_active:"O analytics é anônimo desde 04/10/2026: os eventos não têm conta. Contagens de eventos são eventos, não pessoas; não há números de usuários ativos nem de retenção.", rule_window:"Comparar só tem os últimos 180 dias carregados (períodos anteriores mostram 0). As listas de Produto e Público carregam linhas de todo o histórico e são filtradas pelo primeiro período de Comparar.",
-      err_notconf:'O painel ainda não está configurado (ADMIN_TOKEN não definido).',
       err_failed:'A solicitação falhou ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Mudar para tema claro', theme_dark:'Mudar para tema escuro',
       nav_overview:'Visão geral', nav_compare:'Comparar', nav_engagement:'Engajamento', nav_retention:'Retenção', nav_product:'Produto', nav_revenue:'Receita', nav_audience:'Público', nav_stores:'Lojas',
@@ -294,12 +335,12 @@
       gl_active_t:'Usuários ativos', gl_active_d:'Usuários únicos que dispararam qualquer evento registrado no período selecionado.'
     },
     fr:{
+      // 3.1 login (docs/design/adm-31-login.html)
+      li_signin_title:"Connexion", li_signin_sub:"Accès réservé aux comptes autorisés.", li_email:"Adresse e-mail", li_email_ph:"nom@exemple.com", li_password:"Mot de passe", li_continue:"Continuer", li_fine:"La session se termine à la fermeture de l'onglet ou après 12 heures.", li_code_title:"Code de vérification", li_code_sub:"Saisissez le code à 6 chiffres de votre application d'authentification.", li_code:"Code", li_verify:"Vérifier", li_back:"Retour", li_enrol_title:"Activez la validation en deux étapes", li_enrol_sub:"Scannez le code QR avec votre application d'authentification, puis saisissez le code à 6 chiffres.", li_enrol_key:"Impossible de scanner ? Saisissez cette clé :", li_enrol_on:"Activer", li_qr_alt:"Code QR pour votre application d'authentification", li_err_creds:"Adresse e-mail ou mot de passe incorrect.", li_err_code:"Code incorrect ou expiré. Réessayez.", li_err_many:"Trop de tentatives. Patientez 5 minutes, puis réessayez.", li_err_conn:"Impossible de joindre le serveur. Vérifiez votre connexion, puis réessayez.", li_noauth_title:"Ce compte n'a pas accès au panneau", li_noauth_sub:"Aucune donnée n'a été chargée. Connectez-vous avec un compte autorisé.", li_signed_as:"Connecté en tant que", li_signout:"Se déconnecter", li_exp_title:"Votre session a expiré", li_exp_sub:"Par sécurité, reconnectez-vous. Rien n'a été modifié.", li_exp_again:"Se reconnecter", li_step_title:"Confirmez le code pour continuer", li_step_sub:"Toute modification demande un nouveau code si la dernière vérification date de plus de 15 minutes.", err_notconf:"Le panneau n'est pas encore configuré sur le serveur.",
       updated:'Mis à jour {d}', refresh:'Actualiser', loading:'Chargement…', close:'Fermer',
-      need_link:"Cette page nécessite le jeton d'administration. Rechargez la page pour le saisir.",
-      err_unauth:"Non autorisé — le jeton d'administration est absent ou incorrect. Rechargez la page pour le saisir à nouveau.", act_title:"Activation", act_def:"comptes créés dans les 30 derniers jours ayant enregistré au moins une dose", act_window:"inscription entre aujourd'hui et il y a 30 jours (31 jours civils UTC, aujourd'hui inclus) ; doses sans limite de date", act_source:"Source : Supabase · auth.users, dose_logs", act_test:"comptes de test exclus", act_how:"comment nous calculons", act_na:"Indisponible : le SQL de la phase 2 (admin_accounts) n'est pas appliqué.", win_n:"{n} jours",
+      act_title:"Activation", act_def:"comptes créés dans les 30 derniers jours ayant enregistré au moins une dose", act_window:"inscription entre aujourd'hui et il y a 30 jours (31 jours civils UTC, aujourd'hui inclus) ; doses sans limite de date", act_source:"Source : Supabase · auth.users, dose_logs", act_test:"comptes de test exclus", act_how:"comment nous calculons", act_na:"Indisponible : le SQL de la phase 2 (admin_accounts) n'est pas appliqué.", win_n:"{n} jours",
       tab_mgmt:"Pilotage", tab_details:"Détails", details_note:"Chiffres secondaires. Sauf mention, ils incluent encore les comptes de test.", nav_headline:"Nouveaux clients", nav_funnel:"Entonnoir", nav_recon:"Rapprochement", nav_charts:"Graphiques", nav_activity:"Activité et totaux", sec_headline:"Nouveaux clients", sec_funnel:"Entonnoir — comptes créés dans la fenêtre", sec_recon:"Rapprochement — stores vs Supabase vs RevenueCat", sec_charts:"Graphiques", sec_activity:"Activité et totaux", mv_na:"Vue de pilotage indisponible : le SQL de la phase 2 (admin_accounts) n'est pas encore appliqué.", h_title:"Nouveaux clients · {n} jours", h_prev:"{n} jours précédents : {p}", h_real_all:"Clients réels · depuis le début", h_real_all_sub:"Comptes de test exclus", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Inconnu", pf_mixed:"{n} avec des signaux contradictoires", win_range:"{a} au {b} · jours UTC complets", w0:"Téléchargements stores", w1:"Comptes créés", w2:"E-mail confirmé ou connecté", w3:"Onboarding terminé", w4:"Au moins 1 protocole", w5:"Au moins 1 dose enregistrée", w6:"Premium (achat en store)", of_w1:"{p} % de W1", nm:"Non mesuré", nm_stores:"nécessite le numéro de fournisseur Apple et le bucket Play", st_apple:"Apple", st_google:"Google Play", st_redl:"{n} retéléchargements", st_dev:"{n} installations sur appareils", st_days:"{r} jours sur {d} avec rapport · dernier {l}", st_nodays:"aucun rapport sur cette période", nm_apple:"nécessite le numéro de fournisseur Apple", nm_google:"nécessite le bucket Play", st_err:"la requête au store a échoué ({s})", st_test:"Les stores incluent les installations de test", nm_premium:"nécessite l'autorisation de la clé RevenueCat et le chemin des abonnements", nm_rc_perm:"la clé doit avoir customers:read", nm_rc_conf:"clé RevenueCat non configurée", nm_rc_err:"la requête RevenueCat a échoué ({s})", nm_match:"Le rapprochement des comptes a échoué ({s}) ; ces IDs restent non classés.", late_note:"Les étapes suivantes comptent tout ce qui a été atteint jusqu'à maintenant.", x1:"Téléchargements stores", x2:"Comptes Supabase créés", x2_all:"tous", x2_test:"test", x2_real:"réels", x3:"IDs RevenueCat · vus pour la première fois ou achat", x3_env:"tous les environnements", x4:"dont anonymes ($RCAnonymousID, créés à la déconnexion)", x5:"dont liés à un compte Supabase", x5_split:"réels {r} · test {t}", x6:"dont sans compte Supabase (probablement des comptes supprimés)", x_check_ok:"Contrôle : X3 = X4 + X5 + X6", x_check_bad:"Contrôle échoué : X3 diffère de X4 + X5 + X6 de {n}", x_gap:"Comptes réels de cette fenêtre sans ID RevenueCat : {n} (jamais connectés, ou vus par RevenueCat un autre jour)", g1_t:"Nouveaux clients par jour, par plateforme", g1_q:"L'acquisition progresse-t-elle, et sur quelle plateforme ?", g2_t:"Cohortes hebdomadaires d'inscription — rétention", g2_q:"Les nouveaux clients continuent-ils d'utiliser l'app semaine après semaine ?", g2_floor:"Un minimum : « actif » signifie tout événement suivi, et il n'y a pas d'événement d'ouverture de l'app. La semaine en cours est partielle.", g3_t:"Conversion Premium par semaine d'inscription", g3_q:"Quelle part de chaque semaine d'inscription passe à Premium payant, et en combien de temps ?", g_cohort:"Semaine d'inscription", g_size:"Comptes", rule_test2:"Les comptes de test n'apparaissent dans aucun chiffre Supabase (une liste : admin_test_accounts + admin_is_test). Les chiffres RevenueCat et stores ne peuvent pas être filtrés par compte et incluent des achats, IDs et installations de test.", sort_hint:"cliquez sur une colonne pour trier", fl_platform:"Plateforme", fl_login:"Connexion", fl_onboarding:"Onboarding", fl_protocols:"Protocoles actifs", fl_rule:"correspond à la règle", o_all:"tous", o_with:"avec", o_without:"sans", o_yes:"oui", o_no:"non", acc_search:"rechercher par e-mail", f_all:"tous", f_not_onboarded:"sans onboarding", f_no_protocol:"sans protocole actif", f_google:"connexion Google", f_rule:"correspond à la règle", btn_mark:"Marquer comme test", btn_unmark:"Retirer la marque test", confirm_mark:"Marquer ces {n} comptes comme test ?", confirm_unmark:"Retirer la marque test de ces {n} comptes ?", btn_confirm:"Confirmer", btn_cancel:"Annuler", view_real:"Comptes réels", view_tests:"Comptes de test", badge_rule:"test (règle)", badge_list:"test (liste)", badge_domain:"test (domaine)", badge_exc:"pas un test (votre décision)", by_rule_n:"{n} comptes par la règle", select_all:"tout sélectionner (affichés)", write_ok:"Enregistré : {n} comptes modifiés. Rechargement…", write_err:"Rien n'a été modifié : {m}", n_selected:"{n} sélectionnés", incl_test_ev:"Inclut les comptes de test (impossible à séparer)", tab_accounts:"Comptes", acc_title:"Comptes réels, les plus récents en premier", acc_email:"E-mail", acc_created:"Créé", acc_method:"Connexion", acc_platform:"Plateforme", acc_onboarding:"Onboarding", acc_protocols:"Protocoles actifs", acc_last_sign_in:"Dernière connexion", acc_yes:"oui", acc_no:"non", acc_unconfirmed:"e-mail non confirmé", acc_summary:"Par connexion : {prov} · onboarding : {on} oui / {off} non · plateforme : iOS {ios}, Android {and}, inconnue {unk}", acc_na:"Indisponible : admin_accounts_list n'est pas encore appliqué.", excluded_n:"{n} comptes de test exclus de tous les chiffres Supabase", incl_test:"inclut des achats, IDs et installations de test (non filtrable par compte)", rule_rcids:"Les IDs RevenueCat ne sont pas des clients : les déconnexions et les comptes supprimés créent des IDs en plus.", s_window_note:"Fenêtre différente de l'onglet Pilotage ; non comparable.",
       nav_sources:"Sources de données", sec_sources:"Sources de données", src_btn:"Source · période", ds_rules:"Règles", ds_id:"ID", ds_metric:"Métrique", ds_source:"Source", ds_def:"Définition", ds_range:"Période", ds_proven:"Vérifié", ds_not_proven:"pas encore vérifié", ds_proven_on:"vérifié le {d}", ds_def_lang:"Les définitions sont en anglais pour l'instant.", rule_utc:"Les jours Supabase sont des jours civils UTC.", rule_test:"Les décomptes incluent les comptes de test.", rule_active:"Les analytics sont anonymes depuis le 04/10/2026 : les événements ne portent aucun compte. Les comptages d'événements sont des événements, pas des personnes ; il n'y a pas de chiffres d'utilisateurs actifs ni de rétention.", rule_window:"Comparer ne charge que les 180 derniers jours (les périodes plus anciennes affichent 0). Les listes Produit et Audience chargent tout l'historique et sont filtrées par la première période de Comparer.",
-      err_notconf:"Le panneau n'est pas encore configuré (ADMIN_TOKEN non défini).",
       err_failed:'Échec de la requête ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Passer au thème clair', theme_dark:'Passer au thème sombre',
       nav_overview:'Aperçu', nav_compare:'Comparer', nav_engagement:'Engagement', nav_retention:'Rétention', nav_product:'Produit', nav_revenue:'Revenus', nav_audience:'Audience', nav_stores:'Boutiques',
@@ -341,12 +382,12 @@
       gl_active_t:'Utilisateurs actifs', gl_active_d:'Utilisateurs uniques ayant déclenché un événement suivi durant la période sélectionnée.'
     },
     de:{
+      // 3.1 login (docs/design/adm-31-login.html)
+      li_signin_title:"Anmelden", li_signin_sub:"Zugang nur für freigegebene Konten.", li_email:"E-Mail", li_email_ph:"name@beispiel.de", li_password:"Passwort", li_continue:"Weiter", li_fine:"Die Sitzung endet, wenn Sie den Tab schließen, spätestens nach 12 Stunden.", li_code_title:"Bestätigungscode", li_code_sub:"Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.", li_code:"Code", li_verify:"Bestätigen", li_back:"Zurück", li_enrol_title:"Zwei-Faktor-Authentifizierung einrichten", li_enrol_sub:"Scannen Sie den QR-Code mit Ihrer Authenticator-App und geben Sie den 6-stelligen Code ein.", li_enrol_key:"Scannen nicht möglich? Diesen Schlüssel eingeben:", li_enrol_on:"Aktivieren", li_qr_alt:"QR-Code für Ihre Authenticator-App", li_err_creds:"E-Mail oder Passwort ist falsch.", li_err_code:"Code falsch oder abgelaufen. Bitte versuchen Sie es erneut.", li_err_many:"Zu viele Versuche. Bitte warten Sie 5 Minuten und versuchen Sie es erneut.", li_err_conn:"Der Server ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.", li_noauth_title:"Dieses Konto hat keinen Zugriff auf das Panel", li_noauth_sub:"Es wurden keine Daten geladen. Melden Sie sich mit einem freigegebenen Konto an.", li_signed_as:"Angemeldet als", li_signout:"Abmelden", li_exp_title:"Ihre Sitzung ist abgelaufen", li_exp_sub:"Melden Sie sich aus Sicherheitsgründen erneut an. Es wurde nichts geändert.", li_exp_again:"Erneut anmelden", li_step_title:"Code bestätigen, um fortzufahren", li_step_sub:"Für Änderungen ist ein neuer Code nötig, wenn die letzte Bestätigung mehr als 15 Minuten zurückliegt.", err_notconf:"Das Panel ist auf dem Server noch nicht eingerichtet.",
       updated:'Aktualisiert {d}', refresh:'Aktualisieren', loading:'Wird geladen…', close:'Schließen',
-      need_link:"Diese Seite benötigt das Admin-Token. Laden Sie die Seite neu, um es einzugeben.",
-      err_unauth:"Nicht autorisiert — das Admin-Token fehlt oder ist falsch. Laden Sie die Seite neu, um es erneut einzugeben.", act_title:"Aktivierung", act_def:"in den letzten 30 Tagen registrierte Konten, die mindestens eine Dosis erfasst haben", act_window:"Registrierung zwischen heute und vor 30 Tagen (31 UTC-Kalendertage, heute eingeschlossen); Dosen ohne Datumsgrenze", act_source:"Quelle: Supabase · auth.users, dose_logs", act_test:"Testkonten ausgeschlossen", act_how:"so rechnen wir", act_na:"Nicht verfügbar: Das SQL der Phase 2 (admin_accounts) ist nicht angewendet.", win_n:"{n} Tage",
+      act_title:"Aktivierung", act_def:"in den letzten 30 Tagen registrierte Konten, die mindestens eine Dosis erfasst haben", act_window:"Registrierung zwischen heute und vor 30 Tagen (31 UTC-Kalendertage, heute eingeschlossen); Dosen ohne Datumsgrenze", act_source:"Quelle: Supabase · auth.users, dose_logs", act_test:"Testkonten ausgeschlossen", act_how:"so rechnen wir", act_na:"Nicht verfügbar: Das SQL der Phase 2 (admin_accounts) ist nicht angewendet.", win_n:"{n} Tage",
       tab_mgmt:"Steuerung", tab_details:"Details", details_note:"Nebenkennzahlen. Sofern nicht anders angegeben, enthalten sie noch Testkonten.", nav_headline:"Neue Kunden", nav_funnel:"Trichter", nav_recon:"Abgleich", nav_charts:"Diagramme", nav_activity:"Aktivität & Summen", sec_headline:"Neue Kunden", sec_funnel:"Trichter — im Zeitraum erstellte Konten", sec_recon:"Abgleich — Stores vs. Supabase vs. RevenueCat", sec_charts:"Diagramme", sec_activity:"Aktivität & Summen", mv_na:"Steuerungsansicht nicht verfügbar: Das SQL der Phase 2 (admin_accounts) ist noch nicht angewendet.", h_title:"Neue Kunden · {n} Tage", h_prev:"Vorherige {n} Tage: {p}", h_real_all:"Echte Kunden · gesamt", h_real_all_sub:"Testkonten ausgeschlossen", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Unbekannt", pf_mixed:"{n} mit widersprüchlichen Signalen", win_range:"{a} bis {b} · volle UTC-Tage", w0:"Store-Downloads", w1:"Konten erstellt", w2:"E-Mail bestätigt oder angemeldet", w3:"Onboarding abgeschlossen", w4:"Mindestens 1 Protokoll", w5:"Mindestens 1 Dosis erfasst", w6:"Premium (Store-Kauf)", of_w1:"{p} % von W1", nm:"Nicht gemessen", nm_stores:"benötigt die Apple-Anbieternummer und den Play-Bucket", st_apple:"Apple", st_google:"Google Play", st_redl:"{n} erneute Downloads", st_dev:"{n} Geräteinstallationen", st_days:"{r} von {d} Tagen mit Bericht · zuletzt {l}", st_nodays:"kein Bericht in diesem Zeitraum", nm_apple:"benötigt die Apple-Anbieternummer", nm_google:"benötigt den Play-Bucket", st_err:"Store-Abfrage fehlgeschlagen ({s})", st_test:"Die Stores enthalten Testinstallationen", nm_premium:"benötigt RevenueCat-Schlüsselberechtigung und den Abonnement-Pfad", nm_rc_perm:"Schlüssel benötigt customers:read", nm_rc_conf:"RevenueCat-Schlüssel nicht konfiguriert", nm_rc_err:"RevenueCat-Anfrage fehlgeschlagen ({s})", nm_match:"Kontenabgleich fehlgeschlagen ({s}); diese IDs bleiben unklassifiziert.", late_note:"Spätere Schritte zählen alles, was bis jetzt erreicht wurde.", x1:"Store-Downloads", x2:"Erstellte Supabase-Konten", x2_all:"alle", x2_test:"Test", x2_real:"echt", x3:"RevenueCat-IDs · erstmals gesehen oder gekauft", x3_env:"alle Umgebungen", x4:"davon anonym ($RCAnonymousID, beim Abmelden erstellt)", x5:"davon mit Supabase-Konto", x5_split:"echt {r} · Test {t}", x6:"davon ohne Supabase-Konto (vermutlich gelöschte Konten)", x_check_ok:"Prüfung: X3 = X4 + X5 + X6", x_check_bad:"Prüfung fehlgeschlagen: X3 weicht um {n} von X4 + X5 + X6 ab", x_gap:"Echte Konten in diesem Zeitraum ohne RevenueCat-ID: {n} (nie angemeldet oder von RevenueCat an einem anderen Tag gesehen)", g1_t:"Neue Kunden pro Tag, nach Plattform", g1_q:"Wächst die Neukundengewinnung, und auf welcher Plattform?", g2_t:"Wöchentliche Anmelde-Kohorten — Bindung", g2_q:"Nutzen neue Kunden die App Woche für Woche weiter?", g2_floor:"Eine Untergrenze: „aktiv“ ist jedes erfasste Ereignis, und es gibt kein App-Öffnen-Ereignis. Die aktuelle Woche ist unvollständig.", g3_t:"Premium-Konversion nach Anmeldewoche", g3_q:"Welcher Anteil jeder Anmeldewoche wird zahlendes Premium, und wie schnell?", g_cohort:"Anmeldewoche", g_size:"Konten", rule_test2:"Testkonten erscheinen in keiner Supabase-Zahl (eine Liste: admin_test_accounts + admin_is_test). RevenueCat- und Store-Zahlen lassen sich nicht nach Konto filtern und enthalten Testkäufe, -IDs und -Installationen.", sort_hint:"Spalte anklicken zum Sortieren", fl_platform:"Plattform", fl_login:"Anmeldung", fl_onboarding:"Onboarding", fl_protocols:"Aktive Protokolle", fl_rule:"passt zur Regel", o_all:"alle", o_with:"mit", o_without:"ohne", o_yes:"ja", o_no:"nein", acc_search:"nach E-Mail suchen", f_all:"alle", f_not_onboarded:"ohne Onboarding", f_no_protocol:"ohne aktives Protokoll", f_google:"Google-Anmeldung", f_rule:"passt zur Regel", btn_mark:"Als Test markieren", btn_unmark:"Test-Markierung entfernen", confirm_mark:"Diese {n} Konten als Test markieren?", confirm_unmark:"Test-Markierung dieser {n} Konten entfernen?", btn_confirm:"Bestätigen", btn_cancel:"Abbrechen", view_real:"Echte Konten", view_tests:"Testkonten", badge_rule:"Test (Regel)", badge_list:"Test (Liste)", badge_domain:"Test (Domain)", badge_exc:"kein Test (Ihre Entscheidung)", by_rule_n:"{n} Konten durch die Regel", select_all:"alle angezeigten auswählen", write_ok:"Gespeichert: {n} Konten geändert. Wird neu geladen…", write_err:"Nichts geändert: {m}", n_selected:"{n} ausgewählt", incl_test_ev:"Enthält Testkonten (nicht trennbar)", tab_accounts:"Konten", acc_title:"Echte Konten, neueste zuerst", acc_email:"E-Mail", acc_created:"Erstellt", acc_method:"Anmeldung", acc_platform:"Plattform", acc_onboarding:"Onboarding", acc_protocols:"Aktive Protokolle", acc_last_sign_in:"Letzte Anmeldung", acc_yes:"ja", acc_no:"nein", acc_unconfirmed:"E-Mail nicht bestätigt", acc_summary:"Nach Anmeldung: {prov} · Onboarding: {on} ja / {off} nein · Plattform: iOS {ios}, Android {and}, unbekannt {unk}", acc_na:"Nicht verfügbar: admin_accounts_list ist noch nicht angewendet.", excluded_n:"{n} Testkonten aus allen Supabase-Zahlen ausgeschlossen", incl_test:"enthält Testkäufe, -IDs und -Installationen (nicht nach Konto filterbar)", rule_rcids:"RevenueCat-IDs sind keine Kunden: Abmeldungen und gelöschte Konten erzeugen zusätzliche IDs.", s_window_note:"Anderer Zeitraum als im Tab Steuerung; nicht vergleichbar.",
       nav_sources:"Datenquellen", sec_sources:"Datenquellen", src_btn:"Quelle · Zeitraum", ds_rules:"Regeln", ds_id:"ID", ds_metric:"Kennzahl", ds_source:"Quelle", ds_def:"Definition", ds_range:"Zeitraum", ds_proven:"Geprüft", ds_not_proven:"noch nicht geprüft", ds_proven_on:"geprüft am {d}", ds_def_lang:"Die Definitionen sind vorerst auf Englisch.", rule_utc:"Supabase-Tage sind UTC-Kalendertage.", rule_test:"Die Zählungen enthalten Testkonten.", rule_active:"Analytics sind seit dem 04.10.2026 anonym: Ereignisse tragen kein Konto. Ereigniszahlen sind Ereignisse, keine Personen; es gibt keine Aktive-Nutzer- oder Bindungszahlen.", rule_window:"Vergleich hat nur die letzten 180 Tage geladen (ältere Zeiträume zeigen 0). Produktlisten und Zielgruppe laden alle Zeilen und werden nach dem ersten Vergleichszeitraum gefiltert.",
-      err_notconf:'Panel noch nicht konfiguriert (ADMIN_TOKEN nicht gesetzt).',
       err_failed:'Anfrage fehlgeschlagen ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Zum hellen Design wechseln', theme_dark:'Zum dunklen Design wechseln',
       nav_overview:'Übersicht', nav_compare:'Vergleich', nav_engagement:'Engagement', nav_retention:'Bindung', nav_product:'Produkt', nav_revenue:'Umsatz', nav_audience:'Zielgruppe', nav_stores:'Stores',
@@ -388,12 +429,12 @@
       gl_active_t:'Aktive Nutzer', gl_active_d:'Eindeutige Nutzer, die im gewählten Zeitraum ein erfasstes Ereignis ausgelöst haben.'
     },
     it:{
+      // 3.1 login (docs/design/adm-31-login.html)
+      li_signin_title:"Accedi", li_signin_sub:"Accesso riservato agli account autorizzati.", li_email:"Email", li_email_ph:"nome@esempio.it", li_password:"Password", li_continue:"Continua", li_fine:"La sessione termina alla chiusura della scheda o dopo 12 ore.", li_code_title:"Codice di verifica", li_code_sub:"Inserisci il codice a 6 cifre della tua app di autenticazione.", li_code:"Codice", li_verify:"Verifica", li_back:"Indietro", li_enrol_title:"Attiva la verifica in due passaggi", li_enrol_sub:"Inquadra il codice QR con la tua app di autenticazione e inserisci il codice a 6 cifre.", li_enrol_key:"Non riesci a inquadrarlo? Inserisci questa chiave:", li_enrol_on:"Attiva", li_qr_alt:"Codice QR per la tua app di autenticazione", li_err_creds:"Email o password errate.", li_err_code:"Codice errato o scaduto. Riprova.", li_err_many:"Troppi tentativi. Attendi 5 minuti e riprova.", li_err_conn:"Impossibile raggiungere il server. Controlla la connessione e riprova.", li_noauth_title:"Questo account non ha accesso al pannello", li_noauth_sub:"Non è stato caricato alcun dato. Accedi con un account autorizzato.", li_signed_as:"Accesso effettuato come", li_signout:"Esci", li_exp_title:"La sessione è scaduta", li_exp_sub:"Per sicurezza, accedi di nuovo. Non è stato modificato nulla.", li_exp_again:"Accedi di nuovo", li_step_title:"Conferma il codice per continuare", li_step_sub:"Per le modifiche serve un nuovo codice se l'ultima verifica risale a più di 15 minuti fa.", err_notconf:"Il pannello non è ancora configurato sul server.",
       updated:'Aggiornato {d}', refresh:'Aggiorna', loading:'Caricamento…', close:'Chiudi',
-      need_link:"Questa pagina richiede il token di amministrazione. Ricarica la pagina per inserirlo.",
-      err_unauth:"Non autorizzato — il token di amministrazione manca o è errato. Ricarica la pagina per inserirlo di nuovo.", act_title:"Attivazione", act_def:"account registrati negli ultimi 30 giorni che hanno registrato almeno una dose", act_window:"registrazione tra oggi e 30 giorni fa (31 giorni di calendario UTC, oggi incluso); dosi senza limite di data", act_source:"Fonte: Supabase · auth.users, dose_logs", act_test:"account di prova esclusi", act_how:"come lo calcoliamo", act_na:"Non disponibile: lo SQL della fase 2 (admin_accounts) non è applicato.", win_n:"{n} giorni",
+      act_title:"Attivazione", act_def:"account registrati negli ultimi 30 giorni che hanno registrato almeno una dose", act_window:"registrazione tra oggi e 30 giorni fa (31 giorni di calendario UTC, oggi incluso); dosi senza limite di data", act_source:"Fonte: Supabase · auth.users, dose_logs", act_test:"account di prova esclusi", act_how:"come lo calcoliamo", act_na:"Non disponibile: lo SQL della fase 2 (admin_accounts) non è applicato.", win_n:"{n} giorni",
       tab_mgmt:"Gestione", tab_details:"Dettagli", details_note:"Numeri secondari. Salvo indicazione, includono ancora gli account di prova.", nav_headline:"Nuovi clienti", nav_funnel:"Funnel", nav_recon:"Riconciliazione", nav_charts:"Grafici", nav_activity:"Attività e totali", sec_headline:"Nuovi clienti", sec_funnel:"Funnel — account creati nella finestra", sec_recon:"Riconciliazione — store vs Supabase vs RevenueCat", sec_charts:"Grafici", sec_activity:"Attività e totali", mv_na:"Vista di gestione non disponibile: lo SQL della fase 2 (admin_accounts) non è ancora applicato.", h_title:"Nuovi clienti · {n} giorni", h_prev:"{n} giorni precedenti: {p}", h_real_all:"Clienti reali · da sempre", h_real_all_sub:"Account di prova esclusi", pf_ios:"iOS", pf_android:"Android", pf_unknown:"Sconosciuto", pf_mixed:"{n} con segnali contrastanti", win_range:"dal {a} al {b} · giorni UTC completi", w0:"Download dagli store", w1:"Account creati", w2:"Email confermata o accesso effettuato", w3:"Onboarding completato", w4:"Almeno 1 protocollo", w5:"Almeno 1 dose registrata", w6:"Premium (acquisto nello store)", of_w1:"{p}% di W1", nm:"Non misurato", nm_stores:"richiede il numero fornitore Apple e il bucket di Play", st_apple:"Apple", st_google:"Google Play", st_redl:"{n} nuovi download", st_dev:"{n} installazioni su dispositivi", st_days:"{r} giorni su {d} con report · ultimo {l}", st_nodays:"nessun report in questo periodo", nm_apple:"richiede il numero fornitore Apple", nm_google:"richiede il bucket di Play", st_err:"richiesta allo store non riuscita ({s})", st_test:"Gli store includono installazioni di prova", nm_premium:"richiede il permesso della chiave RevenueCat e il percorso degli abbonamenti", nm_rc_perm:"la chiave richiede customers:read", nm_rc_conf:"chiave RevenueCat non configurata", nm_rc_err:"richiesta a RevenueCat non riuscita ({s})", nm_match:"Abbinamento account non riuscito ({s}); quegli ID restano non classificati.", late_note:"I passaggi successivi contano tutto ciò che è stato raggiunto finora.", x1:"Download dagli store", x2:"Account Supabase creati", x2_all:"tutti", x2_test:"prova", x2_real:"reali", x3:"ID RevenueCat · visti per la prima volta o con acquisto", x3_env:"tutti gli ambienti", x4:"di cui anonimi ($RCAnonymousID, creati al logout)", x5:"di cui con account Supabase", x5_split:"reali {r} · prova {t}", x6:"di cui senza account Supabase (probabilmente account eliminati)", x_check_ok:"Controllo: X3 = X4 + X5 + X6", x_check_bad:"Controllo non riuscito: X3 differisce da X4 + X5 + X6 di {n}", x_gap:"Account reali di questa finestra senza ID RevenueCat: {n} (mai effettuato l'accesso, o visti da RevenueCat in un altro giorno)", g1_t:"Nuovi clienti al giorno, per piattaforma", g1_q:"L'acquisizione sta crescendo, e su quale piattaforma?", g2_t:"Coorti settimanali di iscrizione — retention", g2_q:"I nuovi clienti continuano a usare l'app settimana dopo settimana?", g2_floor:"Un minimo: «attivo» è qualsiasi evento tracciato e non esiste un evento di apertura dell'app. La settimana corrente è parziale.", g3_t:"Conversione a Premium per settimana di iscrizione", g3_q:"Quale quota di ogni settimana di iscrizione diventa Premium a pagamento, e in quanto tempo?", g_cohort:"Settimana di iscrizione", g_size:"Account", rule_test2:"Gli account di prova non compaiono mai in nessun numero Supabase (una lista: admin_test_accounts + admin_is_test). I numeri RevenueCat e degli store non si possono filtrare per account e includono acquisti, ID e installazioni di prova.", sort_hint:"clicca una colonna per ordinare", fl_platform:"Piattaforma", fl_login:"Accesso", fl_onboarding:"Onboarding", fl_protocols:"Protocolli attivi", fl_rule:"corrisponde alla regola", o_all:"tutti", o_with:"con", o_without:"senza", o_yes:"sì", o_no:"no", acc_search:"cerca per email", f_all:"tutti", f_not_onboarded:"senza onboarding", f_no_protocol:"senza protocollo attivo", f_google:"accesso Google", f_rule:"corrisponde alla regola", btn_mark:"Segna come prova", btn_unmark:"Togli segno di prova", confirm_mark:"Segnare questi {n} account come prova?", confirm_unmark:"Togliere il segno di prova a questi {n} account?", btn_confirm:"Conferma", btn_cancel:"Annulla", view_real:"Account reali", view_tests:"Account di prova", badge_rule:"prova (regola)", badge_list:"prova (lista)", badge_domain:"prova (dominio)", badge_exc:"non è prova (tua decisione)", by_rule_n:"{n} account per la regola", select_all:"seleziona tutti i mostrati", write_ok:"Salvato: {n} account modificati. Ricarico…", write_err:"Nulla è stato modificato: {m}", n_selected:"{n} selezionati", incl_test_ev:"Include gli account di prova (non separabili)", tab_accounts:"Account", acc_title:"Account reali, dai più recenti", acc_email:"Email", acc_created:"Creato", acc_method:"Accesso", acc_platform:"Piattaforma", acc_onboarding:"Onboarding", acc_protocols:"Protocolli attivi", acc_last_sign_in:"Ultimo accesso", acc_yes:"sì", acc_no:"no", acc_unconfirmed:"email non confermata", acc_summary:"Per accesso: {prov} · onboarding: {on} sì / {off} no · piattaforma: iOS {ios}, Android {and}, sconosciuta {unk}", acc_na:"Non disponibile: admin_accounts_list non è ancora applicato.", excluded_n:"{n} account di prova esclusi da tutti i numeri Supabase", incl_test:"include acquisti, ID e installazioni di prova (non filtrabile per account)", rule_rcids:"Gli ID RevenueCat non sono clienti: logout e account eliminati creano ID in più.", s_window_note:"Finestra diversa dalla scheda Gestione; non confrontabile.",
       nav_sources:"Fonti dei dati", sec_sources:"Fonti dei dati", src_btn:"Fonte · periodo", ds_rules:"Regole", ds_id:"ID", ds_metric:"Metrica", ds_source:"Fonte", ds_def:"Definizione", ds_range:"Periodo", ds_proven:"Verificato", ds_not_proven:"non ancora verificato", ds_proven_on:"verificato il {d}", ds_def_lang:"Per ora le definizioni sono in inglese.", rule_utc:"I giorni di Supabase sono giorni di calendario UTC.", rule_test:"I conteggi includono gli account di prova.", rule_active:"Le analytics sono anonime dal 04/10/2026: gli eventi non hanno account. I conteggi di eventi sono eventi, non persone; non esistono numeri di utenti attivi né di retention.", rule_window:"Confronta ha caricati solo gli ultimi 180 giorni (i periodi precedenti mostrano 0). Gli elenchi Prodotto e Pubblico caricano tutto lo storico e vengono filtrati per il primo periodo di Confronta.",
-      err_notconf:'Pannello non ancora configurato (ADMIN_TOKEN non impostato).',
       err_failed:'Richiesta non riuscita ({n}).', supabase_status:'Supabase {s}',
       theme_light:'Passa al tema chiaro', theme_dark:'Passa al tema scuro',
       nav_overview:'Panoramica', nav_compare:'Confronta', nav_engagement:'Coinvolgimento', nav_retention:'Fidelizzazione', nav_product:'Prodotto', nav_revenue:'Ricavi', nav_audience:'Pubblico', nav_stores:'Store',
@@ -448,11 +489,149 @@
   (function initTheme(){var th='dark';try{th=localStorage.getItem('dt_adm_theme')||'dark';}catch(e){}if(th==='light')document.documentElement.setAttribute('data-theme','light');})();
   function cc(){var l=curTheme()==='light';return {ink:l?'#0C2340':'#EAF2FB',muted:l?'#5A7085':'#8FA6BD',grid:l?'rgba(0,0,0,.08)':'rgba(255,255,255,.07)'};}
 
-  // Admin token: kept in sessionStorage only and sent only in the Authorization
-  // header. It is never read from the URL (query or hash); old token links are
-  // stripped below, and the server refuses any token-like query parameter.
-  var token=''; try{ token=sessionStorage.getItem('dt_adm_token')||''; }catch(e){}
+  // Nothing sensitive is ever read from the URL; any query or hash is stripped on load.
   try{ history.replaceState(null,'',location.pathname); }catch(e){}
+
+  // ---- 3.1 admin login (docs/specs/admin-panel.md Phase 3 › 3.1; picture docs/design/adm-31-login.html).
+  // Supabase Auth with the project's PUBLIC anon key (the same key the app ships): e-mail + password,
+  // then a TOTP code (aal2). The session lives in sessionStorage only (gone when the tab closes) and
+  // is sent only in the Authorization header. The server re-checks everything (api/_admAuth.js).
+  var SB_URL='https://mqfvnqfusqyhqhowfweh.supabase.co';
+  var SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xZnZucWZ1c3F5aHFob3dmd2VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MzQ0NzksImV4cCI6MjA5MTAxMDQ3OX0.Mx9E4AnJ2C5_ceAbFSfDBt43YgdCHq7lJKKeR27atug';
+  // [auth-pure-start]
+  var ADM_SESSION_KEY='dt_adm_session';
+  var ADM_MAX_AGE_MS=12*60*60*1000;   // founder 2026-10-21: the panel session lasts at most 12 h
+  var ADM_STEP_UP_MS=15*60*1000;      // a change needs a TOTP check within the last 15 min
+  function admB64(x){x=String(x||'').replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';var b=atob(x);try{return decodeURIComponent(Array.prototype.map.call(b,function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2);}).join(''));}catch(e){return b;}}
+  function jwtClaims(tok){try{return JSON.parse(admB64(String(tok).split('.')[1]));}catch(e){return null;}}
+  // Session start = the password sign-in of this session (amr); refreshing never moves it.
+  function sessionStartMs(c){var r=null;((c&&c.amr)||[]).forEach(function(a){if(a&&a.method!=='totp'&&typeof a.timestamp==='number'){var ms=a.timestamp*1000;if(r==null||ms<r)r=ms;}});return r;}
+  function lastTotpMs(c){var r=null;((c&&c.amr)||[]).forEach(function(a){if(a&&a.method==='totp'&&typeof a.timestamp==='number'){var ms=a.timestamp*1000;if(r==null||ms>r)r=ms;}});return r;}
+  function sessionExpired(c,now){var st=sessionStartMs(c);return st==null||now-st>ADM_MAX_AGE_MS;}
+  function needsStepUp(c,now){var x=lastTotpMs(c);return x==null||now-x>ADM_STEP_UP_MS;}
+  // Error message key for a failed auth call: status 0 = no connection.
+  function authErrKey(stage,status){if(!status||status>=500)return 'li_err_conn';if(status===429)return 'li_err_many';return stage==='password'?'li_err_creds':'li_err_code';}
+  // d = {fetch, store (sessionStorage), now, sbUrl, anon, api}. Every method resolves to a state, never throws.
+  function makeAuth(d){
+    var S=null, pending=null; // pending = the password-only (aal1) session, kept in memory only
+    function hdr(tok){return {apikey:d.anon,'Content-Type':'application/json',Authorization:'Bearer '+(tok||d.anon)};}
+    function parse(r){return r.text().then(function(x){var j=null;try{j=x?JSON.parse(x):null;}catch(e){}return {status:r.status,j:j};});}
+    function gt(path,method,body,tok){return Promise.resolve().then(function(){return d.fetch(d.sbUrl+'/auth/v1'+path,{method:method,headers:hdr(tok),body:body?JSON.stringify(body):undefined});}).then(parse,function(){return {status:0,j:null};});}
+    function toSession(j,prev){var u=j.user||{};return {access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||Math.floor(d.now()/1000)+(j.expires_in||3600),user:{id:u.id||(prev&&prev.user.id)||null,email:u.email||(prev&&prev.user.email)||''},factor_id:(prev&&prev.factor_id)||null};}
+    function save(x){S=x;try{if(d.store)d.store.setItem(ADM_SESSION_KEY,JSON.stringify(x));}catch(e){}}
+    function clear(){S=null;pending=null;try{if(d.store)d.store.removeItem(ADM_SESSION_KEY);}catch(e){}}
+    function read(){try{var x=JSON.parse((d.store&&d.store.getItem(ADM_SESSION_KEY))||'null');return x&&x.access_token?x:null;}catch(e){return null;}}
+    function claims(){return S?jwtClaims(S.access_token):null;}
+    function digits(code){return String(code||'').replace(/\D/g,'');}
+    // Challenge + verify one TOTP factor with the given session; Supabase answers with an aal2 session.
+    function challengeVerify(fid,code,tok){
+      return gt('/factors/'+encodeURIComponent(fid)+'/challenge','POST',{},tok).then(function(c){
+        if(c.status!==200||!c.j||!c.j.id)return c;
+        return gt('/factors/'+encodeURIComponent(fid)+'/verify','POST',{challenge_id:c.j.id,code:code},tok);
+      });
+    }
+    // Keep the access token fresh: 'ok' | 'expired' (12 h passed or refresh refused) | 'conn' (no connection).
+    function fresh(){
+      if(!S)return Promise.resolve('expired');
+      if(sessionExpired(claims(),d.now())){clear();return Promise.resolve('expired');}
+      if(S.expires_at*1000-d.now()>60000)return Promise.resolve('ok');
+      return gt('/token?grant_type=refresh_token','POST',{refresh_token:S.refresh_token}).then(function(x){
+        if(x.status===0)return 'conn';
+        if(x.status!==200||!x.j||!x.j.access_token){clear();return 'expired';}
+        var n=toSession(x.j,S);var c=jwtClaims(n.access_token);
+        if(!c||c.aal!=='aal2'||sessionExpired(c,d.now())){clear();return 'expired';}
+        save(n);return 'ok';
+      });
+    }
+    return {
+      email:function(){return (S&&S.user.email)||(pending&&pending.user.email)||'';},
+      // Page load: a stored aal2 session within 12 h opens the panel; nothing else is requested here.
+      start:function(){
+        S=read();
+        if(!S)return Promise.resolve({screen:'signin'});
+        var c=claims();
+        if(!c||c.aal!=='aal2'){clear();return Promise.resolve({screen:'signin'});}
+        if(sessionExpired(c,d.now())){clear();return Promise.resolve({screen:'expired'});}
+        return Promise.resolve({screen:'panel'});
+      },
+      signIn:function(email,password){
+        return gt('/token?grant_type=password','POST',{email:String(email||'').trim(),password:String(password||'')}).then(function(x){
+          if(x.status!==200||!x.j||!x.j.access_token)return {screen:'signin',error:authErrKey('password',x.status)};
+          pending=toSession(x.j,null);
+          var fs=((x.j.user&&x.j.user.factors)||[]).filter(function(f){return f&&f.factor_type==='totp';});
+          var v=fs.filter(function(f){return f.status==='verified';})[0];
+          pending.factor_id=v?v.id:null;
+          pending.unverified=fs.filter(function(f){return f.status!=='verified';}).map(function(f){return f.id;});
+          // The allow-list is checked before any MFA step: 403 = not authorised (no data, no TOTP setup).
+          return d.fetch(d.api,{method:'GET',headers:{Authorization:'Bearer '+pending.access_token}}).then(parse,function(){return {status:0,j:null};}).then(function(p){
+            if(p.status===403)return {screen:'noauth'};
+            if(p.status===401&&p.j&&p.j.code==='aal2_required')return {screen:v?'code':'enrol'};
+            var tok=pending.access_token;pending=null;gt('/logout?scope=local','POST',null,tok);
+            return {screen:'signin',error:p.status===503?'err_notconf':'li_err_conn'};
+          });
+        });
+      },
+      // First-time setup: remove unfinished factors, then create one TOTP factor (QR + key shown once).
+      enrol:function(){
+        if(!pending)return Promise.resolve({screen:'signin'});
+        var tok=pending.access_token;
+        return Promise.all((pending.unverified||[]).map(function(id){return gt('/factors/'+encodeURIComponent(id),'DELETE',null,tok);})).then(function(){
+          return gt('/factors','POST',{factor_type:'totp',friendly_name:'DoseTrace Admin',issuer:'DoseTrace Admin'},tok);
+        }).then(function(x){
+          if(x.status!==200||!x.j||!x.j.id||!x.j.totp)return {screen:'enrol',error:x.status===429?'li_err_many':'li_err_conn'};
+          pending.factor_id=x.j.id;pending.unverified=[];
+          return {screen:'enrol',qr:x.j.totp.qr_code,secret:x.j.totp.secret};
+        });
+      },
+      // The code screen and the first-time setup: TOTP → aal2 → stored in sessionStorage → panel.
+      verify:function(code){
+        if(!pending||!pending.factor_id)return Promise.resolve({screen:'signin'});
+        var c6=digits(code);
+        if(c6.length!==6)return Promise.resolve({error:'li_err_code'});
+        var fid=pending.factor_id;
+        return challengeVerify(fid,c6,pending.access_token).then(function(x){
+          if(x.status!==200||!x.j||!x.j.access_token)return {error:authErrKey('code',x.status)};
+          var n=toSession(x.j,pending);n.factor_id=fid;pending=null;save(n);
+          return {screen:'panel'};
+        });
+      },
+      needsStepUp:function(){return !S||needsStepUp(claims(),d.now());},
+      // Step-up before a change: a fresh TOTP check on the same session.
+      stepUp:function(code){
+        if(!S)return Promise.resolve({expired:true});
+        var c6=digits(code);
+        if(c6.length!==6)return Promise.resolve({error:'li_err_code'});
+        return challengeVerify(S.factor_id,c6,S.access_token).then(function(x){
+          if(x.status!==200||!x.j||!x.j.access_token)return {error:authErrKey('code',x.status)};
+          var n=toSession(x.j,S);save(n);return {ok:true};
+        });
+      },
+      expiredNow:function(){return !!S&&sessionExpired(claims(),d.now());},
+      drop:function(){clear();},
+      // Every panel request: fresh session, then /api/adm with the access token in the header only.
+      api:function(method,body){
+        return fresh().then(function(f){
+          if(f==='expired')return {expired:true};
+          if(f==='conn')return {status:0};
+          return d.fetch(d.api,{method:method,headers:{Authorization:'Bearer '+S.access_token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}).then(parse,function(){return {status:0,j:null};}).then(function(x){
+            if(x.status===401&&x.j&&x.j.code==='step_up_required')return {stepUp:true,status:401,j:x.j};
+            if(x.status===401){clear();return {expired:true,status:401,j:x.j};}
+            if(x.status===403&&x.j&&x.j.code==='not_allowed')return {noauth:true,status:403,j:x.j};
+            return x;
+          });
+        });
+      },
+      signOut:function(){
+        var tok=(S&&S.access_token)||(pending&&pending.access_token);
+        clear();
+        if(!tok)return Promise.resolve();
+        return gt('/logout?scope=local','POST',null,tok).then(function(){});
+      }
+    };
+  }
+  // [auth-pure-end]
+  var ADM_STORE=null; try{ ADM_STORE=window.sessionStorage; }catch(e){}
+  var AUTH=makeAuth({fetch:function(u,o){return window.fetch(u,o);},store:ADM_STORE,now:function(){return Date.now();},sbUrl:SB_URL,anon:SB_ANON,api:'/api/adm'});
   var app=document.getElementById('app');
   var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});};
   var fmt=function(n){return (n==null||isNaN(n))?'—':Number(n).toLocaleString(LANG);};
@@ -921,7 +1100,9 @@
   window.setAccSort=function(k){if(ACCSORT.key===k)ACCSORT.dir=ACCSORT.dir==='asc'?'desc':'asc';else ACCSORT={key:k,dir:k==='email'||k==='provider'||k==='platform'||k==='kind'?'asc':'desc'};render();};
   window.toggleSel=function(e,on){if(on)SEL[e]=1;else delete SEL[e];render();};
   window.selectAllShown=function(){shownEmails().forEach(function(e){SEL[e]=1;});render();};
-  // Confirmation lists the exact emails; the write goes to POST /api/adm with the header token only.
+  // Confirmation lists the exact emails; the write goes to POST /api/adm with the admin session.
+  // 3.1 (AU3): a change needs a TOTP check within the last 15 min — asked before sending, and once
+  // more if the server still answers step_up_required.
   window.markTests=function(mark){
     var emails=Object.keys(SEL);if(!emails.length)return;
     document.getElementById('gloss-t').textContent=t(mark?'confirm_mark':'confirm_unmark',{n:emails.length});
@@ -932,10 +1113,17 @@
     document.getElementById('gloss').style.display='flex';
     document.getElementById('gloss-go').onclick=function(){
       document.getElementById('gloss').style.display='none';
-      fetch('/api/adm',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({action:mark?'mark_test':'unmark_test',emails:emails})})
-        .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
-        .then(function(x){if(x.ok){MSG={ok:true,text:t('write_ok',{n:x.j.changed})};SEL={};render();load();}else{MSG={ok:false,text:t('write_err',{m:(x.j&&x.j.error)||''})};render();}})
-        .catch(function(e){MSG={ok:false,text:t('write_err',{m:String(e&&e.message||e)})};render();});
+      var body={action:mark?'mark_test':'unmark_test',emails:emails};
+      function send(retried){
+        AUTH.api('POST',body).then(function(x){
+          if(x.expired){showExpired();return;}
+          if(x.noauth){showNoauth();return;}
+          if(x.stepUp){if(retried){MSG={ok:false,text:t('write_err',{m:t('li_err_code')})};render();return;}openStepUp(function(){send(true);});return;}
+          if(x.status===200&&x.j){MSG={ok:true,text:t('write_ok',{n:x.j.changed})};SEL={};render();load();return;}
+          MSG={ok:false,text:t('write_err',{m:(x.j&&x.j.error)||(x.status?String(x.status):t('li_err_conn'))})};render();
+        });
+      }
+      if(AUTH.needsStepUp())openStepUp(function(){send(true);});else send(false);
     };
   };
   function navItems(){
@@ -947,12 +1135,116 @@
   function langSelect(){return '<select id="lang" title="Language">'+LANGS.map(function(l){return '<option value="'+l[0]+'"'+(l[0]===LANG?' selected':'')+'>'+l[1]+'</option>';}).join('')+'</select>';}
   function themeBtn(){var dark=curTheme()==='dark';return '<button id="theme" class="icon" title="'+esc(dark?t('theme_light'):t('theme_dark'))+'">'+(dark?'☀':'☾')+'</button>';}
 
+  // ---- 3.1 login screens (sign-in, code, first-time setup, not authorised, session expired)
+  var LI={screen:'boot',error:null,qr:null,secret:null,busy:false,email:''};
+  function liReset(screen){LI={screen:screen,error:null,qr:null,secret:null,busy:false,email:LI.email||''};}
+  function liHeader(){return '<header class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div><div class="controls">'+langSelect()+themeBtn()+'</div></header>';}
+  function liSteps(n){return '<div class="lsteps"><span class="on"></span><span'+(n>1?' class="on"':'')+'></span></div>';}
+  function liMsg(){return LI.error?'<p class="lmsg err" role="alert">'+esc(t(LI.error))+'</p>':'';}
+  function liCode(){return '<div class="lfld"><label for="li-code">'+esc(t('li_code'))+'</label><input class="linp code'+(LI.error==='li_err_code'?' errb':'')+'" id="li-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="______"></div>';}
+  function liBtn(key){return '<button class="lbtn" type="submit"'+(LI.busy?' disabled':'')+'>'+esc(t(key))+'</button>';}
+  function groupKey(k){return String(k||'').replace(/(.{4})(?=.)/g,'$1 ');}
+  function renderLogin(){
+    clearCharts();
+    var sc=LI.screen,c;
+    if(sc==='signin'){
+      var eb=LI.error==='li_err_creds'?' errb':'';
+      c='<form class="lcard" id="li-form" novalidate>'+liSteps(1)+'<h4>'+esc(t('li_signin_title'))+'</h4><p class="lsub">'+esc(t('li_signin_sub'))+'</p>'
+        +'<div class="lfld"><label for="li-email">'+esc(t('li_email'))+'</label><input class="linp'+eb+'" id="li-email" type="email" autocomplete="username" placeholder="'+esc(t('li_email_ph'))+'" value="'+esc(LI.email)+'"></div>'
+        +'<div class="lfld"><label for="li-password">'+esc(t('li_password'))+'</label><input class="linp'+eb+'" id="li-password" type="password" autocomplete="current-password"></div>'
+        +liMsg()+liBtn('li_continue')+'<p class="lfine">'+esc(t('li_fine'))+'</p></form>';
+    } else if(sc==='code'){
+      c='<form class="lcard" id="li-form" novalidate>'+liSteps(2)+'<h4>'+esc(t('li_code_title'))+'</h4><p class="lsub">'+esc(t('li_code_sub'))+'</p>'
+        +liCode()+liMsg()+liBtn('li_verify')+'<button class="llink" type="button" id="li-back">'+esc(t('li_back'))+'</button></form>';
+    } else if(sc==='enrol'){
+      var qr=LI.qr?'<div class="lqr"><span class="qrw"><img alt="'+esc(t('li_qr_alt'))+'" src="data:image/svg+xml;utf-8,'+encodeURIComponent(LI.qr)+'"></span><div class="key">'+esc(t('li_enrol_key'))+'<code>'+esc(groupKey(LI.secret))+'</code></div></div>'
+        :(LI.error?'':'<p class="lsub">'+esc(t('loading'))+'</p>');
+      c='<form class="lcard" id="li-form" novalidate>'+liSteps(2)+'<h4>'+esc(t('li_enrol_title'))+'</h4><p class="lsub">'+esc(t('li_enrol_sub'))+'</p>'
+        +qr+liCode()+liMsg()+liBtn('li_enrol_on')+'</form>';
+    } else if(sc==='noauth'){
+      c='<div class="lcard"><h4>'+esc(t('li_noauth_title'))+'</h4><p class="lsub">'+esc(t('li_noauth_sub'))+'</p><p class="lwho">'+esc(t('li_signed_as'))+' <b>'+esc(AUTH.email())+'</b></p><button class="lbtn sec" type="button" id="li-out">'+esc(t('li_signout'))+'</button></div>';
+    } else if(sc==='expired'){
+      c='<div class="lcard"><h4>'+esc(t('li_exp_title'))+'</h4><p class="lsub">'+esc(t('li_exp_sub'))+'</p><button class="lbtn" type="button" id="li-again">'+esc(t('li_exp_again'))+'</button></div>';
+    } else c='<div class="center">'+esc(t('loading'))+'</div>';
+    app.innerHTML=liHeader()+c;
+    bindChrome(renderLogin);
+    var f=document.getElementById('li-form');
+    if(f)f.onsubmit=function(ev){ev.preventDefault();liSubmit();};
+    var el;
+    if((el=document.getElementById('li-back')))el.onclick=function(){AUTH.signOut();liReset('signin');renderLogin();};
+    if((el=document.getElementById('li-out')))el.onclick=function(){AUTH.signOut().then(function(){liReset('signin');renderLogin();});};
+    if((el=document.getElementById('li-again')))el.onclick=function(){liReset('signin');renderLogin();};
+    var focus=document.getElementById(sc==='signin'?(LI.email?'li-password':'li-email'):'li-code');
+    if(focus&&!LI.busy)try{focus.focus();}catch(e){}
+  }
+  function liSubmit(){
+    if(LI.busy)return;
+    var sc=LI.screen;
+    LI.busy=true;LI.error=null;
+    if(sc==='signin'){
+      LI.email=(document.getElementById('li-email').value||'').trim();
+      var pw=document.getElementById('li-password').value||'';
+      renderLogin();
+      AUTH.signIn(LI.email,pw).then(function(r){
+        LI.busy=false;
+        if(r.error){LI.error=r.error;renderLogin();return;}
+        LI.screen=r.screen;renderLogin();
+        if(r.screen==='enrol')AUTH.enrol().then(function(x){if(x.error)LI.error=x.error;else{LI.qr=x.qr;LI.secret=x.secret;}renderLogin();});
+      });
+    } else {
+      var code=(document.getElementById('li-code')||{}).value||'';
+      renderLogin();
+      AUTH.verify(code).then(function(r){
+        LI.busy=false;
+        if(r.error){LI.error=r.error;renderLogin();return;}
+        if(r.screen==='panel'){liReset('panel');startPanel();return;}
+        liReset(r.screen);renderLogin();
+      });
+    }
+  }
+  function showExpired(){closeStepUp();liReset('expired');renderLogin();}
+  function showNoauth(){closeStepUp();liReset('noauth');renderLogin();}
+  function startPanel(){LI.screen='panel';load();}
+
+  // ---- step-up dialog: a change more than 15 min after the last code asks for a fresh one (AU3)
+  var SU_DONE=null;
+  function suEl(id){return document.getElementById(id);}
+  function openStepUp(done){
+    SU_DONE=done;
+    suEl('su-t').textContent=t('li_step_title');suEl('su-p').textContent=t('li_step_sub');suEl('su-l').textContent=t('li_code');
+    suEl('su-cancel').textContent=t('btn_cancel');suEl('su-go').textContent=t('btn_confirm');
+    var er=suEl('su-err');er.hidden=true;er.textContent='';
+    var inp=suEl('su-code');inp.value='';inp.classList.remove('errb');
+    suEl('su-go').disabled=false;
+    suEl('stepup').style.display='flex';
+    setTimeout(function(){try{inp.focus();}catch(e){}},0);
+  }
+  function closeStepUp(){var el=suEl('stepup');if(el)el.style.display='none';SU_DONE=null;}
+  suEl('su-cancel').onclick=closeStepUp;
+  suEl('su-form').onsubmit=function(ev){
+    ev.preventDefault();
+    var go=suEl('su-go'),er=suEl('su-err'),inp=suEl('su-code');
+    go.disabled=true;
+    AUTH.stepUp(inp.value).then(function(r){
+      go.disabled=false;
+      if(r.expired){showExpired();return;}
+      if(r.error){er.textContent=t(r.error);er.hidden=false;inp.classList.add('errb');inp.value='';try{inp.focus();}catch(e){}return;}
+      var done=SU_DONE;closeStepUp();if(done)done();
+    });
+  };
+
+  // Language and theme controls, shared by the login screens and the panel.
+  function bindChrome(rr){
+    document.getElementById('lang').onchange=function(){LANG=this.value;try{localStorage.setItem('dt_adm_lang',LANG);}catch(e){}periods=periods.map(function(p){return periodFor(gran,p.start);});rr();};
+    document.getElementById('theme').onclick=function(){var toLight=curTheme()!=='light';if(toLight)document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');try{localStorage.setItem('dt_adm_theme',toLight?'light':'dark');}catch(e){}rr();};
+  }
+
   function render(){
     clearCharts();
     var h='<header class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div>'
       +'<div class="controls">'+langSelect()+themeBtn()
       +'<span class="meta">'+t('updated',{d:esc(new Date(D.generated_at||Date.now()).toLocaleString(LANG))})+'</span>'
-      +'<button id="refresh">'+t('refresh')+'</button></div></header>';
+      +'<button id="refresh">'+t('refresh')+'</button><button id="signout">'+esc(t('li_signout'))+'</button></div></header>';
     h+=tabsBar();
     h+='<nav class="sections">'+navItems().map(function(n){return '<a href="#'+n[0]+'">'+t(n[1])+'</a>';}).join('')+'</nav>';
     if(TAB==='mgmt'){
@@ -970,8 +1262,8 @@
     app.innerHTML=h;
     if(TAB==='mgmt'){if(MG)drawCharts();} else if(TAB==='details'){drawCmp();drawEngagement();}
     document.getElementById('refresh').onclick=load;
-    document.getElementById('lang').onchange=function(){LANG=this.value;try{localStorage.setItem('dt_adm_lang',LANG);}catch(e){}periods=periods.map(function(p){return periodFor(gran,p.start);});render();};
-    document.getElementById('theme').onclick=function(){var toLight=curTheme()!=='light';if(toLight)document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');try{localStorage.setItem('dt_adm_theme',toLight?'light':'dark');}catch(e){}render();};
+    document.getElementById('signout').onclick=function(){AUTH.signOut().then(function(){D={};MG=null;liReset('signin');renderLogin();});};
+    bindChrome(render);
   }
   window.setGran=function(g){gran=g;periods=presets(g);render();};
   window.setTab=function(x){TAB=(x==='details'||x==='accounts')?x:'mgmt';try{localStorage.setItem('dt_adm_tab',TAB);}catch(e){}render();};
@@ -981,11 +1273,15 @@
 
   function load(){
     app.innerHTML='<div class="center">'+t('loading')+'</div>';
-    fetch('/api/adm',{headers:{Authorization:'Bearer '+token}}).then(function(r){
-      if(r.status===401){try{sessionStorage.removeItem('dt_adm_token');}catch(e){}token='';throw new Error(t('err_unauth'));}
-      if(r.status===503)throw new Error(t('err_notconf'));
-      if(!r.ok)throw new Error(t('err_failed',{n:r.status}));return r.json();
+    AUTH.api('GET').then(function(x){
+      if(x.expired){showExpired();return null;}
+      if(x.noauth){showNoauth();return null;}
+      if(x.status===0)throw new Error(t('li_err_conn'));
+      if(x.status===503)throw new Error(t('err_notconf'));
+      if(x.status!==200||!x.j)throw new Error(t('err_failed',{n:x.status}));
+      return x.j;
     }).then(function(payload){
+      if(!payload)return;
       var S=payload.sources||{};var sb=S.supabase||{};
       RC=S.revenuecat||{};AP=S.apple||{};GP=S.google_play||{};
       if(sb.status!=='ok'||!sb.data){app.innerHTML='<div class="center">'+t('supabase_status',{s:esc(sb.status||'')})+(sb.message?(' — '+esc(sb.message)):'')+'</div>';return;}
@@ -996,14 +1292,10 @@
       render();
     }).catch(function(e){app.innerHTML='<div class="center">'+esc(e.message||e)+'</div>';});
   }
-  // No token in this session? Prompt once and keep it in sessionStorage (cleared
-  // when the tab closes). A 401 removes it, so a reload asks again.
-  if(!token){
-    try{ token=(window.prompt('Admin token')||'').trim(); }catch(e){ token=''; }
-    if(token){ try{ sessionStorage.setItem('dt_adm_token',token); }catch(e){} }
-  }
-  if(!token){app.innerHTML='<div class="center">'+t('need_link')+'</div>';return;}
-  load();
+  // 3.1: no token prompt. A stored aal2 session (12 h at most) opens the panel; otherwise the sign-in
+  // screen. An open panel turns into "session expired" when the 12 h pass, with no further request.
+  AUTH.start().then(function(r){if(r.screen==='panel')startPanel();else{liReset(r.screen);renderLogin();}});
+  setInterval(function(){if(AUTH.expiredNow()){AUTH.drop();showExpired();}},30000);
 })();
 </script>
 </body>

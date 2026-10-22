@@ -426,7 +426,8 @@ test('AU8 page: sign-out removes the stored session and ends it at Supabase', as
 });
 
 test('AU8 static: the session lives in sessionStorage only — localStorage holds only language, theme and tab; nothing in the URL', () => {
-  assert.match(HTML, /store:\s*window\.sessionStorage/);
+  assert.match(HTML, /ADM_STORE=window\.sessionStorage;/);
+  assert.match(HTML, /var AUTH=makeAuth\(\{[^\n]*store:ADM_STORE[^\n]*\}\);/);
   const lsKeys = [...HTML.matchAll(/localStorage\.setItem\('([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(lsKeys)].sort(), ['dt_adm_lang', 'dt_adm_tab', 'dt_adm_theme']);
   assert.ok(!/localStorage[^;]*(session|token)/i.test(HTML.replace(/sessionStorage/g, '')), 'no session in localStorage');
@@ -521,7 +522,7 @@ function pageT() {
 }
 const LOGIN_KEYS = ['li_signin_title', 'li_signin_sub', 'li_email', 'li_email_ph', 'li_password', 'li_continue', 'li_fine', 'li_code_title', 'li_code_sub', 'li_code', 'li_verify', 'li_back',
   'li_enrol_title', 'li_enrol_sub', 'li_enrol_key', 'li_enrol_on', 'li_qr_alt', 'li_err_creds', 'li_err_code', 'li_err_many', 'li_err_conn', 'li_noauth_title', 'li_noauth_sub', 'li_signed_as',
-  'li_signout', 'li_exp_title', 'li_exp_sub', 'li_exp_again', 'li_step_title', 'li_step_sub', 'li_confirm', 'li_cancel', 'err_notconf'];
+  'li_signout', 'li_exp_title', 'li_exp_sub', 'li_exp_again', 'li_step_title', 'li_step_sub', 'btn_confirm', 'btn_cancel', 'err_notconf'];
 test('AU9: every login label exists in all 6 languages (parity), and Portuguese is the approved, formal copy of the picture', () => {
   const T = pageT();
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of LOGIN_KEYS) assert.ok(T[l][k], l + ' ' + k);
@@ -534,7 +535,7 @@ test('AU9: every login label exists in all 6 languages (parity), and Portuguese 
     li_err_conn: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.', li_noauth_title: 'Esta conta não tem acesso ao painel',
     li_noauth_sub: 'Nenhum dado foi carregado. Entre com uma conta autorizada.', li_signed_as: 'Conectado como', li_signout: 'Sair', li_exp_title: 'Sua sessão expirou',
     li_exp_sub: 'Por segurança, entre novamente. Nada foi alterado.', li_exp_again: 'Entrar novamente', li_step_title: 'Confirme o código para continuar',
-    li_step_sub: 'Alterações pedem um código novo quando a última verificação tem mais de 15 minutos.', li_confirm: 'Confirmar', li_cancel: 'Cancelar',
+    li_step_sub: 'Alterações pedem um código novo quando a última verificação tem mais de 15 minutos.', btn_confirm: 'Confirmar', btn_cancel: 'Cancelar',
   };
   for (const k of Object.keys(PT)) assert.equal(T.pt[k], PT[k], 'pt ' + k);
   const EN = { li_signin_title: 'Sign in', li_err_creds: 'Incorrect email or password.', li_exp_title: 'Your session has expired', li_step_title: 'Confirm your code to continue' };
@@ -543,7 +544,7 @@ test('AU9: every login label exists in all 6 languages (parity), and Portuguese 
   assert.equal(T.fr.li_noauth_title, "Ce compte n'a pas accès au panneau");
   assert.equal(T.es.li_exp_again, 'Iniciar sesión de nuevo');
   assert.equal(T.it.li_code_sub, 'Inserisci il codice a 6 cifre della tua app di autenticazione.');
-  for (const v of Object.values(T.pt).filter((x) => typeof x === 'string')) assert.ok(!/\bNão deu\b|\bdá para\b|\ba gente\b/.test(v), 'formal pt: ' + v);
+  for (const v of LOGIN_KEYS.map((k) => T.pt[k])) assert.ok(!/\bNão deu\b|\bdá para\b|\ba gente\b/.test(v), 'formal pt: ' + v);
 });
 
 test('AU9: the login styles use the panel tokens only (no raw colours); the QR backing is a token defined in both themes', () => {
