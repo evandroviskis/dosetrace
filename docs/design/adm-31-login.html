@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login do painel</title>
+<style>
+/* Page chrome: the panel's own tokens (web/adm.html), light by default, dark by system setting. */
+:root{--pg-bg:#EEF3F9;--pg-card:#FFFFFF;--pg-ink:#0C2340;--pg-muted:#5A7085;--pg-line:#D6E0EC;--pg-accent:#2A78C2}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--pg-bg:#0C1B2E;--pg-card:#12263C;--pg-ink:#EAF2FB;--pg-muted:#8FA6BD;--pg-line:#22405f;--pg-accent:#4FA3E8}}
+:root[data-theme="dark"]{--pg-bg:#0C1B2E;--pg-card:#12263C;--pg-ink:#EAF2FB;--pg-muted:#8FA6BD;--pg-line:#22405f;--pg-accent:#4FA3E8}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--pg-bg);color:var(--pg-ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header.pg,section.pg,.notes{max-width:1240px;margin:0 auto;padding:0 16px}
+header.pg{padding-top:28px}
+h1{font-size:24px;margin:0 0 8px;letter-spacing:-.3px}
+.lead{color:var(--pg-muted);margin:0 0 12px;max-width:80ch}
+.box{background:var(--pg-card);border:1px solid var(--pg-line);border-radius:16px;padding:14px 18px;margin:14px 0 4px}
+.box h3{margin:0 0 6px;font-size:16px}
+.box ol,.box ul{margin:6px 0 4px;padding-left:20px}
+.box li{margin:6px 0}
+.rec{color:var(--pg-muted)}
+.rec b{color:var(--pg-ink)}
+h2.st{font-size:18px;margin:40px 0 4px}
+.st-lead{color:var(--pg-muted);margin:0 0 14px;max-width:80ch}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(470px,100%),1fr));gap:22px 18px}
+.cols3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:22px 18px}
+figure{margin:0;min-width:0}
+figcaption{font-size:13px;font-weight:700;color:var(--pg-muted);margin:0 0 8px}
+.langs{font-size:12px;line-height:1.5;color:var(--pg-muted);margin-top:10px}
+.langs b{color:var(--pg-ink);font-weight:700}
+.langs div{margin:2px 0}
+.notes{margin-top:40px;margin-bottom:56px;color:var(--pg-muted);font-size:13px}
+
+/* ---------- mock frames: exact tokens copied from web/adm.html :root (dark) and [data-theme=light] ---------- */
+.t-dark{--bg:#0C1B2E;--surface:#12263C;--surface2:#183454;--line:#22405f;--ink:#EAF2FB;--muted:#8FA6BD;--accent:#4FA3E8;--accent2:#46C6EE;--good:#2CD3A7;--warn:#E8B54F;--bad:#E8776B;--navbg:rgba(12,27,46,.92);--accent-ink:#04121f;--scrim:rgba(4,10,18,.6)}
+.t-light{--bg:#EEF3F9;--surface:#FFFFFF;--surface2:#F1F5FA;--line:#D6E0EC;--ink:#0C2340;--muted:#5A7085;--accent:#2A78C2;--accent2:#2AA0C8;--good:#159A78;--warn:#B5831C;--bad:#CC4B3D;--navbg:rgba(238,243,249,.92);--accent-ink:#FFFFFF;--scrim:rgba(12,27,46,.45)}
+.win{border:1px solid var(--pg-line);border-radius:12px;overflow:hidden;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;position:relative}
+.urlbar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface2);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.urlbar .u{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:2px 12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.urlbar .thm{font-weight:700;white-space:nowrap}
+.pnl{padding:16px 18px 28px;min-height:420px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;letter-spacing:-.01em}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.ctl{display:flex;gap:8px;align-items:center}
+.sel,.ibtn{font:inherit;font-size:13px;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:5px 10px}
+.ibtn{padding:5px 10px;line-height:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 22px 18px;max-width:380px;margin:34px auto 0}
+.card h4{margin:0 0 4px;font-size:18px;letter-spacing:-.01em}
+.card .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.fld{margin:0 0 12px}
+.fld label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 4px}
+.inp{display:block;width:100%;font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;min-height:38px}
+.inp.ph{color:var(--muted)}
+.inp.focus{border-color:var(--accent)}
+.inp.errb{border-color:var(--bad)}
+.inp.code{font-size:22px;letter-spacing:.42em;text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
+.btn{display:block;width:100%;font:inherit;font-weight:700;text-align:center;border-radius:9px;padding:9px 13px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);margin-top:4px}
+.btn.sec{background:var(--surface2);border-color:var(--line);color:var(--ink);font-weight:600}
+.btns{display:flex;gap:8px;margin-top:6px}
+.btns .btn{margin-top:0}
+.link{display:block;text-align:center;margin-top:12px;font-size:13px;color:var(--accent)}
+.fine{color:var(--muted);font-size:12px;margin:12px 0 0;text-align:center}
+.msg{font-size:13px;margin:0 0 12px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface2)}
+.msg.err{color:var(--bad)}
+.who{font-size:13px;color:var(--muted);margin:0 0 14px}
+.who b{color:var(--ink);font-weight:600}
+.qr{display:flex;gap:14px;align-items:center;margin:0 0 14px}
+.qrw{flex:none;display:block}
+.qr svg{display:block;flex:none;width:112px;height:112px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px}
+.qr .key{font-size:12px;color:var(--muted)}
+.qr .key code{display:block;margin-top:4px;color:var(--ink);font-size:12.5px;background:var(--surface2);border-radius:5px;padding:3px 6px;letter-spacing:.05em}
+.steps{display:flex;gap:6px;margin:0 0 14px}
+.steps span{flex:1;height:4px;border-radius:2px;background:var(--surface2)}
+.steps span.on{background:var(--accent)}
+.boot{min-height:420px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+/* "Hoje": the browser's own prompt box, drawn with panel tokens only as an approximation */
+.native{position:absolute;left:50%;top:58px;transform:translateX(-50%);width:min(340px,86%);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 10px 30px var(--scrim);font-size:13px}
+.native .o{font-weight:700;margin:0 0 6px}
+.native .btns{justify-content:flex-end}
+.native .btns .btn{width:auto;padding:5px 14px;font-size:13px}
+/* step-up dialog over the panel */
+.behind{opacity:.9}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.kpi .l{color:var(--muted);font-size:11.5px;font-weight:600}
+.kpi .v{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.tabs{display:flex;gap:6px;margin:12px 0 0;flex-wrap:wrap}
+.tabs span{font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--surface2);border-radius:9px;padding:5px 11px}
+.tabs span.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:16px}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;max-width:380px;width:100%}
+.dlg h4{margin:0 0 6px;font-size:16px}
+.dlg p{margin:0 0 14px;color:var(--muted);font-size:13px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--pg-line);color:var(--pg-muted);margin-left:6px;vertical-align:middle}
+@media(max-width:480px){.card{padding:18px 16px 16px;margin-top:22px}.pnl{padding:12px 12px 22px}.kpis{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<header class="pg">
+  <h1>Painel admin · 3.1 Entrada com login</h1>
+  <p class="lead">Como o painel pede acesso hoje e como ficaria a entrada com conta, senha e código de 6 dígitos. Cada tela aparece no tema claro e no escuro, com as cores do próprio painel (<code>web/adm.html</code>). O texto principal está em português; os outros 5 idiomas aparecem em letra pequena sob cada tela. Nada foi construído: é só a imagem para o senhor escolher.</p>
+
+  <div class="box">
+    <h3>Para você decidir</h3>
+    <ol>
+      <li><b>Qual conta entra no painel?</b><br>
+        (a) Uma conta nova, só para o painel (um endereço que o senhor escolher), com senha e código.<br>
+        (b) A sua conta do app.<br>
+        <span class="rec"><b>Recomendação: (a).</b> O acesso de administrador fica separado dos seus dados no app; se a senha do app vazar, o painel continua fechado. A conta nova é marcada como conta de teste e não entra em nenhum número.</span></li>
+      <li><b>Por quanto tempo a sessão vale?</b><br>
+        (a) Até fechar a aba ou 8 horas. (b) Até fechar a aba ou 12 horas. (c) Só até fechar a aba.<br>
+        <span class="rec"><b>Recomendação: (b) 12 horas.</b> Cobre um dia de trabalho sem entrar de novo. As alterações (Premium, marcar teste, reenviar e-mail) pedem um código novo depois de 15 minutos de qualquer forma.</span></li>
+      <li><b>Reserva para o código de 6 dígitos</b><br>
+        (a) Dois autenticadores cadastrados: o do celular e o do gerenciador de senhas.<br>
+        (b) Um só; se o celular se perder, o código é removido pelo painel do Supabase e cadastrado de novo.<br>
+        <span class="rec"><b>Recomendação: (a).</b> O Supabase não oferece códigos de recuperação. Com um segundo autenticador, perder o celular não tranca o senhor fora do painel.</span></li>
+    </ol>
+  </div>
+
+  <div class="box">
+    <h3>Já decidido</h3>
+    <ul>
+      <li><b>O login vem antes de qualquer alteração pelo painel</b> (ordem do senhor, 21/10: login → Premium → aba Usuários → …). O token compartilhado de hoje não identifica quem agiu.</li>
+      <li><b>E-mail, senha e código de 6 dígitos (TOTP)</b>, com a lista de contas autorizadas no servidor. Uma conta fora da lista não recebe nenhum dado.</li>
+      <li><b>O pedido de token some na mesma entrega</b> (regra "refazer = substituir"). Se o login falhar, volta-se à versão anterior na Vercel, sem uma segunda porta.</li>
+      <li><b>Nenhuma configuração geral de login do Supabase muda.</b> Ela vale também para os usuários do app; o painel controla a própria sessão no servidor.</li>
+      <li><b>Sem "Esqueci a senha" no painel.</b> A recuperação é feita pelo painel do Supabase, que só o senhor acessa.</li>
+      <li><b>A sessão fica guardada só na aba</b>, nunca no endereço da página.</li>
+      <li><b>Alterações pedem um código novo</b> quando a última verificação tem mais de 15 minutos.</li>
+      <li>Cores só dos tokens do painel, 6 idiomas, português formal.</li>
+    </ul>
+  </div>
+</header>
+
+<!-- ============ 1. Hoje | Proposta ============ -->
+<section class="pg">
+  <h2 class="st">1. Hoje | Proposta</h2>
+  <p class="st-lead">Hoje o navegador abre uma caixa pedindo o token de administrador (desenhada aqui com as cores do painel; a aparência real é a do navegador). Na proposta, o painel tem a própria tela de entrada.</p>
+  <div class="cols">
+    <figure><figcaption>Hoje · escuro</figcaption>
+      <div class="win t-dark"><div class="urlbar"><span class="u">dosetrace.io/adm</span></div>
+        <div class="boot">Loading…</div>
+        <div class="native"><p class="o">dosetrace.io diz</p><p style="margin:0 0 8px">Admin token</p><div class="inp" style="min-height:32px"></div><div class="btns" style="margin-top:10px"><span class="btn sec">Cancelar</span><span class="btn">OK</span></div></div>
+      </div>
+      <div class="langs">Sem token: "Esta página precisa do token de administrador. Recarregue a página para inseri-lo." A caixa do navegador não traduz "Admin token".</div>
+    </figure>
+    <figure><figcaption>Proposta · escuro</figcaption>
+      <div class="win t-dark"><div class="urlbar"><span class="u">dosetrace.io/adm</span></div>
+        <div class="pnl"><div class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div><div class="ctl"><span class="sel">Português ▾</span><span class="ibtn">☀</span></div></div>
+          <div class="card"><div class="steps"><span class="on"></span><span></span></div>
+            <h4>Entrar</h4><p class="sub">Acesso restrito a contas autorizadas.</p>
+            <div class="fld"><label>E-mail</label><div class="inp ph">nome@exemplo.com</div></div>
+            <div class="fld"><label>Senha</label><div class="inp ph">••••••••••</div></div>
+            <span class="btn">Continuar</span>
+            <p class="fine">A sessão termina ao fechar a aba ou após 12 horas.</p>
+          </div></div>
+      </div>
+    </figure>
+    <figure><figcaption>Hoje · claro</figcaption>
+      <div class="win t-light"><div class="urlbar"><span class="u">dosetrace.io/adm</span></div>
+        <div class="boot">Loading…</div>
+        <div class="native"><p class="o">dosetrace.io diz</p><p style="margin:0 0 8px">Admin token</p><div class="inp" style="min-height:32px"></div><div class="btns" style="margin-top:10px"><span class="btn sec">Cancelar</span><span class="btn">OK</span></div></div>
+      </div>
+    </figure>
+    <figure><figcaption>Proposta · claro</figcaption>
+      <div class="win t-light"><div class="urlbar"><span class="u">dosetrace.io/adm</span></div>
+        <div class="pnl"><div class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div><div class="ctl"><span class="sel">Português ▾</span><span class="ibtn">☾</span></div></div>
+          <div class="card"><div class="steps"><span class="on"></span><span></span></div>
+            <h4>Entrar</h4><p class="sub">Acesso restrito a contas autorizadas.</p>
+            <div class="fld"><label>E-mail</label><div class="inp ph">nome@exemplo.com</div></div>
+            <div class="fld"><label>Senha</label><div class="inp ph">••••••••••</div></div>
+            <span class="btn">Continuar</span>
+            <p class="fine">A sessão termina ao fechar a aba ou após 12 horas.</p>
+          </div></div>
+      </div>
+      <div class="langs">
+        <div><b>en</b> Sign in · Access is limited to authorised accounts. · Email · Password · Continue · Your session ends when you close the tab or after 12 hours.</div>
+        <div><b>es</b> Iniciar sesión · Acceso solo para cuentas autorizadas. · Correo electrónico · Contraseña · Continuar · La sesión termina al cerrar la pestaña o a las 12 horas.</div>
+        <div><b>fr</b> Connexion · Accès réservé aux comptes autorisés. · Adresse e-mail · Mot de passe · Continuer · La session se termine à la fermeture de l'onglet ou après 12 heures.</div>
+        <div><b>de</b> Anmelden · Zugang nur für freigegebene Konten. · E-Mail · Passwort · Weiter · Die Sitzung endet, wenn Sie den Tab schließen, spätestens nach 12 Stunden.</div>
+        <div><b>it</b> Accedi · Accesso riservato agli account autorizzati. · Email · Password · Continua · La sessione termina alla chiusura della scheda o dopo 12 ore.</div>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 2. Código de 6 dígitos ============ -->
+<section class="pg">
+  <h2 class="st">2. Código de verificação (toda entrada)</h2>
+  <p class="st-lead">Depois da senha, o código de 6 dígitos do aplicativo autenticador. Sem o código correto, nenhum dado é carregado.</p>
+  <div class="cols" id="s-code"></div>
+  <div class="langs">
+    <div><b>en</b> Verification code · Enter the 6-digit code from your authenticator app. · Verify · Back</div>
+    <div><b>es</b> Código de verificación · Introduce el código de 6 dígitos de tu app de autenticación. · Verificar · Volver</div>
+    <div><b>fr</b> Code de vérification · Saisissez le code à 6 chiffres de votre application d'authentification. · Vérifier · Retour</div>
+    <div><b>de</b> Bestätigungscode · Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein. · Bestätigen · Zurück</div>
+    <div><b>it</b> Codice di verifica · Inserisci il codice a 6 cifre della tua app di autenticazione. · Verifica · Indietro</div>
+  </div>
+</section>
+
+<!-- ============ 3. Primeira vez ============ -->
+<section class="pg">
+  <h2 class="st">3. Primeira vez: ativar o código</h2>
+  <p class="st-lead">Aparece uma única vez, para uma conta autorizada que ainda não tem autenticador. O código QR abaixo é ilustração; o real é gerado pelo Supabase e mostrado só nesta tela. Nos dois temas o código fica escuro sobre fundo claro (tokens do tema claro), porque muitos aplicativos autenticadores não leem um código invertido.</p>
+  <div class="cols" id="s-enrol"></div>
+  <div class="langs">
+    <div><b>en</b> Set up two-step verification · Scan the QR code with your authenticator app, then enter the 6-digit code. · Can't scan? Enter this key · Turn on</div>
+    <div><b>es</b> Activa la verificación en dos pasos · Escanea el código QR con tu app de autenticación e introduce el código de 6 dígitos. · ¿No puedes escanearlo? Introduce esta clave · Activar</div>
+    <div><b>fr</b> Activez la validation en deux étapes · Scannez le code QR avec votre application d'authentification, puis saisissez le code à 6 chiffres. · Impossible de scanner ? Saisissez cette clé · Activer</div>
+    <div><b>de</b> Zwei-Faktor-Authentifizierung einrichten · Scannen Sie den QR-Code mit Ihrer Authenticator-App und geben Sie den 6-stelligen Code ein. · Scannen nicht möglich? Diesen Schlüssel eingeben · Aktivieren</div>
+    <div><b>it</b> Attiva la verifica in due passaggi · Inquadra il codice QR con la tua app di autenticazione e inserisci il codice a 6 cifre. · Non riesci a inquadrarlo? Inserisci questa chiave · Attiva</div>
+  </div>
+</section>
+
+<!-- ============ 4. Erros ============ -->
+<section class="pg">
+  <h2 class="st">4. Erros</h2>
+  <p class="st-lead">A mensagem aparece acima do botão, na cor de erro do painel. O texto não diz se o erro foi no e-mail ou na senha, para não ajudar quem tenta adivinhar. As outras três mensagens usam o mesmo lugar.</p>
+  <div class="cols" id="s-err"></div>
+  <div class="langs">
+    <div><b>pt</b> E-mail ou senha incorretos. · Código incorreto ou expirado. Tente novamente. · Muitas tentativas. Aguarde 5 minutos e tente novamente. · Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.</div>
+    <div><b>en</b> Incorrect email or password. · Incorrect or expired code. Try again. · Too many attempts. Wait 5 minutes and try again. · Couldn't reach the server. Check your connection and try again.</div>
+    <div><b>es</b> Correo o contraseña incorrectos. · Código incorrecto o caducado. Inténtalo de nuevo. · Demasiados intentos. Espera 5 minutos y vuelve a intentarlo. · No se ha podido conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.</div>
+    <div><b>fr</b> Adresse e-mail ou mot de passe incorrect. · Code incorrect ou expiré. Réessayez. · Trop de tentatives. Patientez 5 minutes, puis réessayez. · Impossible de joindre le serveur. Vérifiez votre connexion, puis réessayez.</div>
+    <div><b>de</b> E-Mail oder Passwort ist falsch. · Code falsch oder abgelaufen. Bitte versuchen Sie es erneut. · Zu viele Versuche. Bitte warten Sie 5 Minuten und versuchen Sie es erneut. · Der Server ist nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.</div>
+    <div><b>it</b> Email o password errate. · Codice errato o scaduto. Riprova. · Troppi tentativi. Attendi 5 minuti e riprova. · Impossibile raggiungere il server. Controlla la connessione e riprova.</div>
+  </div>
+</section>
+
+<!-- ============ 5. Não autorizado | Sessão expirada ============ -->
+<section class="pg">
+  <h2 class="st">5. Conta sem acesso · Sessão expirada</h2>
+  <p class="st-lead">Conta sem acesso: entrou com senha e código, mas não está na lista. Sessão expirada: passou o tempo máximo (pergunta 2) ou a sessão foi recusada pelo servidor. Nos dois casos, nenhum dado aparece.</p>
+  <div class="cols" id="s-noauth"></div>
+  <div class="langs">
+    <div><b>en</b> This account can't access the panel · No data was loaded. Sign in with an authorised account. · Signed in as · Sign out &nbsp;|&nbsp; Your session has expired · For your security, sign in again. Nothing was changed. · Sign in again</div>
+    <div><b>es</b> Esta cuenta no tiene acceso al panel · No se ha cargado ningún dato. Inicia sesión con una cuenta autorizada. · Sesión iniciada como · Cerrar sesión &nbsp;|&nbsp; Tu sesión ha caducado · Por seguridad, vuelve a iniciar sesión. No se ha cambiado nada. · Iniciar sesión de nuevo</div>
+    <div><b>fr</b> Ce compte n'a pas accès au panneau · Aucune donnée n'a été chargée. Connectez-vous avec un compte autorisé. · Connecté en tant que · Se déconnecter &nbsp;|&nbsp; Votre session a expiré · Par sécurité, reconnectez-vous. Rien n'a été modifié. · Se reconnecter</div>
+    <div><b>de</b> Dieses Konto hat keinen Zugriff auf das Panel · Es wurden keine Daten geladen. Melden Sie sich mit einem freigegebenen Konto an. · Angemeldet als · Abmelden &nbsp;|&nbsp; Ihre Sitzung ist abgelaufen · Melden Sie sich aus Sicherheitsgründen erneut an. Es wurde nichts geändert. · Erneut anmelden</div>
+    <div><b>it</b> Questo account non ha accesso al pannello · Non è stato caricato alcun dato. Accedi con un account autorizzato. · Accesso effettuato come · Esci &nbsp;|&nbsp; La sessione è scaduta · Per sicurezza, accedi di nuovo. Non è stato modificato nulla. · Accedi di nuovo</div>
+  </div>
+</section>
+
+<!-- ============ 6. Código antes de uma alteração ============ -->
+<section class="pg">
+  <h2 class="st">6. Código antes de uma alteração</h2>
+  <p class="st-lead">Ao conceder Premium, marcar conta de teste ou reenviar e-mail, se a última verificação tiver mais de 15 minutos, o painel pede o código de novo antes de enviar. Ler os números nunca pede.</p>
+  <div class="cols" id="s-step"></div>
+  <div class="langs">
+    <div><b>en</b> Confirm your code to continue · Changes need a fresh code when your last check was more than 15 minutes ago. · Confirm · Cancel</div>
+    <div><b>es</b> Confirma el código para continuar · Para hacer cambios se pide un código nuevo si la última verificación fue hace más de 15 minutos. · Confirmar · Cancelar</div>
+    <div><b>fr</b> Confirmez le code pour continuer · Toute modification demande un nouveau code si la dernière vérification date de plus de 15 minutes. · Confirmer · Annuler</div>
+    <div><b>de</b> Code bestätigen, um fortzufahren · Für Änderungen ist ein neuer Code nötig, wenn die letzte Bestätigung mehr als 15 Minuten zurückliegt. · Bestätigen · Abbrechen</div>
+    <div><b>it</b> Conferma il codice per continuare · Per le modifiche serve un nuovo codice se l'ultima verifica risale a più di 15 minuti fa. · Conferma · Annulla</div>
+  </div>
+</section>
+
+<div class="notes">
+  <p>Fonte das cores: tokens <code>:root</code> (escuro) e <code>:root[data-theme="light"]</code> de <code>web/adm.html</code>, copiados sem alteração. Fonte: a mesma pilha de fontes do sistema do painel. Spec: <code>docs/specs/admin-panel.md</code>, Phase 3 › 3.1 (linhas AU1–AU9). Endereços de e-mail são exemplos.</p>
+</div>
+
+<script>
+(function(){
+  function top(dark){return '<div class="top"><div class="brand"><span class="dot"></span>DoseTrace Admin</div><div class="ctl"><span class="sel">Português ▾</span><span class="ibtn">'+(dark?'☀':'☾')+'</span></div></div>';}
+  function win(theme, inner, extra){return '<div class="win t-'+theme+'"><div class="urlbar"><span class="u">dosetrace.io/adm</span><span class="thm">'+(theme==='dark'?'escuro':'claro')+'</span></div>'+inner+(extra||'')+'</div>';}
+  function fig(cap, html){return '<figure><figcaption>'+cap+'</figcaption>'+html+'</figure>';}
+  function pnl(theme, card){return '<div class="pnl">'+top(theme==='dark')+card+'</div>';}
+  // Illustrative QR-like pattern (not a real code). Fill = --ink, on --surface.
+  function qr(){var n=21,s='';var seed=7;function r(){seed=(seed*16807)%2147483647;return seed/2147483647;}
+    function finder(x,y){return '<rect x="'+x+'" y="'+y+'" width="7" height="7" fill="var(--ink)"/><rect x="'+(x+1)+'" y="'+(y+1)+'" width="5" height="5" fill="var(--surface)"/><rect x="'+(x+2)+'" y="'+(y+2)+'" width="3" height="3" fill="var(--ink)"/>';}
+    for(var y=0;y<n;y++)for(var x=0;x<n;x++){var inF=(x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12);if(!inF&&r()>.52)s+='<rect x="'+x+'" y="'+y+'" width="1" height="1" fill="var(--ink)"/>';}
+    return '<span class="t-light qrw"><svg viewBox="0 0 21 21" aria-label="ilustração de código QR">'+s+finder(0,0)+finder(14,0)+finder(0,14)+'</svg></span>';}
+  var codeCard='<div class="card"><div class="steps"><span class="on"></span><span class="on"></span></div><h4>Código de verificação</h4><p class="sub">Digite o código de 6 dígitos do seu aplicativo autenticador.</p><div class="fld"><label>Código</label><div class="inp code focus">482 9<span style="opacity:.35">__</span></div></div><span class="btn">Verificar</span><span class="link">Voltar</span></div>';
+  var enrolCard=function(){return '<div class="card"><div class="steps"><span class="on"></span><span class="on"></span></div><h4>Ative a verificação em duas etapas</h4><p class="sub">Leia o código QR com o aplicativo autenticador e digite o código de 6 dígitos.</p><div class="qr">'+qr()+'<div class="key">Não consegue ler? Digite esta chave:<code>XXXX XXXX XXXX XXXX</code></div></div><div class="fld"><label>Código</label><div class="inp code ph">______</div></div><span class="btn">Ativar</span></div>';};
+  var errCard='<div class="card"><div class="steps"><span class="on"></span><span></span></div><h4>Entrar</h4><p class="sub">Acesso restrito a contas autorizadas.</p><div class="fld"><label>E-mail</label><div class="inp errb">nome@exemplo.com</div></div><div class="fld"><label>Senha</label><div class="inp errb">••••••••••</div></div><p class="msg err">E-mail ou senha incorretos.</p><span class="btn">Continuar</span></div>';
+  var noauthCard='<div class="card"><h4>Esta conta não tem acesso ao painel</h4><p class="sub">Nenhum dado foi carregado. Entre com uma conta autorizada.</p><p class="who">Conectado como <b>outra@exemplo.com</b></p><span class="btn sec">Sair</span></div>';
+  var expCard='<div class="card"><h4>Sua sessão expirou</h4><p class="sub">Por segurança, entre novamente. Nada foi alterado.</p><span class="btn">Entrar novamente</span></div>';
+  var behind=function(dark){return '<div class="pnl behind">'+top(dark)+'<div class="tabs"><span>Gestão</span><span>Detalhes</span><span class="on">Contas</span></div><div class="kpis"><div class="kpi"><div class="l">Novos clientes · 30 dias</div><div class="v">—</div></div><div class="kpi"><div class="l">Ativação</div><div class="v">—</div></div><div class="kpi"><div class="l">MRR</div><div class="v">—</div></div></div></div>';};
+  var stepDlg='<div class="scrim"><div class="dlg"><h4>Confirme o código para continuar</h4><p>Alterações pedem um código novo quando a última verificação tem mais de 15 minutos.</p><div class="fld"><label>Código</label><div class="inp code focus">______</div></div><div class="btns"><span class="btn sec">Cancelar</span><span class="btn">Confirmar</span></div></div></div>';
+  function both(id, build){var el=document.getElementById(id);el.innerHTML=['dark','light'].map(function(th){return fig((th==='dark'?'Escuro':'Claro'), build(th));}).join('');}
+  both('s-code',function(th){return win(th,pnl(th,codeCard));});
+  both('s-enrol',function(th){return win(th,pnl(th,enrolCard()));});
+  both('s-err',function(th){return win(th,pnl(th,errCard));});
+  var na=document.getElementById('s-noauth');
+  na.innerHTML=[['dark',noauthCard,'Conta sem acesso · escuro'],['light',noauthCard,'Conta sem acesso · claro'],['dark',expCard,'Sessão expirada · escuro'],['light',expCard,'Sessão expirada · claro']].map(function(x){return fig(x[2],win(x[0],pnl(x[0],x[1])));}).join('');
+  both('s-step',function(th){return win(th,behind(th==='dark'),stepDlg);});
+})();
+</script>
+</body>
+</html>
