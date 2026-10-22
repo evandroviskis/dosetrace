@@ -42,13 +42,8 @@ test('fold: the book, the responsive hook and every width-sized screen read the 
 const fs = require('node:fs');
 const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
-const ALLOWED_DIMENSIONS = [
-  {
-    file: 'components/BookPanes.js',
-    code: "isBook(width, height, Platform.OS, Dimensions.get('screen'))",
-    reason: 'posture only (BK-13: hinge vertical), never a size: width and height are the measured root, so the closed cover screen (411 wide) is one column whatever the screen says',
-  },
-];
+// A-161 (2026-10-22): BookPanes no longer reads the screen posture, so no direct read is left.
+const ALLOWED_DIMENSIONS = [];
 function sourceFiles() {
   const out = ['App.js'];
   const walk = (rel) => {

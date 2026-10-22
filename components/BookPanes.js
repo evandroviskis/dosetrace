@@ -2,7 +2,7 @@
 // Rules live in lib/bookLayout.js (tested); the open item per tab in lib/bookSelection.js.
 import { useEffect, useRef, useState } from 'react';
 import { useWindowSize } from '../lib/windowSize';
-import { View, StyleSheet, Platform, AccessibilityInfo, findNodeHandle, Dimensions } from 'react-native';
+import { View, StyleSheet, AccessibilityInfo, findNodeHandle } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../lib/theme';
 import { isBook, GUTTER, foldPlan, unfoldPlan } from '../lib/bookLayout';
@@ -11,8 +11,8 @@ import { getSelection, setSelection, onSelectionChange } from '../lib/bookSelect
 // BK-1: true when the window is wide and tall enough for two pages.
 export function useBook() {
   const { width, height } = useWindowSize(); // the measured window (lib/windowSize): folding updates it
-  // The measured window (lib/windowSize) follows every fold, rotation and resize; the screen gives the posture.
-  return isBook(width, height, Platform.OS, Dimensions.get('screen'));
+  // The measured window (lib/windowSize) follows every fold, rotation and resize (A-161: any orientation).
+  return isBook(width, height);
 }
 
 // The open item of a tab's right page (BK-8). `fallback` is the default when the user has

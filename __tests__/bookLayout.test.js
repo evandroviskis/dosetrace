@@ -112,17 +112,22 @@ test('F10: a real sign-out clears every open right-page item', () => {
   assert.match(app, /resetAllSelections\(\)/);
 });
 
-test('BK-13: on Android the two pages need the Fold held normally (hinge vertical); turned, one column', () => {
-  assert.equal(isBook(750, 790, 'android'), true, 'Z Fold 7 open, held normally (taller than wide)');
-  assert.equal(isBook(832, 720, 'android'), false, 'Z Fold 7 open, turned on its side: the fold would cross both pages');
-  assert.equal(isBook(904, 640, 'ios'), true, 'iPhone Duo rule unchanged until the 27.1 SDK build');
+// A-161 (founder 2026-10-22, on the Fold): the open Fold is nearly square both ways, so it shows two
+// pages in either orientation; BK-13 (one column on its side) is reversed. Folded / iPhone: one column.
+test('BK-13 (A-161): the open Fold shows two pages held upright AND on its side', () => {
+  assert.equal(isBook(750, 790), true, 'Z Fold 7 open, upright');
+  assert.equal(isBook(832, 690), true, 'Z Fold 7 open, on its side (taskbar shown)');
+  assert.equal(isBook(832, 690, 'android', { width: 832, height: 750 }), true, 'extra posture arguments from an old caller change nothing');
+  assert.equal(isBook(904, 640), true, 'any window at least 700 x 560');
+  assert.equal(isBook(412, 900), false, 'Fold folded / a phone in portrait');
+  assert.equal(isBook(956, 440), false, 'iPhone in landscape');
 });
 
 test('BK-21: BookPanes moves screen-reader focus to the right page when another item opens', () => {
   const src = readSrc('components/BookPanes.js');
   assert.match(src, /AccessibilityInfo\.setAccessibilityFocus/);
   assert.match(src, /\[rightKey\]/);
-  assert.match(src, /isBook\(width, height, Platform\.OS/, 'BK-13 uses the platform rule');
+  assert.match(src, /isBook\(width, height\)/, 'A-161: the window size alone decides');
 });
 
 // BK-22: a screen shown on a right page never navigates back or replaces the screen under it.
@@ -146,19 +151,8 @@ test('BK-14: a real sign-out also clears every kept draft (the next account neve
   assert.match(app.slice(i - 400, i + 200), /clearAllDrafts\(\)/);
 });
 
-// Council UX 2026-10-01: the Fold 7 inner screen is only ~10% taller than wide; with the
-// One UI taskbar and the status bar the WINDOW can become wider than tall while the phone
-// is held normally, so a window-based rule would never show two pages. The posture comes
-// from the physical SCREEN (bars included).
-test('BK-13: the Android posture comes from the physical screen, not the window', () => {
-  const screenNormal = { width: 750, height: 832 };
-  const screenTurned = { width: 832, height: 750 };
-  assert.equal(isBook(750, 700, 'android', screenNormal), true, 'held normally, window shortened by the taskbar');
-  assert.equal(isBook(832, 690, 'android', screenTurned), false, 'turned on its side');
-  assert.equal(isBook(750, 790, 'android'), true, 'no screen info: falls back to the window');
-});
-
-test('BK-13: useBook reads the screen dimensions for the posture', () => {
+test('A-161: useBook no longer reads the screen posture (the old BK-13 rule is gone, not kept as a fallback)', () => {
   const src = readSrc('components/BookPanes.js');
-  assert.match(src, /Dimensions\.get\('screen'\)/);
+  assert.doesNotMatch(src, /Dimensions\.get\('screen'\)/);
+  assert.doesNotMatch(readSrc('lib/bookLayout.js'), /screen\.height|platform !== 'android'/);
 });
