@@ -16,6 +16,7 @@ import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, 
 import { clearAIConsent } from './lib/aiConsent';
 import { clearAnalyticsQueue } from './lib/analytics';
 import { clearTeamMessages } from './lib/teamMessages';
+import { clearExportFile } from './lib/exportFile';
 import AccountLanguageSync from './components/AccountLanguageSync';
 import { TABLES, getPendingChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
@@ -490,6 +491,7 @@ export default function App() {
     forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY), // DV-242: whose data this phone holds
     clearAnalyticsQueue, // council regulatory review (1.3.1): queued analytics rows go with the account
     clearTeamMessages, // A-163: the kept copy of the team's messages goes with the account
+    clearExportFile, // A-167 council: the Download my data file goes with the account
   });
 
   // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).
@@ -510,6 +512,7 @@ export default function App() {
     clearAIConsent, // DV-007
     clearAnalyticsQueue, // the previous account's queued analytics rows (council regulatory review)
     clearTeamMessages, // A-163: the previous account's kept team messages
+    clearExportFile, // A-167 council: the previous account's export file
     getSession: async () => { const { data } = await supabase.auth.getSession(); return (data && data.session) || null; },
     ask: (a) => { lastAskRef.current = a; setAccountAsk(a); },
     // "Sign in as {previous} first": this account signs out on this phone only — not an intended

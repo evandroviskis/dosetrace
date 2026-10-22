@@ -29,7 +29,7 @@ test('A-167 guard: no app file calls a legacy method through the bare expo-file-
   const offenders = [];
   for (const f of ['App.js', ...files('lib'), ...files('screens'), ...files('components')]) {
     const s = fs.readFileSync(path.join(ROOT, f), 'utf8');
-    if (/(from\s+'expo-file-system'|require\('expo-file-system'\))/.test(s)) offenders.push(f);
+    if (/(from\s+['"]expo-file-system['"]|require\(['"]expo-file-system['"]\))/.test(s)) offenders.push(f); // council: either quote
   }
   assert.deepEqual(offenders, [], 'import legacy methods from expo-file-system/legacy');
 });
