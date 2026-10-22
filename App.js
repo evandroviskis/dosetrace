@@ -35,7 +35,7 @@ import { initPurchases, logOutPurchases } from './lib/purchases';
 import { registerReminderRefresh } from './lib/backgroundTasks';
 import { initNotifications, requestNotificationPermissions, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, syncFoodLogReminder, syncRealityCheckReminder, RC_START_KEY } from './lib/notifications';
 import { runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
-import { notifTapTarget, responseKey } from './lib/notificationPlan';
+import { notifTapTarget, responseKey, launchTapStale } from './lib/notificationPlan';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { ThemeProvider, useTheme } from './lib/theme';
@@ -619,8 +619,7 @@ export default function App() {
     const key = responseKey(response);
     if (routedRef.current.has(key)) return true;
     routedRef.current.add(key);
-    const at = Number(response?.notification?.date) || 0;
-    if (maxAgeMs && at && Date.now() - at > maxAgeMs) return true; // a stale launch response
+    if (launchTapStale(response, Date.now(), maxAgeMs)) return true; // a stale launch response (iOS dates are seconds)
     try {
       const raw = await AsyncStorage.getItem('dosetrace_nav_handled');
       const list = raw ? JSON.parse(raw) : [];
