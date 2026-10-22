@@ -111,7 +111,7 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 
 ### Phase 3 — Users, Premium and AI helper
 
-checklist-signed: pending (founder)
+checklist-signed: 2026-10-21 by the founder ("assino a fase 3 e aprovo o login"); the 3.1 login picture docs/design/adm-31-login.html approved the same day; built by Claude Code in the DoseTrace session (founder: "Faz aqui entao")
 
 **Status:** spec and pictures only (2026-10-21). Nothing is built, pushed, deployed or applied. Input: the handoff `docs/handoffs/admin-panel-users-premium-ai.md` in the main repo (sections 0–8) and the founder's answers to its section 8, **founder 2026-10-21 (via Cowork)**. No code starts until the founder signs this checklist and picks the picture of each screen.
 
