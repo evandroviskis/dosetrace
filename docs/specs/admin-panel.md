@@ -133,7 +133,7 @@ checklist-signed: pending (founder)
 - **Scope lines.** When this checklist is signed, the Scope lines "View-only" and "Out of scope until the founder specs them" above are rewritten to point here. That edit happens at signing, not now.
 
 #### 3.1 Admin login (prerequisite for every write)
-- **Founder answers to the 3.1 picture (2026-10-21, in chat):** the panel account is **his own app account, hello@dosetrace.io**, for now (Q1 = b; recommendation was a separate account — accepted risk: a test on that account, e.g. a password change or delete, also affects panel access; app tests run on the test account per the standing rule). Second factor: **an authenticator app (TOTP) only, never an e-mail code**. Session: **12 h**. Backup for the code (Q3): not answered yet — recommendation (a) enrol two authenticators (phone + password manager).
+- **Founder answers to the 3.1 picture (2026-10-21, in chat):** the panel account is **his own app account, hello@dosetrace.io**, for now (Q1 = b; recommendation was a separate account — accepted risk: a test on that account, e.g. a password change or delete, also affects panel access; app tests run on the test account per the standing rule). Second factor: **an authenticator app (TOTP) only, never an e-mail code**. Session: **12 h**. Backup for the code (Q3, founder 2026-10-21): one authenticator, Google Authenticator synced to his Google account (codes follow him to any phone); recovery if that account is lost: the factor is removed from the Supabase dashboard.
 
 
 **Design:**
