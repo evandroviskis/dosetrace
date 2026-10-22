@@ -35,6 +35,7 @@ import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { hasPremium } from '../../lib/entitlement';
+import { usePremiumUpdates } from '../../lib/usePremium';
 import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
 import { profileBodyInputs } from '../../lib/bodyProfile';
 import { activitySource, activityKeyForMultiplier, legacyActivity } from '../../lib/activityLevels';
@@ -218,6 +219,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   if (!screenSave.current) screenSave.current = createScreenSave(saveCalcInputs);
   const userIdRef = useRef(null);
   const migratedRef = useRef(false); // legacy metadata->table migration ran this session
+  // A-164: a Premium change made elsewhere applies while open (the free week follows it too).
+  usePremiumUpdates((pro) => {
+    setPremium(pro);
+    loadFoodAccess(userIdRef.current).then((r) => setRcFree(!!r.access.canLog)).catch(() => {});
+  });
 
   useFocusEffect(useCallback(() => { load(); }, []));
 

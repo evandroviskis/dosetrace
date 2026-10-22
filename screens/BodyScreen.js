@@ -17,6 +17,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
+import { usePremiumUpdates } from '../lib/usePremium';
 import { formatDate as localeDate, decimalText, inputNumber, MONTHS_SHORT } from '../lib/localeFormat';
 import { parseMeasure } from '../lib/doseMath';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -171,6 +172,7 @@ export default function BodyScreen({ navigation, route }) {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showSerumPreview, setShowSerumPreview] = useState(false);
   const [premium, setPremium] = useState(false);
+  usePremiumUpdates(setPremium); // A-164: a Premium change made elsewhere applies while open
   // DoseTrace sheets (MB-12, MB-13, MB-15, MB-25): `sheet` over the screen; `sourceChoice` the
   // bottom action sheet; `valueSheet` over Edit value; `exportSheet` over Choose what to export.
   const [sheet, setSheet] = useState(null);

@@ -38,6 +38,7 @@ import {
   getLogsSince, getActiveVials as getLocalVials,
 } from '../lib/database';
 import { hasPremium, getBillingStore } from '../lib/entitlement';
+import { usePremiumUpdates } from '../lib/usePremium';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
@@ -200,6 +201,8 @@ export default function SettingsScreen({ navigation }) {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [premium, setPremium] = useState(false);
+  // A-164: a grant/revoke made elsewhere updates the badge and the upgrade card while open.
+  usePremiumUpdates(setPremium);
   // Which store bills the Premium (undefined = not answered yet), for the delete sheet (3 C).
   const [billingStore, setBillingStore] = useState(undefined);
   const billingLoad = useRef(null);
