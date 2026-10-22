@@ -88,8 +88,11 @@ const ROWS = [
   ['protocols_total_doses_schedule', '120', true],
   ['protocols_compound_amount', `10${N}mg`, true],
   ['protocols_diluent_amount', `2${N}ml`, true],
-  ['protocols_concentration', `33,33${N}mg/ml`, true],
+  // A-166 (founder 2026-10-22): the computed powder concentration ends in "*", and the dose row
+  // is now "Dose you entered" — the longest label is German "Von dir eingegebene Dosis".
+  ['protocols_concentration', `33,33${N}mg/ml*`, true],
   ['protocols_desired_dose', `250${N}mcg`, true],
+  ['protocols_desired_dose', `1000${N}mcg`, true],
   ['protocols_dose_per_injection', `0,25${N}mg`, true],
   ['protocols_vial_size', `10${N}ml`, true],
   ['protocols_dose_amount', `1000${N}UI`, true],
