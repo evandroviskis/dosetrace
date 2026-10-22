@@ -769,13 +769,15 @@ test('PR11 static: the customer message uses the app\'s exact button words (rele
   }
 });
 
-test('PR11 page: after success the panel says when the app shows it (≈5 min open / next open / at once with Restore purchases), in 6 languages, and a re-read that does not show it yet says so', () => {
+// A-164 (2026-10-22, live run): the app only shows a Premium change after a cold start, so the panel no
+// longer promises "about 5 minutes with the app open" (founder: "Execute sua recomendação").
+test('PR11 page: after success the panel says when the app shows it (next open after closing it / at once with Restore purchases), in 6 languages, and a re-read that does not show it yet says so', () => {
   const T = pageT();
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
-    assert.match(T[l].pm_when, /5/, l + ' 5 minutes');
+    assert.doesNotMatch(T[l].pm_when, /5/, l + ' no 5-minute promise (A-164)');
     assert.ok(T[l].pm_when.includes(appWords()[l].restore), l + ' names the restore button');
   }
-  assert.equal(T.pt.pm_when, 'Quando o app mostra: em cerca de 5 minutos com o app aberto, ou na próxima vez que for aberto; na hora, ao tocar em Restaurar compras.');
+  assert.equal(T.pt.pm_when, 'Quando o app mostra: na próxima vez que a pessoa abrir o app depois de fechá-lo por completo, ou na hora, ao tocar em Restaurar compras.');
   const { P, t, esc } = premPure('en');
   const h = P.premDialogHtml(ST({ phase: 'done', result: { ok: true, action: 'grant', after: { premium: false, source: 'free', expires_at: null }, confirmed: false } }), t, esc);
   assert.ok(h.includes(t('pm_unconfirmed')));
