@@ -1,8 +1,9 @@
 // A-163 TM-17 (approved picture a163-messages.html, "A e B · Mensagens da equipe"): every message
 // the DoseTrace team sent to this account that was not withdrawn, newest first, read-only, with a
 // pointer to Settings › Support › Contact us for replies (there is no chat in the app). Opened
-// from Settings › Support › Team messages, a row that exists only after the first message.
-// Theme tokens only.
+// from Settings › Support › Team messages, a row that exists only after the first message — and from a
+// tap on a notification whose message was withdrawn (council 2026-10-22). When nothing is left
+// (everything withdrawn, also while the screen is open) one ink3 line says so. Theme tokens only.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,7 +14,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { getCachedUser } from '../lib/supabase';
 import { teamMessages, messageWhen } from '../lib/teamMessages';
-import { useTeamMessages } from '../lib/useTeamMessages';
+import { useTeamMessageList } from '../lib/useTeamMessages';
 
 export default function TeamMessagesScreen({ navigation }) {
   const { t, language, timeFormat } = useLanguage();
@@ -21,7 +22,7 @@ export default function TeamMessagesScreen({ navigation }) {
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [userId, setUserId] = useState(null);
   useEffect(() => { getCachedUser().then((u) => setUserId((u && u.id) || null)).catch(() => {}); }, []);
-  const list = useTeamMessages(userId);
+  const { list, loaded } = useTeamMessageList(userId);
   // The list is read again on every visit (a message withdrawn by the team disappears).
   useFocusEffect(useCallback(() => { teamMessages().refresh().catch(() => {}); }, []));
   const now = Date.now();
@@ -43,6 +44,9 @@ export default function TeamMessagesScreen({ navigation }) {
       </View>
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         <Text style={s.title} accessibilityRole="header">{t('settings_team_messages')}</Text>
+        {loaded && !list.length ? (
+          <Text style={s.empty}>{t('team_msgs_empty')}</Text>
+        ) : null}
         <View style={s.list}>
           {list.map((m) => (
             <View key={m.id} style={s.item}>
@@ -67,6 +71,7 @@ const makeStyles = (c) => StyleSheet.create({
   scroll: { flex: 1 },
   title: { fontSize: 34, lineHeight: 41, fontWeight: '700', color: c.ink, letterSpacing: -0.8, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 },
   list: { marginHorizontal: 16, marginTop: 10, gap: 10 },
+  empty: { marginHorizontal: 24, marginTop: 14, fontSize: 17, lineHeight: 22, color: c.ink3 },
   item: { backgroundColor: c.raised, borderRadius: 22, paddingVertical: 16, paddingHorizontal: 18, gap: 6 },
   date: { fontSize: 13, lineHeight: 18, color: c.ink3 },
   text: { fontSize: 17, lineHeight: 23, color: c.ink },

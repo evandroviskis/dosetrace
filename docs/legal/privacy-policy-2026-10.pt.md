@@ -15,7 +15,7 @@ Pontos que o texto abaixo deixa como estão, porque só um advogado pode decidir
 
 # DoseTrace — Política de Privacidade
 
-Última atualização: 16 de outubro de 2026
+Última atualização: 22 de outubro de 2026
 
 A Outcom (“nós”) opera o aplicativo DoseTrace para iPhone e Android. Esta política explica quais informações o app trata, para onde elas vão e o que você pode fazer a respeito. O DoseTrace é um diário pessoal e uma calculadora. Ele não dá orientação médica.
 
@@ -42,6 +42,8 @@ Apenas para fazer o DoseTrace funcionar para você: mostrar o seu diário, calcu
 Os lembretes de dose, de frasco, do registro de comida e de check-in são agendados no seu celular. Para que os lembretes continuem chegando no Android mesmo quando você não abre o app (o Android pode pausar apps que não são abertos), nosso servidor envia ao seu celular Android uma mensagem silenciosa por dia. Ela não tem texto nem dados de saúde; só pede ao app que atualize os lembretes que já estão no seu celular.
 
 Para entregar as notificações, guardamos um token de notificação do aparelho junto com a sua conta. As notificações passam pelo **Expo** (nosso serviço de notificações push), pelo **Google Firebase Cloud Messaging** no Android e pelo **Apple Push Notification service** no iPhone. Você pode desativar os lembretes ou usar o Modo silencioso em Ajustes quando quiser.
+
+**Mensagens da equipe DoseTrace.** Podemos enviar à sua conta uma mensagem curta sobre a conta ou o suporte (por exemplo, que o seu acesso Premium foi liberado ou que um problema relatado por você foi corrigido). Ela chega como notificação, a menos que as notificações estejam desativadas ou o Modo silencioso esteja ligado, e também aparece dentro do app, em Ajustes › Suporte › Mensagens da equipe. Nunca usamos essas mensagens para orientação de saúde, dose ou tratamento. As mensagens ficam guardadas com a sua conta e são apagadas quando você exclui a conta; registramos também quando cada uma foi enviada, para quantos aparelhos e quando foi lida. Para escrever o título da notificação no seu idioma, o app guarda o idioma escolhido junto com a sua conta.
 
 ## 5. Recursos de IA (opcionais, só com a sua permissão)
 
