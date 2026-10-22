@@ -190,3 +190,35 @@ test('A-164 guard: Settings, Journey, Body and the Calculator follow the shared 
     assert.match(src, /\busePremiumUpdates\(/, `${rel} subscribes to it`);
   }
 });
+
+// Gate B review 2026-10-22 (three findings, each a test first).
+test('A-164 review (1): the Calculator never asks for the free week without a user id (a Premium update can land before load() sets it)', () => {
+  const src = code('screens/components/CalculatorSection.js');
+  const i = src.indexOf('usePremiumUpdates(');
+  assert.ok(i > 0);
+  const block = src.slice(i, src.indexOf('});', i));
+  assert.match(block, /if \(!userIdRef\.current\) return;/, 'no loadFoodAccess(null) from the update callback');
+  assert.ok(block.indexOf('if (!userIdRef.current) return;') < block.indexOf('loadFoodAccess('), 'the guard comes before the read');
+});
+
+test('A-164 review (2): foreground returns re-read at most once a minute (Face ID, the purchase sheet and pickers also return to active)', async () => {
+  const { createPremiumState } = require('../lib/premiumState');
+  const h = harness();
+  let now = 1_000_000;
+  const ps = createPremiumState({ ...h.deps, now: () => now });
+  ps.attachUser('user-a');
+  await flush();
+  h.resume(); await flush(); await flush();
+  assert.equal(h.invalidated, 1);
+  now += 20_000; h.resume(); await flush(); await flush();
+  assert.equal(h.invalidated, 1, 'a return 20 s later reads nothing');
+  now += 45_000; h.resume(); await flush(); await flush();
+  assert.equal(h.invalidated, 2, 'more than a minute later it reads again');
+});
+
+test('A-164 review (3): getEntitlement never writes one account\'s answer into another account\'s cache (switch during the live read)', () => {
+  const src = code('lib/entitlement.js');
+  const g = src.slice(src.indexOf('async function getEntitlement'), src.indexOf('async function hasPremium'));
+  assert.match(g, /currentPurchasesUserId\(\)[\s\S]*readLiveEntitlement\(\)[\s\S]*currentPurchasesUserId\(\)/, 'the user is checked again after the live read');
+  assert.match(g, /if \(r\.writeCache && uid && stillSameUser\)/, 'the cache is written only when the user did not change');
+});

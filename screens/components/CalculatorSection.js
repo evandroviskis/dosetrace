@@ -222,6 +222,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // A-164: a Premium change made elsewhere applies while open (the free week follows it too).
   usePremiumUpdates((pro) => {
     setPremium(pro);
+    // Not before load() knows the user: loadFoodAccess(null) would lock the free week (Gate B review).
+    if (!userIdRef.current) return;
     loadFoodAccess(userIdRef.current).then((r) => setRcFree(!!r.access.canLog)).catch(() => {});
   });
 
