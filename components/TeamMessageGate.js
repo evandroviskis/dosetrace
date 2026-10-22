@@ -55,8 +55,8 @@ export default function TeamMessageGate({ tapped, gateState, onOpenChange }) {
     setShown({ queue: fresh, i: 0 });
   }, []);
 
-  const refreshThenTry = useCallback(() => {
-    teamMessages().refresh().catch(() => {}).finally(() => { tryOpen(); });
+  const refreshThenTry = useCallback((force = false) => {
+    teamMessages().refresh(force ? { force: true } : {}).catch(() => {}).finally(() => { tryOpen(); });
   }, [tryOpen]);
 
   useFocusEffect(useCallback(() => {
@@ -69,7 +69,7 @@ export default function TeamMessageGate({ tapped, gateState, onOpenChange }) {
   useEffect(() => {
     if (!tapped) return;
     tappedRef.current = tapped.id || null;
-    refreshThenTry();
+    refreshThenTry(true);
   }, [tapped && tapped.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Back to the foreground (Today's focus does not fire on resume) and a team push that arrives
@@ -88,7 +88,7 @@ export default function TeamMessageGate({ tapped, gateState, onOpenChange }) {
       recv = N.addNotificationReceivedListener((n) => {
         let data = (n && n.request && n.request.content && n.request.content.data) || {};
         if (typeof data.dataString === 'string') { try { data = JSON.parse(data.dataString); } catch { /* keep */ } }
-        if (data && data.type === 'team_message') refreshThenTry();
+        if (data && data.type === 'team_message') refreshThenTry(true);
       });
     } catch { /* expo-notifications unavailable */ }
     return () => { sub.remove(); if (recv) recv.remove(); };

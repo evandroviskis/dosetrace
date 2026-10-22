@@ -173,7 +173,7 @@ test('TM-20: offline "Entendi" is queued with its real time and sent on the next
   h.online = false;
   await tm.markRead('m1');
   assert.equal(tm.unread().length, 0, 'gone from the sheet at once');
-  const r = await tm.refresh();
+  const r = await tm.refresh({ force: true }); // forced: within a minute a focus refresh would use the kept copy (review 2026-10-22)
   assert.equal(r.ok, false, 'offline: the refresh says it failed, it never throws');
   assert.equal(tm.unread().length, 0);
   // the app is killed and opened again, online
@@ -430,5 +430,31 @@ test('TM-19: notifications off / a failing network never surface an error — th
   await tm.markRead('nope'); // never throws
   const gate = code('components/TeamMessageGate.js');
   assert.doesNotMatch(gate, /getPermissionsAsync|requestPermissionsAsync/, 'the in-app sheet never depends on notification permission');
-  assert.match(gate, /teamMessages\(\)\.refresh\(\)\.catch\(\(\) => \{\}\)/);
+  assert.match(gate, /teamMessages\(\)\.refresh\(force \? \{ force: true \} : \{\}\)\.catch\(\(\) => \{\}\)/);
+});
+
+// Gate B review 2026-10-22: Today, Settings and the list each refreshed on every focus with no gap.
+test('A-163 review: focus refreshes reach the server at most once a minute; a tap, a push and an account change always read', async () => {
+  const { createTeamMessages } = require('../lib/teamMessages');
+  const h = harness();
+  let t = Date.parse('2026-10-22T10:00:00Z');
+  h.deps.now = () => t;
+  h.rows = [row('m1', '2026-10-21T10:00:00Z')];
+  const tm = createTeamMessages(h.deps);
+  await tm.refresh();
+  assert.equal(h.fetches, 1);
+  t += 10_000; await tm.refresh();
+  assert.equal(h.fetches, 1, 'a focus 10 s later uses the copy it has');
+  await tm.refresh({ force: true });
+  assert.equal(h.fetches, 2, 'a notification tap or a push always reads');
+  t += 61_000; await tm.refresh();
+  assert.equal(h.fetches, 3, 'more than a minute later it reads again');
+  h.uid = B; t += 1_000; await tm.refresh();
+  assert.equal(h.fetches, 4, 'another account always reads');
+});
+
+test('A-163 review: the Today gate forces the read for a notification tap and a team push, not for a focus', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'components/TeamMessageGate.js'), 'utf8');
+  assert.equal((src.match(/refreshThenTry\(true\)/g) || []).length, 2, "the tap and the push force the read");
+  assert.match(src, /refresh\(force \? \{ force: true \} : \{\}\)/);
 });
