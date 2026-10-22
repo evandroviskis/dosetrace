@@ -364,7 +364,7 @@ const KEYS = ['team_msg_title', 'team_msg_kept', 'team_msg_got_it', 'team_msg_ne
   'settings_team_messages', 'settings_sum_support_msgs', 'team_msgs_footer', 'team_msgs_when_today', 'team_msgs_when_yesterday', 'team_msgs_when_date',
   'team_msgs_sub', 'team_msgs_sub_one'];
 
-test('TM-22: every new string exists in the 6 languages; the title is the server\'s fixed title word for word', () => {
+test("TM-22: every new string exists in the 6 languages; the title is the server's fixed title word for word", () => {
   const { translations } = require('../i18n/translations');
   const SERVER = { en: 'DoseTrace team message', pt: 'Mensagem da equipe DoseTrace', es: 'Mensaje del equipo de DoseTrace', fr: 'Message de l\'équipe DoseTrace', de: 'Nachricht vom DoseTrace-Team', it: 'Messaggio dal team di DoseTrace' };
   for (const l of ['en', 'pt', 'es', 'fr', 'de', 'it']) {
