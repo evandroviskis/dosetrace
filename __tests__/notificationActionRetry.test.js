@@ -231,14 +231,18 @@ test('Gate B 3: analytics never reaches the auth client while in background mode
   const deps = {
     storedSessionOnly: () => bg,
     getCachedUser: async () => { calls.push(['getUser', bg]); return { id: 'u', user_metadata: {} }; },
+    // Background mode reads the user as stored on the phone (lib/supabase readStoredUser, no auth
+    // client) to check the opt-out and tag the queued row (__tests__/analyticsOptOutQueue).
+    readStoredUser: async () => ({ id: 'u', user_metadata: {} }),
     supabase, AsyncStorage,
     Platform: { OS: 'android' },
     installId: async () => 'inst',
     buildRow: (name, props, inst, os, at) => ({ name, at }),
   };
   // The real queue (lib/analyticsQueue), as lib/analytics builds it.
-  const { createAnalyticsQueue } = require('../lib/analyticsQueue');
+  const { createAnalyticsQueue, createOptOutFlag } = require('../lib/analyticsQueue');
   deps.bgQueue = createAnalyticsQueue({ storage: AsyncStorage, key: 'q', send: (row) => supabase.from('analytics_events').insert(row) });
+  deps.optOutFlag = createOptOutFlag({ storage: AsyncStorage, key: 'f' });
   const logEvent = loadFn('lib/analytics.js', 'export async function logEvent(', 'logEvent', deps);
   assert.match(read('lib/analytics.js'), /const bgQueue = createAnalyticsQueue\(\{ storage: AsyncStorage, key: BG_QUEUE_KEY, send: \(row\) => supabase\.from\('analytics_events'\)\.insert\(row\) \}\);/);
   await logEvent('dose_logged', { source: 'notification' });

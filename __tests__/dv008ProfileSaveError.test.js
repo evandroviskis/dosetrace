@@ -87,6 +87,10 @@ function analytics(mode, supabase = null) {
     analyticsSaved: { current: true }, // what the account holds (fetchUser)
     setAnalyticsEnabled: (v) => out.values.push(v),
     errorSheet: (body) => out.errors.push(body),
+    // The analytics queue / opt-out flag (__tests__/analyticsOptOutQueue covers them).
+    user: { id: 'u1' },
+    clearAnalyticsQueue: async () => {},
+    noteAnalyticsChoice: async () => {},
   });
   return { out, toggle };
 }

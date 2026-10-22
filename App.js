@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete, takeAccountGone, probeAccountGone } from './lib/supabase';
 import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, ownerBlocksSync, OWNER_KEY } from './lib/accountGuard';
 import { clearAIConsent } from './lib/aiConsent';
+import { clearAnalyticsQueue } from './lib/analytics';
 import { TABLES, getPendingChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
@@ -483,6 +484,7 @@ export default function App() {
     forgetTodayLayout, // A-135 council: Today's layout memory (keyed by the user id) goes with the account
     clearAIConsent, // DV-007 (DL-55): the AI consent goes with the account
     forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY), // DV-242: whose data this phone holds
+    clearAnalyticsQueue, // council regulatory review (1.3.1): queued analytics rows go with the account
   });
 
   // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).
@@ -501,6 +503,7 @@ export default function App() {
     resetAllSelections, // S-26: no open right-page item from the other account
     removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
     clearAIConsent, // DV-007
+    clearAnalyticsQueue, // the previous account's queued analytics rows (council regulatory review)
     getSession: async () => { const { data } = await supabase.auth.getSession(); return (data && data.session) || null; },
     ask: (a) => { lastAskRef.current = a; setAccountAsk(a); },
     // "Sign in as {previous} first": this account signs out on this phone only — not an intended

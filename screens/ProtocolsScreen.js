@@ -1822,6 +1822,29 @@ export default function ProtocolsScreen() {
     setAssistant({ door });
   }
 
+  // Council regulatory review (1.3.1): the consent can be withdrawn (Settings › AI use) while the
+  // assistant is open, so it is checked again before EVERY send to the AI, as the food chat does.
+  // Withdrawn → the same consent sheet; true only after an explicit Agree (the policy link, Cancel
+  // and a tap outside send nothing).
+  function assistantConsent() {
+    return new Promise((resolve) => {
+      hasAIConsent().then((granted) => {
+        if (granted) { resolve(true); return; }
+        setWizSheet({
+          icon: 'ai_spark',
+          title: t('ai_consent_title'),
+          body: t('ai_consent_body'),
+          link: { label: t('ai_consent_privacy'), onPress: () => { Linking.openURL(AI_PRIVACY_URL).catch(() => {}); resolve(false); } },
+          buttons: [
+            { label: t('cancel'), kind: 'secondary', onPress: () => resolve(false) },
+            { label: t('ai_consent_agree'), kind: 'primary', onPress: async () => { await grantAIConsent(); resolve(true); } },
+          ],
+          onDismiss: () => resolve(false),
+        });
+      }, () => resolve(false));
+    });
+  }
+
   // A split in the explainer (AP-12): the dose becomes the user's weekly number divided by the
   // count they tapped, and the spacing is asked right away with the AP-26 options — a split
   // never leaves the schedule as it was (regulatory review 2026-10-03 B3).
@@ -2634,6 +2657,7 @@ export default function ProtocolsScreen() {
               t={t}
               language={language}
               scanLabel={extractVialLabel}
+              askConsent={assistantConsent}
               onFinish={finishAssistant}
             />
           ) : (

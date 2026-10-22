@@ -68,7 +68,7 @@ function phoneDeps({ pending = 0, owner = 'u1' } = {}) {
   const d = {
     stopSyncEngine: () => calls.push('stopSync'),
     waitForSyncIdle: async () => {},
-    getLocalOwner: () => owner,
+    getLocalOwner: () => { if (owner === 'throw') throw new Error('SQLite read failed'); return owner; },
     countPending: () => { if (pending === 'throw') throw new Error('unreadable'); return pending; },
     setWipePending: async (v) => { marker = v || null; calls.push(v ? `marker:${v}` : 'marker:clear'); },
     isWipePending: async () => marker,
@@ -167,6 +167,23 @@ test('DV-009: the local data belongs to another account → the gone account\'s 
   assert.equal(await afterAccountGone(held.d, { kind: 'deleted', userId: 'user-b', hasSession: true }), 'signed_out');
   assert.ok(held.calls.includes('signOutLocal'));
   assert.ok(!held.calls.includes('clearDb') && !held.calls.includes('cancelNotifs'));
+});
+
+// Council (1.3.1): the owner read (getLocalDataUserId) failing must never count as "no owner":
+// A's unsent rows held by the DV-242 sheet, B signed in and deleted elsewhere, SQLite fails at that
+// moment → the gone session leaves, the reminders are cancelled, nothing is deleted.
+test('DV-009: the local owner cannot be read → reminders cancelled and signed out, nothing deleted (never destroy on a maybe)', async () => {
+  for (const hasSession of [true, false]) {
+    const p = phoneDeps({ owner: 'throw', pending: 2 });
+    assert.equal(await afterAccountGone(p.d, { kind: 'deleted', userId: 'user-b', hasSession }), 'cancelled', `hasSession=${hasSession}`);
+    assert.ok(KEPT(p.calls), 'no wipe step, no deleted:<id> marker');
+    assert.ok(p.calls.includes('cancelNotifs') && p.calls.includes('dismissNotifs'), 'reminders cancelled');
+    assert.equal(p.calls.includes('signOutLocal'), hasSession, 'the gone session leaves the phone');
+  }
+  // The probe path (checkAccountGone) too.
+  const q = phoneDeps({ owner: 'throw', pending: 2 });
+  assert.equal(await checkAccountGone(q.d, async () => ({ kind: 'deleted', userId: 'user-b' })), 'cancelled');
+  assert.ok(KEPT(q.calls));
 });
 
 test('DV-009: App takes the gone signal inline (no await, no supabase) and probes deferred', () => {
