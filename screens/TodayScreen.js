@@ -2147,6 +2147,7 @@ export default function TodayScreen() {
             )}
             {/* A-166: the computed draw is starred; its arithmetic in the user's numbers. */}
             {drawNote ? <Text style={s.calcNote}>{drawNote}</Text> : null}
+            {drawNote ? <Text style={s.calcNote}>{t('today_calc_line')}</Text> : null}
           </View>
         )}
         {/* Part 7: Day X of Y, the last site (full name) and the streak on one line that
