@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-process.env.ADMIN_TOKEN = 'dummy-admin-token-0123456789';
+const F = require('./helpers/admAuthFake.js'); // 3.1: requests carry the admin's Supabase session (fake)
 const adm = require('../api/adm.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -246,17 +246,17 @@ test('Management payload: built server-side; the response carries counts, never 
   process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-key';
   process.env.REVENUECAT_API_KEY = 'dummy-rc-key'; process.env.REVENUECAT_PROJECT_ID = 'proj123';
   const real = global.fetch;
-  global.fetch = async (url) => {
+  global.fetch = F.withAuth(async (url) => {
     const u = String(url);
     const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
     if (u.endsWith('/rpc/admin_accounts')) return json({ accounts: FIX, protocols_live: 3 });
     if (u.endsWith('/rpc/admin_match_ids')) return json({ 'secret-user-id-1': 'real' });
     if (u.includes('/customers')) return json({ object: 'list', items: [{ id: 'secret-user-id-1', first_seen_at: Date.now() - 2 * 864e5 }, { id: '$RCAnonymousID:secretanon', first_seen_at: Date.now() - 2 * 864e5 }], next_page: null });
     return json({});
-  };
+  });
   const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
   try {
-    await adm({ method: 'GET', url: '/api/adm', headers: { authorization: 'Bearer dummy-admin-token-0123456789' }, query: {} }, res);
+    await adm({ method: 'GET', url: '/api/adm', headers: F.bearer('admin'), query: {} }, res);
     assert.equal(res.code, 200);
     const body = JSON.parse(res.body);
     assert.ok(body.management, 'management block present');
@@ -422,14 +422,15 @@ test('#013 Contas tab: a third tab exists with its labels in 6 languages', () =>
 async function post(body, headers, url) {
   const realFetch = global.fetch;
   const calls = [];
-  global.fetch = async (u, opt) => { calls.push({ url: String(u), body: opt && opt.body ? JSON.parse(opt.body) : null }); return new Response(JSON.stringify({ ok: true, changed: 1 }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  global.fetch = F.withAuth(async (u, opt) => { calls.push({ url: String(u), body: opt && opt.body ? JSON.parse(opt.body) : null }); return new Response(JSON.stringify({ ok: true, changed: 1 }), { status: 200, headers: { 'Content-Type': 'application/json' } }); });
   const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
   try {
     await adm({ method: 'POST', url: url || '/api/adm', headers: Object.assign({ 'content-type': 'application/json' }, headers || {}), query: {}, body }, res);
     return { res, calls };
   } finally { global.fetch = realFetch; }
 }
-const VALID = { authorization: 'Bearer dummy-admin-token-0123456789' };
+// 3.1: a write needs the admin session (aal2, TOTP checked within 15 min) and Origin https://dosetrace.io.
+const VALID = Object.assign(F.bearer('admin', { totpS: 60 }), F.ORIGIN);
 function envOn() { process.env.SUPABASE_URL = 'https://dummy.supabase.test'; process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-key'; }
 function envOff() { delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SERVICE_ROLE_KEY; }
 
@@ -441,7 +442,8 @@ test('TM1 POST: token in the query string is refused even with a valid header; n
 });
 test('TM1 POST: no header or wrong header is refused; no database call', async () => {
   envOn(); try {
-    for (const h of [{}, { authorization: 'Bearer nope' }]) { const { res, calls } = await post({ action: 'mark_test', emails: ['a@x.y'] }, h); assert.equal(res.code, 401); assert.equal(calls.length, 0); }
+    // From the right Origin (a foreign Origin is a 403 first: AU4, admLogin.test.js).
+    for (const h of [Object.assign({}, F.ORIGIN), Object.assign({ authorization: 'Bearer nope' }, F.ORIGIN)]) { const { res, calls } = await post({ action: 'mark_test', emails: ['a@x.y'] }, h); assert.equal(res.code, 401); assert.equal(calls.length, 0); }
   } finally { envOff(); }
 });
 test('TM2 POST: invalid bodies → 400 and no database call (bad action, not an array, empty, non-string, more than 200)', async () => {
@@ -463,13 +465,13 @@ test('TM2 POST: a valid body calls admin_mark_test once with trimmed, lower-case
     assert.equal(res.code, 200);
     assert.equal(calls.length, 1);
     assert.match(calls[0].url, /\/rest\/v1\/rpc\/admin_mark_test$/);
-    assert.deepEqual(calls[0].body, { p_emails: ['a@x.y', 'b@x.y'], p_mark: false });
+    assert.deepEqual(calls[0].body, { p_emails: ['a@x.y', 'b@x.y'], p_mark: false, p_actor: F.USERS.admin.id });
   } finally { envOff(); }
 });
 test('TM3 POST: when the database refuses (unknown email), the error is passed through as 400 and nothing is retried', async () => {
   envOn();
   const realFetch = global.fetch; let n = 0;
-  global.fetch = async () => { n++; return new Response(JSON.stringify({ message: 'unknown email: nobody@x.y' }), { status: 400 }); };
+  global.fetch = F.withAuth(async () => { n++; return new Response(JSON.stringify({ message: 'unknown email: nobody@x.y' }), { status: 400 }); });
   const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
   try {
     await adm({ method: 'POST', url: '/api/adm', headers: Object.assign({ 'content-type': 'application/json' }, VALID), query: {}, body: { action: 'mark_test', emails: ['nobody@x.y'] } }, res);
@@ -479,7 +481,7 @@ test('TM3 POST: when the database refuses (unknown email), the error is passed t
 test('TM1 GET behaviour unchanged: a GET with a valid header still serves the dashboard payload', async () => {
   envOn();
   const realFetch = global.fetch;
-  global.fetch = async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  global.fetch = F.withAuth(async () => new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }));
   const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
   try { await adm({ method: 'GET', url: '/api/adm', headers: VALID, query: {} }, res); assert.equal(res.code, 200); assert.ok(JSON.parse(res.body).sources); }
   finally { global.fetch = realFetch; envOff(); }
@@ -489,12 +491,12 @@ test('TM3/TM4/TM5 SQL: admin_mark_test refuses unknown emails and >200, writes t
   assert.match(fn, /security definer/i);
   assert.match(fn, /array_length\(p_emails, 1\) > 200/);
   assert.match(fn, /raise exception 'unknown email: %'/);
-  assert.match(fn, /insert into public\.admin_audit_log \(action, email, before, after\)/);
+  assert.match(fn, /insert into public\.admin_audit_log \(action, email, before, after, actor\)/); // 3.1: the actor (admin user_id) on every row
   assert.match(fn, /insert into public\.admin_test_accounts/);
   assert.match(fn, /insert into public\.admin_test_exceptions/);
   assert.ok(!/(delete from|insert into|update) auth\.users/i.test(fn), 'never writes auth.users');
-  assert.match(SQL, /revoke execute on function public\.admin_mark_test\(text\[\], boolean\) from public, anon, authenticated;/i);
-  assert.match(SQL, /grant execute on function public\.admin_mark_test\(text\[\], boolean\) to service_role;/i);
+  assert.match(SQL, /revoke execute on function public\.admin_mark_test\(text\[\], boolean, uuid\) from public, anon, authenticated;/i);
+  assert.match(SQL, /grant execute on function public\.admin_mark_test\(text\[\], boolean, uuid\) to service_role;/i);
 });
 test('TM5 SQL: admin_audit_log and admin_test_exceptions exist with RLS on and service_role-only grants', () => {
   for (const t of ['admin_audit_log', 'admin_test_exceptions']) {
@@ -592,15 +594,15 @@ test('Contas tab page: sortable headers, filter controls and labels in 6 languag
 test('Bug (founder 2026-10-17): the "Contas de teste" view was empty live — the server must pass tests, by_rule and test_excluded from admin_accounts_list through to the page', async () => {
   process.env.SUPABASE_URL = 'https://dummy.supabase.test'; process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-key';
   const realFetch = global.fetch;
-  global.fetch = async (url) => {
+  global.fetch = F.withAuth(async (url) => {
     const u = String(url); const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
     if (u.endsWith('/rpc/admin_accounts_list')) return json({ test_excluded: 87, by_rule: 76, tests: [{ email: 'a.1@gmail.com', kind: 'rule' }, { email: 'b@x.y', kind: 'list' }], rows: [{ email: 'c@x.y', created: '2026-10-01', provider: 'google', apple: false, pu: [], ua: [], onboarded: false, confirmed: true, protocols_live: 0, last_sign_in: null, excepted: false }] });
     if (u.endsWith('/rpc/admin_accounts')) return json({ accounts: FIX, protocols_live: 1 });
     return json({});
-  };
+  });
   const res = { code: 0, body: '', setHeader() {}, status(c) { this.code = c; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
   try {
-    await adm({ method: 'GET', url: '/api/adm', headers: { authorization: 'Bearer dummy-admin-token-0123456789' }, query: {} }, res);
+    await adm({ method: 'GET', url: '/api/adm', headers: F.bearer('admin'), query: {} }, res);
     const al = JSON.parse(res.body).sources.supabase.data.accounts_list;
     assert.equal(al.rows.length, 1);
     assert.equal(al.test_excluded, 87);

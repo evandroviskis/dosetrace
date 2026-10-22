@@ -28,6 +28,32 @@ function token(who, opts) {
 
 function json(o, status) { return new Response(JSON.stringify(o), { status: status || 200, headers: { 'Content-Type': 'application/json' } }); }
 
+// The fake Supabase Auth + allow-list answer for a URL, or null when the URL is not an auth call.
+function authAnswer(u, headers, o) {
+  o = o || {};
+  if (u === SB + '/auth/v1/user') {
+    if (o.authDown) throw new Error('network down');
+    const tok = String(headers.Authorization || headers.authorization || '').replace(/^Bearer /, '');
+    const parts = tok.split('.');
+    if (parts.length !== 3 || parts[2] !== 'fake-sig') return json({ code: 401, msg: 'invalid JWT' }, 401);
+    const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    return json({ id: o.userIdOverride || claims.sub, email: claims.email, aud: 'authenticated' });
+  }
+  if (u.startsWith(SB + '/rest/v1/admin_users')) {
+    if (o.allowListDown) return json({ message: 'relation does not exist' }, 404);
+    const m = u.match(/user_id=eq\.([0-9a-f-]+)/i);
+    const hit = Object.values(USERS).find((x) => m && x.id === m[1] && x.role);
+    return json(hit ? [{ role: hit.role }] : []);
+  }
+  return null;
+}
+
+// Wraps a test's own fake fetch so the session checks pass through the fake Supabase Auth first;
+// the wrapped fetch only sees the data calls.
+function withAuth(next, o) {
+  return async (url, init) => authAnswer(String(url), (init && init.headers) || {}, o) || next(url, init);
+}
+
 // Installs a fake global fetch. Returns { calls, restore, dataCalls() }.
 function installFetch(opts) {
   const o = opts || {};
@@ -39,21 +65,8 @@ function installFetch(opts) {
     let body = null;
     if (init && init.body) { try { body = JSON.parse(init.body); } catch (e) { body = init.body; } }
     calls.push({ url: u, method: (init && init.method) || 'GET', headers, body });
-    if (u === SB + '/auth/v1/user') {
-      if (o.authDown) throw new Error('network down');
-      const tok = String(headers.Authorization || headers.authorization || '').replace(/^Bearer /, '');
-      const parts = tok.split('.');
-      if (parts.length !== 3 || parts[2] !== 'fake-sig') return json({ code: 401, msg: 'invalid JWT' }, 401);
-      const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-      const id = o.userIdOverride || claims.sub;
-      return json({ id, email: claims.email, aud: 'authenticated' });
-    }
-    if (u.startsWith(SB + '/rest/v1/admin_users')) {
-      if (o.allowListDown) return json({ message: 'relation does not exist' }, 404);
-      const m = u.match(/user_id=eq\.([0-9a-f-]+)/i);
-      const hit = Object.values(USERS).find((x) => m && x.id === m[1] && x.role);
-      return json(hit ? [{ role: hit.role }] : []);
-    }
+    const auth = authAnswer(u, headers, o);
+    if (auth) return auth;
     if (o.data) return o.data(u, body);
     return json({});
   };
@@ -99,4 +112,4 @@ async function call(handler, req, opts) {
 const ORIGIN = { origin: 'https://dosetrace.io' };
 function bearer(who, opts) { return { authorization: 'Bearer ' + token(who, opts) }; }
 
-module.exports = { SB, USERS, token, bearer, installFetch, mkRes, envOn, envOff, call, ORIGIN, json };
+module.exports = { authAnswer, withAuth, SB, USERS, token, bearer, installFetch, mkRes, envOn, envOff, call, ORIGIN, json };

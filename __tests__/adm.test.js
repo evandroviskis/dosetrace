@@ -1,79 +1,61 @@
 'use strict';
-// Admin panel endpoint (api/adm.js): the admin token is accepted ONLY from the
+// Admin panel endpoint (api/adm.js): the credential is accepted ONLY from the
 // "Authorization: Bearer" header. A token in the URL (query) is refused with a
-// generic 401 before any data fetch, even alongside a valid header. Cookies and
-// the body are never read. Nothing is logged and the token is never echoed.
-// Bug this guards: main's api/adm.js accepted ?t= / ?token= and fetched data.
+// generic 401 before any call, even alongside a valid header. Cookies and the
+// body are never read. Nothing is logged and the token is never echoed.
+// Bug this guards (Phase 1 rule 1.1): main's api/adm.js accepted ?t= / ?token= and fetched data.
+// Since 3.1 (founder 2026-10-21) the credential is the admin's own Supabase session (aal2),
+// not the shared admin token; the session checks themselves are in admLogin.test.js.
 // Dummy values only — never a real token or key.
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const F = require('./helpers/admAuthFake.js');
 
-const DUMMY = 'dummy-admin-token-0123456789';
-process.env.ADMIN_TOKEN = DUMMY;
-process.env.SUPABASE_URL = 'https://dummy.supabase.test';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-key';
 for (const k of ['REVENUECAT_API_KEY', 'REVENUECAT_PROJECT_ID', 'GOOGLE_PLAY_SA_JSON', 'GOOGLE_PLAY_BUCKET',
   'ASC_PRIVATE_KEY', 'ASC_ISSUER_ID', 'ASC_KEY_ID', 'ASC_VENDOR_NUMBER']) delete process.env[k];
 
 const handler = require('../api/adm.js');
 
-// Vercel-style request: req.url keeps the query string, req.query is the parsed object.
-function mkReq(url, headers) {
-  const query = {};
-  new URL(url, 'http://x').searchParams.forEach((v, k) => { query[k] = v; });
-  return { method: 'GET', url, headers: headers || {}, query, cookies: {} };
-}
-function mkRes() {
-  const r = { code: 0, body: '', headers: {} };
-  r.setHeader = (k, v) => { r.headers[k.toLowerCase()] = v; };
-  r.status = (c) => { r.code = c; return r; };
-  r.json = (b) => { r.body = JSON.stringify(b); return r; };
-  r.send = (b) => { r.body = String(b); return r; };
-  r.end = (b) => { if (b) r.body = String(b); return r; };
-  return r;
-}
+const VALID = F.bearer('admin');
+const TOKEN = VALID.authorization.slice(7);
 
-// Runs one request with fetch and console stubbed; returns status, body, data fetches, console calls.
+// Runs one request with fetch and console stubbed; returns status, body, calls, console calls.
 async function call(url, headers) {
-  const realFetch = global.fetch;
   const methods = ['log', 'info', 'warn', 'error', 'debug', 'trace'];
   const realConsole = methods.map((m) => console[m]);
-  let fetches = 0, consoleCalls = 0;
-  global.fetch = async () => { fetches++; return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  let consoleCalls = 0;
   methods.forEach((m) => { console[m] = () => { consoleCalls++; }; });
+  F.envOn();
   try {
-    const res = mkRes();
-    await handler(mkReq(url, headers), res);
-    return { code: res.code, body: res.body, headers: res.headers, fetches, consoleCalls };
+    const r = await F.call(handler, { url, headers: headers || {} });
+    return Object.assign(r, { consoleCalls });
   } finally {
-    global.fetch = realFetch;
+    F.envOff();
     methods.forEach((m, i) => { console[m] = realConsole[i]; });
   }
 }
 
-const VALID = { authorization: `Bearer ${DUMMY}` };
-
 function assertRefused(r) {
   assert.equal(r.code, 401);
   assert.equal(r.body, '{"error":"Unauthorized"}');
-  assert.equal(r.fetches, 0, 'a 401 must return before any data fetch');
+  assert.equal(r.dataCalls.length, 0, 'a 401 must return before any data fetch');
   assert.equal(r.consoleCalls, 0);
-  assert.ok(!r.body.includes(DUMMY) && !JSON.stringify(r.headers).includes(DUMMY), 'token must never be echoed');
+  assert.ok(!r.body.includes(TOKEN) && !JSON.stringify(r.headers).includes(TOKEN), 'token must never be echoed');
 }
 function assertServed(r) {
   assert.equal(r.code, 200);
   // admin_metrics, admin_feature_adoption, admin_accounts, admin_accounts_list (admin_activity dropped: analytics anonymous since 2026-10-04).
-  assert.equal(r.fetches, 4, 'the four Supabase admin RPCs are fetched');
+  assert.equal(r.dataCalls.length, 4, 'the four Supabase admin RPCs are fetched');
   assert.equal(r.consoleCalls, 0);
-  assert.ok(!r.body.includes(DUMMY), 'token must never be echoed');
+  assert.ok(!r.body.includes(TOKEN), 'token must never be echoed');
 }
 
 test('adm auth: token in ?t= without a header is refused (401, no data fetch)', async () => {
-  assertRefused(await call(`/api/adm?t=${DUMMY}`, {}));
+  assertRefused(await call(`/api/adm?t=${TOKEN}`, {}));
 });
 
 test('adm auth: token in ?token= without a header is refused (401, no data fetch)', async () => {
-  assertRefused(await call(`/api/adm?token=${DUMMY}`, {}));
+  assertRefused(await call(`/api/adm?token=${TOKEN}`, {}));
 });
 
 test('adm auth: valid header plus ?t= is refused (401, no data fetch)', async () => {
@@ -89,7 +71,7 @@ test('adm auth: valid header plus ?access_token= is refused (401, no data fetch)
 });
 
 test('adm auth: token only in a cookie is refused (401, no data fetch)', async () => {
-  assertRefused(await call('/api/adm', { cookie: `dt_adm_token=${DUMMY}; admin_token=${DUMMY}; token=${DUMMY}` }));
+  assertRefused(await call('/api/adm', { cookie: `dt_adm_session=${TOKEN}; sb-access-token=${TOKEN}; token=${TOKEN}` }));
 });
 
 test('adm auth: wrong header is refused (401, no data fetch)', async () => {
@@ -104,14 +86,8 @@ test('adm auth: valid header and no query is served (200)', async () => {
   assertServed(await call('/api/adm', VALID));
 });
 
-test('adm auth: no ADMIN_TOKEN configured fails closed (503, no data fetch)', async () => {
-  const saved = process.env.ADMIN_TOKEN;
-  delete process.env.ADMIN_TOKEN;
-  try {
-    const r = await call('/api/adm', VALID);
-    assert.equal(r.code, 503);
-    assert.equal(r.fetches, 0);
-  } finally {
-    process.env.ADMIN_TOKEN = saved;
-  }
+test('adm auth: Supabase not configured fails closed (503, no call)', async () => {
+  const r = await F.call(handler, { url: '/api/adm', headers: VALID });
+  assert.equal(r.code, 503);
+  assert.equal(r.calls.length, 0);
 });

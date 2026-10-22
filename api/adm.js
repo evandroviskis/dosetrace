@@ -3,13 +3,12 @@
  * DoseTrace admin metrics endpoint (Vercel serverless, dependency-free).
  *
  * Security: ALL secrets live in Vercel environment variables and never reach the
- * browser. The page authenticates with a single opaque ADMIN_TOKEN, accepted ONLY
- * from the "Authorization: Bearer <token>" header and validated in constant time.
- * A token-like query parameter (t, token, admin_token, access_token) is refused
- * with 401 even when the header is valid, so a token never lives in a URL (logs,
- * history, referrers). Cookies and the body are never read. Without ADMIN_TOKEN
- * set the endpoint fails closed (503) — it can never be left open by accident.
- * Nothing here logs; the token is never echoed.
+ * browser. Every request needs the admin's own Supabase session (docs/specs/admin-panel.md
+ * Phase 3 › 3.1): "Authorization: Bearer <access token>" of an allow-listed account (admin_users)
+ * signed in with password + TOTP (aal2), at most 12 h old; writes also need role admin, a TOTP
+ * check in the last 15 min and Origin https://dosetrace.io. The checks live in api/_admAuth.js.
+ * The old shared admin token is gone (AU6). A token-like query parameter is still refused (401).
+ * Nothing here logs; tokens are never echoed.
  *
  * Sources (each degrades independently, so a missing key never breaks the page):
  *   - Supabase      : SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
@@ -23,28 +22,7 @@
  */
 const crypto = require('crypto');
 
-function timingSafeEqual(a, b) {
-  const ba = Buffer.from(String(a));
-  const bb = Buffer.from(String(b));
-  if (ba.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ba, bb);
-}
-
-// Header only. There is deliberately no query/cookie/body fallback.
-function presentedToken(req) {
-  const auth = (req.headers && req.headers['authorization']) || '';
-  if (auth.startsWith('Bearer ')) return auth.slice(7).trim();
-  return '';
-}
-
-// A token must never travel in a URL. Any token-like query parameter is a 401,
-// even alongside a valid header, so old token links stop working outright.
-const TOKEN_QUERY_KEYS = ['t', 'token', 'admin_token', 'access_token'];
-function tokenInQuery(req) {
-  let params;
-  try { params = new URL(req.url || '/', 'http://x').searchParams; } catch (e) { return true; }
-  return TOKEN_QUERY_KEYS.some((k) => params.has(k));
-}
+const { checkAdmin } = require('./_admAuth.js');
 
 async function fetchSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -434,7 +412,8 @@ const TEST_RULE = /^[a-z]+\.[0-9]{5,6}@gmail\.com$/;
 function matchesTestRule(email) { return TEST_RULE.test(String(email || '').trim().toLowerCase()); }
 
 // Panel #016: the panel's only write. Validates the body, then calls admin_mark_test (all or
-// nothing, audit row per email, never touches auth.users). Returns [status, body].
+// nothing, audit row per email with the admin's user_id as the actor, never touches auth.users).
+// Returns [status, body].
 const MARK_ACTIONS = { mark_test: true, unmark_test: false };
 function parseMarkBody(body) {
   let b = body;
@@ -451,9 +430,10 @@ function parseMarkBody(body) {
   }
   return { emails, mark: MARK_ACTIONS[b.action] };
 }
-async function markTests(body) {
+async function markTests(body, actor) {
   const parsed = parseMarkBody(body);
   if (parsed.error) return [400, { error: parsed.error }];
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(actor || ''))) return [401, { error: 'Unauthorized' }];
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return [503, { error: 'Supabase not configured' }];
@@ -461,7 +441,7 @@ async function markTests(body) {
     const r = await fetch(`${url.replace(/\/$/, '')}/rest/v1/rpc/admin_mark_test`, {
       method: 'POST',
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_emails: parsed.emails, p_mark: parsed.mark }),
+      body: JSON.stringify({ p_emails: parsed.emails, p_mark: parsed.mark, p_actor: actor }),
     });
     const text = await r.text();
     if (!r.ok) {
@@ -580,19 +560,16 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Referrer-Policy', 'no-referrer');
 
-  const expected = process.env.ADMIN_TOKEN;
-  if (!expected) {
-    res.status(503).json({ error: 'Admin panel not configured (ADMIN_TOKEN unset).' });
-    return;
-  }
-  if (tokenInQuery(req) || !timingSafeEqual(presentedToken(req), expected)) {
-    res.status(401).json({ error: 'Unauthorized' });
+  const auth = await checkAdmin(req);
+  if (!auth.ok) {
+    res.status(auth.status).json(auth.body);
     return;
   }
 
-  // Panel #016: the only write. Same header-only auth as above; everything else is a GET.
-  if (String(req.method || 'GET').toUpperCase() === 'POST') {
-    const [code, out] = await markTests(req.body);
+  // Panel #016: the only write, now behind the admin session (role admin + step-up, AU6).
+  if (auth.write) {
+    if (String(req.method || '').toUpperCase() !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
+    const [code, out] = await markTests(req.body, auth.user.id);
     res.status(code).json(out);
     return;
   }
@@ -613,6 +590,7 @@ module.exports = async (req, res) => {
     generated_at: new Date().toISOString(),
     sources: { supabase, revenuecat, google_play, apple },
     management,
+    me: { role: auth.role },
   });
 };
 

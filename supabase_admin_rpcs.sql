@@ -184,6 +184,20 @@ create table if not exists public.admin_audit_log (
 alter table public.admin_audit_log enable row level security;
 revoke all on table public.admin_audit_log from public, anon, authenticated;
 grant select, insert on table public.admin_audit_log to service_role;
+-- 3.1 (founder 2026-10-21): the admin who acted (auth user_id) on every new row; rows before 3.1 stay null.
+alter table public.admin_audit_log add column if not exists actor uuid;
+
+-- 3.1 admin login (docs/specs/admin-panel.md Phase 3 › 3.1, AU5): the accounts allowed into the
+-- panel. RLS on with no policies and service_role only, so neither anon nor a signed-in app user
+-- can read it. Rows are added by SQL only, with the founder's go (never by the panel).
+create table if not exists public.admin_users (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  role text not null check (role in ('viewer', 'admin')),
+  added_at timestamptz not null default now()
+);
+alter table public.admin_users enable row level security;
+revoke all on table public.admin_users from public, anon, authenticated;
+grant select on table public.admin_users to service_role;
 
 -- MV-0 v3 (Panel #016): is this email a test account? Order of precedence:
 --   1. founder exception ("não é teste")          -> false
@@ -221,8 +235,9 @@ $$;
 -- The panel's ONLY write (Panel #016). Marks or unmarks up to 200 existing accounts, all or
 -- nothing. Mark = insert into the list and drop any exception. Unmark = drop the list row and,
 -- when a rule still makes it test, insert an exception so the founder's word wins. One audit
--- row per email in the same transaction. Never touches auth.users.
-create or replace function public.admin_mark_test(p_emails text[], p_mark boolean)
+-- row per email in the same transaction, with the admin's user_id as the actor (3.1). Never
+-- touches auth.users. The 2-argument version without an actor is dropped by the 3.1 migration.
+create or replace function public.admin_mark_test(p_emails text[], p_mark boolean, p_actor uuid)
  returns jsonb
  language plpgsql
  security definer
@@ -234,6 +249,7 @@ declare
   a boolean;
   n int := 0;
 begin
+  if p_actor is null then raise exception 'actor required'; end if;
   if p_emails is null or array_length(p_emails, 1) is null then raise exception 'no emails'; end if;
   if array_length(p_emails, 1) > 200 then raise exception 'too many emails (max 200)'; end if;
   foreach e in array p_emails loop
@@ -255,7 +271,7 @@ begin
       end if;
     end if;
     a := public.admin_is_test(e);
-    insert into public.admin_audit_log (action, email, before, after) values (case when p_mark then 'mark_test' else 'unmark_test' end, e, b, a);
+    insert into public.admin_audit_log (action, email, before, after, actor) values (case when p_mark then 'mark_test' else 'unmark_test' end, e, b, a, p_actor);
     if a is distinct from b then n := n + 1; end if;
   end loop;
   return jsonb_build_object('ok', true, 'changed', n, 'count', array_length(p_emails, 1));
@@ -358,13 +374,13 @@ $$;
 
 revoke execute on function public.admin_is_test(text) from public, anon, authenticated;
 revoke execute on function public.admin_test_kind(text) from public, anon, authenticated;
-revoke execute on function public.admin_mark_test(text[], boolean) from public, anon, authenticated;
+revoke execute on function public.admin_mark_test(text[], boolean, uuid) from public, anon, authenticated;
 revoke execute on function public.admin_accounts_list() from public, anon, authenticated;
 revoke execute on function public.admin_accounts() from public, anon, authenticated;
 revoke execute on function public.admin_match_ids(text[]) from public, anon, authenticated;
 grant execute on function public.admin_is_test(text) to service_role;
 grant execute on function public.admin_test_kind(text) to service_role;
-grant execute on function public.admin_mark_test(text[], boolean) to service_role;
+grant execute on function public.admin_mark_test(text[], boolean, uuid) to service_role;
 grant execute on function public.admin_accounts_list() to service_role;
 grant execute on function public.admin_accounts() to service_role;
 grant execute on function public.admin_match_ids(text[]) to service_role;
