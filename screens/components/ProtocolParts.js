@@ -51,6 +51,10 @@ function useLast(config) {
 //   link.keepOpen  the link leaves the sheet up (the user comes back to the same place);
 //   spinner        a theme token name (e.g. 'risk'): a spinner in the icon circle instead of an icon;
 //   locked         a tap outside and Android back do nothing; the screen replaces the sheet itself.
+// A-163 team message sheet (approved picture a163-messages.html, option A):
+//   meta           a small ink3 line right under the title (the message's date, "1 de 2");
+//   hint           a small ink2 line above the buttons ("Fica guardada em Ajustes › Suporte › …");
+//   bodyInk        the body in ink 17/23 (the message itself, picture .mtext) instead of ink2.
 // No buttons: no empty button row.
 export function DTSheet({ config, onClose }) {
   const { colors: c } = useTheme();
@@ -74,9 +78,15 @@ export function DTSheet({ config, onClose }) {
           ) : shown.icon ? (
             <View style={s.icon}><FeatureIcon name={shown.icon} size={26} color={c.ink} /></View>
           ) : null}
-          <Text style={s.title} accessibilityRole="header">{shown.title}</Text>
-          {shown.body ? <Text style={s.body}>{shown.body}</Text> : null}
+          {shown.meta ? (
+            <View style={s.titleWrap}>
+              <Text style={s.title} accessibilityRole="header">{shown.title}</Text>
+              <Text style={s.meta}>{shown.meta}</Text>
+            </View>
+          ) : <Text style={s.title} accessibilityRole="header">{shown.title}</Text>}
+          {shown.body ? <Text style={[s.body, shown.bodyInk && s.bodyInk]}>{shown.body}</Text> : null}
           {shown.body2 ? <Text style={[s.body, s.bodyMore]}>{shown.body2}</Text> : null}
+          {shown.hint ? <Text style={s.hint}>{shown.hint}</Text> : null}
           {shown.link ? (
             <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; if (!shown.link.keepOpen) onClose(); if (fn) fn(); }} accessibilityRole="link">
               <Text style={s.linkText}>{shown.link.label}</Text>
@@ -307,6 +317,10 @@ const sheetStyles = (c) => StyleSheet.create({
   sheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: 520, alignSelf: 'center' },
   icon: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28 },
+  titleWrap: { gap: 2 }, // A-163: the title with its date line under it
+  meta: { fontSize: 13, lineHeight: 18, color: c.ink3 },
+  bodyInk: { color: c.ink, lineHeight: 23 }, // A-163 picture .mtext
+  hint: { fontSize: 13, lineHeight: 18, color: c.ink2 }, // A-163 picture .mkept
   body: { fontSize: 17, lineHeight: 22, color: c.ink2 },
   bodyMore: { marginTop: -4 }, // prototype .sb + .sb: 10 between two paragraphs (gap 14)
   spinner: { transform: [{ scale: 1.4 }] }, // prototype .spin.big: 28 pt (small draws 20)

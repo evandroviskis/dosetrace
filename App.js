@@ -15,6 +15,8 @@ import { supabase, exchangeAuthCodeFromUrl, isProfileComplete, takeAccountGone, 
 import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, ownerBlocksSync, OWNER_KEY } from './lib/accountGuard';
 import { clearAIConsent } from './lib/aiConsent';
 import { clearAnalyticsQueue } from './lib/analytics';
+import { clearTeamMessages } from './lib/teamMessages';
+import AccountLanguageSync from './components/AccountLanguageSync';
 import { TABLES, getPendingChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
@@ -104,6 +106,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import AuthScreen from './screens/AuthScreen';
 import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
 import FAQScreen from './screens/FAQScreen';
+import TeamMessagesScreen from './screens/TeamMessagesScreen';
 import ReminderCheckScreen from './screens/ReminderCheckScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
@@ -245,6 +248,7 @@ function MainStack() {
       <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
+      <Stack.Screen name="TeamMessages" component={TeamMessagesScreen} />
       <Stack.Screen name="ReminderCheck" component={ReminderCheckScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
       {/* The ONE food chat (FL-31/32/37): Today's hero, Journey's hero and the 8 PM
@@ -485,6 +489,7 @@ export default function App() {
     clearAIConsent, // DV-007 (DL-55): the AI consent goes with the account
     forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY), // DV-242: whose data this phone holds
     clearAnalyticsQueue, // council regulatory review (1.3.1): queued analytics rows go with the account
+    clearTeamMessages, // A-163: the kept copy of the team's messages goes with the account
   });
 
   // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).
@@ -504,6 +509,7 @@ export default function App() {
     removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
     clearAIConsent, // DV-007
     clearAnalyticsQueue, // the previous account's queued analytics rows (council regulatory review)
+    clearTeamMessages, // A-163: the previous account's kept team messages
     getSession: async () => { const { data } = await supabase.auth.getSession(); return (data && data.session) || null; },
     ask: (a) => { lastAskRef.current = a; setAccountAsk(a); },
     // "Sign in as {previous} first": this account signs out on this phone only — not an intended
@@ -964,6 +970,8 @@ export default function App() {
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ErrorBoundary>
         <LanguageProvider>
+          {/* A-163: user_metadata.language follows the app language (push titles); never in onAuthStateChange */}
+          <AccountLanguageSync userId={!booting && session && session.user && !accountHeld ? session.user.id : null} />
           <ThemeProvider>
             {booting ? (
               <BootScreen lastUser={bootUser} fontsLoaded={fontsLoaded} onTabTap={rememberBootTab} />

@@ -63,6 +63,8 @@ import { orphanedSheet } from '../lib/orphanedPending';
 import { protocolDisplayName } from '../lib/protocolName';
 import { hasAIConsent, grantAIConsent, revokeAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { createAIUseSwitch } from '../lib/aiUseSwitch';
+import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages';
+import { useTeamMessages } from '../lib/useTeamMessages';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
 // the report is made from the rows already on the phone (no scan from a half-synced phone). The
@@ -330,9 +332,14 @@ export default function SettingsScreen({ navigation }) {
   const [reminderBlocks, setReminderBlocks] = useState(0);
   // A-112 SP-1: Android's "Make sure your reminders arrive" row state (block / N of M ready / all set).
   const [setupRow, setSetupRow] = useState(null);
+  // A-163 TM-17: "Team messages" under Support only after the account received a message.
+  const teamList = useTeamMessages(user && user.id);
+  const teamRow = settingsRow({ list: teamList, pending: {} });
+  const groupSum = (g) => t(g.key === 'support' && teamRow ? 'settings_sum_support_msgs' : g.sumKey);
   useFocusEffect(
     useCallback(() => {
       fetchUser();
+      teamMessages().refresh().catch(() => {}); // A-163: the row follows the server list
       readReminderHealth().then((h) => {
         setReminderBlocks(blockingCount(reminderChecks(h), scheduleState(h)));
         setSetupRow({ ...setupRowState(h), nextAtMs: h.next ? h.next.atMs : null });
@@ -1040,6 +1047,18 @@ export default function SettingsScreen({ navigation }) {
   function renderSupportBody() {
     return (
       <>
+        {teamRow ? (
+          <TouchableOpacity style={s.row} onPress={() => navigation.navigate('TeamMessages')} accessibilityRole="button">
+            <View style={s.rowLeft}>
+              <FeatureIcon name="mail" size={28} color={colors.text} />
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={s.rowLabel}>{t('settings_team_messages')}</Text>
+                <Text style={s.rowSub}>{settingsRowLine(teamRow, Date.now(), t, language)}</Text>
+              </View>
+            </View>
+            <RowChevron color={colors.tick} />
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="help" size={28} color={colors.text} />
@@ -1049,7 +1068,8 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={handleContactSupport}>
           <View style={s.rowLeft}>
-            <FeatureIcon name="mail" size={28} color={colors.text} />
+            {/* A-163 picture: the envelope is Team messages; Contact us is the speech bubble */}
+            <FeatureIcon name="chat" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_contact')}</Text>
           </View>
           <RowChevron color={colors.tick} />
@@ -1147,7 +1167,7 @@ export default function SettingsScreen({ navigation }) {
         >
           <View style={s.setHeadText}>
             <Text style={s.setTitle}>{t(g.labelKey)}</Text>
-            <Text style={s.setSum}>{t(g.sumKey)}</Text>
+            <Text style={s.setSum}>{groupSum(g)}</Text>
           </View>
           <View style={s.setChev}>
             <GroupChevron dir={open ? 'up' : 'down'} color={colors.ink} />
@@ -1236,7 +1256,7 @@ export default function SettingsScreen({ navigation }) {
                 >
                   <View style={s.setHeadText}>
                     <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
-                    <Text style={s.setSum} numberOfLines={2}>{t(g.sumKey)}</Text>
+                    <Text style={s.setSum} numberOfLines={2}>{groupSum(g)}</Text>
                   </View>
                   <RowChevron color={colors.tick} />
                 </TouchableOpacity>

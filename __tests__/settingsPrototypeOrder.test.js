@@ -90,7 +90,8 @@ test('a group card = name + summary + a round arrow in one card; the rows open i
   assert.match(card, /<View key=\{g\.key\} style=\{s\.setCard\}>/, 'one card per group');
   assert.match(card, /onPress=\{\(\) => toggleSection\(g\.key\)\}/);
   assert.match(card, /accessibilityState=\{\{ expanded: open \}\}/);
-  inOrder(card, ['{t(g.labelKey)}', '{t(g.sumKey)}', 'style={s.setChev}', "<GroupChevron dir={open ? 'up' : 'down'}", 'open && renderGroupBody(g.key)'], 'group card');
+  // A-163: the summary goes through groupSum (t(g.sumKey), or Support's "Messages, FAQ, contact").
+  inOrder(card, ['{t(g.labelKey)}', '{groupSum(g)}', 'style={s.setChev}', "<GroupChevron dir={open ? 'up' : 'down'}", 'open && renderGroupBody(g.key)'], 'group card');
   // Still remembered open/closed under the same key, all closed at first; no "deleted" group.
   assert.match(SET, /const ALL_COLLAPSED = \{ account: true, notifications: true, privacy: true, support: true \};/);
   assert.match(region(SET, 'function toggleSection(key)', 'function scrollToSection'), /AsyncStorage\.setItem\('dosetrace_settings_collapsed', JSON\.stringify\(next\)\)/);
