@@ -763,7 +763,9 @@
   function sessionExpired(c,now){var st=sessionStartMs(c);return st==null||now-st>ADM_MAX_AGE_MS;}
   function needsStepUp(c,now){var x=lastTotpMs(c);return x==null||now-x>ADM_STEP_UP_MS;}
   // Error message key for a failed auth call: status 0 = no connection.
-  function authErrKey(stage,status){if(!status||status>=500)return 'li_err_conn';if(status===429)return 'li_err_many';return stage==='password'?'li_err_creds':'li_err_code';}
+  // A code step answered 401/403 = the session token was refused (expired or signed out), not a wrong code
+  // (live 2026-10-22: an expired access token showed "Incorrect or expired code").
+  function authErrKey(stage,status){if(!status||status>=500)return 'li_err_conn';if(status===429)return 'li_err_many';if(stage!=='password'&&(status===401||status===403))return 'li_exp';return stage==='password'?'li_err_creds':'li_err_code';}
   // d = {fetch, store (sessionStorage), now, sbUrl, anon, api}. Every method resolves to a state, never throws.
   function makeAuth(d){
     var S=null, pending=null; // pending = the password-only (aal1) session, kept in memory only
@@ -843,7 +845,7 @@
         if(c6.length!==6)return Promise.resolve({error:'li_err_code'});
         var fid=pending.factor_id;
         return challengeVerify(fid,c6,pending.access_token).then(function(x){
-          if(x.status!==200||!x.j||!x.j.access_token)return {error:authErrKey('code',x.status)};
+          if(x.status!==200||!x.j||!x.j.access_token){var k=authErrKey('code',x.status);if(k==='li_exp'){pending=null;return {screen:'expired'};}return {error:k};}
           var n=toSession(x.j,pending);n.factor_id=fid;pending=null;save(n);
           return {screen:'panel'};
         });
@@ -854,9 +856,14 @@
         if(!S)return Promise.resolve({expired:true});
         var c6=digits(code);
         if(c6.length!==6)return Promise.resolve({error:'li_err_code'});
-        return challengeVerify(S.factor_id,c6,S.access_token).then(function(x){
-          if(x.status!==200||!x.j||!x.j.access_token)return {error:authErrKey('code',x.status)};
-          var n=toSession(x.j,S);save(n);return {ok:true};
+        // Refresh first, like every other request: the access token lives 1 h, the step-up comes later.
+        return fresh().then(function(f){
+          if(f==='expired')return {expired:true};
+          if(f==='conn')return {error:'li_err_conn'};
+          return challengeVerify(S.factor_id,c6,S.access_token).then(function(x){
+            if(x.status!==200||!x.j||!x.j.access_token){var k=authErrKey('code',x.status);if(k==='li_exp'){clear();return {expired:true};}return {error:k};}
+            var n=toSession(x.j,S);save(n);return {ok:true};
+          });
         });
       },
       expiredNow:function(){return !!S&&sessionExpired(claims(),d.now());},

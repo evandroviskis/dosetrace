@@ -266,6 +266,7 @@ function pageEnv(o) {
       return json({ access_token: F.token(who, { nowMs: env.now, ageS: o.refreshAgeS || 600, totpS: o.refreshTotpS || 600 }), refresh_token: 'r3', expires_in: 3600, user: user() });
     }
     if (u === A + '/factors' && method === 'POST') return json({ id: 'f-new', type: 'totp', totp: { qr_code: '<svg xmlns="http://www.w3.org/2000/svg"></svg>', secret: 'ABCDEFGHIJKLMNOP', uri: 'otpauth://totp/x' } });
+    if (o.rejectToken && /\/factors\//.test(u) && String(headers.Authorization || '') === 'Bearer ' + o.rejectToken) return json({ error_code: 'bad_jwt', msg: 'token is expired' }, 403);
     if (/\/factors\/[^/]+\/challenge$/.test(u)) return json({ id: 'ch-1', expires_at: Math.floor(env.now / 1000) + 300 });
     if (/\/factors\/[^/]+\/verify$/.test(u)) {
       if (o.verifyStatus) return json({ error_code: 'x' }, o.verifyStatus);
@@ -453,6 +454,28 @@ test('AU8 static: the session lives in sessionStorage only — localStorage hold
 });
 
 // ------------------------------------------------------------------ AU3: step-up (page)
+// Live 2026-10-22: the founder came back after more than an hour; the access token (1 h) had expired,
+// the step-up sent it to /challenge as it was, Supabase answered 403 bad_jwt, and the dialog said
+// "Incorrect or expired code". The step-up must refresh the session first, like every other request.
+test('AU3 page: the step-up refreshes an expired access token before the challenge (never "wrong code" for an old token)', async () => {
+  const saved = savedSession('admin', { totpS: 70 * 60, ageS: 75 * 60, expiresIn: -600 });
+  const e = pageEnv({ saved, rejectToken: saved.access_token, refreshAgeS: 75 * 60 + 1, refreshTotpS: 70 * 60 }); // a new token (different from the expired one)
+  await e.auth.start();
+  const r = await e.auth.stepUp('123456');
+  assert.ok(r.ok, JSON.stringify(r));
+  const i = e.calls.findIndex((c) => c.url.endsWith('/token?grant_type=refresh_token'));
+  const j = e.calls.findIndex((c) => c.url.endsWith('/challenge'));
+  assert.ok(i >= 0 && j > i, 'refresh happens before the challenge');
+});
+
+test('AU3 page: a token the server refuses during the step-up is "session expired", never "wrong code"', async () => {
+  const P = authPure();
+  assert.equal(P.authErrKey('code', 403), 'li_exp');
+  assert.equal(P.authErrKey('code', 401), 'li_exp');
+  assert.equal(P.authErrKey('code', 422), 'li_err_code');
+  assert.equal(P.authErrKey('password', 400), 'li_err_creds');
+});
+
 test('AU3 page: after 15 min since the last code a write needs the step-up; the step-up verifies the stored factor and refreshes the session', async () => {
   const e = pageEnv({ saved: savedSession('admin', { totpS: 16 * 60 }) });
   await e.auth.start();
