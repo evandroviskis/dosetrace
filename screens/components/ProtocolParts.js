@@ -55,8 +55,11 @@ function useLast(config) {
 //   meta           a small ink3 line right under the title (the message's date, "1 de 2");
 //   hint           a small ink2 line above the buttons ("Fica guardada em Ajustes › Suporte › …");
 //   bodyInk        the body in ink 17/23 (the message itself, picture .mtext) instead of ink2.
+// maxHeight (a prop, opt-in; council 2026-10-22): the sheet never grows past it — the icon, title,
+//   text, hint and link scroll and the buttons (and note) stay pinned below, always on screen. Only
+//   the team message sheet passes it (a long message in a locked sheet must never hide its button).
 // No buttons: no empty button row.
-export function DTSheet({ config, onClose }) {
+export function DTSheet({ config, onClose, maxHeight }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
   const centerGap = useSheetGap(16); // A-136 (2): clear the system bottom bar (Android)
@@ -69,44 +72,58 @@ export function DTSheet({ config, onClose }) {
   const ordered = stack && btns.length === 2 ? [btns[1], btns[0]] : btns;
   const press = (b) => { after.queue(b.onPress); onClose(); };
   const dismiss = () => { if (shown.locked) return; after.queue(shown.onDismiss); onClose(); };
+  const content = (
+    <>
+      {shown.spinner ? (
+        <View style={s.icon}><ActivityIndicator size="small" color={c[shown.spinner] || c.ink} style={s.spinner} /></View>
+      ) : shown.icon ? (
+        <View style={s.icon}><FeatureIcon name={shown.icon} size={26} color={c.ink} /></View>
+      ) : null}
+      {shown.meta ? (
+        <View style={s.titleWrap}>
+          <Text style={s.title} accessibilityRole="header">{shown.title}</Text>
+          <Text style={s.meta}>{shown.meta}</Text>
+        </View>
+      ) : <Text style={s.title} accessibilityRole="header">{shown.title}</Text>}
+      {shown.body ? <Text style={[s.body, shown.bodyInk && s.bodyInk]}>{shown.body}</Text> : null}
+      {shown.body2 ? <Text style={[s.body, s.bodyMore]}>{shown.body2}</Text> : null}
+      {shown.hint ? <Text style={s.hint}>{shown.hint}</Text> : null}
+      {shown.link ? (
+        <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; if (!shown.link.keepOpen) onClose(); if (fn) fn(); }} accessibilityRole="link">
+          <Text style={s.linkText}>{shown.link.label}</Text>
+        </TouchableOpacity>
+      ) : null}
+    </>
+  );
+  const actions = (
+    <>
+      {btns.length ? (
+        <View style={stack ? s.btnStack : s.btnRow}>
+          {ordered.map((b, i) => (
+            <TouchableOpacity
+              key={i}
+              style={[s.btn, !stack && s.btnFlex, s[`btn_${b.kind || 'secondary'}`]]}
+              onPress={() => press(b)}
+              accessibilityRole="button"
+            >
+              <Text style={[s.btnText, s[`btnText_${b.kind || 'secondary'}`]]}>{b.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
+      {shown.note ? <Text style={s.note}>{shown.note}</Text> : null}
+    </>
+  );
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={dismiss} onDismiss={after.onDismiss}>
       <Pressable style={[s.scrim, { paddingBottom: centerGap }]} onPress={dismiss} accessibilityRole="button" >
-        <Pressable style={s.sheet} onPress={() => {}} accessibilityViewIsModal>
-          {shown.spinner ? (
-            <View style={s.icon}><ActivityIndicator size="small" color={c[shown.spinner] || c.ink} style={s.spinner} /></View>
-          ) : shown.icon ? (
-            <View style={s.icon}><FeatureIcon name={shown.icon} size={26} color={c.ink} /></View>
-          ) : null}
-          {shown.meta ? (
-            <View style={s.titleWrap}>
-              <Text style={s.title} accessibilityRole="header">{shown.title}</Text>
-              <Text style={s.meta}>{shown.meta}</Text>
-            </View>
-          ) : <Text style={s.title} accessibilityRole="header">{shown.title}</Text>}
-          {shown.body ? <Text style={[s.body, shown.bodyInk && s.bodyInk]}>{shown.body}</Text> : null}
-          {shown.body2 ? <Text style={[s.body, s.bodyMore]}>{shown.body2}</Text> : null}
-          {shown.hint ? <Text style={s.hint}>{shown.hint}</Text> : null}
-          {shown.link ? (
-            <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; if (!shown.link.keepOpen) onClose(); if (fn) fn(); }} accessibilityRole="link">
-              <Text style={s.linkText}>{shown.link.label}</Text>
-            </TouchableOpacity>
-          ) : null}
-          {btns.length ? (
-            <View style={stack ? s.btnStack : s.btnRow}>
-              {ordered.map((b, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={[s.btn, !stack && s.btnFlex, s[`btn_${b.kind || 'secondary'}`]]}
-                  onPress={() => press(b)}
-                  accessibilityRole="button"
-                >
-                  <Text style={[s.btnText, s[`btnText_${b.kind || 'secondary'}`]]}>{b.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
-          {shown.note ? <Text style={s.note}>{shown.note}</Text> : null}
+        <Pressable style={[s.sheet, maxHeight ? { maxHeight } : null]} onPress={() => {}} accessibilityViewIsModal>
+          {maxHeight ? (
+            <ScrollView style={s.sheetScroll} contentContainerStyle={s.sheetScrollBody} bounces={false} showsVerticalScrollIndicator>
+              {content}
+            </ScrollView>
+          ) : content}
+          {actions}
         </Pressable>
       </Pressable>
     </Modal>
@@ -315,6 +332,8 @@ const sheetStyles = (c) => StyleSheet.create({
   scrim: { flex: 1, backgroundColor: c.scrim, justifyContent: 'center', padding: 16 },
   scrimBottom: { justifyContent: 'flex-end', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 30 },
   sheet: { backgroundColor: c.raised, borderRadius: 26, padding: 20, gap: 14, width: '100%', maxWidth: 520, alignSelf: 'center' },
+  sheetScroll: { flexGrow: 0, flexShrink: 1 }, // maxHeight: the text gives way, the buttons stay
+  sheetScrollBody: { gap: 14 },
   icon: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: c.ink, lineHeight: 28 },
   titleWrap: { gap: 2 }, // A-163: the title with its date line under it
