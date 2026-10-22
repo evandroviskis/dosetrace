@@ -113,6 +113,8 @@ The metric rows (O1–S7) have an extra state: **not yet proven**. The founder p
 
 checklist-signed: 2026-10-21 by the founder ("assino a fase 3 e aprovo o login"); the 3.1 login picture docs/design/adm-31-login.html approved the same day; built by Claude Code in the DoseTrace session (founder: "Faz aqui entao")
 
+**3.1 deviations accepted by the founder 2026-10-21 ("Aceito as três diferenças, pode seguir com os passos"):** (1) not authorised shows right after the password, before the code; (2) a Sair button in the panel header; (3) the /adm CSP keeps unsafe-inline for now (a hash-based CSP needs the page rewritten, registered for later). **Migration applied 2026-10-21 (apply_migration admin_users):** RLS on, 0 policies, anon/authenticated no grants (service_role has the Supabase default table grants, not SELECT only), admin_mark_test(text[],boolean,uuid) execute = postgres + service_role only, actor column present; hello@dosetrace.io inserted as admin (1 row). Deploy (main fast-forward) pending: blocked by the session permission check, the founder decides.
+
 **Status:** 3.1 built on `feature/admin-panel` 2026-10-21 (rows AU1–AU9 `[~]`, evidence on each row); NOT pushed, NOT deployed, migration NOT applied. 3.2–3.5 not started. Earlier status: spec and pictures only (2026-10-21). Input: the handoff `docs/handoffs/admin-panel-users-premium-ai.md` in the main repo (sections 0–8) and the founder's answers to its section 8, **founder 2026-10-21 (via Cowork)**. No code starts until the founder signs this checklist and picks the picture of each screen.
 
 **Founder decisions this phase applies (founder 2026-10-21 (via Cowork)):**
