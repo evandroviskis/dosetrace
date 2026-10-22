@@ -398,18 +398,8 @@ test('#013 Contas SQL: admin_accounts_list returns only non-test accounts, newes
   assert.match(SQL, /revoke execute on function public\.admin_accounts_list\(\) from public, anon, authenticated;/i);
   assert.match(SQL, /grant execute on function public\.admin_accounts_list\(\) to service_role;/i);
 });
-test('#013 Contas summary: counts by sign-in method, onboarding and platform are measured from the rows; nothing is guessed', () => {
-  const rows = [
-    { email: 'a@x.y', created: '2026-10-10', provider: 'google', onboarded: true, apple: false, pu: ['android'], ua: ['android'], protocols_live: 2, last_sign_in: '2026-10-11' },
-    { email: 'b@x.y', created: '2026-10-09', provider: 'apple', onboarded: false, apple: true, pu: [], ua: [], protocols_live: 0, last_sign_in: null },
-    { email: 'c@x.y', created: '2026-10-08', provider: 'email', onboarded: false, apple: false, pu: [], ua: [], protocols_live: 0, last_sign_in: null },
-  ];
-  const s = adm.accountsSummary(rows);
-  assert.deepEqual(s.by_provider, { google: 1, apple: 1, email: 1 });
-  assert.deepEqual(s.by_onboarding, { onboarded: 1, not_onboarded: 2 });
-  assert.deepEqual(s.by_platform, { ios: 1, android: 1, unknown: 1, mixed: 0 });
-  assert.equal(s.total, 3);
-});
+// The #013 server summary (accountsSummary) was replaced by the page's summary strip (founder 2026-10-22):
+// __tests__/admStrip.test.js.
 test('#013 Contas tab: a third tab exists with its labels in 6 languages', () => {
   const { html, T } = pageT();
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['tab_accounts', 'acc_email', 'acc_created', 'acc_method', 'acc_platform', 'acc_onboarding', 'acc_protocols', 'acc_last_sign_in', 'acc_yes', 'acc_no']) assert.ok(T[l][k], `${l} ${k}`);
@@ -525,7 +515,7 @@ test('TM6 JS: the rule helper mirrors the SQL pattern (used only for the filter 
 });
 test('TM7 page: Contas tab has search, filters, checkboxes, mark/unmark, confirmation and the test view, with labels in 6 languages', () => {
   const { html, T } = pageT();
-  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['acc_search', 'f_all', 'f_not_onboarded', 'f_no_protocol', 'f_google', 'f_rule', 'btn_mark', 'btn_unmark', 'confirm_mark', 'confirm_unmark', 'btn_confirm', 'btn_cancel', 'view_real', 'view_tests', 'badge_rule', 'badge_list', 'badge_domain', 'by_rule_n', 'select_all', 'write_ok', 'write_err']) assert.ok(T[l][k], `${l} ${k}`);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['acc_search', 'f_all', 'f_not_onboarded', 'f_no_protocol', 'f_google', 'f_rule', 'btn_mark', 'btn_unmark', 'confirm_mark', 'confirm_unmark', 'btn_confirm', 'btn_cancel', 'view_real', 'view_tests', 'badge_rule', 'badge_list', 'badge_domain', 'st_rule', 'select_all', 'write_ok', 'write_err']) assert.ok(T[l][k], `${l} ${k}`);
   assert.equal(T.pt.btn_mark, 'Marcar como teste'); assert.equal(T.pt.btn_unmark, 'Desmarcar teste'); assert.equal(T.pt.view_tests, 'Contas de teste'); assert.equal(T.pt.badge_rule, 'teste (regra)');
   assert.match(html, /id="acc-search"/); assert.match(html, /window\.markTests=function/); assert.match(html, /AUTH\.api\('POST',body\)/); // 3.1: the write goes through the admin session
   assert.ok(!/fetch\('\/api\/adm\?/.test(html), 'no token in any request URL');

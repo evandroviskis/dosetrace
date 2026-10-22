@@ -344,6 +344,8 @@ $$;
 -- Supabase id (= the RevenueCat app_user_id). Migration 20261022120000_admin_actions_log.sql.
 -- 3.3 (US4, founder Q3 2026-10-21): has_active_protocol (yes/no) replaced the protocols_live count
 -- (migration 20261022200000_admin_users_tab.sql). The pre-3.3 body is in git history.
+-- Summary strip (founder 2026-10-22): tests carry the same login / platform / onboarding / active-protocol fields
+-- as rows, for the "Contas de teste" strip (migration 20261022230000_admin_accounts_list_test_fields.sql).
 create or replace function public.admin_accounts_list()
  returns jsonb
  language sql
@@ -353,8 +355,21 @@ as $$
   select jsonb_build_object(
     'test_excluded', (select count(*) from auth.users where public.admin_is_test(email)),
     'by_rule', (select count(*) from auth.users where public.admin_test_kind(email) = 'rule'),
-    'tests', coalesce((select jsonb_agg(jsonb_build_object('id', u.id, 'email', lower(u.email), 'kind', public.admin_test_kind(u.email)) order by u.created_at desc)
-                         from auth.users u where public.admin_is_test(u.email)), '[]'::jsonb),
+    'tests', coalesce((select jsonb_agg(jsonb_build_object(
+        'id', u.id,
+        'email', lower(u.email),
+        'kind', public.admin_test_kind(u.email),
+        'provider', coalesce(u.raw_app_meta_data->>'provider', ''),
+        'apple', coalesce(u.raw_app_meta_data->>'provider', '') = 'apple',
+        'pu', coalesce((select jsonb_agg(distinct lower(p.platform)) from public.push_tokens p where p.user_id = u.id and p.platform is not null), '[]'::jsonb),
+        'ua', coalesce((select jsonb_agg(distinct x.k) from (
+                 select case when s.user_agent ~* '(okhttp|android)' then 'android'
+                             when s.user_agent ~* '(cfnetwork|darwin)' then 'ios' end as k
+                   from auth.sessions s where s.user_id = u.id) x where x.k is not null), '[]'::jsonb),
+        'onboarded', coalesce(u.raw_user_meta_data ? 'onboarded_at', false),
+        'has_active_protocol', exists (select 1 from public.protocols p where p.user_id = u.id and p.deleted_at is null and p.active is true)
+      ) order by u.created_at desc)
+      from auth.users u where public.admin_is_test(u.email)), '[]'::jsonb),
     'rows', coalesce((
       select jsonb_agg(jsonb_build_object(
         'id', u.id,
