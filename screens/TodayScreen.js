@@ -68,6 +68,7 @@ import useSheetKeyboard from '../components/useSheetKeyboard';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import TeamMessageGate from '../components/TeamMessageGate';
 import { doseStreak, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
@@ -199,6 +200,14 @@ export default function TodayScreen() {
     navigation.setParams({ focusDose: undefined });
   }, [route.params?.focusDose]); // eslint-disable-line react-hooks/exhaustive-deps
   useFocusEffect(useCallback(() => () => setNotifFocus(null), []));
+  // A-163 TM-13: a team message notification tap opens that message (lib/notificationPlan).
+  const [teamTap, setTeamTap] = useState(null);
+  useEffect(() => {
+    const m = route.params?.teamMessage;
+    if (!m) return;
+    setTeamTap(m);
+    navigation.setParams({ teamMessage: undefined });
+  }, [route.params?.teamMessage]); // eslint-disable-line react-hooks/exhaustive-deps
   // RC-6: Today warns when something the app can read blocks dose reminders (lib/reminderHealth).
   const [remindersBlocked, setRemindersBlocked] = useState(false);
   const [remindersLate, setRemindersLate] = useState(false); // A-106: Alarms & reminders off (Android)
@@ -317,6 +326,9 @@ export default function TodayScreen() {
   // another modal (vial prompt, "still going?") — iOS shows one modal at a time.
   const siteQueueRef = useRef([]);
   const bodyMapOpenRef = useRef(false);
+  // A-163: the team message sheet is up (Today's own popups wait for it, and it waits for them).
+  const teamSheetOpenRef = useRef(false);
+  const doseFocusOpenRef = useRef(false); // a reminder tap's dose is still open on Today (A-44)
   const openQuestionRef = useRef(null); // key of the site question on screen (S-25)
   const vialPromptOpenRef = useRef(false); // one modal at a time: questions wait for the vial prompt
   const vialPromptPendingRef = useRef(false); // set synchronously by markTaken when the vial prompt will show
@@ -644,6 +656,7 @@ export default function TodayScreen() {
         if (snoozedAt && (now - new Date(snoozedAt).getTime()) / 86400000 < thresholdDays) continue;
         // One modal at a time: a site question goes first; this prompt comes on a later open.
         // BK-20: nor over the embedded Dose log's site editor.
+        if (teamSheetOpenRef.current) return; // A-163: nor over the team message sheet (asked on a later open)
         if (bodyMapOpenRef.current || siteQueueRef.current.length || logPopupOpenRef.current) return;
         inactivePromptOpenRef.current = true;
         setInactiveProtocol(p);
@@ -1103,12 +1116,34 @@ export default function TodayScreen() {
 
   // A popup of Today's own is open (or the vial prompt is about to open).
   function todayPopupBusy() {
-    return bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current;
+    return teamSheetOpenRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current;
+  }
+
+  // A-163 TM-13/TM-15: what the team message sheet waits for — any of Today's popups, a site
+  // question (queued, or kept from a Mark taken tap), the embedded Log's editor, a vial prompt on
+  // its way, and a dose being logged from a reminder tap (its card still open, or its Undo bar).
+  async function teamGateState() {
+    let kept = 0;
+    try { kept = (await loadQuestions(AsyncStorage)).length; } catch { kept = 0; }
+    return {
+      todayPopup: todayPopupBusy(),
+      siteQuestions: siteQueueRef.current.length,
+      keptQuestions: kept,
+      logPopup: logPopupOpenRef.current,
+      vialPending: vialPromptPendingRef.current || pendingVialsRef.current.length > 0,
+      doseFocusOpen: doseFocusOpenRef.current || !!undoDataRef.current,
+      otherScreen: false, // A-127's required update notice (1.3.2) registers here when it ships
+    };
+  }
+  function onTeamSheetChange(open) {
+    teamSheetOpenRef.current = open;
+    if (!open) setTimeout(openNextQuestion, 450); // a question / the Log editor that waited for it
   }
 
   async function openNextQuestion() {
     // BK-20: one popup at a time across both pages — also not over the embedded Dose log's
     // site editor; the question waits and opens when that editor closes.
+    if (teamSheetOpenRef.current) return; // A-163: nor over the team message sheet (it closes, then the question opens)
     if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
     const q = siteQueueRef.current.shift();
     if (!q) { runLogPopupWaiter(); return; }
@@ -1876,6 +1911,7 @@ export default function TodayScreen() {
   })();
   const isFocusPend = (item) => !!(notifFocus && notifFocus.dayKey && notifFocus.dayKey !== todayKey
     && item.protocolId === notifFocus.protocolId && (notifFocus.slotMs == null || item.slotMs === notifFocus.slotMs));
+  doseFocusOpenRef.current = !!focusCard || (Array.isArray(pendingYest) && pendingYest.some(isFocusPend)); // A-163
   // A-42: My Protocols' Mark complete opens Today on the dose with take: Today runs its own
   // take once (yesterday-or-today question, the site question, the vial, Undo) — no new rules.
   const takenFocusRef = useRef(null);
@@ -2631,6 +2667,12 @@ export default function TodayScreen() {
       <DTSheet config={skipSheet} onClose={closeSkipAsk} />
       {/* Errors and the "yesterday or today?" question (M4). */}
       <DTSheet config={todaySheet} onClose={closeTodaySheet} />
+      {/* A-163 option A: an unread message from the DoseTrace team, once, after any dose being logged */}
+      <TeamMessageGate
+        tapped={teamTap}
+        gateState={teamGateState}
+        onOpenChange={onTeamSheetChange}
+      />
 
       {/* The dose drop that travels from a "Mark taken" button into the ring. */}
       <Animated.View pointerEvents="none" style={[s.flyDrop, flyStyle]}>

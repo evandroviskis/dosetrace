@@ -137,6 +137,9 @@ Deno.serve(async (req) => {
       // Per-user reminder-send ledger (server push); cascades too, listed for the
       // same provable-erasure reason. Tolerated if the table doesn't exist yet.
       'notification_sends',
+      // A-163 messages from the DoseTrace team; cascades too (user_id → auth.users), listed
+      // for the same provable-erasure reason. Tolerated if the table doesn't exist yet.
+      'team_messages',
     ];
 
     for (const table of userDataTables) {
