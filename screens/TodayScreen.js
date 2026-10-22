@@ -54,6 +54,7 @@ import { describeStored, hasSavedSite } from '../lib/injectionSites';
 import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
 import { dosesPerVial, computeDraw, trimZeros } from '../lib/doseMath';
 import { drawLine, exceedsMessage } from '../lib/syringes'; // ml on 2 / 3 / 5 ml syringes (AP-21)
+import { volumeNote } from '../lib/calcNote';
 import { adherenceRings } from '../lib/adherenceRings';
 import { dayKeyAt, msUntilNextLocalMidnight } from '../lib/dayChange';
 import TodayTracker from './components/TodayTracker';
@@ -2136,12 +2137,14 @@ export default function TodayScreen() {
           <View style={s.draw}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{drawLine(draw, syr, language).big}<Text style={s.drawUnit}>{drawLine(draw, syr, language).small}</Text></Text>
+              <Text style={s.drawVal}>{drawLine(draw, syr, language).big}<Text style={s.drawUnit}>{drawLine(draw, syr, language).small}</Text><Text style={s.calcMark}>*</Text></Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
             {draw.exceedsSyringe && (
               <Text style={s.drawWarn}>{exceedsMessage(t, draw, syr, language)}</Text>
             )}
+            {/* A-166: the computed draw is starred; its arithmetic in the user's numbers. */}
+            <Text style={s.calcNote}>{volumeNote(p, draw, syr, t, language)}</Text>
           </View>
         )}
         {/* Part 7: Day X of Y, the last site (full name) and the streak on one line that
@@ -2899,6 +2902,8 @@ const todayV21Styles = (c) => ({
   drawVal: { fontSize: 22, fontWeight: '500', color: c.ink, fontVariant: ['tabular-nums'] },
   drawUnit: { fontSize: 13, fontWeight: '400', color: c.ink3 },
   drawWarn: { fontSize: 15, fontWeight: '600', color: c.risk },
+  calcNote: { fontSize: 13, lineHeight: 18, color: c.ink3, fontVariant: ['tabular-nums'], marginTop: 2 },
+  calcMark: { color: c.ink2, fontWeight: '500' },
   dmeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: 4, columnGap: 14 },
   dmetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dmetaText: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },

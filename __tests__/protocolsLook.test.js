@@ -159,11 +159,12 @@ test('part 16: drawn − / +, drawn fold arrow; the dose words untouched', () =>
   assert.match(SCREEN, /<StepGlyph plus color=\{colors\.ink\} \/>/);
   assert.match(PARTS, /d=\{plus \? 'M12 6v12M6 12h12' : 'M6 12h12'\}/);
   assert.match(SCREEN, /<FoldChevron open=\{iuOpen\} color=\{colors\.ink3\} \/>/);
-  // AP-13 (signed 2026-10-02) relabels the powder dose field "Dose per injection" with its hint;
-  // "Desired dose" stays on the protocol page's Dose details row.
+  // AP-13 (signed 2026-10-02) relabels the powder dose field "Dose per injection" with its hint.
+  // The protocol page's Dose details row was "Desired dose"; A-166 (founder 2026-10-22, after
+  // Apple's 1.4.2 rejection) renames it "Dose you entered" so the number reads as the user's own.
   assert.match(SCREEN, /<Fld s=\{s\} label=\{doseLabel\} labelExtra=\{doseQ\} hint=\{t\('protocols_dose_hint'\)\}>/);
   assert.match(SCREEN, /const doseLabel = t\('protocols_dose_per_injection'\);/);
-  assert.equal(TR.en.protocols_desired_dose, 'Desired dose');
+  assert.equal(TR.en.protocols_desired_dose, 'Dose you entered');
 });
 
 test('part 17: the clock and the time together on the left; Every [n] days left-aligned', () => {
