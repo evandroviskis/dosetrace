@@ -50,6 +50,18 @@ test('A-166 (1): the Dose details row reads "Dose you entered" in all 6 language
   assert.match(SCREEN, /\{ label: t\('protocols_desired_dose'\), value: /);
 });
 
+test('A-175: the protocol page says "Dose you entered" for every injectable type (powder vial and ready to use); only the editor keeps "Dose per injection"', () => {
+  const start = SCREEN.indexOf("doseRows = [");
+  const rows = SCREEN.slice(start, SCREEN.indexOf("const doseLabel"));
+  const lyo = rows.slice(0, rows.indexOf("p.type === 'rtu'"));
+  const rtu = rows.slice(rows.indexOf("p.type === 'rtu'"));
+  assert.match(lyo, /label: t\('protocols_desired_dose'\)/);
+  assert.match(rtu.slice(0, rtu.indexOf("];")), /label: t\('protocols_desired_dose'\)/);
+  const pageUses = SCREEN.slice(0, SCREEN.indexOf("const doseLabel")).match(/t\('protocols_dose_per_injection'\)/g) || [];
+  assert.equal(pageUses.length, 0, "the protocol page never shows Dose per injection");
+  assert.match(SCREEN, /const doseLabel = t\('protocols_dose_per_injection'\)/);
+});
+
 test('A-166 (1): the editor dose field keeps "Dose per injection" (AP-13)', () => {
   const want = {
     en: 'Dose per injection',

@@ -800,7 +800,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
     ];
   } else if (p.type === 'rtu') {
     doseRows = [
-      { label: t('protocols_dose_per_injection'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`, mono: true },
+      { label: t('protocols_desired_dose'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`, mono: true }, // A-175: "Dose you entered" for every injectable type (founder 2026-10-22)
       p.concentration ? { label: t('protocols_concentration'), value: concentrationText(p, language), mono: true } : null,
       vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${decimalText(trimZeros(vial.water_ml), language)} ml`, mono: true } : null,
     ];
