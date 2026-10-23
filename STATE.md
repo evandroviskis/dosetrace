@@ -2,6 +2,8 @@
 
 **1.3.1 = OPTION B (founder 2026-10-20 "B, pode seguir"):** release branch release/1.3.1 (worktree ~/Desktop/dosetrace-1.3.1, base f8b633f + ledger) = 12 S1 defects + A-149/A-142/A-144/A-152/A-154/A-151 + curve DV-005(A)/068/069/072C. 4 agents running on it (curve; food/profile; sync; account/privacy). Everything else (A-119 in review round 3, A-121/A-148 merged on redesign/graduated, A-127, pictures…) = 1.3.2 on redesign/graduated. Migrations pending founder: protocol_ends_on (1.3.2), one_active_device (1.3.2). 1.3.0: Apple WAITING_FOR_REVIEW, Play production 100%.
 
+2026-10-23: standing rules (one device / check the record) + checar-decisoes + hook + porteiro installed; specialists proposed, awaiting founder.
+
 **1.3.1 TEST BUILD 6 2026-10-23 (release/1.3.1 d3d1108):** iOS build 80 VALID, in Early Birds, beta review WAITING_FOR_REVIEW (submitted 12:56 PT), What to Test en-US + pt-BR set; Android vc61 Active on the Play internal track (first submit failed: a concurrent Play edit from the status script — resubmitted). Contents: A-175, A-176 (+ Gate B + council fixes). Owed on device: A-176 cleanup on the Fold (old duplicates gone after open + sync), A-175 in en + pt.
 
 **iOS 1.3.0 APPROVED + LIVE 2026-10-23 ~19:30 UTC:** App Store 1.3.0 (build 73) READY_FOR_SALE (release AFTER_APPROVAL), Premium Monthly / Yearly / Lifetime APPROVED; the 1.4.2 rejection resolved by the Resolution Center reply. A-165 not needed. Next: 1.3.1 build 6 (A-175 + A-176), then Early Birds is open again.
