@@ -63,12 +63,14 @@ test('A-176: duplicateMissedRows picks the extra identical app-written Missed co
     { id: 40, protocol_id: 4, outcome: 'Taken', logged_at: at, injection_site: null },
     { id: 41, protocol_id: 4, outcome: 'Taken', logged_at: at, injection_site: null },
   ];
-  const gone = duplicateMissedRows(rows).map((r) => r.id).sort((a, b) => a - b);
+  const PROTOS = [1, 2, 3, 4].map((id) => ({ ...P, id }));
+  const gone = duplicateMissedRows(rows, PROTOS).map((r) => r.id).sort((a, b) => a - b);
   // protocol 1: one kept (the lowest id), the two copies go (the same instant written two ways counts as one slot)
   // protocol 2: alone, kept; protocol 3: the edited copy (a site) is kept, the plain one goes
   // protocol 4: Taken rows are the user's, never touched
   assert.deepEqual(gone, [11, 12, 30]);
-  assert.deepEqual(duplicateMissedRows([]), []);
+  assert.deepEqual(duplicateMissedRows([], PROTOS), []);
+  assert.deepEqual(duplicateMissedRows(rows), [], "no protocol list → nothing is touched");
 });
 
 test('A-176: the scan removes the duplicate copies before judging (lib/doseActions scanMissedDoses)', () => {
@@ -86,7 +88,7 @@ test('A-176 Gate B 1: rows with no local protocol are grouped by the cloud proto
     { id: 3, protocol_id: null, protocol_remote_id: null, outcome: 'Missed', logged_at: at },
     { id: 4, protocol_id: null, protocol_remote_id: null, outcome: 'Missed', logged_at: at },
   ];
-  assert.deepEqual(duplicateMissedRows(rows), [], 'two protocols at the same time are two slots; unknown protocol → untouched');
+  assert.deepEqual(duplicateMissedRows(rows, [{ ...P, id: 8, remote_id: 'pA' }, { ...P, id: 9, remote_id: 'pB' }]), [], 'two protocols at the same time are two slots; unknown protocol → untouched');
 });
 
 test('A-176 Gate B 2: every phone keeps the same copy (synced first, then the smallest cloud id), whatever its local ids', () => {
@@ -99,13 +101,13 @@ test('A-176 Gate B 2: every phone keeps the same copy (synced first, then the sm
     { id: 9, protocol_id: 7, protocol_remote_id: 'p1', outcome: 'Missed', logged_at: at, remote_id: 'rA' },
     { id: 10, protocol_id: 7, protocol_remote_id: 'p1', outcome: 'Missed', logged_at: at, remote_id: 'rB' },
   ];
-  assert.deepEqual(duplicateMissedRows(phoneA).map((r) => r.remote_id), ['rB']);
-  assert.deepEqual(duplicateMissedRows(phoneB).map((r) => r.remote_id), ['rB']);
+  assert.deepEqual(duplicateMissedRows(phoneA, [{ ...P, id: 1, remote_id: 'p1' }]).map((r) => r.remote_id), ['rB']);
+  assert.deepEqual(duplicateMissedRows(phoneB, [{ ...P, id: 7, remote_id: 'p1' }]).map((r) => r.remote_id), ['rB']);
   const mixed = [
     { id: 1, protocol_id: 1, outcome: 'Missed', logged_at: at },
     { id: 2, protocol_id: 1, outcome: 'Missed', logged_at: at, remote_id: 'rZ' },
   ];
-  assert.deepEqual(duplicateMissedRows(mixed).map((r) => r.id), [1], 'the synced copy stays, the pending one goes');
+  assert.deepEqual(duplicateMissedRows(mixed, [{ ...P, id: 1 }]).map((r) => r.id), [1], 'the synced copy stays, the pending one goes');
 });
 
 test('A-176 Gate B 3: an ordinary travel history is unchanged; a clock put back before the only entry keeps one entry', () => {
@@ -118,4 +120,30 @@ test('A-176 Gate B 3: an ordinary travel history is unchanged; a clock put back 
   assert.deepEqual(H.recordZone(h, SP, t2 + 1000), h, 'same zone later: nothing changes');
   const back = H.recordZone([{ tz: SP, sinceMs: T0 }], BA, T0 - 86400000);
   assert.deepEqual(back, [{ tz: BA, sinceMs: T0 - 86400000 }]);
+});
+
+test('A-176 council: a protocol with the same dose time twice keeps both slots and both Missed rows', () => {
+  const TWICE = { ...P, doses_per_day: 2, reminder_time: '15:00,15:00' };
+  const out = computeMissedDoses([TWICE], [], NOW, 0, { lookbackDays: 3, zoneHistory: CORRUPT }).map((o) => iso(o.scheduledAtMs));
+  assert.equal(out.length, 6, out.join(', '));
+  const at = '2026-10-22T18:00:00.000Z';
+  const rows = [
+    { id: 1, protocol_id: 1, outcome: 'Missed', logged_at: at, remote_id: 'a' },
+    { id: 2, protocol_id: 1, outcome: 'Missed', logged_at: at, remote_id: 'b' },
+  ];
+  assert.deepEqual(duplicateMissedRows(rows, [TWICE]), [], 'two real doses at one time are not copies');
+});
+
+test('A-176 council: two copies are one slot even when only one carries the cloud protocol id', () => {
+  const at = '2026-10-22T18:00:00.000Z';
+  const rows = [
+    { id: 1, protocol_id: 1, protocol_remote_id: 'p1', outcome: 'Missed', logged_at: at, remote_id: 'a' },
+    { id: 2, protocol_id: 1, protocol_remote_id: null, outcome: 'Missed', logged_at: at },
+  ];
+  assert.deepEqual(duplicateMissedRows(rows, [{ ...P, id: 1, remote_id: 'p1' }]).map((r) => r.id), [2]);
+});
+
+test('A-176 council: the scan passes the protocols to the cleanup', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'doseActions.js'), 'utf8');
+  assert.match(src, /duplicateMissedRows\(logs, \[\.\.\.protocols, \.\.\.ended\]\)/);
 });
