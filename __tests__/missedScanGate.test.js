@@ -98,9 +98,14 @@ const liveRows = (db, outcome) => db.getAllSync(`SELECT * FROM dose_logs WHERE o
 // scheduleSince (F1): since when this phone knows each protocol's schedule unchanged (what the scan's
 // schedule ledger, observeSchedules, answers). Default: since the protocol was set up 30 days ago —
 // the scenarios above never edit the schedule. null: nothing is known (an edit, or never observed).
-function phone(db, sync, { sinceMs = at(1, 0).getTime(), scheduleSince = at(30, 7).getTime() } = {}) {
+// pulledThroughMs (A-177): the last successful dose_logs pull this phone knows (lib/pullStamp); a
+// sync_complete / import_complete on the bus stands for one that just finished (lib/sync.js stores
+// the stamp before it emits them). sync_error / import_error / offline / the cap bring none.
+function phone(db, sync, { sinceMs = at(1, 0).getTime(), scheduleSince = at(30, 7).getTime(), pulledThroughMs = null } = {}) {
   const dbDeps = { getDB: () => db, PE };
   const fromDb = (name) => loadFn('lib/database.js', `export function ${name}(`, name, dbDeps);
+  let pulledAt = pulledThroughMs;
+  sync.addSyncListener((e) => { if (e && (e.type === 'sync_complete' || e.type === 'import_complete')) pulledAt = Date.now(); });
   const firstSyncGate = createFirstSyncGate(sync);
   const scan = loadFn('lib/doseActions.js', 'export async function scanMissedDoses(', 'scanMissedDoses', {
     ...MD,
@@ -114,6 +119,9 @@ function phone(db, sync, { sinceMs = at(1, 0).getTime(), scheduleSince = at(30, 
     getMissedWatermark: async () => ({ sinceMs, zoneHistory: null }),
     firstSyncGate,
     MISSED_LOOKBACK_DAYS: 14,
+    FALSE_MISSED_LOOKBACK_DAYS: 60,
+    AsyncStorage: {},
+    readDoseLogsPull: async () => pulledAt,
     _missedScanInFlight: false,
   });
   return { scan, firstSyncGate };
@@ -139,8 +147,10 @@ test('A-123 (1): a Taken logged on the other phone arriving with the first sync 
   assert.equal(liveRows(B, 'Taken').length, 1);
 });
 
+// A-177: only a successful sync / import is a pull the scan may judge from; after sync_error /
+// import_error the miss waits for the next good pull (below).
 test('A-123 (1): with no dose in the cloud the scan still writes the real miss, once, after the sync settles', async () => {
-  for (const settle of ['sync_complete', 'sync_error', 'import_complete', 'import_error']) {
+  for (const settle of ['sync_complete', 'import_complete']) {
     const cloud = makeCloud();
     const B = makeDb();
     await seedProtocol(B, cloud);
@@ -160,18 +170,38 @@ test('A-123 (1): with no dose in the cloud the scan still writes the real miss, 
   }
 });
 
+test('A-177: after sync_error / import_error the scan runs but writes no new Missed row (no successful pull)', async () => {
+  for (const settle of ['sync_error', 'import_error']) {
+    const cloud = makeCloud();
+    const B = makeDb();
+    await seedProtocol(B, cloud);
+    const sync = fakeSync(true);
+    const { scan } = phone(B, sync);
+    const run = scan();
+    await ticks();
+    sync.emit({ type: settle });
+    assert.equal(await run, 0, `${settle}: the gate opened, nothing written`);
+    assert.equal(liveRows(B, 'Missed').length, 0);
+    sync.emit({ type: 'sync_complete' }); // the next good pull
+    assert.equal(await scan(), 1, `${settle}: written after a successful pull`);
+  }
+});
+
 test('A-123 (1): offline (known), the scan runs from what the phone has', async () => {
   const cloud = makeCloud();
   const B = makeDb();
   await seedProtocol(B, cloud);
-  const { scan } = phone(B, fakeSync(false));
+  // A-177: from what the phone has as of its last successful pull — none known: no new Missed row.
+  assert.equal(await phone(B, fakeSync(false)).scan(), 0, 'offline, never pulled: nothing written');
+  // The last good pull ended after yesterday's slot + 12 h (this morning): that slot is judged.
+  const { scan } = phone(B, fakeSync(false), { pulledThroughMs: Date.now() - 60000 });
   assert.equal(await scan(), 1, 'already offline: no download is coming');
   assert.equal(liveRows(B, 'Missed').length, 1);
 
   const B2 = makeDb();
   await seedProtocol(B2, makeCloud());
   const s2 = fakeSync(null);
-  const { scan: scan2 } = phone(B2, s2);
+  const { scan: scan2 } = phone(B2, s2, { pulledThroughMs: Date.now() - 60000 });
   const run = scan2();
   await ticks();
   assert.equal(liveRows(B2, 'Missed').length, 0, 'connectivity not known yet: wait');
@@ -286,8 +316,10 @@ test('A-123 (3): a Missed row the schedule does not explain (a slot not in the s
   const cloud = makeCloud();
   const B = makeDb();
   const p = await seedProtocol(B, cloud);
-  // An older Missed at 09:00 (written before the time was changed to 08:00) with a Taken next to it:
-  // it sits at no slot of today's schedule, so the scan cannot tell which slot it was and leaves it.
+  // An older Missed at 09:00 (written before the time was changed to 08:00) with a Taken later that
+  // day: it sits at no slot of today's schedule, so the A-123 rule cannot tell which slot it was and
+  // leaves it. (A-177's cleanup removes only a Missed at one of the schedule's own dose times — Gate B
+  // 2026-10-23 — so this one stays too, also with the Taken half an hour later.)
   const odd = await syncedRow(B, cloud, p, 'Missed', at(3, 9));
   await syncedRow(B, cloud, p, 'Taken', at(3, 9, 30));
   const sync = fakeSync(true);
