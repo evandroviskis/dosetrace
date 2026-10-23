@@ -162,6 +162,21 @@ Before any build, submit, delete, migration, or "it's done" claim:
 
 If you catch yourself about to do a second thing before the first is verified, stop and verify the first.
 
+## Fewer builds: test before building, batch, one round a day (2026-10-23, founder directive)
+
+EAS builds cost real money (the founder got a $37 bill; 33 builds in October, 12 in one day,
+mostly to "test" one small fix on the Fold). A build is a DELIVERY, never a test tool.
+1. **Test without a build first.** JS-only changes are checked on the iPhone simulator (swap an
+   `expo export:embed --entry-file index.js` bundle into the installed app) and on the Fold with the
+   development client (Metro). An EAS build is only for native changes or a closed round.
+2. **A build only when the round's list is closed** and every item was verified without a build.
+   Fixes found while testing are batched into the open list — never "fix → build".
+3. **Only the platform that changed.** An iPhone-only change builds iPhone only.
+4. **At most one build round a day**, unless the founder asks or a live-user emergency.
+5. **JS-only fixes for builds already out go by EAS Update** (once expo-updates ships), not a new build.
+6. Before proposing a build, state in one line: what is in it, why it cannot wait, and how many
+   builds it costs.
+
 ## Files: replace, never pile up (2026-10-15, founder directive)
 
 When a file is redone (screenshots, pictures, previews, reports, captures), overwrite it in
