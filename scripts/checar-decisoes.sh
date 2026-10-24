@@ -26,7 +26,7 @@ if [ -d "$SB/dosetrace" ]; then
     *dosetrace-admin*) SBDIR="$SB/dosetrace/admin-panel"; SBNOT="$SB/dosetrace/admin-panel/repositorio/*" ;;
     *) SBDIR="$SB/dosetrace"; SBNOT="$SB/dosetrace/admin-panel/*" ;;
   esac
-  while IFS= read -r f; do SBFILES+=("$f"); done < <(find "$SBDIR" -type f -name '*.md' -not -path "$SB/dosetrace/repositorio/*" -not -path "*/codigo/*" -not -path "*/notas-de-trabalho/*" -not -path "$SBNOT" | sort)
+  while IFS= read -r f; do SBFILES+=("$f"); done < <(find "$SBDIR" -type f -name '*.md' -not -path "$SB/dosetrace/repositorio/*" -not -path "*/codigo/*" -not -path "*/notas-de-trabalho/*" -not -path "*/_to_delete/*" -not -path "*/historico/dosetrace-hybrid/*" -not -path "*/historico/soltos-do-repositorio-principal/*" -not -path "$SBNOT" | sort)
 fi
 
 ARGS=()
