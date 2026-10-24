@@ -19,6 +19,9 @@ cleanly), then build.** The council advises; the founder decides.
   not a per-message one. If a build is genuinely trivial, still run it — the panel will
   mostly return "no concerns", which is the correct, cheap outcome.
 
+## Step 0 — HANDOFF before the council (founder 2026-10-23)
+Rewrite ~/Desktop/Second Brain/dosetrace/HANDOFF.md in full: "ready for build N, council NOT done yet", what is in the build, tests and evidence, next step. A new session must be able to continue from it.
+
 ## Step 1 — Assemble the brief (you, the chair)
 Write one short shared brief the whole panel receives:
 - **Goal + app intent**: from memory (operating-style, onboarding-and-flagship,
@@ -73,6 +76,7 @@ Kill redundancy. Five roles saying "fine" is one line. Signal over volume — a 
 writes essays gets ignored.
 
 ## Step 4 — Hand the decision to the founder
+First rewrite ~/Desktop/Second Brain/dosetrace/HANDOFF.md with the verdict, the blockers and what was changed because of them (council done, ship-check/build pending). After the build, rewrite it again (EAS ids, version, /tf-status, what is left to test).
 Present the brief. Ask for the call. The founder's word is final — if he overrides a
 concern, note it and proceed. Do not build until he says go. Then run `ship-check`, then build.
 

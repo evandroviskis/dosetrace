@@ -8,6 +8,12 @@
             "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/checar-prompt.sh\"",
             "timeout": 10,
             "statusMessage": "Checando decisões registradas…"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/handoff-lembrete.sh\"",
+            "timeout": 5,
+            "statusMessage": "Handoff: build ou etapa fechada?"
           }
         ]
       }
