@@ -13,7 +13,8 @@ remember something that is in the folder or in this repo. The Second Brain holds
 rule 2026-10-23 20:59): never code, repo copies, images, secrets, tool memories or settings — it points to
 where they live. Hooks in .claude/settings.json inject dosetrace/HANDOFF.md + state at session start and
 after compaction, and a reminder + the matching decisions at every prompt. When state or a decision changes,
-update the Second Brain file and ../01-decisoes.md with the real time from date.
+update the file in Second Brain/dosetrace/ (02-decisoes.md etc.) with the real time from date. Never write
+anything at the Second Brain root: it is shared with other projects (founder 2026-10-23 21:30).
 
 ## Standing rule: one device at a time, no exceptions (founder, 2026-10-15; reaffirmed 2026-10-23)
 
@@ -34,7 +35,7 @@ decision and cite it in one line; never ask the founder something whose answer i
 Work spent on an already-decided topic is an error even when the result is right. Reopen only with a
 new fact, in one line.
 - `scripts/checar-decisoes.sh <palavras…>` — case-insensitive search of STATE.md, docs/decisions.md,
-  docs/specs/, docs/product/DIVERGENCES.md, CLAUDE.md and the Second Brain (01-decisoes.md, dosetrace/);
+  docs/specs/, docs/product/DIVERGENCES.md, CLAUDE.md and the Second Brain (dosetrace/, read-only glance at the shared 01-decisoes.md);
   prints file:line + excerpt, marks Second Brain lines VIGENTE/SUBSTITUÍDA, or
   "NENHUMA DECISÃO REGISTRADA para: …". A UserPromptSubmit hook runs it on every founder message.
 
