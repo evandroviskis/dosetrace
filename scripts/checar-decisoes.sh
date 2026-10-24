@@ -19,7 +19,8 @@ done
 SBFILES=()
 [ -f "$SB/01-decisoes.md" ] && SBFILES+=("$SB/01-decisoes.md")
 if [ -d "$SB/dosetrace" ]; then
-  while IFS= read -r f; do SBFILES+=("$f"); done < <(find "$SB/dosetrace" -type f -name '*.md' | sort)
+  # repositorio/ is the mirror of the repos already searched above (would only repeat them)
+  while IFS= read -r f; do SBFILES+=("$f"); done < <(find "$SB/dosetrace" -type f -name '*.md' -not -path "$SB/dosetrace/repositorio/*" | sort)
 fi
 
 ARGS=()

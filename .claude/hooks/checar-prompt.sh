@@ -7,6 +7,9 @@ ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 prompt="$(jq -r '.prompt // empty' 2>/dev/null)" || exit 0
 [ -z "$prompt" ] && exit 0
 
+# Founder 2026-10-23: the Second Brain is the memory and is consulted at EVERY answer, not only memory.
+echo "SECOND BRAIN (obrigatório a cada resposta): confronte sua memória com ~/Desktop/Second Brain — dosetrace/01-estado.md, 02-decisoes.md, 90-pendencias.md, 00-regras-gerais.md. Leia o arquivo do assunto antes de responder; se a pasta e sua memória divergem, vale a pasta e você avisa."
+
 STOP=" para pode isso esse essa este esta mais muito como quando onde porque sobre entre depois antes
  ainda agora tudo todos todas nada algo alguma algum fazer feito tem temos tinha estou está estava
  você vocês voce gente coisa coisas aqui então entao também tambem mesmo mesma seja sendo seria será
