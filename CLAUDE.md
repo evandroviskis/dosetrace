@@ -6,7 +6,7 @@ Read this first, every session. These rules exist because they were each broken 
 
 ~/Desktop/Second Brain is the mandatory memory, not an optional extra ("eu preciso que seja obrigatório
 que você use a pasta Second Brain como a sua memória"; "sua memória deve ser sempre confrontada com o que
-tem na pasta"). Before every answer, read the relevant Second Brain files (dosetrace/LEIA-PRIMEIRO.md,
+tem na pasta"). Before every answer, read the relevant Second Brain files (dosetrace/HANDOFF.md,
 01-estado.md, 02-decisoes.md, 90-pendencias.md, ../00-regras-gerais.md) and confront them with your own
 memory; if they differ, the folder wins and you say so in one line. Never tell the founder you did not
 remember something that is in the folder or in this repo. The Second Brain holds memory in TEXT only (founder
