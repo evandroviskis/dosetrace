@@ -1,7 +1,7 @@
 #!/bin/bash
 # checar-decisoes.sh <palavra> [palavra…] — founder 2026-10-23 ("check the record before proposing").
 # Case-insensitive search of the project's record: STATE.md, docs/decisions.md, docs/specs/*.md,
-# docs/product/DIVERGENCES.md, CLAUDE.md, and the Second Brain (01-decisoes.md — only DoseTrace and
+# docs/product/DIVERGENCES.md, CLAUDE.md, and the Second Brain (Instrucoes/01-decisoes.md — only DoseTrace and
 # Geral lines — and dosetrace/). Prints file:line + excerpt, the lines matching the most words first;
 # Second Brain lines show their state (VIGENTE / SUBSTITUÍDA). Read-only.
 # Nothing found → "NENHUMA DECISÃO REGISTRADA para: <palavras>".
@@ -17,7 +17,7 @@ for f in "$ROOT/STATE.md" "$ROOT/docs/decisions.md" "$ROOT/docs/product/DIVERGEN
   [ -f "$f" ] && FILES+=("$f")
 done
 SBFILES=()
-[ -f "$SB/01-decisoes.md" ] && SBFILES+=("$SB/01-decisoes.md")
+[ -f "$SB/Instrucoes/01-decisoes.md" ] && SBFILES+=("$SB/Instrucoes/01-decisoes.md")
 if [ -d "$SB/dosetrace" ]; then
   # repositorio/ is the mirror of the repos already searched above (would only repeat them). The admin
   # panel is its own conversation (founder 2026-10-23 20:21): the panel worktree searches admin-panel/,

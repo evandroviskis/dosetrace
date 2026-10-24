@@ -7,7 +7,7 @@ Read this first, every session. These rules exist because they were each broken 
 ~/Desktop/Second Brain is the mandatory memory, not an optional extra ("eu preciso que seja obrigatório
 que você use a pasta Second Brain como a sua memória"; "sua memória deve ser sempre confrontada com o que
 tem na pasta"). Before every answer, read the relevant Second Brain files (dosetrace/HANDOFF.md,
-01-estado.md, 02-decisoes.md, 90-pendencias.md, ../00-regras-gerais.md) and confront them with your own
+01-estado.md, 02-decisoes.md, 90-pendencias.md, ../Instrucoes/00-regras-gerais.md) and confront them with your own
 memory; if they differ, the folder wins and you say so in one line. Never tell the founder you did not
 remember something that is in the folder or in this repo. The Second Brain holds memory in TEXT only (founder
 rule 2026-10-23 20:59): never code, repo copies, images, secrets, tool memories or settings — it points to
@@ -35,7 +35,7 @@ decision and cite it in one line; never ask the founder something whose answer i
 Work spent on an already-decided topic is an error even when the result is right. Reopen only with a
 new fact, in one line.
 - `scripts/checar-decisoes.sh <palavras…>` — case-insensitive search of STATE.md, docs/decisions.md,
-  docs/specs/, docs/product/DIVERGENCES.md, CLAUDE.md and the Second Brain (dosetrace/, read-only glance at the shared 01-decisoes.md);
+  docs/specs/, docs/product/DIVERGENCES.md, CLAUDE.md and the Second Brain (dosetrace/, read-only glance at the shared Instrucoes/01-decisoes.md);
   prints file:line + excerpt, marks Second Brain lines VIGENTE/SUBSTITUÍDA, or
   "NENHUMA DECISÃO REGISTRADA para: …". A UserPromptSubmit hook runs it on every founder message.
 
