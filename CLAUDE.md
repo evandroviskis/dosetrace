@@ -9,10 +9,10 @@ que você use a pasta Second Brain como a sua memória"; "sua memória deve ser 
 tem na pasta"). Before every answer, read the relevant Second Brain files (dosetrace/LEIA-PRIMEIRO.md,
 01-estado.md, 02-decisoes.md, 90-pendencias.md, ../00-regras-gerais.md) and confront them with your own
 memory; if they differ, the folder wins and you say so in one line. Never tell the founder you did not
-remember something that is in the folder or in this repo. Everything has a copy there: the hooks in
-.claude/settings.json inject LEIA-PRIMEIRO + state at session start and after compaction, a reminder +
-the matching decisions at every prompt, and refresh the mirror (scripts/espelhar-second-brain.sh: repos
-minus secrets, Claude memory, Claude environment) after every answer. When state or a decision changes,
+remember something that is in the folder or in this repo. The Second Brain holds memory in TEXT only (founder
+rule 2026-10-23 20:59): never code, repo copies, images, secrets, tool memories or settings — it points to
+where they live. Hooks in .claude/settings.json inject dosetrace/HANDOFF.md + state at session start and
+after compaction, and a reminder + the matching decisions at every prompt. When state or a decision changes,
 update the Second Brain file and ../01-decisoes.md with the real time from date.
 
 ## Standing rule: one device at a time, no exceptions (founder, 2026-10-15; reaffirmed 2026-10-23)

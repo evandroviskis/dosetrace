@@ -9,7 +9,7 @@ SB="$HOME/Desktop/Second Brain"
 ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
 case "$ROOT" in
   *dosetrace-admin*) P="dosetrace/admin-panel"; ENTRY="$SB/$P/HANDOFF.md" ;;
-  *) P="dosetrace"; ENTRY="$SB/$P/LEIA-PRIMEIRO.md" ;;
+  *) P="dosetrace"; ENTRY="$SB/$P/HANDOFF.md" ;;
 esac
 {
   echo "SECOND BRAIN = MEMÓRIA OBRIGATÓRIA (regra do Evandro, 2026-10-23). Pasta: ~/Desktop/Second Brain."
