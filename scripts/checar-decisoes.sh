@@ -19,8 +19,14 @@ done
 SBFILES=()
 [ -f "$SB/01-decisoes.md" ] && SBFILES+=("$SB/01-decisoes.md")
 if [ -d "$SB/dosetrace" ]; then
-  # repositorio/ is the mirror of the repos already searched above (would only repeat them)
-  while IFS= read -r f; do SBFILES+=("$f"); done < <(find "$SB/dosetrace" -type f -name '*.md' -not -path "$SB/dosetrace/repositorio/*" | sort)
+  # repositorio/ is the mirror of the repos already searched above (would only repeat them). The admin
+  # panel is its own conversation (founder 2026-10-23 20:21): the panel worktree searches admin-panel/,
+  # the app worktrees search dosetrace/ without admin-panel/.
+  case "$ROOT" in
+    *dosetrace-admin*) SBDIR="$SB/dosetrace/admin-panel"; SBNOT="$SB/dosetrace/admin-panel/repositorio/*" ;;
+    *) SBDIR="$SB/dosetrace"; SBNOT="$SB/dosetrace/admin-panel/*" ;;
+  esac
+  while IFS= read -r f; do SBFILES+=("$f"); done < <(find "$SBDIR" -type f -name '*.md' -not -path "$SB/dosetrace/repositorio/*" -not -path "$SBNOT" | sort)
 fi
 
 ARGS=()
@@ -31,12 +37,13 @@ out="$(
   {
     [ "${#FILES[@]}" -gt 0 ] && grep -i -n -F -H "${ARGS[@]}" "${FILES[@]}" 2>/dev/null | sed "s|^$ROOT/||" | sed 's/^/R\t/'
     [ "${#SBFILES[@]}" -gt 0 ] && grep -i -n -F -H "${ARGS[@]}" "${SBFILES[@]}" 2>/dev/null | sed "s|^$SB/|Second Brain/|" | sed 's/^/S\t/'
-  } | awk -v words="$WORDS" -v max="$MAX" '
+  } | awk -v words="$WORDS" -v max="$MAX" -v adm="$([ "${ROOT#*dosetrace-admin}" != "$ROOT" ] && echo 1 || echo 0)" '
     BEGIN { n = split(tolower(words), w, " ") }
     {
       kind = substr($0, 1, 1); line = substr($0, 3)
       # Second Brain 01-decisoes: only DoseTrace and Geral decisions
       if (kind == "S" && line ~ /01-decisoes\.md:[0-9]+:- \[/ && line !~ /\| (DoseTrace|Geral)[^|]*\|/) next
+      if (kind == "S" && !adm && line ~ /01-decisoes\.md:[0-9]+:- \[/ && line ~ /\| DoseTrace \(painel admin\)/) next
       low = tolower(line); score = 0
       for (i = 1; i <= n; i++) if (w[i] != "" && index(low, w[i]) > 0) score++
       state = ""

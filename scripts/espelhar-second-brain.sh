@@ -1,8 +1,9 @@
 #!/bin/bash
 # espelhar-second-brain.sh — founder 2026-10-23: "tudo, absolutamente tudo, tem que ter uma cópia dentro
 # do Second Brain. Nada pode ficar para trás." Copies, read-only, into ~/Desktop/Second Brain:
-#   dosetrace/repositorio/<repo>/   every git-tracked file of each DoseTrace repo/worktree + the
-#                                   gitignored context folders (grok/ review notes), minus secrets
+#   dosetrace/repositorio/<repo>/   every git-tracked (and new, not ignored) file of the app repos +
+#                                   the gitignored context folders (grok/ review notes), minus secrets
+#   dosetrace/admin-panel/repositorio/dosetrace-admin/ and admin-panel/notas-de-trabalho/  the panel
 #   dosetrace/memoria-claude/       Claude Code's auto-memory notes for this project
 #   _ambiente-claude/               the global Claude Code setup used here (settings, hooks, skills)
 # The repositories stay the working base; the copy is refreshed by the Stop hook (.claude/settings.json)
@@ -17,10 +18,10 @@ mkdir -p "$DEST" "$SB/dosetrace/memoria-claude" "$SB/_ambiente-claude"
 
 EXCLUDE_RE='(^|/)(\.env[^/]*|[^/]*\.p8|google-services\.json|GoogleService-Info\.plist|[^/]*service-account[^/]*\.json|[^/]*\.keystore|[^/]*\.jks)$'
 
-mirror_repo() { # $1 = repo path, $2 = name in the mirror
+mirror_repo() { # $1 = repo path, $2 = name in the mirror, $3 = mirror folder (default $DEST)
   local repo="$1" name="$2"
   [ -d "$repo/.git" ] || [ -f "$repo/.git" ] || return 0
-  local out="$DEST/$name"
+  local out="${3:-$DEST}/$name"
   mkdir -p "$out"
   local list
   list="$(mktemp)"
@@ -51,7 +52,15 @@ mirror_repo() { # $1 = repo path, $2 = name in the mirror
 
 mirror_repo "$HOME/Desktop/dosetrace" "dosetrace"
 mirror_repo "$HOME/Desktop/dosetrace-1.3.1" "dosetrace-1.3.1"
-mirror_repo "$HOME/Desktop/dosetrace-admin" "dosetrace-admin"
+# The admin panel is its own conversation and its own Second Brain folder (founder 2026-10-23 20:21):
+# its repo copy and its working notes (Admin Panel Files, kept out of git) live under admin-panel/.
+ADM="$SB/dosetrace/admin-panel"
+if [ -d "$ADM" ]; then
+  mkdir -p "$ADM/repositorio" "$ADM/notas-de-trabalho"
+  mirror_repo "$HOME/Desktop/dosetrace-admin" "dosetrace-admin" "$ADM/repositorio"
+  [ -d "$HOME/Desktop/dosetrace/Admin Panel Files" ] &&
+    rsync -a "$HOME/Desktop/dosetrace/Admin Panel Files/" "$ADM/notas-de-trabalho/" 2>/dev/null
+fi
 
 # Claude Code's auto-memory for this project
 MEM="$HOME/.claude/projects/-Users-evandrosantos-Desktop-dosetrace/memory"
