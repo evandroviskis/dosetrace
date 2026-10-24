@@ -11,6 +11,29 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/second-brain-sessao.sh\"",
+            "timeout": 10,
+            "statusMessage": "Lendo o Second Brain…"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/espelhar-ao-parar.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   }
 }
