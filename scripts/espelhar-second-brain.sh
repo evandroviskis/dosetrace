@@ -14,7 +14,7 @@
 SB="$HOME/Desktop/Second Brain"
 DEST="$SB/dosetrace/repositorio"
 [ -d "$SB" ] || exit 0
-mkdir -p "$DEST" "$SB/dosetrace/memoria-claude" "$SB/_ambiente-claude"
+mkdir -p "$SB/dosetrace/memoria-claude" "$SB/_ambiente-claude"
 
 EXCLUDE_RE='(^|/)(\.env[^/]*|[^/]*\.p8|google-services\.json|GoogleService-Info\.plist|[^/]*service-account[^/]*\.json|[^/]*\.keystore|[^/]*\.jks)$'
 
@@ -50,6 +50,14 @@ mirror_repo() { # $1 = repo path, $2 = name in the mirror, $3 = mirror folder (d
   rm -f "$list" "$list.mirror"
 }
 
+# Once the code itself lives in the Second Brain (scripts/mudar-para-second-brain.sh, founder
+# 2026-10-23), there is nothing left to copy: only the Claude environment below is refreshed.
+if [ -d "$SB/dosetrace/codigo" ]; then
+  REPOS_INSIDE=1
+else
+  REPOS_INSIDE=0
+fi
+[ "$REPOS_INSIDE" = 1 ] || {
 mirror_repo "$HOME/Desktop/dosetrace" "dosetrace"
 mirror_repo "$HOME/Desktop/dosetrace-1.3.1" "dosetrace-1.3.1"
 # The admin panel is its own conversation and its own Second Brain folder (founder 2026-10-23 20:21):
@@ -61,6 +69,7 @@ if [ -d "$ADM" ]; then
   [ -d "$HOME/Desktop/dosetrace/Admin Panel Files" ] &&
     rsync -a "$HOME/Desktop/dosetrace/Admin Panel Files/" "$ADM/notas-de-trabalho/" 2>/dev/null
 fi
+}
 
 # Claude Code's auto-memory for this project
 MEM="$HOME/.claude/projects/-Users-evandrosantos-Desktop-dosetrace/memory"
