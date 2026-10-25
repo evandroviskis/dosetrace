@@ -337,7 +337,9 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   const dev = device || {};
   // The one sign-out sheet (the reset-link switch, screen 4's "Sign out of this phone") comes before
   // screen 4 itself, which shows again when the person stays.
-  const deviceSheet = deviceHeld ? null
+  // Gate B F1: while another account's local data holds this one (DV-242), the cross-account sheet
+  // wins — no device sheet's wipe ever runs over the other account's unsent rows.
+  const deviceSheet = deviceHeld || accountHeld ? null
     : dev.verdict ? verdictSheet({ t, language, timeFormat, verdict: dev.verdict, onContinue: onVerdictContinue, onRetry: onVerdictRetry })
       : switchSignOut ? signOutSheet({ t, language, timeFormat, offline: switchSignOut.r.offline, summary: switchSignOut.r.summary, lastBackup: switchSignOut.r.lastBackup, onAnyway: switchSignOut.onAnyway, onStay: switchSignOut.onStay })
         : dev.ask && session && dev.ask.userId === session.user.id ? askSheet({ t, language, timeFormat, ask: dev.ask, onUseHere, onSignOut: onAskSignOut })
@@ -629,6 +631,9 @@ export default function App() {
       explicit: false, userId: s.user.id, flow: deviceFlow(), gate: deviceGate, startSync: startSyncEngine,
       isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync, reload: reloadDevice,
     });
+    // Gate B doubt 3: the stashed intro answers go to this account after its device step (as on
+    // SIGNED_IN); refused (screen 2 / 4) they stay on the phone, never dropped.
+    applyPendingProfile(supabase).catch(() => {});
     if (step.held) return;
     // One-time move of the open reality check + calculator inputs into the
     // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
@@ -1015,8 +1020,9 @@ export default function App() {
         try { guard = await guardSignedIn(guardDeps(), { sessionUser: session.user }); } catch { guard = failClosed(session.user); }
         setGuardTick((n) => n + 1);
         if (guard !== 'continue') {
-          // The stashed intro answers still go to the account that just signed in (they are its own).
-          applyPendingProfile(supabase).catch(() => {});
+          // Gate B doubt 3: the stashed intro answers wait (kept on the phone) for the device step of
+          // the choice that continues this sign-in (continueSignedIn) — before any claim the profile
+          // write is refused, and nothing would try again.
           return;
         }
 

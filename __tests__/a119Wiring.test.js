@@ -138,7 +138,8 @@ test('OD-7: the profile / user_metadata check — refused after the verdict or w
   const s = read('lib/supabase.js');
   assert.match(s, /supabase\.auth\.updateUser = async \(attributes, options\) => \{\n\s+if \(attributes && attributes\.data && metadataGuard\)/);
   assert.match(s, /if \(allowed === false\) return \{ data: \{ user: null \}, error: \{ code: 'DT001'/);
-  assert.match(read('lib/deviceRuntime.js'), /setMetadataGuard\(async \(\) => \{[\s\S]{0,300}metadataAllowed\(user\.id, \{ explicit: isExplicitSignIn\(\) \}\)/);
+  // Gate B F1: a named function now (its owner check is behaviour-tested in gateBOwnerDeviceCheck).
+  assert.match(read('lib/deviceRuntime.js'), /export async function metadataGuardCheck\(\) \{[\s\S]{0,300}const explicit = isExplicitSignIn\(\);[\s\S]{0,300}return deviceFlow\(\)\.metadataAllowed\(user\.id, \{ explicit \}\);\n\}\nsetMetadataGuard\(metadataGuardCheck\);/);
 });
 
 test('OD-16: the Android background run asks the server first; replaced → nothing scheduled, recorded; no answer → the usual resync', async () => {
@@ -185,7 +186,7 @@ test('App wires the device steps (their behaviour: a119GateB "auditor race"): co
   assert.ok(signin.indexOf('signInDeviceStep({') > signin.indexOf('Cross-account guard'), 'after the cross-account guard');
   assert.match(signin, /if \(step\.held\) return;/);
   assert.match(app, /: dev\.notice && onMain && dev\.notice\.userId === session\.user\.id \? noticeSheet\(/, 'screen 1 only on Main (after the 18+ and profile steps)');
-  assert.match(app, /const deviceSheet = deviceHeld \? null\s*: dev\.verdict \? verdictSheet\(/, 'screen 2 first, on any route');
+  assert.match(app, /const deviceSheet = deviceHeld \|\| accountHeld \? null\s*: dev\.verdict \? verdictSheet\(/, 'screen 2 first, on any route (after the DV-242 hold: Gate B F1)');
   assert.match(app, /forgetDeviceState: \(\) => deviceFlow\(\)\.clearOnSignOut\(\)/);
   assert.match(read('lib/signedOut.js'), /d\.forgetDeviceState,/);
 });
