@@ -502,7 +502,8 @@ const makeStyles = (c) => StyleSheet.create({
   googleBtn: { minHeight: 52, borderRadius: 26, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingLeft: 16, paddingRight: 16 },
   googleBtnLight: { backgroundColor: '#FFFFFF', borderColor: '#747775' },
   googleBtnDark: { backgroundColor: '#131314', borderColor: '#8E918F' },
-  googleBtnText: { fontSize: 17 },
+  // A-162: no Android font padding, so Google Sans capitals sit on the centre with the G (4 dp high before)
+  googleBtnText: { fontSize: 17, includeFontPadding: false },
   googleBtnFont: { fontFamily: GOOGLE_SANS_MEDIUM },
   googleBtnTextLight: { color: '#1F1F1F' },
   googleBtnTextDark: { color: '#E3E3E3' },
