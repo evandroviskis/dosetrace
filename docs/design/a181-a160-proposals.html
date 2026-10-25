@@ -1,0 +1,997 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>A-181 e A-160</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0;--pcard:#FFFFFF}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--pink);font:15px/1.45 Geist,-apple-system,BlinkMacSystemFont,Roboto,sans-serif}
+header,section,.notes{max-width:1340px;margin:0 auto;padding:0 16px}
+header{padding-top:28px}
+h1{font-size:24px;margin:0 0 8px;letter-spacing:-.3px}
+header p{margin:0 0 10px;color:var(--pink2);max-width:90ch}
+ul{margin:6px 0 10px;padding-left:20px;max-width:100ch}
+li{margin:4px 0}
+.box{background:var(--pcard);border:1px solid var(--pline);border-radius:16px;padding:14px 16px;margin:14px 0 4px}
+.box h3{margin:0 0 6px;font-size:15px}
+.box p{color:var(--pink);margin:0 0 8px}
+h2{font-size:19px;margin:44px 0 6px}
+h3.sub{font-size:15px;margin:18px 0 6px}
+.lead{color:var(--pink2);margin:0 0 14px;max-width:100ch}
+.rowlab{font-size:13px;font-weight:600;color:var(--pink2);margin:18px 0 8px;text-transform:none}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(413px,100%),1fr));gap:22px 18px;justify-items:center}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;min-width:0;width:100%}
+figcaption{font-size:13px;font-weight:600;color:var(--pink2);margin:0 0 8px}
+.en{font-size:12px;line-height:1.45;color:var(--pink2);margin-top:10px;max-width:413px;width:100%}
+.en-t{font-weight:600;color:var(--pink)}
+.notes{margin-top:40px;margin-bottom:56px;color:var(--pink2)}
+.tr{border-collapse:collapse;width:100%;font-size:12.5px;line-height:1.4;margin:6px 0 10px;display:block;overflow-x:auto}
+.tr th,.tr td{border:1px solid var(--pline);padding:6px 8px;vertical-align:top;text-align:left;min-width:150px}
+.tr th{background:var(--pcard);font-weight:600}
+.tr td.k{font-family:"Geist Mono",ui-monospace,monospace;font-size:11.5px;min-width:170px}
+@media (max-width:460px){.pz{zoom:calc((100vw - 32px)/413px)}}
+
+/* ---------- the phone: lib/theme.js LIGHT / DARK tokens only ---------- */
+.t-light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--tick:#71766F;--segOn:#FFFFFF;--segOnLine:#C3C7C0;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--onInk:#FFFFFF;--data:#2350D8;--act:#111315;--onAct:#FFFFFF;--attention:#7E4A00;--risk:#9E1F19;--ok:#17623F;--scrim:rgba(0,0,0,0.45)}
+.t-dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--tick:#747A7F;--segOn:#4A4F56;--segOnLine:#5E646B;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--onInk:#121416;--data:#8AA8FF;--act:#EEEFEB;--onAct:#121416;--attention:#E3A54E;--risk:#F08A80;--ok:#62C597;--scrim:rgba(0,0,0,0.45)}
+.phone{width:413px;padding:10px;border-radius:64px;background:#050606;flex:none}
+.screen{position:relative;width:393px;border-radius:54px;overflow:hidden;background:var(--ground);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Roboto,Arial,sans-serif;font-size:17px;line-height:22px;-webkit-font-smoothing:antialiased}
+.geist{font-family:Geist,-apple-system,sans-serif}
+.mono{font-family:"Geist Mono",ui-monospace,monospace}
+.fi{display:block;flex:none}
+.sb{position:absolute;left:0;right:0;top:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 34px 0 50px;z-index:4;color:var(--ink)}
+.sb-time{font-weight:600;font-size:17px;letter-spacing:-.2px}
+.sb-icons{display:flex;gap:6px;align-items:center}
+.island{position:absolute;top:11px;left:50%;width:124px;height:36px;margin-left:-62px;border-radius:20px;background:#000;z-index:5}
+.content{position:absolute;inset:0;padding-top:59px;overflow:hidden}
+.content-tall{padding-top:59px;padding-bottom:30px}
+.home{position:absolute;bottom:8px;left:50%;width:140px;height:5px;margin-left:-70px;border-radius:3px;background:var(--ink);z-index:6}
+.dot{display:inline-block;width:7px;height:7px;border-radius:4px;flex:none}
+
+/* LogScreen makeStyles */
+.nav{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 16px}
+.back{font-size:17px;color:var(--ink)}
+.pill{display:flex;align-items:center;gap:6px;min-height:36px;border-radius:18px;padding:0 14px;border:1px solid var(--line);font-size:13px;color:var(--ink)}
+.scroll{padding:0 16px}
+.top{display:flex;flex-direction:column;gap:12px;padding-bottom:16px}
+.ltitle{font-size:34px;line-height:41px;font-weight:600;letter-spacing:-.7px;padding:4px 4px 0}
+.expl{background:var(--raised);border-radius:20px;padding:14px 16px;font-size:15px;line-height:20px;color:var(--ink2)}
+.trio{display:flex;gap:8px;padding:0 4px}
+.tcol{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.tnum{font-size:34px;line-height:40px;font-weight:300;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.tcap{display:flex;align-items:center;gap:6px;font-size:12px;line-height:16px;font-weight:500;color:var(--ink2)}
+.tsub{font-size:12px;line-height:16px;font-weight:500;color:var(--ink3);font-variant-numeric:tabular-nums}
+.seg{display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--well)}
+.si{flex:1;min-height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;border:1px solid var(--well);font-size:15px;font-weight:500;color:var(--ink2);padding:0 3px}
+.si.on{background:var(--segOn);border-color:var(--segOnLine);color:var(--ink);font-weight:700}
+.grpH{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0 4px;margin-bottom:8px}
+.grpD{font-size:17px;font-weight:600}
+.grpC{font-size:13px;color:var(--ink2)}
+.list{background:var(--raised);border-radius:22px;padding:0 16px;margin-bottom:16px}
+.lrow{display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 0}
+.lrow.sep{border-top:.5px solid var(--line)}
+.linfo{flex:1;min-width:0}
+.lname{display:flex;align-items:center;gap:8px;font-size:17px}
+.lright{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ltime{font-size:15px;line-height:20px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.lout{display:flex;align-items:center;gap:6px;font-size:13px;line-height:16px;font-weight:600}
+/* proposals */
+.flat{display:flex;gap:10px;align-items:flex-start;padding:2px 4px}
+.flat .fi{margin-top:1px}
+.flat p{margin:0;font-size:15px;line-height:20px;color:var(--ink2)}
+.flat p b{color:var(--ink);font-weight:600}
+.flat.inSheet{padding:0 0 10px}
+.ncard{background:var(--raised);border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.nhead{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:600}
+.ncard p{margin:0;font-size:15px;line-height:20px;color:var(--ink2)}
+.tbtn{display:inline-block;align-self:flex-start;font-size:15px;line-height:20px;font-weight:600;color:var(--ink);text-decoration:underline;text-underline-offset:3px;padding-top:4px;min-height:24px}
+
+/* Settings: page sheet + report preview */
+.behind{position:absolute;inset:0;background:var(--scrim)}
+.sheet{position:absolute;left:0;right:0;top:62px;bottom:0;background:var(--raised);border-radius:12px 12px 0 0;display:flex;flex-direction:column}
+.mnav{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 20px;min-height:56px}
+.mcancel{min-width:60px;font-size:17px;color:var(--ink)}
+.mtitle{flex:1;text-align:center;font-size:17px;font-weight:600}
+.mbody{flex:1;overflow:hidden;padding:8px 20px 0}
+.intro{margin:0 0 8px;font-size:15px;line-height:20px;color:var(--ink2)}
+.paper{background:var(--well);border-radius:14px;padding:16px;margin-top:4px}
+.paper pre{margin:0;font-family:"Geist Mono",ui-monospace,monospace;font-weight:500;font-size:12px;line-height:18px;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+.rnote{background:none}
+.mfoot{padding:8px 20px 34px;background:var(--raised)}
+.actbtn{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:26px;background:var(--act);color:var(--onAct);font-size:17px;font-weight:700}
+.paperOnly{width:393px;max-width:100%;background:var(--raised);border-radius:24px;padding:16px 20px;color:var(--ink)}
+
+/* SerumCurveScreen makeStyles */
+.cscroll{padding:0 16px;display:flex;flex-direction:column;gap:14px}
+.ctitle{font-size:34px;line-height:41px;font-weight:600;letter-spacing:-.7px;padding:4px 4px 0;margin-bottom:-2px}
+.pick{display:flex;align-items:center;gap:10px;background:var(--raised);border-radius:18px;min-height:56px;padding:0 16px;font-size:17px;font-weight:600}
+.pick span{flex:1}
+.cdot{width:9px;height:9px;border-radius:5px;background:var(--data);flex:none}
+.ccard{background:var(--raised);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.foot{font-size:13px;line-height:18px;color:var(--ink2)}
+.heroNum{font-size:56px;line-height:60px;font-weight:500;letter-spacing:-1.6px;color:var(--data);font-variant-numeric:tabular-nums}
+.unitIn{font-size:13px;color:var(--ink3);font-family:"Geist Mono",ui-monospace,monospace;letter-spacing:0;font-weight:400}
+.chip{min-height:26px;border-radius:13px;border:1px solid var(--line);padding:2px 10px;font-size:12px;font-weight:500;color:var(--ink2);display:flex;align-items:center}
+.range{font-size:13px;line-height:18px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.axis{position:relative;height:16px;margin:-6px 0 0 38px;font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--ink3);display:flex;justify-content:space-between}
+.axnow{position:absolute;top:0;font-family:-apple-system,sans-serif;font-weight:700;color:var(--ink)}
+.lgd{display:flex;flex-wrap:wrap;column-gap:14px;row-gap:6px;font-size:12px;line-height:16px;font-weight:500;color:var(--ink2)}
+.lgd span{display:flex;align-items:center;gap:6px}
+.lgS{width:18px;height:2px;background:var(--data)}
+.lgD{width:18px;height:2px;background:repeating-linear-gradient(90deg,var(--data) 0 4px,transparent 4px 7px)}
+.lgT{width:3px;height:9px;background:var(--data)}
+.lgH{width:6px;height:9px;border:1.5px solid var(--data)}
+.fld{display:flex;flex-direction:column;gap:10px}
+.fldL{font-size:13px;color:var(--ink2)}
+.seg.inCard .si{font-size:15px}
+.stats{display:flex;gap:8px;background:var(--raised);border-radius:20px;padding:14px 16px}
+.scol{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.scap{font-size:12px;line-height:16px;font-weight:500;color:var(--ink2)}
+.snum{font-size:34px;line-height:40px;font-weight:300;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.sunit{font-size:13px;color:var(--ink3);font-family:"Geist Mono",ui-monospace,monospace;margin-left:3px;letter-spacing:0}
+.cfoot{margin:-6px 4px 0;font-size:13px;line-height:18px;color:var(--ink3)}
+/* the changed element in a proposal: a dashed outline drawn by this page, not part of the app */
+.hl{outline:1.5px dashed #C2410C;outline-offset:3px;border-radius:6px}
+</style></head><body>
+<header>
+<h1>1.3.2 · A-181 (aviso de “ainda não sincronizado”) e A-160 (o que “Doses contadas” conta)</h1>
+<p>Só imagens: nenhum código do app foi alterado. Telas desenhadas a partir dos componentes reais (screens/LogScreen.js, SettingsScreen.js prévia do relatório, SerumCurveScreen.js) com as cores de lib/theme.js, claro e escuro. Cada linha: <b>App hoje | Opção A | Opção B</b>. Data de exemplo: domingo, 25 de out. de 2026; conta de exemplo “Sam Carter”. O contorno tracejado laranja marca o que muda e existe só nesta página, não no app.</p>
+<p>Registro conferido (scripts/checar-decisoes.sh + porteiro): nenhum dos dois temas tem decisão. A-177 (2026-10-23, em vigor) só decidiu “nenhuma falta nova sem uma sincronização bem-sucedida”; a direção da A-181 é a sua de 2026-10-25 (“mostrar ainda não sincronizado onde importa”). A A-160 está em aberto com PRD-CURVE-24 (“contar as doses que formam a estimativa, ou dizer o que conta”) e DV-096. A regra de um aparelho só (A-119) não se aplica: aqui é um celular sem internet, não dois aparelhos.</p>
+<div class="box"><h3>Recomendações</h3>
+<p><b>A-181 → Opção B.</b> A opção A avisa só enquanto o celular não sincroniza; depois de mais de 14 dias sem sincronizar, as doses perdidas mais antigas nunca entram e o relatório fica alto para sempre, sem dizer nada (é exatamente o defeito da A-181). A B registra esse intervalo no relatório e mostra quantas doses ainda faltam.</p>
+<p><b>A-160 → Opção B.</b> A opção A é honesta, mas continua mostrando “0” ao lado de 156 mg. Na B o número ao lado do nível conta as doses que formam esse nível, e a janela continua visível na linha de cima.</p></div>
+</header>
+
+<section><h2>Item 1 · A-181: o que acontece hoje</h2>
+<div class="lead"><ul>
+<li>A falta (“Perdida”) de um horário só é gravada quando uma sincronização bem-sucedida termina pelo menos 12 h depois do horário (A-177, lib/pullStamp.js + lib/missedDoses.js). Sem internet, nenhuma falta nova é gravada.</li>
+<li>A varredura olha só 14 dias para trás (MISSED_LOOKBACK_DAYS, lib/doseActions.js:139). Se o celular passa mais de 14 dias sem sincronizar, as faltas mais antigas nunca são gravadas.</li>
+<li>Resultado: o Registro de doses mostra menos “Perdidas” e o relatório de adesão (que vai para o profissional de saúde) mostra adesão maior do que a real. No exemplo: 97% no relatório, 93% de fato (3 doses sem registro: BPC-157 23 e 24 de out. às 20:00, Zinco 24 de out.).</li>
+<li><b>Os anéis de Hoje não mudam:</b> eles já contam pelo cronograma (lib/adherenceRings.js: dose programada sem “Concluída” conta como não feita), então já estão certos sem sincronizar. Nenhum aviso neles.</li>
+</ul></div>
+<div class="box"><h3>Quando o aviso aparece e quando some (A e B)</h3>
+<ul><li><b>Aparece</b> quando as duas coisas valem: a última sincronização bem-sucedida dos registros de dose (o carimbo de lib/pullStamp.js) tem <b>mais de 24 h</b>, <b>e</b> existe pelo menos uma dose programada que a regra da A-177 está segurando (sem registro, mais de 12 h de atraso, sem sincronização depois). Sem carimbo nenhum neste celular: o texto “Este celular ainda não sincronizou…”.</li>
+<li>O limite de 24 h evita o aviso piscar no uso normal (o app sincroniza toda vez que abre). A segunda condição evita aviso quando nada muda nos números.</li>
+<li><b>Some</b> na próxima sincronização bem-sucedida: a varredura grava as faltas (até 14 dias) e os números ficam reais.</li>
+<li>Só B: se essa sincronização chega depois de mais de 14 dias, o intervalo que ficou sem registro passa a constar no relatório enquanto cair dentro dos 30 dias dele (precisa guardar esse intervalo por conta; detalhe e teste na construção).</li>
+<li>Cor: nenhuma cor de alerta. Não é risco de saúde, é estado dos dados: ícone “refresh” do conjunto do app em ink2, texto em ink / ink2 (DESIGN.md §2.5). O prazo de 14 dias da varredura não muda (sua direção é avisar, não aumentar o prazo).</li></ul></div>
+
+<h2>Registro de doses</h2>
+<p class="lead">A: uma linha plana sobre o fundo, abaixo do título. B: um cartão com a contagem, o botão de texto “Sincronizar agora” e “+3 sem registro” sob “Perdidas”.</p>
+<div class="rowlab">Claro</div><div class="cols"><figure><figcaption>App hoje</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="nav"><span class="back">‹ Hoje</span><span class="pill"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M170 800V220" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 800H860" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 700
+    C255 690 275 645 305 560
+    C332 480 365 405 405 390
+    C430 380 450 415 465 475
+    C482 545 500 590 525 575
+    C555 558 575 490 600 410
+    C625 330 655 285 690 300
+    C725 315 742 380 760 455
+    C778 530 800 565 835 535
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 740
+    C280 735 310 710 350 670
+    C390 630 425 615 465 625
+    C505 635 545 625 585 595
+    C625 565 665 545 705 552
+    C745 560 785 550 835 520
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
+</svg>Curva</span></div>
+<div class="scroll"><div class="top"><div class="ltitle geist">Registro de doses</div>
+<div class="expl">Você começou seus protocolos com um objetivo. Mantê-los em dia, sem pular doses, é o caminho para chegar lá. Aqui você vê o quanto está conseguindo.</div><div class="trio"><div class="tcol"><span class="tnum geist">41</span><span class="tcap"><i class="dot" style="background:var(--ok)"></i>Concluídas</span></div><div class="tcol"><span class="tnum geist">2</span><span class="tcap"><i class="dot" style="background:var(--tick)"></i>Puladas</span></div><div class="tcol"><span class="tnum geist">1</span><span class="tcap"><i class="dot" style="background:var(--risk)"></i>Perdidas</span></div></div>
+<div class="seg"><span class="si on">Todos</span><span class="si">Concluídas</span><span class="si">Puladas</span><span class="si">Perdidas</span></div></div><div class="grpH"><span class="grpD">domingo, 25 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:12</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:04</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sábado, 24 de out.</span><span class="grpC">1 dose</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:10</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sexta-feira, 23 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:05</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:02</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">quinta-feira, 22 de out.</span><span class="grpC">3 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">20:00</span><span class="lout" style="color:var(--risk)"><i class="dot" style="background:var(--risk)"></i>Perdida</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:01</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:06</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção A · mínima</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="nav"><span class="back">‹ Hoje</span><span class="pill"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M170 800V220" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 800H860" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 700
+    C255 690 275 645 305 560
+    C332 480 365 405 405 390
+    C430 380 450 415 465 475
+    C482 545 500 590 525 575
+    C555 558 575 490 600 410
+    C625 330 655 285 690 300
+    C725 315 742 380 760 455
+    C778 530 800 565 835 535
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 740
+    C280 735 310 710 350 670
+    C390 630 425 615 465 625
+    C505 635 545 625 585 595
+    C625 565 665 545 705 552
+    C745 560 785 550 835 520
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
+</svg>Curva</span></div>
+<div class="scroll"><div class="top"><div class="ltitle geist">Registro de doses</div><div class="flat"><svg class="fi" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M792 512 A280 280 0 1 1 710 314" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M720 176 V318 H578" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><p><b>Sem sincronização desde 23 de out.</b> As doses não registradas desde então ainda não aparecem como perdidas.</p></div>
+<div class="expl">Você começou seus protocolos com um objetivo. Mantê-los em dia, sem pular doses, é o caminho para chegar lá. Aqui você vê o quanto está conseguindo.</div><div class="trio"><div class="tcol"><span class="tnum geist">41</span><span class="tcap"><i class="dot" style="background:var(--ok)"></i>Concluídas</span></div><div class="tcol"><span class="tnum geist">2</span><span class="tcap"><i class="dot" style="background:var(--tick)"></i>Puladas</span></div><div class="tcol"><span class="tnum geist">1</span><span class="tcap"><i class="dot" style="background:var(--risk)"></i>Perdidas</span></div></div>
+<div class="seg"><span class="si on">Todos</span><span class="si">Concluídas</span><span class="si">Puladas</span><span class="si">Perdidas</span></div></div><div class="grpH"><span class="grpD">domingo, 25 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:12</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:04</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sábado, 24 de out.</span><span class="grpC">1 dose</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:10</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sexta-feira, 23 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:05</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:02</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">quinta-feira, 22 de out.</span><span class="grpC">3 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">20:00</span><span class="lout" style="color:var(--risk)"><i class="dot" style="background:var(--risk)"></i>Perdida</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:01</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:06</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div></div>
+<div class="home"></div></div></div></div><div class="en"><span class="en-t">Not synced since Oct 23.</span> Doses not logged since then don’t show as missed yet.</div></figure><figure><figcaption>Opção B · completa</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="nav"><span class="back">‹ Hoje</span><span class="pill"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M170 800V220" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 800H860" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 700
+    C255 690 275 645 305 560
+    C332 480 365 405 405 390
+    C430 380 450 415 465 475
+    C482 545 500 590 525 575
+    C555 558 575 490 600 410
+    C625 330 655 285 690 300
+    C725 315 742 380 760 455
+    C778 530 800 565 835 535
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 740
+    C280 735 310 710 350 670
+    C390 630 425 615 465 625
+    C505 635 545 625 585 595
+    C625 565 665 545 705 552
+    C745 560 785 550 835 520
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
+</svg>Curva</span></div>
+<div class="scroll"><div class="top"><div class="ltitle geist">Registro de doses</div><div class="ncard"><div class="nhead"><svg class="fi" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M792 512 A280 280 0 1 1 710 314" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M720 176 V318 H578" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>Sem sincronização desde 23 de out.</span></div>
+<p>3 doses programadas desde então não têm registro. Se não forem marcadas, entram como perdidas na próxima sincronização.</p>
+<span class="tbtn">Sincronizar agora</span></div>
+<div class="expl">Você começou seus protocolos com um objetivo. Mantê-los em dia, sem pular doses, é o caminho para chegar lá. Aqui você vê o quanto está conseguindo.</div><div class="trio"><div class="tcol"><span class="tnum geist">41</span><span class="tcap"><i class="dot" style="background:var(--ok)"></i>Concluídas</span></div><div class="tcol"><span class="tnum geist">2</span><span class="tcap"><i class="dot" style="background:var(--tick)"></i>Puladas</span></div><div class="tcol"><span class="tnum geist">1</span><span class="tcap"><i class="dot" style="background:var(--risk)"></i>Perdidas</span><span class="tsub">+3 sem registro</span></div></div>
+<div class="seg"><span class="si on">Todos</span><span class="si">Concluídas</span><span class="si">Puladas</span><span class="si">Perdidas</span></div></div><div class="grpH"><span class="grpD">domingo, 25 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:12</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:04</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sábado, 24 de out.</span><span class="grpC">1 dose</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:10</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sexta-feira, 23 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:05</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:02</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">quinta-feira, 22 de out.</span><span class="grpC">3 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">20:00</span><span class="lout" style="color:var(--risk)"><i class="dot" style="background:var(--risk)"></i>Perdida</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:01</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:06</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div></div>
+<div class="home"></div></div></div></div><div class="en"><span class="en-t">Not synced since Oct 23</span> · 3 scheduled doses since then have no record. If they aren’t marked, they’re recorded as missed at the next sync. · <b>Sync now</b> · +3 not recorded</div></figure></div>
+<div class="rowlab">Escuro</div><div class="cols"><figure><figcaption>App hoje</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="nav"><span class="back">‹ Hoje</span><span class="pill"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M170 800V220" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 800H860" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 700
+    C255 690 275 645 305 560
+    C332 480 365 405 405 390
+    C430 380 450 415 465 475
+    C482 545 500 590 525 575
+    C555 558 575 490 600 410
+    C625 330 655 285 690 300
+    C725 315 742 380 760 455
+    C778 530 800 565 835 535
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 740
+    C280 735 310 710 350 670
+    C390 630 425 615 465 625
+    C505 635 545 625 585 595
+    C625 565 665 545 705 552
+    C745 560 785 550 835 520
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
+</svg>Curva</span></div>
+<div class="scroll"><div class="top"><div class="ltitle geist">Registro de doses</div>
+<div class="expl">Você começou seus protocolos com um objetivo. Mantê-los em dia, sem pular doses, é o caminho para chegar lá. Aqui você vê o quanto está conseguindo.</div><div class="trio"><div class="tcol"><span class="tnum geist">41</span><span class="tcap"><i class="dot" style="background:var(--ok)"></i>Concluídas</span></div><div class="tcol"><span class="tnum geist">2</span><span class="tcap"><i class="dot" style="background:var(--tick)"></i>Puladas</span></div><div class="tcol"><span class="tnum geist">1</span><span class="tcap"><i class="dot" style="background:var(--risk)"></i>Perdidas</span></div></div>
+<div class="seg"><span class="si on">Todos</span><span class="si">Concluídas</span><span class="si">Puladas</span><span class="si">Perdidas</span></div></div><div class="grpH"><span class="grpD">domingo, 25 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:12</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:04</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sábado, 24 de out.</span><span class="grpC">1 dose</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:10</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sexta-feira, 23 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:05</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:02</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">quinta-feira, 22 de out.</span><span class="grpC">3 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">20:00</span><span class="lout" style="color:var(--risk)"><i class="dot" style="background:var(--risk)"></i>Perdida</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:01</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:06</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção A · mínima</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="nav"><span class="back">‹ Hoje</span><span class="pill"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M170 800V220" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 800H860" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 700
+    C255 690 275 645 305 560
+    C332 480 365 405 405 390
+    C430 380 450 415 465 475
+    C482 545 500 590 525 575
+    C555 558 575 490 600 410
+    C625 330 655 285 690 300
+    C725 315 742 380 760 455
+    C778 530 800 565 835 535
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 740
+    C280 735 310 710 350 670
+    C390 630 425 615 465 625
+    C505 635 545 625 585 595
+    C625 565 665 545 705 552
+    C745 560 785 550 835 520
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
+</svg>Curva</span></div>
+<div class="scroll"><div class="top"><div class="ltitle geist">Registro de doses</div><div class="flat"><svg class="fi" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M792 512 A280 280 0 1 1 710 314" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M720 176 V318 H578" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><p><b>Sem sincronização desde 23 de out.</b> As doses não registradas desde então ainda não aparecem como perdidas.</p></div>
+<div class="expl">Você começou seus protocolos com um objetivo. Mantê-los em dia, sem pular doses, é o caminho para chegar lá. Aqui você vê o quanto está conseguindo.</div><div class="trio"><div class="tcol"><span class="tnum geist">41</span><span class="tcap"><i class="dot" style="background:var(--ok)"></i>Concluídas</span></div><div class="tcol"><span class="tnum geist">2</span><span class="tcap"><i class="dot" style="background:var(--tick)"></i>Puladas</span></div><div class="tcol"><span class="tnum geist">1</span><span class="tcap"><i class="dot" style="background:var(--risk)"></i>Perdidas</span></div></div>
+<div class="seg"><span class="si on">Todos</span><span class="si">Concluídas</span><span class="si">Puladas</span><span class="si">Perdidas</span></div></div><div class="grpH"><span class="grpD">domingo, 25 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:12</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:04</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sábado, 24 de out.</span><span class="grpC">1 dose</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:10</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sexta-feira, 23 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:05</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:02</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">quinta-feira, 22 de out.</span><span class="grpC">3 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">20:00</span><span class="lout" style="color:var(--risk)"><i class="dot" style="background:var(--risk)"></i>Perdida</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:01</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:06</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção B · completa</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="nav"><span class="back">‹ Hoje</span><span class="pill"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M170 800V220" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M170 800H860" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 700
+    C255 690 275 645 305 560
+    C332 480 365 405 405 390
+    C430 380 450 415 465 475
+    C482 545 500 590 525 575
+    C555 558 575 490 600 410
+    C625 330 655 285 690 300
+    C725 315 742 380 760 455
+    C778 530 800 565 835 535
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="
+    M215 740
+    C280 735 310 710 350 670
+    C390 630 425 615 465 625
+    C505 635 545 625 585 595
+    C625 565 665 545 705 552
+    C745 560 785 550 835 520
+  " fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" opacity="0.38"/>
+</svg>Curva</span></div>
+<div class="scroll"><div class="top"><div class="ltitle geist">Registro de doses</div><div class="ncard"><div class="nhead"><svg class="fi" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M792 512 A280 280 0 1 1 710 314" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M720 176 V318 H578" fill="none" stroke="var(--ink)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>Sem sincronização desde 23 de out.</span></div>
+<p>3 doses programadas desde então não têm registro. Se não forem marcadas, entram como perdidas na próxima sincronização.</p>
+<span class="tbtn">Sincronizar agora</span></div>
+<div class="expl">Você começou seus protocolos com um objetivo. Mantê-los em dia, sem pular doses, é o caminho para chegar lá. Aqui você vê o quanto está conseguindo.</div><div class="trio"><div class="tcol"><span class="tnum geist">41</span><span class="tcap"><i class="dot" style="background:var(--ok)"></i>Concluídas</span></div><div class="tcol"><span class="tnum geist">2</span><span class="tcap"><i class="dot" style="background:var(--tick)"></i>Puladas</span></div><div class="tcol"><span class="tnum geist">1</span><span class="tcap"><i class="dot" style="background:var(--risk)"></i>Perdidas</span><span class="tsub">+3 sem registro</span></div></div>
+<div class="seg"><span class="si on">Todos</span><span class="si">Concluídas</span><span class="si">Puladas</span><span class="si">Perdidas</span></div></div><div class="grpH"><span class="grpD">domingo, 25 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:12</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:04</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sábado, 24 de out.</span><span class="grpC">1 dose</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:10</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">sexta-feira, 23 de out.</span><span class="grpC">2 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:05</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:02</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div><div class="grpH"><span class="grpD">quinta-feira, 22 de out.</span><span class="grpC">3 doses</span></div>
+<div class="list"><div class="lrow"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">20:00</span><span class="lout" style="color:var(--risk)"><i class="dot" style="background:var(--risk)"></i>Perdida</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <g transform="rotate(-40 512 512)">
+    <rect x="300" y="428" width="424" height="168" rx="84" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M512 428 V596" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg><span>Zinco</span></div></div>
+<div class="lright"><span class="ltime">09:01</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lrow sep"><div class="linfo"><div class="lname"><svg class="fi" width="15" height="15" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M360 170 H664" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M410 170 V608 A102 102 0 0 0 614 608 V170" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M430 432 H594" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><span>BPC-157</span></div></div>
+<div class="lright"><span class="ltime">08:06</span><span class="lout" style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i>Concluída</span></div><svg class="fi" width="8" height="14" viewBox="0 0 8 14"><path d="M1.5 1.5 6.5 7l-5 5.5" fill="none" stroke="var(--tick)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div></div>
+<div class="home"></div></div></div></div></figure></div>
+
+<h2>Relatório de adesão (Ajustes › Relatório de adesão, a prévia antes de compartilhar)</h2>
+<p class="lead">A: um asterisco na adesão geral e uma linha explicando, dentro do texto que vai para o profissional. B: o mesmo nos números de cada protocolo, “Sem registro desde 23 de out.: n” e, fora do relatório, um aviso para sincronizar antes de compartilhar.</p>
+<div class="rowlab">Claro</div><div class="cols"><figure><figcaption>App hoje</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="behind"></div><div class="sheet"><div class="mnav"><span class="mcancel">Cancelar</span><span class="mtitle">Relatório de adesão</span><span style="min-width:60px"></span></div>
+<div class="mbody"><p class="intro">É exatamente isto que o seu profissional de saúde vai receber.</p>
+<div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 97%
+Protocolos ativos: 2
+Total de doses registradas: 86
+────────────────────────────────────────
+
+BPC-157
+  Dose: 250 mcg · 2 vezes ao dia
+  Concluídas: 55 · Puladas: 1 · Perdidas: 1 · Adesão: 96%
+  Sequência atual: 3 dias
+  Frasco: 12 doses restantes
+
+Zinco
+  Dose: 25 mg · 1 vez ao dia
+  Concluídas: 28 · Puladas: 1 · Perdidas: 0 · Adesão: 97%
+  Sequência atual: 3 dias
+
+────────────────────────────────────────
+Gerado pelo DoseTrace em 25 de outubro de 2026
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.
+Não constitui aconselhamento médico nem registro clínico.</pre></div></div>
+<div class="mfoot"><span class="actbtn">Compartilhar</span></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção A · mínima</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="behind"></div><div class="sheet"><div class="mnav"><span class="mcancel">Cancelar</span><span class="mtitle">Relatório de adesão</span><span style="min-width:60px"></span></div>
+<div class="mbody"><p class="intro">É exatamente isto que o seu profissional de saúde vai receber.</p>
+<div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 97%*
+<span class="rnote">* Sem sincronização desde 23 de out. de 2026: as doses não registradas desde então ainda não contam como perdidas, então a adesão pode aparecer maior do que é.</span>
+Protocolos ativos: 2
+Total de doses registradas: 86
+────────────────────────────────────────
+
+BPC-157
+  Dose: 250 mcg · 2 vezes ao dia
+  Concluídas: 55 · Puladas: 1 · Perdidas: 1 · Adesão: 96%*
+  Sequência atual: 3 dias
+  Frasco: 12 doses restantes
+
+Zinco
+  Dose: 25 mg · 1 vez ao dia
+  Concluídas: 28 · Puladas: 1 · Perdidas: 0 · Adesão: 97%*
+  Sequência atual: 3 dias
+
+────────────────────────────────────────
+Gerado pelo DoseTrace em 25 de outubro de 2026
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.
+Não constitui aconselhamento médico nem registro clínico.</pre></div></div>
+<div class="mfoot"><span class="actbtn">Compartilhar</span></div></div></div>
+<div class="home"></div></div></div></div><div class="en">* Not synced since Oct 23, 2026: doses not logged since then are not counted as missed yet, so adherence may read higher than it is.</div></figure><figure><figcaption>Opção B · completa</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="behind"></div><div class="sheet"><div class="mnav"><span class="mcancel">Cancelar</span><span class="mtitle">Relatório de adesão</span><span style="min-width:60px"></span></div>
+<div class="mbody"><p class="intro">É exatamente isto que o seu profissional de saúde vai receber.</p><div class="flat inSheet"><svg class="fi" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M792 512 A280 280 0 1 1 710 314" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M720 176 V318 H578" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><div><p>Este celular não sincroniza desde 23 de out. Sincronize antes de compartilhar para que as doses perdidas desses dias entrem no relatório.</p><span class="tbtn">Sincronizar agora</span></div></div>
+<div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 97%*
+<span class="rnote">* Sem sincronização desde 23 de out. de 2026: as doses não registradas desde então ainda não contam como perdidas, então a adesão pode aparecer maior do que é.</span>
+Protocolos ativos: 2
+Total de doses registradas: 86
+────────────────────────────────────────
+
+BPC-157
+  Dose: 250 mcg · 2 vezes ao dia
+  Concluídas: 55 · Puladas: 1 · Perdidas: 1 · Adesão: 96%*
+  <span class="rnote">Sem registro desde 23 de out.: 2</span>
+  Sequência atual: 3 dias
+  Frasco: 12 doses restantes
+
+Zinco
+  Dose: 25 mg · 1 vez ao dia
+  Concluídas: 28 · Puladas: 1 · Perdidas: 0 · Adesão: 97%*
+  <span class="rnote">Sem registro desde 23 de out.: 1</span>
+  Sequência atual: 3 dias
+
+────────────────────────────────────────
+Gerado pelo DoseTrace em 25 de outubro de 2026
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.
+Não constitui aconselhamento médico nem registro clínico.</pre></div></div>
+<div class="mfoot"><span class="actbtn">Compartilhar</span></div></div></div>
+<div class="home"></div></div></div></div><div class="en">Above the paper: This phone hasn’t synced since Oct 23. Sync before sharing so the missed doses of those days are in the report. · <b>Sync now</b>. In the report: No record since Oct 23: 2</div></figure></div>
+<div class="rowlab">Escuro</div><div class="cols"><figure><figcaption>App hoje</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="behind"></div><div class="sheet"><div class="mnav"><span class="mcancel">Cancelar</span><span class="mtitle">Relatório de adesão</span><span style="min-width:60px"></span></div>
+<div class="mbody"><p class="intro">É exatamente isto que o seu profissional de saúde vai receber.</p>
+<div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 97%
+Protocolos ativos: 2
+Total de doses registradas: 86
+────────────────────────────────────────
+
+BPC-157
+  Dose: 250 mcg · 2 vezes ao dia
+  Concluídas: 55 · Puladas: 1 · Perdidas: 1 · Adesão: 96%
+  Sequência atual: 3 dias
+  Frasco: 12 doses restantes
+
+Zinco
+  Dose: 25 mg · 1 vez ao dia
+  Concluídas: 28 · Puladas: 1 · Perdidas: 0 · Adesão: 97%
+  Sequência atual: 3 dias
+
+────────────────────────────────────────
+Gerado pelo DoseTrace em 25 de outubro de 2026
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.
+Não constitui aconselhamento médico nem registro clínico.</pre></div></div>
+<div class="mfoot"><span class="actbtn">Compartilhar</span></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção A · mínima</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="behind"></div><div class="sheet"><div class="mnav"><span class="mcancel">Cancelar</span><span class="mtitle">Relatório de adesão</span><span style="min-width:60px"></span></div>
+<div class="mbody"><p class="intro">É exatamente isto que o seu profissional de saúde vai receber.</p>
+<div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 97%*
+<span class="rnote">* Sem sincronização desde 23 de out. de 2026: as doses não registradas desde então ainda não contam como perdidas, então a adesão pode aparecer maior do que é.</span>
+Protocolos ativos: 2
+Total de doses registradas: 86
+────────────────────────────────────────
+
+BPC-157
+  Dose: 250 mcg · 2 vezes ao dia
+  Concluídas: 55 · Puladas: 1 · Perdidas: 1 · Adesão: 96%*
+  Sequência atual: 3 dias
+  Frasco: 12 doses restantes
+
+Zinco
+  Dose: 25 mg · 1 vez ao dia
+  Concluídas: 28 · Puladas: 1 · Perdidas: 0 · Adesão: 97%*
+  Sequência atual: 3 dias
+
+────────────────────────────────────────
+Gerado pelo DoseTrace em 25 de outubro de 2026
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.
+Não constitui aconselhamento médico nem registro clínico.</pre></div></div>
+<div class="mfoot"><span class="actbtn">Compartilhar</span></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção B · completa</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:852px;">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content"><div class="behind"></div><div class="sheet"><div class="mnav"><span class="mcancel">Cancelar</span><span class="mtitle">Relatório de adesão</span><span style="min-width:60px"></span></div>
+<div class="mbody"><p class="intro">É exatamente isto que o seu profissional de saúde vai receber.</p><div class="flat inSheet"><svg class="fi" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M792 512 A280 280 0 1 1 710 314" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M720 176 V318 H578" fill="none" stroke="var(--ink2)" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg><div><p>Este celular não sincroniza desde 23 de out. Sincronize antes de compartilhar para que as doses perdidas desses dias entrem no relatório.</p><span class="tbtn">Sincronizar agora</span></div></div>
+<div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 97%*
+<span class="rnote">* Sem sincronização desde 23 de out. de 2026: as doses não registradas desde então ainda não contam como perdidas, então a adesão pode aparecer maior do que é.</span>
+Protocolos ativos: 2
+Total de doses registradas: 86
+────────────────────────────────────────
+
+BPC-157
+  Dose: 250 mcg · 2 vezes ao dia
+  Concluídas: 55 · Puladas: 1 · Perdidas: 1 · Adesão: 96%*
+  <span class="rnote">Sem registro desde 23 de out.: 2</span>
+  Sequência atual: 3 dias
+  Frasco: 12 doses restantes
+
+Zinco
+  Dose: 25 mg · 1 vez ao dia
+  Concluídas: 28 · Puladas: 1 · Perdidas: 0 · Adesão: 97%*
+  <span class="rnote">Sem registro desde 23 de out.: 1</span>
+  Sequência atual: 3 dias
+
+────────────────────────────────────────
+Gerado pelo DoseTrace em 25 de outubro de 2026
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.
+Não constitui aconselhamento médico nem registro clínico.</pre></div></div>
+<div class="mfoot"><span class="actbtn">Compartilhar</span></div></div></div>
+<div class="home"></div></div></div></div></figure></div>
+
+<h2>Só B: depois de mais de 14 dias sem sincronizar</h2>
+<p class="lead">Exemplo: celular sem internet de 20 de set. a 25 de out.; ao sincronizar, a varredura grava as faltas de 11 a 24 de out.; as de antes ficam sem registro e o relatório diz isso, de forma permanente.</p>
+<div class="cols"><figure><figcaption>Claro</figcaption><div class="pz"><div class="t-light paperOnly"><div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 95%*
+<span class="rnote">* As doses perdidas de 25 de set. a 10 de out. não foram registradas: o celular ficou mais de 14 dias sem sincronizar.</span>
+Protocolos ativos: 2
+…</pre></div></div></div><div class="en">* Missed doses from Sep 25 to Oct 10 were not recorded: this phone went more than 14 days without syncing.</div></figure><figure><figcaption>Escuro</figcaption><div class="pz"><div class="t-dark paperOnly"><div class="paper"><pre>RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Sam Carter
+Período: 25 de set. – 25 de out. de 2026 (30 dias)
+Adesão geral: 95%*
+<span class="rnote">* As doses perdidas de 25 de set. a 10 de out. não foram registradas: o celular ficou mais de 14 dias sem sincronizar.</span>
+Protocolos ativos: 2
+…</pre></div></div></div></figure></div>
+
+<h2>Textos · A-181 (6 idiomas)</h2>
+<p class="lead">{date} = formatDate “dayMonth” no app (23 de out. · Oct 23 · 23 oct. · 23. Okt. · 23 ott) e “dayMonthYear” no relatório. Termos iguais aos do app: “perdidas” (log_missed), “sincronização”.</p>
+<h3 class="sub">A e B</h3><table class="tr"><thead><tr><th>Chave</th><th>en</th><th>pt</th><th>es</th><th>fr</th><th>de</th><th>it</th></tr></thead><tbody><tr><td class="k">log_unsynced (A e B: o título)</td><td>Not synced since {date}. Doses not logged since then don’t show as missed yet.</td><td>Sem sincronização desde {date}. As doses não registradas desde então ainda não aparecem como perdidas.</td><td>Sin sincronizar desde el {date}. Las dosis no registradas desde entonces aún no aparecen como perdidas.</td><td>Pas de synchronisation depuis le {date}. Les doses non enregistrées depuis n’apparaissent pas encore comme manquées.</td><td>Nicht synchronisiert seit {date}. Seitdem nicht eingetragene Dosen erscheinen noch nicht als verpasst.</td><td>Nessuna sincronizzazione dal {date}. Le dosi non registrate da allora non risultano ancora mancate.</td></tr><tr><td class="k">log_unsynced_never (sem nenhuma sincronização neste celular)</td><td>This phone hasn’t synced yet. Doses not logged here don’t show as missed yet.</td><td>Este celular ainda não sincronizou. As doses não registradas ainda não aparecem como perdidas.</td><td>Este teléfono aún no se ha sincronizado. Las dosis no registradas aún no aparecen como perdidas.</td><td>Ce téléphone n’est pas encore synchronisé. Les doses non enregistrées n’apparaissent pas encore comme manquées.</td><td>Dieses Handy wurde noch nicht synchronisiert. Nicht eingetragene Dosen erscheinen noch nicht als verpasst.</td><td>Questo telefono non è ancora stato sincronizzato. Le dosi non registrate non risultano ancora mancate.</td></tr><tr><td class="k">report_unsynced (A e B, dentro do relatório)</td><td>* Not synced since {date}: doses not logged since then are not counted as missed yet, so adherence may read higher than it is.</td><td>* Sem sincronização desde {date}: as doses não registradas desde então ainda não contam como perdidas, então a adesão pode aparecer maior do que é.</td><td>* Sin sincronizar desde el {date}: las dosis no registradas desde entonces aún no cuentan como perdidas, así que la adherencia puede aparecer más alta de lo que es.</td><td>* Pas de synchronisation depuis le {date} : les doses non enregistrées depuis ne sont pas encore comptées comme manquées ; l’observance peut donc paraître plus élevée qu’elle ne l’est.</td><td>* Nicht synchronisiert seit {date}: Seitdem nicht eingetragene Dosen zählen noch nicht als verpasst, die Einhaltung kann daher höher erscheinen, als sie ist.</td><td>* Nessuna sincronizzazione dal {date}: le dosi non registrate da allora non sono ancora contate come mancate, quindi l’aderenza può risultare più alta di quanto sia.</td></tr></tbody></table>
+<h3 class="sub">Só B</h3><table class="tr"><thead><tr><th>Chave</th><th>en</th><th>pt</th><th>es</th><th>fr</th><th>de</th><th>it</th></tr></thead><tbody><tr><td class="k">log_unsynced_title (B)</td><td>Not synced since {date}</td><td>Sem sincronização desde {date}</td><td>Sin sincronizar desde el {date}</td><td>Pas de synchronisation depuis le {date}</td><td>Nicht synchronisiert seit {date}</td><td>Nessuna sincronizzazione dal {date}</td></tr><tr><td class="k">log_unsynced_count (B, plural; _one no singular)</td><td>{n} scheduled doses since then have no record. If they aren’t marked, they’re recorded as missed at the next sync.</td><td>{n} doses programadas desde então não têm registro. Se não forem marcadas, entram como perdidas na próxima sincronização.</td><td>{n} dosis programadas desde entonces no tienen registro. Si no se marcan, se registran como perdidas en la próxima sincronización.</td><td>{n} doses prévues depuis n’ont pas d’enregistrement. Si elles ne sont pas marquées, elles seront enregistrées comme manquées à la prochaine synchronisation.</td><td>{n} geplante Dosen seitdem haben keinen Eintrag. Werden sie nicht markiert, werden sie bei der nächsten Synchronisierung als verpasst eingetragen.</td><td>{n} dosi programmate da allora non hanno una registrazione. Se non vengono segnate, saranno registrate come mancate alla prossima sincronizzazione.</td></tr><tr><td class="k">log_unsynced_old (B, só quando a falta de sincronização passa de 7 dias)</td><td>Missed doses more than 14 days old are not recorded later.</td><td>Doses perdidas com mais de 14 dias não são registradas depois.</td><td>Las dosis perdidas de hace más de 14 días no se registran después.</td><td>Les doses manquées de plus de 14 jours ne sont pas enregistrées ensuite.</td><td>Verpasste Dosen, die älter als 14 Tage sind, werden später nicht eingetragen.</td><td>Le dosi mancate di oltre 14 giorni non vengono registrate in seguito.</td></tr><tr><td class="k">sync_now (B)</td><td>Sync now</td><td>Sincronizar agora</td><td>Sincronizar ahora</td><td>Synchroniser maintenant</td><td>Jetzt synchronisieren</td><td>Sincronizza ora</td></tr><tr><td class="k">log_unrecorded_n (B, sob “Perdidas”)</td><td>+{n} not recorded</td><td>+{n} sem registro</td><td>+{n} sin registro</td><td>+{n} non enregistrées</td><td>+{n} ohne Eintrag</td><td>+{n} senza registrazione</td></tr><tr><td class="k">settings_report_unsynced (B, acima do papel; não vai no relatório)</td><td>This phone hasn’t synced since {date}. Sync before sharing so the missed doses of those days are in the report.</td><td>Este celular não sincroniza desde {date}. Sincronize antes de compartilhar para que as doses perdidas desses dias entrem no relatório.</td><td>Este teléfono no se sincroniza desde el {date}. Sincroniza antes de compartir para que las dosis perdidas de esos días entren en el informe.</td><td>Ce téléphone n’est plus synchronisé depuis le {date}. Synchronisez avant de partager pour que les doses manquées de ces jours figurent dans le rapport.</td><td>Dieses Handy ist seit {date} nicht synchronisiert. Synchronisiere vor dem Teilen, damit die verpassten Dosen dieser Tage im Bericht stehen.</td><td>Questo telefono non si sincronizza dal {date}. Sincronizza prima di condividere, così le dosi mancate di quei giorni entrano nel report.</td></tr><tr><td class="k">report_unrecorded (B, por protocolo)</td><td>No record since {date}: {n}</td><td>Sem registro desde {date}: {n}</td><td>Sin registro desde el {date}: {n}</td><td>Sans enregistrement depuis le {date} : {n}</td><td>Ohne Eintrag seit {date}: {n}</td><td>Senza registrazione dal {date}: {n}</td></tr><tr><td class="k">report_gap (B, permanente)</td><td>* Missed doses from {from} to {to} were not recorded: this phone went more than 14 days without syncing.</td><td>* As doses perdidas de {from} a {to} não foram registradas: o celular ficou mais de 14 dias sem sincronizar.</td><td>* Las dosis perdidas del {from} al {to} no se registraron: el teléfono pasó más de 14 días sin sincronizar.</td><td>* Les doses manquées du {from} au {to} n’ont pas été enregistrées : le téléphone est resté plus de 14 jours sans synchronisation.</td><td>* Verpasste Dosen vom {from} bis {to} wurden nicht eingetragen: Das Handy war mehr als 14 Tage nicht synchronisiert.</td><td>* Le dosi mancate dal {from} al {to} non sono state registrate: il telefono è rimasto più di 14 giorni senza sincronizzazione.</td></tr></tbody></table>
+</section>
+
+<section><h2>Item 2 · A-160: “Doses contadas” na curva de acúmulo</h2>
+<div class="lead"><ul>
+<li>Hoje (SerumCurveScreen.js:496) conta as doses programadas <b>dentro da janela visível</b> (3 dias por padrão), enquanto o “Nível est.” soma o histórico inteiro (até 6 meias-vidas, lib/serumModel.js curveLookbackDays).</li>
+<li>Exemplo desenhado (calculado com o mesmo modelo: Testosterona Cipionato 100 mg toda semana desde 2 de jun., meia-vida 8 d, Tmax 71,7 h): nível 156 mg, “Doses contadas” <b>0</b> (a última dose foi há 5 dias, fora da janela). Na B: <b>8</b> doses ainda somam 1% ou mais.</li>
+<li>Por que não “todas as doses do histórico”: esse número depende do tamanho do histórico, não do corpo (BPC-157 duas vezes ao dia daria 766). Com o corte de 1% (opção B da revisão farmacométrica de 2026-10-20): BPC-157 dá 0 ao lado de 0,0 mg; Testosterona Undecanoato a cada 70 dias dá 8 ao lado de cerca de 2.245 mg (hoje: 0).</li>
+<li>A estatística só aparece com um composto escolhido (com vários, a lista não tem esse número). Nada muda no cálculo do nível nem na curva.</li></ul></div>
+<p class="lead">A: só o rótulo muda e passa a dizer a janela (“Doses, últimos 3d”; acompanha a janela quando uma data escolhida a alarga). B: o número passa a contar as doses que formam o nível, com uma nota curta da regra; a contagem da janela vai para a linha de cima (destacada em B).</p>
+<div class="rowlab">Claro</div><div class="cols"><figure><figcaption>App hoje</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:auto;min-height:852px">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content-tall"><div class="nav"><span class="back">‹ Registro de doses</span></div>
+<div class="cscroll"><div class="ctitle geist">Acúmulo de doses</div>
+<div class="pick"><i class="cdot"></i><span>Testosterona Cipionato</span><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="var(--ink3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="ccard"><div class="hero"><div><div class="foot">Nível est. · agora</div><div class="heroNum geist">156<span class="unitIn"> mg</span></div></div><span class="chip">Estimado</span></div>
+<div class="range">Últimos 3d · +7d projeção · pico ≈ 186 mg</div><svg width="325" height="220" viewBox="0 0 325 220" class="fi">
+<rect x="124.1" y="8" width="200.9" height="202" fill="var(--well)"/><line x1="38" x2="325" y1="210" y2="210" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="213" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">0,0</text><line x1="38" x2="325" y1="120.57251106776923" y2="120.57251106776923" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="123.57251106776923" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">92</text><line x1="38" x2="325" y1="29.200946289185595" y2="29.200946289185595" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="32.200946289185595" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">186</text><line x1="177.9125" x2="177.9125" y1="212" y2="217" stroke="var(--data)" stroke-width="2"/>
+<text x="2" y="10" font-size="9" class="mono" fill="var(--ink3)">mg</text>
+<line x1="124.1" x2="124.1" y1="8" y2="210" stroke="var(--ink)" stroke-width="1.4"/>
+<polyline points="38.0,29.8 40.4,30.0 42.8,30.3 45.2,30.6 47.6,31.1 50.0,31.5 52.4,32.0 54.7,32.6 57.1,33.2 59.5,33.9 61.9,34.6 64.3,35.3 66.7,36.1 69.1,36.8 71.5,37.7 73.9,38.5 76.3,39.4 78.7,40.2 81.0,41.1 83.4,42.0 85.8,43.0 88.2,43.9 90.6,44.9 93.0,45.8 95.4,46.8 97.8,47.8 100.2,48.7 102.6,49.7 105.0,50.7 107.4,51.7 109.8,52.7 112.1,53.7 114.5,54.7 116.9,55.7 119.3,56.7 121.7,57.7 124.1,58.7 124.1,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round"/>
+<polyline points="124.1,58.7 126.5,59.7 128.9,60.7 131.3,61.7 133.7,62.7 136.1,63.7 138.4,64.7 140.8,65.7 143.2,66.7 145.6,67.7 148.0,68.7 150.4,69.6 152.8,70.6 155.2,71.6 157.6,72.5 160.0,73.5 162.4,74.5 164.8,75.4 167.2,76.3 169.5,77.3 171.9,78.2 174.3,79.1 176.7,80.1 179.1,77.6 181.5,72.1 183.9,67.1 186.3,62.6 188.7,58.5 191.1,54.7 193.5,51.3 195.9,48.3 198.2,45.6 200.6,43.1 203.0,40.9 205.4,39.0 207.8,37.3 210.2,35.8 212.6,34.5 215.0,33.3 217.4,32.4 219.8,31.6 222.2,31.0 224.6,30.5 226.9,30.1 229.3,29.8 231.7,29.7 234.1,29.6 236.5,29.7 238.9,29.8 241.3,30.0 243.7,30.3 246.1,30.6 248.5,31.1 250.9,31.5 253.3,32.0 255.6,32.6 258.0,33.2 260.4,33.9 262.8,34.6 265.2,35.3 267.6,36.1 270.0,36.8 272.4,37.7 274.8,38.5 277.2,39.4 279.6,40.2 281.9,41.1 284.3,42.0 286.7,43.0 289.1,43.9 291.5,44.9 293.9,45.8 296.3,46.8 298.7,47.8 301.1,48.7 303.5,49.7 305.9,50.7 308.3,51.7 310.6,52.7 313.0,53.7 315.4,54.7 317.8,55.7 320.2,56.7 322.6,57.7 325.0,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-dasharray="5,4" stroke-linejoin="round"/>
+<circle cx="124.1" cy="58.74165234586192" r="3.5" fill="var(--data)"/></svg>
+<div class="axis"><span>−3d</span><span class="axnow" style="left:72.1px">Agora</span><span>+7d</span></div>
+<div class="lgd"><span><i class="lgS"></i>estimativa</span><span><i class="lgD"></i>projeção</span><span><i class="lgT"></i>doses programadas</span><span><i class="lgH"></i>programadas, não marcadas como concluídas</span></div>
+<div class="fld"><span class="fldL">Projetar</span><div class="seg inCard"><span class="si on">+7d</span><span class="si">+14d</span><span class="si">+30d</span><span class="si">+60d</span><span class="si">+90d</span></div></div></div>
+<div class="stats"><div class="scol"><span class="scap">Nível est.</span><span class="snum geist" style="color:var(--data)">156<span class="sunit">mg</span></span></div>
+<div class="scol"><span class="scap">Meia-vida</span><span class="snum geist">8<span class="sunit">d</span></span></div>
+<div class="scol"><span class="scap">Doses contadas</span><span class="snum geist">0</span></div></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção A · rótulo diz a janela</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:auto;min-height:852px">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content-tall"><div class="nav"><span class="back">‹ Registro de doses</span></div>
+<div class="cscroll"><div class="ctitle geist">Acúmulo de doses</div>
+<div class="pick"><i class="cdot"></i><span>Testosterona Cipionato</span><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="var(--ink3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="ccard"><div class="hero"><div><div class="foot">Nível est. · agora</div><div class="heroNum geist">156<span class="unitIn"> mg</span></div></div><span class="chip">Estimado</span></div>
+<div class="range">Últimos 3d · +7d projeção · pico ≈ 186 mg</div><svg width="325" height="220" viewBox="0 0 325 220" class="fi">
+<rect x="124.1" y="8" width="200.9" height="202" fill="var(--well)"/><line x1="38" x2="325" y1="210" y2="210" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="213" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">0,0</text><line x1="38" x2="325" y1="120.57251106776923" y2="120.57251106776923" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="123.57251106776923" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">92</text><line x1="38" x2="325" y1="29.200946289185595" y2="29.200946289185595" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="32.200946289185595" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">186</text><line x1="177.9125" x2="177.9125" y1="212" y2="217" stroke="var(--data)" stroke-width="2"/>
+<text x="2" y="10" font-size="9" class="mono" fill="var(--ink3)">mg</text>
+<line x1="124.1" x2="124.1" y1="8" y2="210" stroke="var(--ink)" stroke-width="1.4"/>
+<polyline points="38.0,29.8 40.4,30.0 42.8,30.3 45.2,30.6 47.6,31.1 50.0,31.5 52.4,32.0 54.7,32.6 57.1,33.2 59.5,33.9 61.9,34.6 64.3,35.3 66.7,36.1 69.1,36.8 71.5,37.7 73.9,38.5 76.3,39.4 78.7,40.2 81.0,41.1 83.4,42.0 85.8,43.0 88.2,43.9 90.6,44.9 93.0,45.8 95.4,46.8 97.8,47.8 100.2,48.7 102.6,49.7 105.0,50.7 107.4,51.7 109.8,52.7 112.1,53.7 114.5,54.7 116.9,55.7 119.3,56.7 121.7,57.7 124.1,58.7 124.1,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round"/>
+<polyline points="124.1,58.7 126.5,59.7 128.9,60.7 131.3,61.7 133.7,62.7 136.1,63.7 138.4,64.7 140.8,65.7 143.2,66.7 145.6,67.7 148.0,68.7 150.4,69.6 152.8,70.6 155.2,71.6 157.6,72.5 160.0,73.5 162.4,74.5 164.8,75.4 167.2,76.3 169.5,77.3 171.9,78.2 174.3,79.1 176.7,80.1 179.1,77.6 181.5,72.1 183.9,67.1 186.3,62.6 188.7,58.5 191.1,54.7 193.5,51.3 195.9,48.3 198.2,45.6 200.6,43.1 203.0,40.9 205.4,39.0 207.8,37.3 210.2,35.8 212.6,34.5 215.0,33.3 217.4,32.4 219.8,31.6 222.2,31.0 224.6,30.5 226.9,30.1 229.3,29.8 231.7,29.7 234.1,29.6 236.5,29.7 238.9,29.8 241.3,30.0 243.7,30.3 246.1,30.6 248.5,31.1 250.9,31.5 253.3,32.0 255.6,32.6 258.0,33.2 260.4,33.9 262.8,34.6 265.2,35.3 267.6,36.1 270.0,36.8 272.4,37.7 274.8,38.5 277.2,39.4 279.6,40.2 281.9,41.1 284.3,42.0 286.7,43.0 289.1,43.9 291.5,44.9 293.9,45.8 296.3,46.8 298.7,47.8 301.1,48.7 303.5,49.7 305.9,50.7 308.3,51.7 310.6,52.7 313.0,53.7 315.4,54.7 317.8,55.7 320.2,56.7 322.6,57.7 325.0,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-dasharray="5,4" stroke-linejoin="round"/>
+<circle cx="124.1" cy="58.74165234586192" r="3.5" fill="var(--data)"/></svg>
+<div class="axis"><span>−3d</span><span class="axnow" style="left:72.1px">Agora</span><span>+7d</span></div>
+<div class="lgd"><span><i class="lgS"></i>estimativa</span><span><i class="lgD"></i>projeção</span><span><i class="lgT"></i>doses programadas</span><span><i class="lgH"></i>programadas, não marcadas como concluídas</span></div>
+<div class="fld"><span class="fldL">Projetar</span><div class="seg inCard"><span class="si on">+7d</span><span class="si">+14d</span><span class="si">+30d</span><span class="si">+60d</span><span class="si">+90d</span></div></div></div>
+<div class="stats"><div class="scol"><span class="scap">Nível est.</span><span class="snum geist" style="color:var(--data)">156<span class="sunit">mg</span></span></div>
+<div class="scol"><span class="scap">Meia-vida</span><span class="snum geist">8<span class="sunit">d</span></span></div>
+<div class="scol hl"><span class="scap">Doses, últimos 3d</span><span class="snum geist">0</span></div></div></div></div>
+<div class="home"></div></div></div></div><div class="en">Doses, last 3d · 0</div></figure><figure><figcaption>Opção B · conta o que forma o nível</figcaption><div class="pz"><div class="phone t-light"><div class="screen" style="height:auto;min-height:852px">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content-tall"><div class="nav"><span class="back">‹ Registro de doses</span></div>
+<div class="cscroll"><div class="ctitle geist">Acúmulo de doses</div>
+<div class="pick"><i class="cdot"></i><span>Testosterona Cipionato</span><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="var(--ink3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="ccard"><div class="hero"><div><div class="foot">Nível est. · agora</div><div class="heroNum geist">156<span class="unitIn"> mg</span></div></div><span class="chip">Estimado</span></div>
+<div class="range hl">Últimos 3d · 0 doses · +7d projeção · pico ≈ 186 mg</div><svg width="325" height="220" viewBox="0 0 325 220" class="fi">
+<rect x="124.1" y="8" width="200.9" height="202" fill="var(--well)"/><line x1="38" x2="325" y1="210" y2="210" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="213" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">0,0</text><line x1="38" x2="325" y1="120.57251106776923" y2="120.57251106776923" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="123.57251106776923" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">92</text><line x1="38" x2="325" y1="29.200946289185595" y2="29.200946289185595" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="32.200946289185595" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">186</text><line x1="177.9125" x2="177.9125" y1="212" y2="217" stroke="var(--data)" stroke-width="2"/>
+<text x="2" y="10" font-size="9" class="mono" fill="var(--ink3)">mg</text>
+<line x1="124.1" x2="124.1" y1="8" y2="210" stroke="var(--ink)" stroke-width="1.4"/>
+<polyline points="38.0,29.8 40.4,30.0 42.8,30.3 45.2,30.6 47.6,31.1 50.0,31.5 52.4,32.0 54.7,32.6 57.1,33.2 59.5,33.9 61.9,34.6 64.3,35.3 66.7,36.1 69.1,36.8 71.5,37.7 73.9,38.5 76.3,39.4 78.7,40.2 81.0,41.1 83.4,42.0 85.8,43.0 88.2,43.9 90.6,44.9 93.0,45.8 95.4,46.8 97.8,47.8 100.2,48.7 102.6,49.7 105.0,50.7 107.4,51.7 109.8,52.7 112.1,53.7 114.5,54.7 116.9,55.7 119.3,56.7 121.7,57.7 124.1,58.7 124.1,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round"/>
+<polyline points="124.1,58.7 126.5,59.7 128.9,60.7 131.3,61.7 133.7,62.7 136.1,63.7 138.4,64.7 140.8,65.7 143.2,66.7 145.6,67.7 148.0,68.7 150.4,69.6 152.8,70.6 155.2,71.6 157.6,72.5 160.0,73.5 162.4,74.5 164.8,75.4 167.2,76.3 169.5,77.3 171.9,78.2 174.3,79.1 176.7,80.1 179.1,77.6 181.5,72.1 183.9,67.1 186.3,62.6 188.7,58.5 191.1,54.7 193.5,51.3 195.9,48.3 198.2,45.6 200.6,43.1 203.0,40.9 205.4,39.0 207.8,37.3 210.2,35.8 212.6,34.5 215.0,33.3 217.4,32.4 219.8,31.6 222.2,31.0 224.6,30.5 226.9,30.1 229.3,29.8 231.7,29.7 234.1,29.6 236.5,29.7 238.9,29.8 241.3,30.0 243.7,30.3 246.1,30.6 248.5,31.1 250.9,31.5 253.3,32.0 255.6,32.6 258.0,33.2 260.4,33.9 262.8,34.6 265.2,35.3 267.6,36.1 270.0,36.8 272.4,37.7 274.8,38.5 277.2,39.4 279.6,40.2 281.9,41.1 284.3,42.0 286.7,43.0 289.1,43.9 291.5,44.9 293.9,45.8 296.3,46.8 298.7,47.8 301.1,48.7 303.5,49.7 305.9,50.7 308.3,51.7 310.6,52.7 313.0,53.7 315.4,54.7 317.8,55.7 320.2,56.7 322.6,57.7 325.0,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-dasharray="5,4" stroke-linejoin="round"/>
+<circle cx="124.1" cy="58.74165234586192" r="3.5" fill="var(--data)"/></svg>
+<div class="axis"><span>−3d</span><span class="axnow" style="left:72.1px">Agora</span><span>+7d</span></div>
+<div class="lgd"><span><i class="lgS"></i>estimativa</span><span><i class="lgD"></i>projeção</span><span><i class="lgT"></i>doses programadas</span><span><i class="lgH"></i>programadas, não marcadas como concluídas</span></div>
+<div class="fld"><span class="fldL">Projetar</span><div class="seg inCard"><span class="si on">+7d</span><span class="si">+14d</span><span class="si">+30d</span><span class="si">+60d</span><span class="si">+90d</span></div></div></div>
+<div class="stats"><div class="scol"><span class="scap">Nível est.</span><span class="snum geist" style="color:var(--data)">156<span class="sunit">mg</span></span></div>
+<div class="scol"><span class="scap">Meia-vida</span><span class="snum geist">8<span class="sunit">d</span></span></div>
+<div class="scol hl"><span class="scap">Doses no nível</span><span class="snum geist">8</span></div></div><p class="cfoot">Doses no nível: doses programadas que ainda somam pelo menos 1% da sua quantidade ao nível estimado de agora.</p></div></div>
+<div class="home"></div></div></div></div><div class="en">Doses in level · 8. Doses in level: scheduled doses that still add at least 1% of their amount to the estimated level now. Top line: Last 3d · 0 doses · +7d projection</div></figure></div>
+<div class="rowlab">Escuro</div><div class="cols"><figure><figcaption>App hoje</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:auto;min-height:852px">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content-tall"><div class="nav"><span class="back">‹ Registro de doses</span></div>
+<div class="cscroll"><div class="ctitle geist">Acúmulo de doses</div>
+<div class="pick"><i class="cdot"></i><span>Testosterona Cipionato</span><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="var(--ink3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="ccard"><div class="hero"><div><div class="foot">Nível est. · agora</div><div class="heroNum geist">156<span class="unitIn"> mg</span></div></div><span class="chip">Estimado</span></div>
+<div class="range">Últimos 3d · +7d projeção · pico ≈ 186 mg</div><svg width="325" height="220" viewBox="0 0 325 220" class="fi">
+<rect x="124.1" y="8" width="200.9" height="202" fill="var(--well)"/><line x1="38" x2="325" y1="210" y2="210" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="213" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">0,0</text><line x1="38" x2="325" y1="120.57251106776923" y2="120.57251106776923" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="123.57251106776923" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">92</text><line x1="38" x2="325" y1="29.200946289185595" y2="29.200946289185595" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="32.200946289185595" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">186</text><line x1="177.9125" x2="177.9125" y1="212" y2="217" stroke="var(--data)" stroke-width="2"/>
+<text x="2" y="10" font-size="9" class="mono" fill="var(--ink3)">mg</text>
+<line x1="124.1" x2="124.1" y1="8" y2="210" stroke="var(--ink)" stroke-width="1.4"/>
+<polyline points="38.0,29.8 40.4,30.0 42.8,30.3 45.2,30.6 47.6,31.1 50.0,31.5 52.4,32.0 54.7,32.6 57.1,33.2 59.5,33.9 61.9,34.6 64.3,35.3 66.7,36.1 69.1,36.8 71.5,37.7 73.9,38.5 76.3,39.4 78.7,40.2 81.0,41.1 83.4,42.0 85.8,43.0 88.2,43.9 90.6,44.9 93.0,45.8 95.4,46.8 97.8,47.8 100.2,48.7 102.6,49.7 105.0,50.7 107.4,51.7 109.8,52.7 112.1,53.7 114.5,54.7 116.9,55.7 119.3,56.7 121.7,57.7 124.1,58.7 124.1,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round"/>
+<polyline points="124.1,58.7 126.5,59.7 128.9,60.7 131.3,61.7 133.7,62.7 136.1,63.7 138.4,64.7 140.8,65.7 143.2,66.7 145.6,67.7 148.0,68.7 150.4,69.6 152.8,70.6 155.2,71.6 157.6,72.5 160.0,73.5 162.4,74.5 164.8,75.4 167.2,76.3 169.5,77.3 171.9,78.2 174.3,79.1 176.7,80.1 179.1,77.6 181.5,72.1 183.9,67.1 186.3,62.6 188.7,58.5 191.1,54.7 193.5,51.3 195.9,48.3 198.2,45.6 200.6,43.1 203.0,40.9 205.4,39.0 207.8,37.3 210.2,35.8 212.6,34.5 215.0,33.3 217.4,32.4 219.8,31.6 222.2,31.0 224.6,30.5 226.9,30.1 229.3,29.8 231.7,29.7 234.1,29.6 236.5,29.7 238.9,29.8 241.3,30.0 243.7,30.3 246.1,30.6 248.5,31.1 250.9,31.5 253.3,32.0 255.6,32.6 258.0,33.2 260.4,33.9 262.8,34.6 265.2,35.3 267.6,36.1 270.0,36.8 272.4,37.7 274.8,38.5 277.2,39.4 279.6,40.2 281.9,41.1 284.3,42.0 286.7,43.0 289.1,43.9 291.5,44.9 293.9,45.8 296.3,46.8 298.7,47.8 301.1,48.7 303.5,49.7 305.9,50.7 308.3,51.7 310.6,52.7 313.0,53.7 315.4,54.7 317.8,55.7 320.2,56.7 322.6,57.7 325.0,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-dasharray="5,4" stroke-linejoin="round"/>
+<circle cx="124.1" cy="58.74165234586192" r="3.5" fill="var(--data)"/></svg>
+<div class="axis"><span>−3d</span><span class="axnow" style="left:72.1px">Agora</span><span>+7d</span></div>
+<div class="lgd"><span><i class="lgS"></i>estimativa</span><span><i class="lgD"></i>projeção</span><span><i class="lgT"></i>doses programadas</span><span><i class="lgH"></i>programadas, não marcadas como concluídas</span></div>
+<div class="fld"><span class="fldL">Projetar</span><div class="seg inCard"><span class="si on">+7d</span><span class="si">+14d</span><span class="si">+30d</span><span class="si">+60d</span><span class="si">+90d</span></div></div></div>
+<div class="stats"><div class="scol"><span class="scap">Nível est.</span><span class="snum geist" style="color:var(--data)">156<span class="sunit">mg</span></span></div>
+<div class="scol"><span class="scap">Meia-vida</span><span class="snum geist">8<span class="sunit">d</span></span></div>
+<div class="scol"><span class="scap">Doses contadas</span><span class="snum geist">0</span></div></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção A</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:auto;min-height:852px">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content-tall"><div class="nav"><span class="back">‹ Registro de doses</span></div>
+<div class="cscroll"><div class="ctitle geist">Acúmulo de doses</div>
+<div class="pick"><i class="cdot"></i><span>Testosterona Cipionato</span><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="var(--ink3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="ccard"><div class="hero"><div><div class="foot">Nível est. · agora</div><div class="heroNum geist">156<span class="unitIn"> mg</span></div></div><span class="chip">Estimado</span></div>
+<div class="range">Últimos 3d · +7d projeção · pico ≈ 186 mg</div><svg width="325" height="220" viewBox="0 0 325 220" class="fi">
+<rect x="124.1" y="8" width="200.9" height="202" fill="var(--well)"/><line x1="38" x2="325" y1="210" y2="210" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="213" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">0,0</text><line x1="38" x2="325" y1="120.57251106776923" y2="120.57251106776923" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="123.57251106776923" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">92</text><line x1="38" x2="325" y1="29.200946289185595" y2="29.200946289185595" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="32.200946289185595" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">186</text><line x1="177.9125" x2="177.9125" y1="212" y2="217" stroke="var(--data)" stroke-width="2"/>
+<text x="2" y="10" font-size="9" class="mono" fill="var(--ink3)">mg</text>
+<line x1="124.1" x2="124.1" y1="8" y2="210" stroke="var(--ink)" stroke-width="1.4"/>
+<polyline points="38.0,29.8 40.4,30.0 42.8,30.3 45.2,30.6 47.6,31.1 50.0,31.5 52.4,32.0 54.7,32.6 57.1,33.2 59.5,33.9 61.9,34.6 64.3,35.3 66.7,36.1 69.1,36.8 71.5,37.7 73.9,38.5 76.3,39.4 78.7,40.2 81.0,41.1 83.4,42.0 85.8,43.0 88.2,43.9 90.6,44.9 93.0,45.8 95.4,46.8 97.8,47.8 100.2,48.7 102.6,49.7 105.0,50.7 107.4,51.7 109.8,52.7 112.1,53.7 114.5,54.7 116.9,55.7 119.3,56.7 121.7,57.7 124.1,58.7 124.1,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round"/>
+<polyline points="124.1,58.7 126.5,59.7 128.9,60.7 131.3,61.7 133.7,62.7 136.1,63.7 138.4,64.7 140.8,65.7 143.2,66.7 145.6,67.7 148.0,68.7 150.4,69.6 152.8,70.6 155.2,71.6 157.6,72.5 160.0,73.5 162.4,74.5 164.8,75.4 167.2,76.3 169.5,77.3 171.9,78.2 174.3,79.1 176.7,80.1 179.1,77.6 181.5,72.1 183.9,67.1 186.3,62.6 188.7,58.5 191.1,54.7 193.5,51.3 195.9,48.3 198.2,45.6 200.6,43.1 203.0,40.9 205.4,39.0 207.8,37.3 210.2,35.8 212.6,34.5 215.0,33.3 217.4,32.4 219.8,31.6 222.2,31.0 224.6,30.5 226.9,30.1 229.3,29.8 231.7,29.7 234.1,29.6 236.5,29.7 238.9,29.8 241.3,30.0 243.7,30.3 246.1,30.6 248.5,31.1 250.9,31.5 253.3,32.0 255.6,32.6 258.0,33.2 260.4,33.9 262.8,34.6 265.2,35.3 267.6,36.1 270.0,36.8 272.4,37.7 274.8,38.5 277.2,39.4 279.6,40.2 281.9,41.1 284.3,42.0 286.7,43.0 289.1,43.9 291.5,44.9 293.9,45.8 296.3,46.8 298.7,47.8 301.1,48.7 303.5,49.7 305.9,50.7 308.3,51.7 310.6,52.7 313.0,53.7 315.4,54.7 317.8,55.7 320.2,56.7 322.6,57.7 325.0,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-dasharray="5,4" stroke-linejoin="round"/>
+<circle cx="124.1" cy="58.74165234586192" r="3.5" fill="var(--data)"/></svg>
+<div class="axis"><span>−3d</span><span class="axnow" style="left:72.1px">Agora</span><span>+7d</span></div>
+<div class="lgd"><span><i class="lgS"></i>estimativa</span><span><i class="lgD"></i>projeção</span><span><i class="lgT"></i>doses programadas</span><span><i class="lgH"></i>programadas, não marcadas como concluídas</span></div>
+<div class="fld"><span class="fldL">Projetar</span><div class="seg inCard"><span class="si on">+7d</span><span class="si">+14d</span><span class="si">+30d</span><span class="si">+60d</span><span class="si">+90d</span></div></div></div>
+<div class="stats"><div class="scol"><span class="scap">Nível est.</span><span class="snum geist" style="color:var(--data)">156<span class="sunit">mg</span></span></div>
+<div class="scol"><span class="scap">Meia-vida</span><span class="snum geist">8<span class="sunit">d</span></span></div>
+<div class="scol hl"><span class="scap">Doses, últimos 3d</span><span class="snum geist">0</span></div></div></div></div>
+<div class="home"></div></div></div></div></figure><figure><figcaption>Opção B</figcaption><div class="pz"><div class="phone t-dark"><div class="screen" style="height:auto;min-height:852px">
+<div class="sb"><span class="sb-time">9:41</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor" opacity=".35"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="1.5" height="4" rx=".7" fill="currentColor" opacity=".4"/></svg></span></div>
+<div class="island"></div>
+<div class="content-tall"><div class="nav"><span class="back">‹ Registro de doses</span></div>
+<div class="cscroll"><div class="ctitle geist">Acúmulo de doses</div>
+<div class="pick"><i class="cdot"></i><span>Testosterona Cipionato</span><svg width="18" height="18" viewBox="0 0 24 24"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="var(--ink3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+<div class="ccard"><div class="hero"><div><div class="foot">Nível est. · agora</div><div class="heroNum geist">156<span class="unitIn"> mg</span></div></div><span class="chip">Estimado</span></div>
+<div class="range hl">Últimos 3d · 0 doses · +7d projeção · pico ≈ 186 mg</div><svg width="325" height="220" viewBox="0 0 325 220" class="fi">
+<rect x="124.1" y="8" width="200.9" height="202" fill="var(--well)"/><line x1="38" x2="325" y1="210" y2="210" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="213" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">0,0</text><line x1="38" x2="325" y1="120.57251106776923" y2="120.57251106776923" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="123.57251106776923" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">92</text><line x1="38" x2="325" y1="29.200946289185595" y2="29.200946289185595" stroke="var(--line)" stroke-dasharray="2,3"/><text x="34" y="32.200946289185595" font-size="9" text-anchor="end" class="mono" fill="var(--ink3)">186</text><line x1="177.9125" x2="177.9125" y1="212" y2="217" stroke="var(--data)" stroke-width="2"/>
+<text x="2" y="10" font-size="9" class="mono" fill="var(--ink3)">mg</text>
+<line x1="124.1" x2="124.1" y1="8" y2="210" stroke="var(--ink)" stroke-width="1.4"/>
+<polyline points="38.0,29.8 40.4,30.0 42.8,30.3 45.2,30.6 47.6,31.1 50.0,31.5 52.4,32.0 54.7,32.6 57.1,33.2 59.5,33.9 61.9,34.6 64.3,35.3 66.7,36.1 69.1,36.8 71.5,37.7 73.9,38.5 76.3,39.4 78.7,40.2 81.0,41.1 83.4,42.0 85.8,43.0 88.2,43.9 90.6,44.9 93.0,45.8 95.4,46.8 97.8,47.8 100.2,48.7 102.6,49.7 105.0,50.7 107.4,51.7 109.8,52.7 112.1,53.7 114.5,54.7 116.9,55.7 119.3,56.7 121.7,57.7 124.1,58.7 124.1,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-linejoin="round"/>
+<polyline points="124.1,58.7 126.5,59.7 128.9,60.7 131.3,61.7 133.7,62.7 136.1,63.7 138.4,64.7 140.8,65.7 143.2,66.7 145.6,67.7 148.0,68.7 150.4,69.6 152.8,70.6 155.2,71.6 157.6,72.5 160.0,73.5 162.4,74.5 164.8,75.4 167.2,76.3 169.5,77.3 171.9,78.2 174.3,79.1 176.7,80.1 179.1,77.6 181.5,72.1 183.9,67.1 186.3,62.6 188.7,58.5 191.1,54.7 193.5,51.3 195.9,48.3 198.2,45.6 200.6,43.1 203.0,40.9 205.4,39.0 207.8,37.3 210.2,35.8 212.6,34.5 215.0,33.3 217.4,32.4 219.8,31.6 222.2,31.0 224.6,30.5 226.9,30.1 229.3,29.8 231.7,29.7 234.1,29.6 236.5,29.7 238.9,29.8 241.3,30.0 243.7,30.3 246.1,30.6 248.5,31.1 250.9,31.5 253.3,32.0 255.6,32.6 258.0,33.2 260.4,33.9 262.8,34.6 265.2,35.3 267.6,36.1 270.0,36.8 272.4,37.7 274.8,38.5 277.2,39.4 279.6,40.2 281.9,41.1 284.3,42.0 286.7,43.0 289.1,43.9 291.5,44.9 293.9,45.8 296.3,46.8 298.7,47.8 301.1,48.7 303.5,49.7 305.9,50.7 308.3,51.7 310.6,52.7 313.0,53.7 315.4,54.7 317.8,55.7 320.2,56.7 322.6,57.7 325.0,58.7" fill="none" stroke="var(--data)" stroke-width="2.2" stroke-dasharray="5,4" stroke-linejoin="round"/>
+<circle cx="124.1" cy="58.74165234586192" r="3.5" fill="var(--data)"/></svg>
+<div class="axis"><span>−3d</span><span class="axnow" style="left:72.1px">Agora</span><span>+7d</span></div>
+<div class="lgd"><span><i class="lgS"></i>estimativa</span><span><i class="lgD"></i>projeção</span><span><i class="lgT"></i>doses programadas</span><span><i class="lgH"></i>programadas, não marcadas como concluídas</span></div>
+<div class="fld"><span class="fldL">Projetar</span><div class="seg inCard"><span class="si on">+7d</span><span class="si">+14d</span><span class="si">+30d</span><span class="si">+60d</span><span class="si">+90d</span></div></div></div>
+<div class="stats"><div class="scol"><span class="scap">Nível est.</span><span class="snum geist" style="color:var(--data)">156<span class="sunit">mg</span></span></div>
+<div class="scol"><span class="scap">Meia-vida</span><span class="snum geist">8<span class="sunit">d</span></span></div>
+<div class="scol hl"><span class="scap">Doses no nível</span><span class="snum geist">8</span></div></div><p class="cfoot">Doses no nível: doses programadas que ainda somam pelo menos 1% da sua quantidade ao nível estimado de agora.</p></div></div>
+<div class="home"></div></div></div></div></figure></div>
+<h2>Textos · A-160 (6 idiomas)</h2><table class="tr"><thead><tr><th>Chave</th><th>en</th><th>pt</th><th>es</th><th>fr</th><th>de</th><th>it</th></tr></thead><tbody><tr><td class="k">curve_doses_counted — hoje</td><td>Doses counted</td><td>Doses contadas</td><td>Dosis contadas</td><td>Doses comptées</td><td>Gezählte Dosen</td><td>Dosi conteggiate</td></tr><tr><td class="k">A: curve_doses_window ({n} = dias da janela)</td><td>Doses, last {n}d</td><td>Doses, últimos {n}d</td><td>Dosis, últimos {n}d</td><td>Doses, {n} derniers j</td><td>Dosen, letzte {n}T</td><td>Dosi, ultimi {n}gg</td></tr><tr><td class="k">B: curve_doses_in_level</td><td>Doses in level</td><td>Doses no nível</td><td>Dosis en el nivel</td><td>Doses dans le niveau</td><td>Dosen im Spiegel</td><td>Dosi nel livello</td></tr><tr><td class="k">B: curve_doses_in_level_note (nota sob as estatísticas)</td><td>Doses in level: scheduled doses that still add at least 1% of their amount to the estimated level now.</td><td>Doses no nível: doses programadas que ainda somam pelo menos 1% da sua quantidade ao nível estimado de agora.</td><td>Dosis en el nivel: dosis programadas que aún aportan al menos el 1 % de su cantidad al nivel estimado de ahora.</td><td>Doses dans le niveau : doses prévues qui apportent encore au moins 1 % de leur quantité au niveau estimé actuel.</td><td>Dosen im Spiegel: geplante Dosen, die noch mindestens 1 % ihrer Menge zum aktuell geschätzten Spiegel beitragen.</td><td>Dosi nel livello: dosi programmate che apportano ancora almeno l’1% della loro quantità al livello stimato di ora.</td></tr><tr><td class="k">B: linha da janela (usa log_doses / log_dose já existentes)</td><td>Last 3d · 0 doses · +7d projection · peak ≈ 186 mg</td><td>Últimos 3d · 0 doses · +7d projeção · pico ≈ 186 mg</td><td>Últimos 3d · 0 dosis · +7d proyección · pico ≈ 186 mg</td><td>Derniers 3j · 0 doses · +7j projection · pic ≈ 186 mg</td><td>Letzte 3T · 0 Dosen · +7T Projektion · Spitze ≈ 186 mg</td><td>Ultimi 3gg · 0 dosi · +7gg proiezione · picco ≈ 186 mg</td></tr></tbody></table>
+</section>
+<div class="notes"><ul>
+<li>Escolha por item: A ou B (ou ajustes no texto). Depois da escolha: checklist em docs/specs/, teste primeiro, e as duas telas conferidas nos dois temas no simulador antes de qualquer build.</li>
+<li>Nenhum texto interpreta ou recomenda: dizem o estado dos dados e o que o número conta (linha da IA / 1.4.1).</li>
+</ul></div>
+</body></html>
