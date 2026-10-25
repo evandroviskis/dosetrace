@@ -46,7 +46,8 @@ test('DV-244: daily -> twice daily, every past dose taken -> no Missed before th
 
 test('DV-244: a weekly dose moved Monday -> Wednesday -> no Missed on the old Wednesdays', () => {
   // Weekly, taken every Monday (Oct 5, 12). On Thursday Oct 15 the start date moves to Wednesday
-  // Oct 7. (The Wednesday of Oct 7 is covered by the Monday after it, A-182; Oct 14 is not.)
+  // Oct 7. (A-182 boundary: the Monday of Oct 12 is closer to Wednesday Oct 14 than to Oct 7, so it
+  // covers Oct 14 taken early; Oct 7 is not covered.)
   assert.equal(new Date(D(5, 0)).getDay(), 1, 'Oct 5 2026 is a Monday');
   const now = D(15, 12);
   const editMs = D(15, 10);
@@ -54,7 +55,7 @@ test('DV-244: a weekly dose moved Monday -> Wednesday -> no Missed on the old We
   const p = { id: 1, user_id: 'u', created_at: iso(D(1, 7)), updated_at: iso(editMs), start_date: '2026-10-07', interval_days: 7, doses_per_day: 1, reminder_time: '09:00' };
   for (const zoneHistory of ZONES) {
     const o = zoneHistory ? { zoneHistory } : {};
-    assert.ok(scan([p], logs, now, o).includes(D(14, 9)), 'the defect: a Wednesday that was not a dose day becomes Missed');
+    assert.ok(scan([p], logs, now, o).includes(D(7, 9)), 'the defect: a Wednesday that was not a dose day becomes Missed');
     assert.deepEqual(scan([p], logs, now, { ...o, scheduleSince: { 1: editMs } }), [], 'with the floor: none');
   }
 });
@@ -94,7 +95,7 @@ test('A-182: a weekly dose taken a day late covers its slot (no Missed next to t
   for (const zoneHistory of ZONES) {
     const o = zoneHistory ? { zoneHistory } : {};
     assert.deepEqual(scan([p], [taken(D(13, 10))], D(15, 12), o), [], 'Mon 12 08:00 taken Tue 13 10:00');
-    assert.deepEqual(scan([p], [taken(D(18, 21))], D(19, 6), o), [], 'six days late, before the next dose day: still its own');
+    assert.deepEqual(scan([p], [taken(D(18, 21))], D(19, 6), o), [D(12, 8)], 'six days late (the evening before the next dose day): nearer the next slot, so the earlier one is a real miss');
     assert.deepEqual(scan([p], [], D(15, 12), o), [D(12, 8)], 'nothing logged: Missed');
     assert.deepEqual(scan([WEEKLY], [taken(D(13, 10))], D(15, 12), o), [D(5, 8)], 'the dose covers its own week only');
   }
@@ -139,5 +140,35 @@ test('A-182: an app Missed row already written goes once the late weekly dose is
     // A daily protocol keeps the A-123 same-day rule: a dose the next morning removes nothing.
     const daily = { ...p, interval_days: 1, start_date: '2026-10-01' };
     assert.deepEqual(MD.coveredMissedRows([daily], [missed, taken(D(13, 1), 'T')], D(13, 12), { ...o, scheduleSince: { 1: D(1, 7) } }), []);
+  }
+});
+
+// A-182 boundary (decided by logic, 2026-10-25): a log covers the earlier slot only while it is
+// closer to it than to the next slot (the window ends at the midpoint; a tie belongs to the next);
+// after the midpoint it is the next slot's dose, taken early. Same boundary in the scan and in (e).
+test('A-182 boundary: the evening before the next dose day is the next slot\'s early dose, not the earlier slot\'s', () => {
+  const p = { ...WEEKLY, start_date: '2026-10-12' };
+  for (const zoneHistory of ZONES) {
+    const o = zoneHistory ? { zoneHistory } : {};
+    assert.deepEqual(scan([p], [taken(D(13, 10))], D(20, 12), o), [D(19, 8)], 'one day late: covers Mon 12; Mon 19 nothing logged');
+    assert.deepEqual(scan([p], [taken(D(18, 21))], D(20, 12), o), [D(12, 8)], 'six days late: Mon 12 missed, Mon 19 covered (taken early)');
+    // Midpoint of Mon 12 08:00 and Mon 19 08:00: Thu 15 20:00.
+    assert.deepEqual(scan([p], [taken(D(15, 19, 59))], D(20, 12), o), [D(19, 8)], 'just before the midpoint: the earlier slot');
+    assert.deepEqual(scan([p], [taken(D(15, 20))], D(20, 12), o), [D(12, 8)], 'at the midpoint: the next slot');
+  }
+});
+
+test('A-182 boundary: the cleanup (e) uses the same midpoint', () => {
+  const now = D(20, 12);
+  const p = { ...WEEKLY, start_date: '2026-10-12', updated_at: iso(D(1, 7)) };
+  const m12 = { id: 'M12', protocol_id: 1, outcome: 'Missed', logged_at: iso(D(12, 8)) };
+  const m19 = { id: 'M19', protocol_id: 1, outcome: 'Missed', logged_at: iso(D(19, 8)) };
+  for (const zoneHistory of ZONES) {
+    const o = { lookbackDays: 14, scheduleSince: { 1: D(1, 7) }, ...(zoneHistory ? { zoneHistory } : {}) };
+    const cleared = (logs) => MD.coveredMissedRows([p], logs, now, o).map((r) => r.id);
+    assert.deepEqual(cleared([m12, taken(D(13, 10), 'T')]), ['M12'], 'a day late: the earlier Missed goes');
+    assert.deepEqual(cleared([m12, taken(D(18, 21), 'T')]), [], 'after the midpoint: the earlier slot was really missed');
+    assert.deepEqual(cleared([m19, taken(D(18, 21), 'T')]), ['M19'], 'the next slot\'s Missed goes: its dose was taken early');
+    assert.deepEqual(cleared([m12, m19, taken(D(15, 19, 59), 'T')]), ['M12'], 'before the midpoint: the earlier one only');
   }
 });

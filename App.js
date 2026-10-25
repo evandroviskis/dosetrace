@@ -1207,6 +1207,10 @@ export default function App() {
                 // Screen 4 "Use here": the takeover (then screen 1 / 1b); offline the question stays.
                 deviceFlow().useHere(uid)
                   .then((r) => {
+                    // Gate B (wave 1): the takeover went through (go, or its rebuild queued for the
+                    // next pass) → the intro answers refused on screen 4 go to this account now, as
+                    // after continueSignedIn's device step; refused again they stay on the phone.
+                    if (r && (r.go || r.reason === 'rebuild_queued')) applyPendingProfile(supabase).catch(() => {});
                     if (r && r.go) {
                       requestSync();
                       syncAllNotifications().then(() => registerPushToken()).catch(() => {}); // AD-88: no request here
