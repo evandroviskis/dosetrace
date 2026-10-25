@@ -27,7 +27,9 @@ test('A-167: removeExportFiles deletes the cache copy AND the 1.2.x Documents co
   await removeExportFiles(fsMock);
   assert.deepEqual(calls.map((c) => c[0]).sort(), exportFilePaths(FS).sort());
   assert.ok(calls.every((c) => c[1] && c[1].idempotent === true));
-  assert.deepEqual(exportFilePaths(FS).sort(), ['file:///cache/dosetrace_export.json', 'file:///docs/dosetrace_export.json']);
+  // A-172 widened the list (records CSV/PDF, expo-print folder); both export copies stay on it.
+  assert.ok(exportFilePaths(FS).includes('file:///cache/dosetrace_export.json'));
+  assert.ok(exportFilePaths(FS).includes('file:///docs/dosetrace_export.json'));
   await removeExportFiles({}); // no file system module / no folders: nothing to do, no throw
 });
 
