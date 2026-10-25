@@ -51,7 +51,8 @@ test('an ended protocol is never purged with the 7-day clean-up; a deleted one s
   assert.equal(db.getFirstSync('SELECT sync_status FROM protocols WHERE id = ?', [pid]).sync_status, 'pending');
   db.runSync(`UPDATE protocols SET ended_at = NULL, deleted_at = '2026-08-01T10:00:00.000Z' WHERE id = ?`, [pid]);
   E.purgeOldDeleted(db, USER, '2026-10-03T00:00:00.000Z', { paused: false }); // paused in 1.3.0 (purgePause.test.js)
-  assert.equal(db.getFirstSync('SELECT sync_status FROM protocols WHERE id = ?', [pid]).sync_status, 'deleted');
+  // A-153: through the tombstone, like Delete forever (a153PurgeTombstone.test.js).
+  assert.equal(db.getFirstSync('SELECT purged_at FROM protocols WHERE id = ?', [pid]).purged_at, '2026-10-03T00:00:00.000Z');
 });
 
 // Restart (a new run, never the same row re-activated): protocolEndFollowup.test.js F1.
