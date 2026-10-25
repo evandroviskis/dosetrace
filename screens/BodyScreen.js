@@ -26,6 +26,7 @@ import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, dele
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
 import { asList, asTags, isFavorite, setFavorite, setReportTag, dropReportDate, saveBodyPref } from '../lib/bodyPrefs';
 import { hasNativeModule } from '../lib/nativeModule';
+import { removeExportFiles, sharedFilePath, moveIntoSharedFile, RECORDS_CSV_NAME, RECORDS_PDF_NAME } from '../lib/exportFile';
 import { requestSync } from '../lib/sync';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { useTheme } from '../lib/theme';
@@ -744,10 +745,13 @@ export default function BodyScreen({ navigation, route }) {
       const dateStr = localeDate(new Date(), language, 'long');
       const Sharing = require('expo-sharing');
       let uri, mime;
+      // A-172: the cache folder (never backed up), fixed names; older copies (and the PDFs earlier
+      // builds left in expo-print's folder) go first; the sign-out / delete / switch wipes remove them.
+      await removeExportFiles(FileSystem);
 
       if (kind === 'csv') {
         const csv = buildRecordsCSV(data, { labels, ...selection });
-        uri = FileSystem.documentDirectory + 'dosetrace_records.csv';
+        uri = sharedFilePath(FileSystem, RECORDS_CSV_NAME);
         await FileSystem.writeAsStringAsync(uri, csv);
         mime = 'text/csv';
       } else {
@@ -763,7 +767,7 @@ export default function BodyScreen({ navigation, route }) {
         if (!hasNativeModule('ExpoPrint')) { setExporting(false); notice(scanErrorSheet('build', t)); return; }
         const Print = require('expo-print');
         const res = await Print.printToFileAsync({ html });
-        uri = res.uri;
+        uri = await moveIntoSharedFile(FileSystem, res.uri, RECORDS_PDF_NAME);
         mime = 'application/pdf';
       }
 
