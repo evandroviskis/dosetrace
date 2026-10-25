@@ -65,6 +65,9 @@ function scanner(db) {
     getMissedWatermark: async () => ({ sinceMs: at(20, 0).getTime(), zoneHistory: null }),
     firstSyncGate: { whenOpen: async () => {}, whenOpenWithin: async () => true },
     MISSED_LOOKBACK_DAYS: 14,
+    FALSE_MISSED_LOOKBACK_DAYS: 60,
+    AsyncStorage: {},
+    readDoseLogsPull: async () => Date.now(), // A-177: a successful pull just finished
     _missedScanInFlight: false,
   });
 }

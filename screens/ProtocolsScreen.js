@@ -54,6 +54,7 @@ import { protocolTakeAction } from '../lib/protocolTake';
 import { pendingFromYesterday } from '../lib/pendingYesterday';
 import { computeDraw, dosesPerVial, massFromUnits, massParts, parseDecimal, trimZeros } from '../lib/doseMath';
 import { drawReading, smallDraw, isMlSyringe, sizeLabelNoBreak as syringeSizeLabel, allowedSyringe, exceedsMessage, syringeGroups } from '../lib/syringes';
+import { concentrationText, concentrationNote, volumeNote } from '../lib/calcNote';
 import { explainerModel } from '../lib/fitExplainer';
 import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
 import { renderText } from '../lib/assistantText';
@@ -291,20 +292,24 @@ function InfoBox({ s, text }) {
   );
 }
 
-// Rows block (prototype .rows/.rw): section title, then label left / value right.
+// Rows block (prototype .rows/.rw): section title, then label left / value right. A row with
+// `mark` (a computed value, A-166) ends in "*" and shows its `note` (the arithmetic) under it.
 // A reading under a small label (Volume / Dose / Left …), a third of the card wide. It never
 // breaks inside a word (A-136 (4): "58 cápsula / s" on the Fold): it wraps only at an ordinary
 // space (lib/readPieces). One size per value (A-135 council (5)): the column is measured and every
 // piece takes the same scale (lib/readPieces readScale), never each its own.
-function ReadValue({ s, text }) {
+// `mark` (A-166): a computed reading ends in "*" (counted in the width, drawn in ink2).
+function ReadValue({ s, text, mark }) {
   const [col, setCol] = useState(0);
-  const pieces = readPieces(text);
+  const pieces = readPieces(mark ? `${text}*` : text);
   const k = readScale(pieces, col);
   const size = { fontSize: READ.SIZE * k, letterSpacing: -0.3 * k };
   return (
     <View style={s.readValWrap} accessible accessibilityLabel={String(text || '')} onLayout={(e) => setCol(Math.round(e.nativeEvent.layout.width))}>
       {pieces.map((w, i) => (
-        <Text key={i} style={[s.readVal, s.readPiece, size]} numberOfLines={1}>{w}</Text>
+        <Text key={i} style={[s.readVal, s.readPiece, size]} numberOfLines={1}>
+          {mark && i === pieces.length - 1 ? <>{w.slice(0, -1)}<Text style={s.calcMark}>*</Text></> : w}
+        </Text>
       ))}
     </View>
   );
@@ -328,9 +333,13 @@ function RowsBlock({ s, title, rows, style }) {
             </View>
           </TouchableOpacity>
         ) : (
-          <View key={`${i}-${r.label}`} style={[s.rw, i > 0 && s.rwSep]}>
-            <Text style={s.rwKey}>{r.label}</Text>
-            <Text style={[s.rwVal, r.mono && s.rwValMono]}>{r.value}</Text>
+          // A-166: a computed value ends in "*" (mark) and may carry its note line under the row.
+          <View key={`${i}-${r.label}`}>
+            <View style={[s.rw, i > 0 && s.rwSep, r.note && s.rwWithNote]}>
+              <Text style={s.rwKey}>{r.label}</Text>
+              <Text style={[s.rwVal, r.mono && s.rwValMono]}>{r.value}{r.mark ? <Text style={s.calcMark}>*</Text> : null}</Text>
+            </View>
+            {r.note ? <Text style={[s.calcNote, s.rwNote]}>{r.note}</Text> : null}
           </View>
         )))}
       </View>
@@ -340,7 +349,9 @@ function RowsBlock({ s, title, rows, style }) {
 
 // ── Protocol screen: the syringe calculator (hero object) ──
 // Draw to + the protocol's own syringe drawn to scale (shared SyringeScale), the
-// volume / dose / syringe reads, and the arithmetic disclaimer. Tap to enlarge: the
+// volume / dose / syringe reads, and the arithmetic disclaimer. A-166: the computed draw and
+// Volume carry "*" and one line under the readings states the arithmetic (lib/calcNote); the
+// Dose, typed by the user, does not. Tap to enlarge: the
 // enlarged syringe is SyringeZoomSheet, held by the screen so it stays open when a
 // foldable folds or unfolds (S-26 BK-10).
 function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
@@ -379,6 +390,8 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
   const over = units > syringeMax;
   const alt = altMass(p.dose, p.dose_unit, language);
   const reading = drawReading(draw, syringeMax); // ml on a 2 / 3 / 5 ml syringe (AP-21)
+  // A-166 council (4): the star comes after the whole value, unit included, and only with a note.
+  const note = volumeNote(p, draw, syringeMax, t, language);
 
   return (
     <View style={s.hobj}>
@@ -395,7 +408,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
           <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
           <View style={s.bigRow}>
             <Text style={[s.drawBig, over && s.drawBigRisk]}>{decimalText(reading.ml ? trimZeros(reading.value) : reading.value, language)}</Text>
-            <Text style={s.drawBigUnit}>{reading.ml ? 'ml' : t('protocols_syringe_units')}</Text>
+            <Text style={s.drawBigUnit}>{reading.ml ? 'ml' : t('protocols_syringe_units')}{note ? <Text style={s.calcMark}>*</Text> : null}</Text>
           </View>
         </View>
         {drawW > 0 ? <SyringeScale units={units} size={syringeMax} width={drawW - 28} /> : null}
@@ -413,7 +426,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
       <View style={s.reads}>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_volume')}</Text>
-          <ReadValue s={s} text={`${decimalText(trimZeros(draw.drawML), language)}\u00A0ml`} />
+          <ReadValue s={s} mark={!!note} text={`${decimalText(trimZeros(draw.drawML), language)}\u00A0ml`} />
         </View>
         <View style={s.readCell}>
           <Text style={s.readLabel}>{t('protocols_syringe_dose')}</Text>
@@ -425,6 +438,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
           <ReadValue s={s} text={syringeSizeLabel(syringeMax, language)} />
         </View>
       </View>
+      {note ? <Text style={s.calcNote}>{note}</Text> : null}
       <Text style={s.disclaimer}>{t('protocols_calc_disclaimer')}</Text>
     </View>
   );
@@ -448,6 +462,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
   const ok = !!(draw && draw.drawML && draw.valid);
   const syringeMax = (p && p.syringe_size) || 100;
   const units = ok ? Number(draw.drawUnits) : 0;
+  const note = ok ? volumeNote(p, draw, syringeMax, t, language) : null;
   // The sheet is at most 560 wide (520 inside its padding), not the window (A-76). The
   // ruler is the prototype overlay (part 7): 1640 wide, opened with the dose centred.
   const zoomView = Math.min(windowWidth - 72, 520);
@@ -463,6 +478,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
               {t('protocols_syringe_draw_to')} {isMlSyringe(syringeMax)
                 ? <Text style={s.zoomReadoutVal}>{decimalText(trimZeros(draw.drawML), language)} ml</Text>
                 : <><Text style={s.zoomReadoutVal}>{decimalText(draw.drawUnits, language)}u</Text> · {decimalText(trimZeros(draw.drawML), language)} ml</>}
+              {note ? <Text style={s.calcMark}>*</Text> : null}
             </Text>
             <ScrollView
               horizontal
@@ -472,6 +488,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
             >
               <SyringeRuler units={units} size={syringeMax} />
             </ScrollView>
+            {note ? <Text style={s.calcNote}>{note}</Text> : null}
             <TouchableOpacity style={s.btnPrimary} onPress={onClose} accessibilityRole="button">
               <Text style={s.btnPrimaryText}>{t('done')}</Text>
             </TouchableOpacity>
@@ -792,21 +809,25 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   ];
   let doseRows = [];
   if (p.type === 'recon') {
+    const concNote = concentrationNote(p, t, language);
     doseRows = [
       { label: t('protocols_compound_amount'), value: `${decimalText(p.amount, language)}\u00A0${unitText(p.unit, language)}`, mono: true },
       p.diluent ? { label: t('protocols_diluent'), value: diluentLabel(p.diluent, t) } : null,
       { label: t('protocols_diluent_amount'), value: `${decimalText(trimZeros(p.water), language)} ml`, mono: true },
+      // A-166: computed (amount ÷ water) → "*" and the arithmetic under the row.
       {
         label: t('protocols_concentration'),
-        value: `${p.amount && p.water ? decimalText(trimZeros((parseDecimal(p.amount) / parseDecimal(p.water)).toFixed(2)), language) : '—'}\u00A0${unitText(p.unit, language)}/ml`,
+        value: concentrationText(p, language) || `—\u00A0${unitText(p.unit, language)}/ml`,
         mono: true,
+        mark: !!concNote,
+        note: concNote,
       },
       { label: t('protocols_desired_dose'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`, mono: true },
     ];
   } else if (p.type === 'rtu') {
     doseRows = [
-      { label: t('protocols_dose_per_injection'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`, mono: true },
-      p.concentration ? { label: t('protocols_concentration'), value: `${decimalText(trimZeros(p.concentration), language)}\u00A0${unitText(p.concentration_unit || 'mg', language)}/ml`, mono: true } : null,
+      { label: t('protocols_desired_dose'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`, mono: true }, // A-175: "Dose you entered" for every injectable type (founder 2026-10-22)
+      p.concentration ? { label: t('protocols_concentration'), value: concentrationText(p, language), mono: true } : null,
       vial && vial.water_ml != null ? { label: t('protocols_vial_size'), value: `${decimalText(trimZeros(vial.water_ml), language)} ml`, mono: true } : null,
     ];
   } else if (p.type === 'oral') {
@@ -1853,6 +1874,29 @@ export default function ProtocolsScreen() {
     setAssistant({ door });
   }
 
+  // Council regulatory review (1.3.1): the consent can be withdrawn (Settings › AI use) while the
+  // assistant is open, so it is checked again before EVERY send to the AI, as the food chat does.
+  // Withdrawn → the same consent sheet; true only after an explicit Agree (the policy link, Cancel
+  // and a tap outside send nothing).
+  function assistantConsent() {
+    return new Promise((resolve) => {
+      hasAIConsent().then((granted) => {
+        if (granted) { resolve(true); return; }
+        setWizSheet({
+          icon: 'ai_spark',
+          title: t('ai_consent_title'),
+          body: t('ai_consent_body'),
+          link: { label: t('ai_consent_privacy'), onPress: () => { Linking.openURL(AI_PRIVACY_URL).catch(() => {}); resolve(false); } },
+          buttons: [
+            { label: t('cancel'), kind: 'secondary', onPress: () => resolve(false) },
+            { label: t('ai_consent_agree'), kind: 'primary', onPress: async () => { await grantAIConsent(); resolve(true); } },
+          ],
+          onDismiss: () => resolve(false),
+        });
+      }, () => resolve(false));
+    });
+  }
+
   // A split in the explainer (AP-12): the dose becomes the user's weekly number divided by the
   // count they tapped, and the spacing is asked right away with the AP-26 options — a split
   // never leaves the schedule as it was (regulatory review 2026-10-03 B3).
@@ -2747,6 +2791,7 @@ export default function ProtocolsScreen() {
               t={t}
               language={language}
               scanLabel={extractVialLabel}
+              askConsent={assistantConsent}
               onFinish={finishAssistant}
             />
           ) : (
@@ -3678,6 +3723,9 @@ const protocolsGraduated = (c) => ({
   readPiece: { maxWidth: '100%' },
   readAlt: { fontSize: 12, fontWeight: '500', color: c.ink3, fontVariant: ['tabular-nums'] },
   disclaimer: { fontSize: 13, lineHeight: 18, color: c.ink3 },
+  // A-166: the arithmetic line under a computed value, and its "*".
+  calcNote: { fontSize: 13, lineHeight: 18, color: c.ink3, fontVariant: ['tabular-nums'] },
+  calcMark: { color: c.ink2, fontWeight: '500' },
   nearest: { fontSize: 13, color: c.ink2, fontVariant: ['tabular-nums'] },
   vialHead: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   vialSub: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
@@ -3686,6 +3734,8 @@ const protocolsGraduated = (c) => ({
   rows: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
   rw: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, minHeight: 50, paddingVertical: 13 },
   rwSep: { borderTopWidth: 1, borderTopColor: c.line },
+  rwWithNote: { minHeight: 0, paddingBottom: 4 },
+  rwNote: { paddingBottom: 12 },
   rwKey: { fontSize: 17, color: c.ink2, flexShrink: 1 },
   // A-141 (1): the value keeps its own width (a short number never breaks) and is capped
   // at 60% of the row, where a long value wraps at its spaces; the label takes the rest.

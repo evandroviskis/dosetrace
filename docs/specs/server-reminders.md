@@ -16,7 +16,7 @@
 - found while writing (for the coordinator): AD-87 A was decided for 1.3.0, but its text is not in the code on any branch (no "keep getting your reminders" string in i18n/translations.js; no end-of-window logic in lib/ or screens/). Under "approved → next build" it is owed in 1.3.1 with its picture (OPEN-DECISIONS "Approvals still owed" item 20). SR-17 depends on it.
 - code (expected): supabase/functions/send-reminders/ (rewritten — replaces the dormant version; rebuild = replace), a generated copy of lib/notificationPlan.js rules + the needed i18n keys for the function (script + parity test), one migration (device report table, notification_sends, run claim, prefs read function, kill switch, cron); lib/notifications.js (device report, whole-slot budget, permission-free token registration, removal of the dead Android `usesServerPush` path), lib/notificationActions.js / lib/notificationPlan.js notifTapTarget (remote payload read), the AD-87 A fallback (TodayScreen + the last local notification), i18n only if AD-87 A's strings are added there.
 - checklist-signed: pending
-- committed-to: 1.3.1 (AD-87 B, founder-deferred from 1.3.0)
+- committed-to: 1.3.2 (founder 2026-10-20 "B, pode seguir": 1.3.1 = option B, docs/decisions.md; first deferred from 1.3.0)
 
 ## Acceptance checklist
 

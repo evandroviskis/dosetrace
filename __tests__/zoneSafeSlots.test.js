@@ -146,7 +146,7 @@ test('the app passes the history to the scan and to both Pending-from-yesterday 
   const da = read('lib/doseActions.js');
   assert.match(da, /const usable = !!\(currentTz && history\.length && Z\.zonesWork\(\)\);/);
   assert.match(da, /w\.zoneHistory = usable \? history : null;/);
-  assert.match(da, /lookbackDays: MISSED_LOOKBACK_DAYS, zoneHistory \}/);
+  assert.match(da, /computeMissedDoses\(protocols, kept, nowMs, sinceMs, \{ lookbackDays: MISSED_LOOKBACK_DAYS, zoneHistory, pulledThroughMs \}\)/);
   assert.match(da, /H\.seedHistory\(/);
   for (const f of ['screens/TodayScreen.js', 'screens/ProtocolsScreen.js']) assert.match(read(f), /pendingFromYesterday\(\{[^}]*zoneHistory/, f);
 });

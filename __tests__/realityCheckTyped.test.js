@@ -140,8 +140,8 @@ test('typed calories persist across an app restart and reach a new device (synce
 
 test('saveCalcInputs merges onto the saved inputs (and the pre-migration metadata) with no await between read and write', () => {
   const src = read('lib/realityCheck.js');
-  const fn = src.match(/export async function saveCalcInputs\(patch\) \{[\s\S]*?\n\}\n/);
-  assert.ok(fn, 'saveCalcInputs(patch)');
+  const fn = src.match(/export async function saveCalcInputs\(patch, opts = \{\}\) \{[\s\S]*?\n\}\n/); // DV-010: opts.screenBase
+  assert.ok(fn, 'saveCalcInputs(patch, opts)');
   assert.match(fn[0], /mergeCalcInputs\(/);
   const tail = fn[0].slice(fn[0].indexOf('getCalcInputsRow('));
   assert.ok(!/await/.test(tail.slice(0, tail.indexOf('upsertCalcInputs('))), 'read → merge → write is synchronous');

@@ -55,7 +55,8 @@ test('A-136 (4): the serving and syringe readings use ReadValue (one line per pi
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/ProtocolsScreen.js'), 'utf8');
   assert.match(src, /import \{ readPieces(, readScale, READ)? \} from '\.\.\/lib\/readPieces'/);
   const fn = src.slice(src.indexOf('function ReadValue('), src.indexOf('function ReadValue(') + 900);
-  assert.match(fn, /const pieces = readPieces\(text\);/);
+  // A-166 (2026-10-22): a computed reading may end in "*" (mark), counted in the pieces' width.
+  assert.match(fn, /const pieces = readPieces\(mark \? `\$\{text\}\*` : text\);/);
   assert.match(fn, /pieces\.map/);
   assert.match(fn, /<Text key=\{i\} style=\{\[s\.readVal, s\.readPiece, size\]\} numberOfLines=\{1\}>/); // one scale for every piece, floor 0.55 (A-135 council (5), lib/readPieces readScale)
   assert.match(src, /\n\s+readValWrap: \{ flexDirection: 'row', flexWrap: 'wrap'/);

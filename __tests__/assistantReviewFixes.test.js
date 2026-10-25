@@ -71,7 +71,8 @@ test('S3 / S4 / S6: the deflection, the not-mixed line and the German caveat', (
 });
 
 test('B1: the shared AI consent is v4 and names the protocol assistant in 6 languages; the policy says so', () => {
-  assert.match(read('lib', 'aiConsent.js'), /const CONSENT_KEY = 'dosetrace_ai_extraction_consent_v4';/);
+  // DV-007 (1.3.1): per-account records carry the version; v4 is still the version asked for.
+  assert.match(read('lib', 'aiConsent.js'), /const CONSENT_VERSION = 4;/);
   const words = { en: /protocol assistant/, es: /asistente de protocolos/, pt: /assistente de protocolos/, fr: /assistant de protocole/, de: /Protokoll-Assistenten/, it: /assistente dei protocolli/ };
   for (const [l, re] of Object.entries(words)) assert.match(TR[l].ai_consent_body, re, l);
   const policy = read('web', 'privacy-policy.html');

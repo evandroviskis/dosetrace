@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { QUESTIONS_KEY } from './lib/siteQuestion';
 import { resetAllSelections } from './lib/bookSelection';
 import { clearAllDrafts } from './lib/draftStore';
@@ -11,7 +11,14 @@ import { WindowSizeRoot } from './lib/windowSize';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, AppState } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, exchangeAuthCodeFromUrl, isProfileComplete } from './lib/supabase';
+import { supabase, exchangeAuthCodeFromUrl, isProfileComplete, takeAccountGone, probeAccountGone } from './lib/supabase';
+import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, ownerBlocksSync, OWNER_KEY } from './lib/accountGuard';
+import { clearAIConsent } from './lib/aiConsent';
+import { clearAnalyticsQueue } from './lib/analytics';
+import { clearTeamMessages } from './lib/teamMessages';
+import { clearExportFile } from './lib/exportFile';
+import AccountLanguageSync from './components/AccountLanguageSync';
+import { TABLES, getPendingChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { consumeExplicitSignIn, beginExplicitSignIn, endExplicitSignIn } from './lib/explicitSignIn';
 import { deviceFlow, deviceGate, subscribeDevice, readDeviceState, continueAfterVerdict, checkAccountGoneFor } from './lib/deviceRuntime';
@@ -31,8 +38,8 @@ import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutC
 import { completeLocalSignOut } from './lib/signOutCore';
 import { tabBarStyle } from './lib/tabBarStyle';
 import { setStrictRemoval } from './lib/secureStore';
-import { onSignedOutNow, afterSignedOut, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
-import { recoveryDecision, linkKey, isTransientLinkError } from './lib/recoveryFlow';
+import { onSignedOutNow, afterSignedOut, checkAccountGone, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
+import { recoveryDecision, linkKey, isTransientLinkError, unsyncedCount } from './lib/recoveryFlow';
 import { parseAppleReturn } from './lib/appleWebCheck';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import FoodChatScreen from './screens/FoodChatScreen';
@@ -40,7 +47,7 @@ import { initPurchases, logOutPurchases } from './lib/purchases';
 import { registerReminderRefresh } from './lib/backgroundTasks';
 import { initNotifications, askPermissionForArrivedProtocols, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, RC_START_KEY } from './lib/notifications';
 import { getRealityStart, runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
-import { notifTapTarget, responseKey } from './lib/notificationPlan';
+import { notifTapTarget, responseKey, launchTapStale } from './lib/notificationPlan';
 import { readAppLanguage } from './lib/appLanguage';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -50,7 +57,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 // Route every fontWeight in the app to Plus Jakarta Sans. Installed at module
 // load, before any component renders.
 installFontMapping();
-import { initDatabase, clearLocalDatabase, getLocalDataUserId } from './lib/database';
+import { initDatabase, clearLocalDatabase, getLocalDataUserId, getDB } from './lib/database';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
 import { isForegroundStale } from './lib/stillGoingGate';
 import { bootView, bootTabTarget, lastSignedInUser } from './lib/todaySkeleton';
@@ -124,6 +131,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import AuthScreen from './screens/AuthScreen';
 import OnboardingFlowScreen from './screens/OnboardingFlowScreen';
 import FAQScreen from './screens/FAQScreen';
+import TeamMessagesScreen from './screens/TeamMessagesScreen';
 import ReminderCheckScreen from './screens/ReminderCheckScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
@@ -265,6 +273,7 @@ function MainStack() {
       <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="FAQ" component={FAQScreen} />
+      <Stack.Screen name="TeamMessages" component={TeamMessagesScreen} />
       <Stack.Screen name="ReminderCheck" component={ReminderCheckScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
       {/* The ONE food chat (FL-31/32/37): Today's hero, Journey's hero and the 8 PM
@@ -278,9 +287,15 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onVerdictRetry, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onVerdictRetry, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose, accountHeld, accountAsk, onAccountSave, onAccountDiscard, onAccountRetry, onAccountAskClose }) {
   const { colors, isDark } = useTheme();
   const { t, language, timeFormat } = useLanguage();
+
+  // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed
+  // up. Locked: the person picks one of the two (lib/accountGuard).
+  const accountSheet = accountAsk
+    ? accountAskSheet(t, { previous: accountAsk.previous, error: !!accountAsk.error, unreadable: !!accountAsk.unreadable, onSave: onAccountSave, onDiscard: onAccountDiscard, onRetry: onAccountRetry, onSignOut: onAccountSave })
+    : null;
 
   // Signup confirmation came back through the deep link — the user has no other way to
   // know it worked, so say so; an emailed link that could not be used (expired, used, or
@@ -318,7 +333,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   //     locked, while signed in;
   //   the sign-out sheet of the reset-link account switch (screens 3 / 3b / 5a / 5b);
   //   screen 1 / 1b — the takeover notice: once, on Main only (after the 18+ and profile steps).
-  const onMain = !!session && !recovery && isProfileComplete(session.user) && !needsAdultConfirmation(session.user && session.user.user_metadata);
+  const onMain = !!session && !recovery && !accountHeld && isProfileComplete(session.user) && !needsAdultConfirmation(session.user && session.user.user_metadata);
   const dev = device || {};
   // The one sign-out sheet (the reset-link switch, screen 4's "Sign out of this phone") comes before
   // screen 4 itself, which shows again when the person stays.
@@ -337,7 +352,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // per-platform minimum or A-119's server floor (DT003) — one full screen that cannot be closed,
   // over everything, signed in or not; nothing is deleted. Below the latest — the invitation, at app
   // open, on the tabs only, never over another sheet (components/useUpdateNotice).
-  const upd = useUpdateNotice({ session, onMain, language, navigationRef, blocked: !!(deviceSheet || linkSheet) });
+  const upd = useUpdateNotice({ session, onMain, language, navigationRef, blocked: !!(deviceSheet || linkSheet || accountSheet) });
   const updateRequired = upd.required;
   if (updateRequired) {
     return (
@@ -379,6 +394,10 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
               {() => <OnboardingFlowScreen onDone={onFinishOnboarding} />}
             </Stack.Screen>
           )
+        ) : accountHeld ? (
+          // DV-242: the local data still belongs to another account — an empty screen (the boot
+          // ground) under the sheet, so this account never sees it; nothing syncs meanwhile.
+          <Stack.Screen name="AccountHold" component={BootEmpty} />
         ) : !isProfileComplete(session.user) ? (
           // A session with an incomplete profile — every Apple/Google sign-in, or a
           // returning account missing a now-required field — completes it through the
@@ -400,6 +419,8 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
         )}
       </Stack.Navigator>
       <DTSheet config={deviceSheet || linkSheet} onClose={deviceSheet ? closeDeviceSheet : closeLinkSheet} />
+      {/* DV-242: the cross-account sheet; A-119's device sheets come before it (one locked sheet at a time). */}
+      <DTSheet config={deviceSheet ? null : accountSheet} onClose={() => onAccountAskClose && onAccountAskClose()} />
       <UpdateInviteSheet config={deviceSheet || linkSheet ? null : upd.invite} onUpdate={upd.onUpdate} onLater={upd.onLater} />
       <UpdateReadyBar visible={upd.ready} onRestart={upd.onRestart} />
     </NavigationContainer>
@@ -500,6 +521,10 @@ export default function App() {
     deviceFlow().refreshVerdict().then(reloadDevice).catch(() => {});
     return unsub;
   }, [reloadDevice]);
+  // DV-242: { previous, pending, userId } while the cross-account sheet is up; guardTick re-reads
+  // the local data owner after a discard.
+  const [accountAsk, setAccountAsk] = useState(null);
+  const [guardTick, setGuardTick] = useState(0);
   const seenLinks = useRef(new Set()); // emailed links already being handled in this run
   // How the auth screen opens: Create account (from the last onboarding step, with the
   // consent box ticked by the four confirmations just made) or Sign in (from the welcome
@@ -546,7 +571,104 @@ export default function App() {
     clearAllDrafts, // S-26 BK-14: typed-but-unsaved drafts stay with their account
     forgetTodayLayout, // A-135 council: Today's layout memory (keyed by the user id) goes with the account
     forgetDeviceState: () => deviceFlow().clearOnSignOut(), // A-119: screen-4 question, pending takeover, notice, secret
+    clearAIConsent, // DV-007 (DL-55): the AI consent goes with the account
+    forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY), // DV-242: whose data this phone holds
+    clearAnalyticsQueue, // council regulatory review (1.3.1): queued analytics rows go with the account
+    clearTeamMessages, // A-163: the kept copy of the team's messages goes with the account
+    clearExportFile, // A-167 council: the Download my data file goes with the account
   });
+
+  // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).
+  const guardDeps = () => ({
+    getLocalOwner: () => getLocalDataUserId(),
+    countPending: (id) => unsyncedCount(getDB(), id, TABLES, getPendingChanges),
+    readOwnerLabel: () => AsyncStorage.getItem(OWNER_KEY),
+    rememberOwner: (u) => AsyncStorage.setItem(OWNER_KEY, JSON.stringify({ id: u.id, email: u.email || null })),
+    forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY),
+    clearLocalDatabase,
+    removeRcStart: () => AsyncStorage.removeItem(RC_START_KEY),
+    clearRealityDeviceFlags, // S-03 per-device flags
+    cancelAllNotifications, // the prior user's dose reminders never fire for the new one
+    dismissAllNotifications, // Gate B 5: nor do the ones already delivered stay on the lock screen
+    clearAllDrafts, // S-26 BK-14: typed-but-unsaved text stays with its account
+    resetAllSelections, // S-26: no open right-page item from the other account
+    removeQuestions: () => AsyncStorage.removeItem(QUESTIONS_KEY), // S-25 open site questions
+    clearAIConsent, // DV-007
+    clearAnalyticsQueue, // the previous account's queued analytics rows (council regulatory review)
+    clearTeamMessages, // A-163: the previous account's kept team messages
+    clearExportFile, // A-167 council: the previous account's export file
+    getSession: async () => { const { data } = await supabase.auth.getSession(); return (data && data.session) || null; },
+    ask: (a) => { lastAskRef.current = a; setAccountAsk(a); },
+    // "Sign in as {previous} first": this account signs out on this phone only — not an intended
+    // sign-out, so nothing is wiped; the previous account's rows wait for it.
+    signOutLocally: () => wipeDeps().signOutLocally(),
+  });
+  // The local data owner is another account → the UI holds (no screen of this account shows it).
+  const sessionUid = (session && session.user && session.user.id) || null;
+  const lastAskRef = useRef(null); // the last cross-account sheet, to bring back on a failed choice
+  const ownerHeld = useMemo(() => {
+    if (!sessionUid) return false;
+    try { return ownerBlocksSync(getLocalDataUserId(), sessionUid); } catch { return false; }
+  }, [sessionUid, guardTick]);
+  // Gate B 3: an open sheet holds too (the guard failed closed: the owner could not be read).
+  const accountHeld = !!sessionUid && (ownerHeld || !!accountAsk);
+  // An unexpected guard error never means "continue": the unreadable-owner sheet (Try again / Sign out, never Discard).
+  const failClosed = (user) => {
+    try { guardDeps().ask({ unreadable: true, previous: null, pending: null, userId: user && user.id }); } catch { /* ignore */ }
+    return 'held';
+  };
+  const accountHeldRef = useRef(false);
+  accountHeldRef.current = accountHeld;
+
+  // The sign-in work after the cross-account sheet ("Try again" / "Discard and continue"; the cold
+  // start and SIGNED_IN run the same steps inline below). A-119 (lib/signInDevice): the device check
+  // first — a sign-in the person just made claims the account through its noted intent (DL-102) —
+  // then the sync engine, the import or a sync; screen 2 / 4: nothing imported, nothing scheduled.
+  const continueSignedIn = async (s) => {
+    const step = await signInDeviceStep({
+      explicit: false, userId: s.user.id, flow: deviceFlow(), gate: deviceGate, startSync: startSyncEngine,
+      isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync, reload: reloadDevice,
+    });
+    if (step.held) return;
+    // One-time move of the open reality check + calculator inputs into the
+    // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
+    // A-119 round 3: not while a takeover's rebuild is queued (step.migrate).
+    if (step.migrate) await runRealityMigration().catch(() => {});
+    // Schedule reminders AFTER the import so they reflect the user's data. AD-88 (DV-054): never a
+    // permission request here (the sync listener asks once when this account's protocols arrive).
+    syncAllNotifications()
+      .then(() => registerPushToken())
+      .catch(() => {});
+  };
+
+  // DV-242: the two choices of the cross-account sheet.
+  const onAccountSave = () => {
+    resolveAccountAsk('save', guardDeps(), { lastAsk: lastAskRef.current })
+      .then(() => setAuthEntry({ mode: 'signin', consent: false }))
+      .catch(() => {});
+  };
+  // Re-verification 2: "Try again" on the owner-unreadable sheet runs the guard once more (it asks
+  // again itself when it still cannot read; the session unreadable → the same sheet back).
+  const onAccountRetry = async () => {
+    let s = null;
+    try { s = await guardDeps().getSession(); } catch { s = null; }
+    if (!s || !s.user) { failClosed(null); return; }
+    let guard = 'held';
+    try { guard = await guardSignedIn(guardDeps(), { sessionUser: s.user }); } catch { guard = failClosed(s.user); }
+    setGuardTick((n) => n + 1);
+    if (guard !== 'continue') return;
+    lastAskRef.current = null;
+    await continueSignedIn(s).catch(() => {}); // the device step starts the sync engine (A-119)
+  };
+  // Gate B 4: a session that cannot be read brings the sheet back with an error (retry), never a
+  // holding screen without buttons.
+  const onAccountDiscard = async () => {
+    const r = await discardAndContinue(guardDeps(), { lastAsk: lastAskRef.current });
+    if (r.status !== 'continue') return;
+    lastAskRef.current = null;
+    setGuardTick((n) => n + 1);
+    await continueSignedIn(r.session).catch(() => {}); // the device step starts the sync engine (A-119)
+  };
 
   registerWipe(wipeDeps); // account deletion wipes at once with the same steps (lib/accountActions)
   const pendingNavRef = useRef(null);
@@ -583,8 +705,7 @@ export default function App() {
     const key = responseKey(response);
     if (routedRef.current.has(key)) return true;
     routedRef.current.add(key);
-    const at = Number(response?.notification?.date) || 0;
-    if (maxAgeMs && at && Date.now() - at > maxAgeMs) return true; // a stale launch response
+    if (launchTapStale(response, Date.now(), maxAgeMs)) return true; // a stale launch response (iOS dates are seconds)
     try {
       const raw = await AsyncStorage.getItem('dosetrace_nav_handled');
       const list = raw ? JSON.parse(raw) : [];
@@ -750,7 +871,12 @@ export default function App() {
       supabase.auth.getSession().then(({ data: { session } }) => {
         // A-47: also pull, so a change made on another device (e.g. a reality-check Stop)
         // arrives on resume, not only on a cold start or this device's own write. Same throttle.
-        if (session?.user?.id) { requestSync(); syncAllNotifications().catch(() => {}); }
+        // DV-242: not while another account's data waits for the cross-account choice.
+        if (session?.user?.id && !accountHeldRef.current) {
+          requestSync(); syncAllNotifications().catch(() => {});
+          // DV-009: deleted or revoked elsewhere since the last look (same once-a-minute throttle).
+          checkAccountGone(wipeDeps(), probeAccountGone).catch(() => {});
+        }
       }).catch(() => {});
     });
 
@@ -813,41 +939,37 @@ export default function App() {
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
 
-        // Cross-account guard on cold start too (symmetry with SIGNED_IN): if the
-        // local data belongs to a different user, wipe before importing.
-        try {
-          const localUid = getLocalDataUserId();
-          if (localUid && localUid !== session.user.id) {
-            clearLocalDatabase();
-            AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
-            await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
-            cancelAllNotifications().catch(() => {}); // symmetry with SIGNED_IN — don't let the prior user's dose reminders fire
-            clearAllDrafts(); // S-26 BK-14: typed-but-unsaved text stays with its account
-            resetAllSelections(); // S-26: no open right-page item from the other account
-            AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
+        // Cross-account guard on cold start too (symmetry with SIGNED_IN): local data of a
+        // different user is discarded before importing — after a warning when some of it was never
+        // backed up (DV-242, AD-102 = B; lib/accountGuard). Held → the sheet decides; nothing more.
+        let guard = 'continue';
+        try { guard = await guardSignedIn(guardDeps(), { sessionUser: session.user }); } catch { guard = failClosed(session.user); }
+        setGuardTick((n) => n + 1);
+        if (guard === 'continue') {
+          // A-119: the active-device check before the import (OD-4: a phone the server says was replaced
+          // never pulls; DL-103: an updated phone becomes active silently, or asks when another device
+          // holds the account; OD-14: a restored session never takes over). lib/signInDevice: if the
+          // local DB is empty, import all data from cloud (first launch / new device); otherwise a
+          // background sync pushes / pulls changes.
+          const step = await startupDeviceStep({ gate: deviceGate, userId: session.user.id, isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync });
+          if (!step.held) {
+            // One-time move of the open reality check + calculator inputs into the
+            // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
+            // A-119 round 3: never while a takeover's rebuild is queued (step.migrate).
+            if (step.migrate) await runRealityMigration().catch(() => {});
+
+            // Schedule reminders AFTER the initial import — otherwise fresh
+            // installs sync notifications against an empty local DB.
+            // AD-88 (DV-054): no permission request at app open — it is asked once, when a protocol
+            // with a reminder time is first saved here or arrives by sync (lib/notifications).
+            syncAllNotifications()
+              .then(() => registerPushToken())
+              .catch(() => {});
           }
-        } catch { /* ignore */ }
-
-        // A-119: the active-device check before the import (OD-4: a phone the server says was replaced
-        // never pulls; DL-103: an updated phone becomes active silently, or asks when another device
-        // holds the account; OD-14: a restored session never takes over). lib/signInDevice: if the
-        // local DB is empty, import all data from cloud (first launch / new device); otherwise a
-        // background sync pushes / pulls changes.
-        const step = await startupDeviceStep({ gate: deviceGate, userId: session.user.id, isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync });
-        if (!step.held) {
-          // One-time move of the open reality check + calculator inputs into the
-          // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
-          // A-119 round 3: never while a takeover's rebuild is queued (step.migrate).
-          if (step.migrate) await runRealityMigration().catch(() => {});
-
-          // Schedule reminders AFTER the initial import — otherwise fresh
-          // installs sync notifications against an empty local DB.
-          // AD-88 (DV-054): no permission request at app open — it is asked once, when a protocol
-          // with a reminder time is first saved here or arrives by sync (lib/notifications).
-          syncAllNotifications()
-            .then(() => registerPushToken())
-            .catch(() => {});
         }
+        // DV-009: an account deleted or a session revoked elsewhere (the server says so; a network
+        // failure changes nothing). Deferred, never awaited by the start.
+        setTimeout(() => { checkAccountGone(wipeDeps(), probeAccountGone).catch(() => {}); }, 0);
       } else {
         // OD-10 / DL-85: no session but an account's data on the phone (a session that ended on its
         // own): if the server says that account no longer exists, the deletion notice and the wipe.
@@ -885,20 +1007,18 @@ export default function App() {
 
         // Cross-account guard: if local data belongs to a DIFFERENT user (e.g. a
         // spurious sign-out KEPT it, then a different account signed in on this
-        // device), wipe it before importing — one account's data must never bleed
-        // into another. No-op for the normal same-user re-auth.
-        try {
-          const localUid = getLocalDataUserId();
-          if (localUid && localUid !== session.user.id) {
-            clearLocalDatabase();
-            AsyncStorage.removeItem(RC_START_KEY).catch(() => {});
-            await clearRealityDeviceFlags().catch(() => {}); // S-03 per-device flags
-            cancelAllNotifications().catch(() => {}); // don't let the prior user's dose reminders fire
-            clearAllDrafts(); // S-26 BK-14: typed-but-unsaved text stays with its account
-            resetAllSelections(); // S-26: no open right-page item from the other account
-            AsyncStorage.removeItem(QUESTIONS_KEY).catch(() => {}); // S-25 open site questions
-          }
-        } catch { /* ignore */ }
+        // device), it is discarded before importing — one account's data must never bleed
+        // into another. No-op for the normal same-user re-auth. DV-242 (AD-102 = B): rows never
+        // backed up → a warning first ("Sign in as {previous} first, to save" / "Discard and
+        // continue"); until the choice nothing syncs or imports (lib/accountGuard).
+        let guard = 'continue';
+        try { guard = await guardSignedIn(guardDeps(), { sessionUser: session.user }); } catch { guard = failClosed(session.user); }
+        setGuardTick((n) => n + 1);
+        if (guard !== 'continue') {
+          // The stashed intro answers still go to the account that just signed in (they are its own).
+          applyPendingProfile(supabase).catch(() => {});
+          return;
+        }
 
         // A-119 one active device (lib/signInDevice): a sign-in the person made takes the account over
         // (DL-102; committed before the first import, OD-3; a rebuild it owes runs in the next pass);
@@ -950,11 +1070,16 @@ export default function App() {
         const intentional = onSignedOutNow({
           pendingNavRef, endStashFreshness, consumeIntentionalSignOut, discardStashNow, clearAuthDraft, setSeenOnboarding,
         });
+        // DV-009: did the auth server just say the account / session is gone? (in-memory read)
+        const gone = takeAccountGone();
         // Deferred: stop sync; intentional → wait for a running sync, then the full wipe (the
-        // anti-cross-account-leak guard). Spurious → keep local data (cloud-backed, same user).
+        // anti-cross-account-leak guard). Spurious → keep local data (cloud-backed, same user). When the
+        // server said the session is gone, the reminders are cancelled too — the data is still kept:
+        // a sign-out signal never wipes; only the deferred account probe's user_not_found does, for
+        // that user id (DL-85, lib/signedOut afterAccountGone).
         // A-119 OD-10 / DL-85: a session that ended on its own (not intended) while the phone holds the
         // account's data — if the server says the account no longer exists, the deletion notice and wipe.
-        setTimeout(() => { afterSignedOut(intentional, wipeDeps()).catch(() => {}); if (!intentional) checkGoneAfterSpurious(); }, 0);
+        setTimeout(() => { afterSignedOut(intentional, wipeDeps(), gone).catch(() => {}); if (!intentional) checkGoneAfterSpurious(); }, 0);
       }
 
       if (_event === 'SIGNED_IN' && session?.user?.id) onSignedIn(session);
@@ -1021,6 +1146,8 @@ export default function App() {
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ErrorBoundary>
         <LanguageProvider>
+          {/* A-163: user_metadata.language follows the app language (push titles); never in onAuthStateChange */}
+          <AccountLanguageSync userId={!booting && session && session.user && !accountHeld ? session.user.id : null} />
           <ThemeProvider>
             {booting ? (
               <BootScreen lastUser={bootUser} fontsLoaded={fontsLoaded} onTabTap={rememberBootTab} />
@@ -1104,6 +1231,12 @@ export default function App() {
               onFinishOnboarding={finishOnboarding}
               onBackToOnboarding={backToOnboarding}
               authEntry={authEntry}
+              accountHeld={accountHeld}
+              accountAsk={accountAsk}
+              onAccountSave={onAccountSave}
+              onAccountDiscard={onAccountDiscard}
+              onAccountRetry={onAccountRetry}
+              onAccountAskClose={() => setAccountAsk(null)}
             />
             )}
           </ThemeProvider>

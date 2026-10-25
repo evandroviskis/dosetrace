@@ -94,7 +94,7 @@ test('PA-55: the Google button follows Google\'s branding (Google Sans Medium, c
   assert.match(AUTH, /\[GOOGLE_SANS_MEDIUM\]: require\('\.\.\/assets\/fonts\/GoogleSans_500Medium\.ttf'\)/);
   assert.ok(fs.statSync(path.join(__dirname, '..', 'assets', 'fonts', 'GoogleSans_500Medium.ttf')).size > 100000);
   assert.match(read('assets', 'fonts', 'GoogleSans-OFL.txt'), /SIL Open Font License, Version 1\.1/, 'the OFL travels with the font');
-  assert.match(AUTH, /googleBtnText: \{ fontSize: 17 \},\n\s+googleBtnFont: \{ fontFamily: GOOGLE_SANS_MEDIUM \}/);
+  assert.match(AUTH, /googleBtnText: \{ fontSize: 17, includeFontPadding: false \},\n\s+googleBtnFont: \{ fontFamily: GOOGLE_SANS_MEDIUM \}/);
   assert.match(AUTH, /blue: '#4285F4', green: '#34A853', yellow: '#FBBC04', red: '#E94235'/);
   assert.doesNotMatch(AUTH, /#EA4335|#FBBC05/, 'the old G colours are gone');
   assert.match(AUTH, /googleBtn: \{ minHeight: 52, borderRadius: 26, borderWidth: 1,[^}]*gap: 12, paddingLeft: 16, paddingRight: 16 \}/);

@@ -126,6 +126,7 @@ function makeToday({ sync, logs, firstShown }) {
     inactivePromptOpenRef: { current: false }, focusedRef: { current: true }, stillGoingWaitRef: { current: false },
     // A-121 SG-22: nor over any other Today popup.
     vialPromptOpenRef: { current: false }, skipSheetOpenRef: { current: false }, todaySheetOpenRef: { current: false },
+    teamSheetOpenRef: { current: false }, // A-163: the team message sheet (Still going? never opens over it)
   };
   const firstShownRef = { current: firstShown || { p: Promise.resolve() } };
   const checkTreatmentStillActive = loadFn('screens/TodayScreen.js', 'async function checkTreatmentStillActive(', 'checkTreatmentStillActive', {
@@ -265,4 +266,15 @@ test('A-122 (4): lib/stillGoingGate.js is pure (no imports): the sync bus is pas
   const src = read('lib/stillGoingGate.js');
   assert.ok(!/^\s*import\s/m.test(src), 'no imports');
   assert.ok(!/require\(/.test(src), 'no require');
+});
+
+// A-163 TM-15: "Still going?" never opens over the team message sheet (it comes on a later open).
+test('A-163: the still-going prompt waits while the team message sheet is up', async () => {
+  const sync = fakeSync(true);
+  const t = makeToday({ sync, logs: [] });
+  t.refs.teamSheetOpenRef.current = true;
+  t.checkStillGoingWhenSynced();
+  sync.emit({ type: 'sync_complete' });
+  await ticks();
+  assert.deepEqual(t.shown, [], 'not over the team message');
 });

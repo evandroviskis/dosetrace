@@ -56,6 +56,7 @@ import { describeStored, hasSavedSite } from '../lib/injectionSites';
 import { dosesTakenLabel, doseCountLabel, vialRemainingLabel, SNOOZE_KINDS, snoozeUntil } from '../lib/todayFormat';
 import { dosesPerVial, computeDraw, trimZeros } from '../lib/doseMath';
 import { drawLine, exceedsMessage } from '../lib/syringes'; // ml on 2 / 3 / 5 ml syringes (AP-21)
+import { volumeNote } from '../lib/calcNote';
 import { adherenceRings } from '../lib/adherenceRings';
 import { dayKeyAt, msUntilNextLocalMidnight } from '../lib/dayChange';
 import TodayTracker from './components/TodayTracker';
@@ -70,6 +71,7 @@ import useSheetKeyboard from '../components/useSheetKeyboard';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import TeamMessageGate from '../components/TeamMessageGate';
 import { doseStreak, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
@@ -203,6 +205,14 @@ export default function TodayScreen() {
     navigation.setParams({ focusDose: undefined });
   }, [route.params?.focusDose]); // eslint-disable-line react-hooks/exhaustive-deps
   useFocusEffect(useCallback(() => () => setNotifFocus(null), []));
+  // A-163 TM-13: a team message notification tap opens that message (lib/notificationPlan).
+  const [teamTap, setTeamTap] = useState(null);
+  useEffect(() => {
+    const m = route.params?.teamMessage;
+    if (!m) return;
+    setTeamTap(m);
+    navigation.setParams({ teamMessage: undefined });
+  }, [route.params?.teamMessage]); // eslint-disable-line react-hooks/exhaustive-deps
   // RC-6: Today warns when something the app can read blocks dose reminders (lib/reminderHealth).
   const [remindersBlocked, setRemindersBlocked] = useState(false);
   const [remindersLate, setRemindersLate] = useState(false); // A-106: Alarms & reminders off (Android)
@@ -321,6 +331,9 @@ export default function TodayScreen() {
   // another modal (vial prompt, "still going?") — iOS shows one modal at a time.
   const siteQueueRef = useRef([]);
   const bodyMapOpenRef = useRef(false);
+  // A-163: the team message sheet is up (Today's own popups wait for it, and it waits for them).
+  const teamSheetOpenRef = useRef(false);
+  const doseFocusOpenRef = useRef(false); // a reminder tap's dose is still open on Today (A-44)
   const openQuestionRef = useRef(null); // key of the site question on screen (S-25)
   const vialPromptOpenRef = useRef(false); // one modal at a time: questions wait for the vial prompt
   const vialPromptPendingRef = useRef(false); // set synchronously by markTaken when the vial prompt will show
@@ -666,6 +679,7 @@ export default function TodayScreen() {
       // BK-20: nor over the embedded Dose log's site editor; DV-202: nor over any other Today popup.
       if (bodyMapOpenRef.current || siteQueueRef.current.length || logPopupOpenRef.current
         || vialPromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
+      if (teamSheetOpenRef.current) return; // A-163: nor over the team message sheet (asked on a later open)
       if (inactivePromptOpenRef.current) return;
       inactivePromptOpenRef.current = true;
       setInactiveProtocol(q.p);
@@ -1171,7 +1185,8 @@ export default function TodayScreen() {
   // (removes only those entries). Never over another of Today's popups (asked on a later focus).
   function checkOrphans() {
     (async () => {
-      const owner = getLocalDataUserId();
+      let owner = null;
+      try { owner = getLocalDataUserId(); } catch { return; } // unreadable: asked on a later focus
       if (!owner) return;
       const n = await orphanedPendingCount();
       const key = orphanPromptKey(owner);
@@ -1189,12 +1204,34 @@ export default function TodayScreen() {
 
   // A popup of Today's own is open (or the vial prompt is about to open).
   function todayPopupBusy() {
-    return bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current;
+    return teamSheetOpenRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current;
+  }
+
+  // A-163 TM-13/TM-15: what the team message sheet waits for — any of Today's popups, a site
+  // question (queued, or kept from a Mark taken tap), the embedded Log's editor, a vial prompt on
+  // its way, and a dose being logged from a reminder tap (its card still open, or its Undo bar).
+  async function teamGateState() {
+    let kept = 0;
+    try { kept = (await loadQuestions(AsyncStorage)).length; } catch { kept = 0; }
+    return {
+      todayPopup: todayPopupBusy(),
+      siteQuestions: siteQueueRef.current.length,
+      keptQuestions: kept,
+      logPopup: logPopupOpenRef.current,
+      vialPending: vialPromptPendingRef.current || pendingVialsRef.current.length > 0,
+      doseFocusOpen: doseFocusOpenRef.current || !!undoDataRef.current,
+      otherScreen: false, // A-127's required update notice (1.3.2) registers here when it ships
+    };
+  }
+  function onTeamSheetChange(open) {
+    teamSheetOpenRef.current = open;
+    if (!open) setTimeout(openNextQuestion, 450); // a question / the Log editor that waited for it
   }
 
   async function openNextQuestion() {
     // BK-20: one popup at a time across both pages — also not over the embedded Dose log's
     // site editor; the question waits and opens when that editor closes.
+    if (teamSheetOpenRef.current) return; // A-163: nor over the team message sheet (it closes, then the question opens)
     if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
     const q = siteQueueRef.current.shift();
     // No site question waits: the embedded Log's editor, else the next protocol question (A-121
@@ -1971,6 +2008,7 @@ export default function TodayScreen() {
   })();
   const isFocusPend = (item) => !!(notifFocus && notifFocus.dayKey && notifFocus.dayKey !== todayKey
     && item.protocolId === notifFocus.protocolId && (notifFocus.slotMs == null || item.slotMs === notifFocus.slotMs));
+  doseFocusOpenRef.current = !!focusCard || (Array.isArray(pendingYest) && pendingYest.some(isFocusPend)); // A-163
   // A-42: My Protocols' Mark complete opens Today on the dose with take: Today runs its own
   // take once (yesterday-or-today question, the site question, the vial, Undo) — no new rules.
   const takenFocusRef = useRef(null);
@@ -2129,6 +2167,8 @@ export default function TodayScreen() {
     const lastSiteName = lastSite ? describeStored(lastSite.stored, t) : null;
     const name = p.compound_id ? t(p.compound_id) : p.name;
     const { draw, syr } = doseDraw(p);
+    // A-166: the arithmetic under the computed draw; the star only when there is a note.
+    const drawNote = draw && draw.drawUnits && !draw.unitMismatch ? volumeNote(p, draw, syr, t, language) : null;
     // BK-8: the dose open on the right page has an ink outline (book layout only). The card is
     // today's dose of this protocol; yesterday's pending slot is selected on its own row.
     const picked = book && isPickedDose(p.id, todayKey);
@@ -2196,12 +2236,15 @@ export default function TodayScreen() {
           <View style={s.draw}>
             <View style={s.drawHead}>
               <Text style={s.drawLabel}>{t('protocols_syringe_draw_to')}</Text>
-              <Text style={s.drawVal}>{drawLine(draw, syr, language).big}<Text style={s.drawUnit}>{drawLine(draw, syr, language).small}</Text></Text>
+              <Text style={s.drawVal}>{drawLine(draw, syr, language).big}<Text style={s.drawUnit}>{drawLine(draw, syr, language).small}</Text>{drawNote ? <Text style={s.calcMark}>*</Text> : null}</Text>
             </View>
             <SyringeScale units={Number(draw.drawUnits)} size={syr} width={290} />
             {draw.exceedsSyringe && (
               <Text style={s.drawWarn}>{exceedsMessage(t, draw, syr, language)}</Text>
             )}
+            {/* A-166: the computed draw is starred; its arithmetic in the user's numbers. */}
+            {drawNote ? <Text style={s.calcNote}>{drawNote}</Text> : null}
+            {drawNote ? <Text style={s.calcNote}>{t('today_calc_line')}</Text> : null}
           </View>
         )}
         {/* Part 7: Day X of Y, the last site (full name) and the streak on one line that
@@ -2772,6 +2815,12 @@ export default function TodayScreen() {
       <DTSheet config={skipSheet} onClose={closeSkipAsk} />
       {/* Errors and the "yesterday or today?" question (M4). */}
       <DTSheet config={todaySheet} onClose={closeTodaySheet} />
+      {/* A-163 option A: an unread message from the DoseTrace team, once, after any dose being logged */}
+      <TeamMessageGate
+        tapped={teamTap}
+        gateState={teamGateState}
+        onOpenChange={onTeamSheetChange}
+      />
 
       {/* The dose drop that travels from a "Mark taken" button into the ring. */}
       <Animated.View pointerEvents="none" style={[s.flyDrop, flyStyle]}>
@@ -3001,6 +3050,8 @@ const todayV21Styles = (c) => ({
   drawVal: { fontSize: 22, fontWeight: '500', color: c.ink, fontVariant: ['tabular-nums'] },
   drawUnit: { fontSize: 13, fontWeight: '400', color: c.ink3 },
   drawWarn: { fontSize: 15, fontWeight: '600', color: c.risk },
+  calcNote: { fontSize: 13, lineHeight: 18, color: c.ink3, fontVariant: ['tabular-nums'], marginTop: 2 },
+  calcMark: { color: c.ink2, fontWeight: '500' },
   dmeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: 4, columnGap: 14 },
   dmetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dmetaText: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },

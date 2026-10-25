@@ -7,10 +7,13 @@
 // false (iPhone, or the sheet is closed): no listeners, lift null, no props — the sheet renders
 // exactly as before. The protocol editor uses it on iPhone too (A-152: its page sheet's
 // KeyboardAvoidingView made no room).
-// Rules: lib/sheetKeyboard (sheetKeyboard.test.js).
+// Rules: lib/sheetKeyboard (sheetKeyboard.test.js). The focus scroll moves the keyboard's screenY
+// into measureInWindow's space on Android (A-152, a152WindowShift.test.js): 0 inside the Modal every
+// sheet lives in, the status bar if this is ever used on a page. iPhone: no shift, no extra measure.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Keyboard, Platform, TextInput } from 'react-native';
 import { sheetKeyboardLift, sheetFocusScrollY } from '../lib/sheetKeyboard';
+import { windowShift } from '../lib/keyboardLift';
 
 const NO_PROPS = Object.freeze({});
 
@@ -48,12 +51,18 @@ export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}
       const k = kbRef.current;
       if (!input || !sv || !k || !input.measureInWindow || !sv.measureInWindow) return;
       sv.measureInWindow((sx, sy, sw, sh) => {
-        input.measureInWindow((fx, fy, fw, fh) => {
-          const y = sheetFocusScrollY({
-            fieldTop: fy, fieldBottom: fy + fh, viewTop: sy, viewBottom: sy + sh,
-            kbTop: k.kbTop, scrollY: scrollY.current,
+        const withShift = (done) => {
+          if (Platform.OS !== 'android' || !sv.measure) { done(0); return; }
+          sv.measure((x, y, w, h, pageX, pageY) => done(windowShift(pageY, sy)));
+        };
+        withShift((shift) => {
+          input.measureInWindow((fx, fy, fw, fh) => {
+            const y = sheetFocusScrollY({
+              fieldTop: fy, fieldBottom: fy + fh, viewTop: sy, viewBottom: sy + sh,
+              kbTop: k.kbTop, scrollY: scrollY.current, windowShift: shift,
+            });
+            if (y != null) sv.scrollTo({ y, animated: true });
           });
-          if (y != null) sv.scrollTo({ y, animated: true });
         });
       });
     } catch (e) { /* nothing focused / unmounted: leave the sheet as it is */ }

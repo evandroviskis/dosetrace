@@ -223,7 +223,9 @@ test('sign-out: every App.js wipe path that clears RC_START_KEY also clears the 
   const wipes = src.split('AsyncStorage.removeItem(RC_START_KEY)').length - 1;
   // A path may hand the step to lib/signedOut ('clearRealityDeviceFlags,') instead of calling it.
   const flagClears = (src.match(/clearRealityDeviceFlags(\(\)|,)/g) || []).length;
-  assert.ok(wipes >= 3, 'three wipe paths expected');
+  // The sign-out wipe (wipeDeps) and the cross-account discard (guardDeps — since DV-242 one set of
+  // steps shared by the cold start and SIGNED_IN, lib/accountGuard).
+  assert.ok(wipes >= 2, 'two wipe paths expected');
   assert.equal(flagClears, wipes, 'one flag clear per wipe path');
 });
 

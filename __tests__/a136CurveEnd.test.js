@@ -18,9 +18,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { curveGridStart, scheduledDoses, STEP_HOURS } = require('../lib/serumModel');
+const { curveGridStart, scheduledDoses, curveSampleTimes, STEP_HOURS } = require('../lib/serumModel');
 const { getHalfLifeEntry, amountFraction } = require('../lib/halfLives');
-const { sampleLevels } = require('../lib/curveSampling');
+const { sampleLevelsAt } = require('../lib/curveSampling');
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'screens/SerumCurveScreen.js'), 'utf8');
 
@@ -48,16 +48,20 @@ test('A-136 (5): at +7d on the Fold page the projection, the zone and the ticks 
   const p = { id: 1, dose: '0.5', dose_unit: 'mg', interval_days: 1, doses_per_day: 1, start_date: '2026-09-01', type: 'lyophilized' };
   const doses = scheduledDoses(p, entry, start, end, now);
   assert.ok(doses.filter((ts) => ts > now && ts <= end).length >= 6, 'a daily dose on each projected day');
-  const { points, pre } = sampleLevels(doses, 0.5, entry, start, stepMs, nSteps, amountFraction);
-  assert.equal(points.length, nSteps + 1, 'a sample for every step to the end of the window');
+  // DV-068 (1.3.1): the samples are the 6 h grid plus every dose instant and Now (x = exact step position).
+  const times = curveSampleTimes(start, stepMs, nSteps, [doses], now);
+  const xs = times.map((ts) => (ts - start) / stepMs);
+  const { points, pre } = sampleLevelsAt(doses, 0.5, entry, times, amountFraction);
+  assert.equal(points.length, times.length, 'a level for every sample');
+  assert.equal(xs[xs.length - 1], nSteps, 'the last sample is the end of the window');
 
   const windowWidth = 767; // the unfolded Fold, full-screen curve
   const chartWidth = Math.min(windowWidth, 640) - 32 - 32;
   const g = { L: 38, R: chartWidth, T: 8, B: 210 };
-  const nowIdx = Math.floor((now - start) / stepMs);
+  const nowIdx = (now - start) / stepMs; // Now is a sample (DV-068)
   const rev = motion.revealAt(motion.C_TOTAL, nowIdx, nSteps);
   assert.equal(rev, nSteps, 'the settled reveal is the whole window');
-  const d = motion.seriesD(points, pre, rev, nSteps, 0.6, g, nowIdx);
+  const d = motion.seriesD(points, pre, xs, rev, nSteps, 0.6, g, nowIdx);
   assert.equal(lastX(d), g.R, `the dashed projection ends at the right edge (${lastX(d)} of ${g.R})`);
   // the ticks: every scheduled dose inside the window maps inside the plot
   const tickX = doses.filter((ts) => ts >= start && ts <= start + nSteps * stepMs)

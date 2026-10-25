@@ -251,6 +251,7 @@ test('R3-3: screen 4 counts a dose typed after the sign-in on a local-only proto
 test('R3-1 (wiring): App runs the reality-check migration only when the device step allows it, on the cold start and after a sign-in', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'App.js'), 'utf8');
   const calls = src.match(/^.*runRealityMigration\(\).*$/gm) || [];
-  assert.equal(calls.length, 2);
+  // Cold start, SIGNED_IN, and (DV-242, 1.3.1) after the cross-account sheet (Try again / Discard).
+  assert.equal(calls.length, 3);
   for (const line of calls) assert.match(line, /if \(step\.migrate\) await runRealityMigration\(\)/);
 });

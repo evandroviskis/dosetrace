@@ -61,9 +61,11 @@ function makeCloud() {
       const want = new Set(values);
       return { data: this.rows(table, userId).filter((r) => want.has(r[column])), error: null };
     },
-    async update(table, remoteId, payload) {
+    // opts.ifUpdatedAt: only while the row still has that updated_at (lib/sync.js .eq('updated_at')).
+    async update(table, remoteId, payload, opts = {}) {
       const existing = store[table].get(remoteId);
       if (!existing) return { data: [], error: null }; // gone → 0 rows affected
+      if (opts.ifUpdatedAt && existing.updated_at !== opts.ifUpdatedAt) return { data: [], error: null };
       const updated_at = stamp();
       store[table].set(remoteId, { ...existing, ...payload, id: remoteId, updated_at });
       const after = store[table].get(remoteId);

@@ -102,7 +102,7 @@ test('a failing step never stops the rest of the wipe', async () => {
 test('App runs both parts and lib/notifications dismisses delivered notifications', () => {
   const app = fs.readFileSync(path.join(__dirname, '../App.js'), 'utf8');
   assert.match(app, /const intentional = onSignedOutNow\(\{/);
-  assert.match(app, /setTimeout\(\(\) => \{ afterSignedOut\(intentional, wipeDeps\(\)\)/);
+  assert.match(app, /setTimeout\(\(\) => \{ afterSignedOut\(intentional, wipeDeps\(\), gone\)/); // gone: DV-009
   assert.match(app, /dismissAllNotifications,/);
   const n = fs.readFileSync(path.join(__dirname, '../lib/notifications.js'), 'utf8');
   assert.match(n, /export async function dismissAllNotifications\(\) \{[\s\S]{0,200}dismissAllNotificationsAsync\(\)/);

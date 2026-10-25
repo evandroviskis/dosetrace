@@ -29,8 +29,10 @@ import FoodChatScreen from './FoodChatScreen';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
+import { usePremiumUpdates } from '../lib/usePremium';
 import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
+import { curveReloadOnSync, sameCurveLevel } from '../lib/curveReload';
 import { getCachedUser } from '../lib/supabase';
 import { getActiveProtocols, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
@@ -107,8 +109,17 @@ export default function JourneyScreen() {
     if (!isAlive() || !user) return;
     const savedView = await loadCurveView(user.id);
     if (!isAlive()) return;
-    try { setLevel(defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView)); } catch { setLevel(null); }
+    try {
+      const next = defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView);
+      // The same compound, value and unit → no state change (a reload is not a re-render).
+      setLevel((prev) => (sameCurveLevel(prev, next) ? prev : next));
+    } catch { setLevel(null); }
   }, []);
+  // A-164: a Premium change made elsewhere (panel, store expiry, refund) applies while open.
+  usePremiumUpdates((pro) => {
+    setPremium(pro);
+    if (!pro) setLevel(null); else loadLevel().catch(() => {});
+  });
   useFocusEffect(useCallback(() => {
     let alive = true;
     hasPremium().then(async (pro) => {
@@ -128,6 +139,9 @@ export default function JourneyScreen() {
   useEffect(() => addSyncListener((e) => {
     if (e && e.type === 'data_changed' && e.what === 'curve' && premium === true) loadLevel().catch(() => {});
   }), [premium, loadLevel]);
+  // PK-16 (1.3.1 review): and the protocols a sync, an import or a dose / protocol change brings,
+  // debounced (lib/curveReload, the same events as the Curve screen).
+  useEffect(() => curveReloadOnSync(addSyncListener, () => { if (premium === true) loadLevel().catch(() => {}); }), [premium, loadLevel]);
   // Named as the Curve screen names its line (a blend component: "Blend · Component (est.)").
   const lp = level ? level.protocol : null;
   const levelName = !lp ? null

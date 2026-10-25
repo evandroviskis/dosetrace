@@ -3,7 +3,7 @@
     "name": "DoseTrace",
     "slug": "dosetrace",
     "scheme": "dosetrace",
-    "version": "1.3.0",
+    "version": "1.3.1",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -19,7 +19,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0C2340"
+      "backgroundColor": "#DDE0DB"
     },
     "ios": {
       "supportsTablet": false,
@@ -41,6 +41,15 @@
           "de",
           "it"
         ]
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#DDE0DB",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#121416"
+        }
       }
     },
     "android": {
@@ -53,7 +62,16 @@
       "permissions": [
         "SCHEDULE_EXACT_ALARM"
       ],
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#DDE0DB",
+        "dark": {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#121416"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -69,7 +87,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/notification-icon.png",
           "color": "#185FA5"
         }
       ],
@@ -105,12 +123,33 @@
       "expo-font",
       "./plugins/withAndroidBackupDisabled",
       "./plugins/withoutIosBackgroundFetch",
-      "./plugins/withFoldConfigChanges"
+      "./plugins/withFoldConfigChanges",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#DDE0DB",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#121416"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "4780e120-5f45-4482-8e95-b443929b6f8a"
       }
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/4780e120-5f45-4482-8e95-b443929b6f8a",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

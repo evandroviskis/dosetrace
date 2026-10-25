@@ -6,20 +6,41 @@
 // in-screen math computed (copied below verbatim as the reference) for a single
 // compound, a blend component, a fast compound, a depot ester with a modeled peak, a
 // creation-day protocol, a future start, and the IU / no-dose / no-data exclusions.
+// UPDATED 1.3.1 (DV-068 / DV-069, DL-31, DL-77): the reference no longer places doses at the old
+// fixed grid hours (12:00; 06/18 …) snapped onto the 6 h grid — each dose sits at the protocol's
+// own slot time for that day (lib/schedule expectedSlotTimesOn; 08:00 without times), exact.
+// Everything else in the reference is the old screen math, unchanged.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
 const { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } = require('../lib/halfLives');
-const { expectedDosesOn } = require('../lib/schedule');
+const { expectedDosesOn, expectedSlotTimesOn } = require('../lib/schedule');
 const { BLEND_IDS, blendComponents } = require('../lib/compounds');
 const { translations } = require('../i18n/translations');
 
 // ── Reference: the old in-screen math (SerumCurveScreen.js at bb906f8, lines 155-457) ──
 const PAST_DAYS = 14;
 const STEP_HOURS = 6;
-const DOSE_SLOTS = { 1: [12], 2: [6, 18], 3: [6, 12, 18], 4: [0, 6, 12, 18] };
+// The day's dose moments at the protocol's own times (the creation-day floor of 1 uses the
+// protocol's first time; no times → 08:00). NOTE (review 2026-10-20): this mirrors
+// lib/serumModel doseTimesOn for the fixtures below (every fixture lists one distinct time per
+// dose), so it is NOT evidence for the dose-time rule itself — the independent proofs are
+// __tests__/curveExactTime.test.js and curveExactTimeBerlin.test.js (exact hand-written instants,
+// the padding rule for legacy rows, DST). This file guards the rest of the model (tile = screen).
+function ownDoseMoments(p, day) {
+  const cnt = expectedDosesOn(p, day);
+  const slots = expectedSlotTimesOn(p, day);
+  const own = (p.reminder_time || '').split(',').filter(Boolean).sort().slice(0, p.doses_per_day || 1);
+  const out = [];
+  for (let k = 0; k < cnt; k++) {
+    const [h, m] = (slots[k] || own[k] || '08:00').split(':').map(Number);
+    const dd = new Date(day); dd.setHours(h, m, 0, 0);
+    out.push(dd.getTime());
+  }
+  return out.sort((a, b) => a - b);
+}
 function oldMatchName(protocol) {
   if (protocol.compound_id && translations.en[protocol.compound_id]) return translations.en[protocol.compound_id];
   return protocol.name || '';
@@ -65,26 +86,25 @@ function oldSeries(p, now, futureDays) {
   const DAY_MS = 86400000;
   const entry = getHalfLifeEntry(oldMatchName(p));
   const doseMg = doseInCurveUnit(p.dose, p.dose_unit, entry) || 0;
-  const lookbackDays = Math.min(600, Math.max(PAST_DAYS + 2, Math.ceil(6 * entry.hours / 24)));
+  // UPDATED 1.3.1 (curve fix 2, spec R15, founder-approved 2026-10-20): one look-back for every
+  // window — the longest window the screen shows (365 d) + 2, then max(16 d, 6 half-lives) capped at
+  // 600 d before that edge — so the tile and the screen count the same doses (was max(16 d, 6 × t½)
+  // from Now: 1.6 % short).
+  const lookbackDays = 365 + 2 + Math.min(600, Math.max(PAST_DAYS + 2, Math.ceil(6 * entry.hours / 24)));
   let scanStart = now - lookbackDays * DAY_MS;
   if (p.start_date) {
     const sd = new Date(p.start_date + 'T00:00:00').getTime();
     if (isFinite(sd) && sd > scanStart) scanStart = sd;
   }
   const scanStartDay = new Date(scanStart); scanStartDay.setHours(0, 0, 0, 0);
-  const snap = (ts) => start + Math.round((ts - start) / stepMs) * stepMs;
+  void stepMs; // DV-068: no snap onto the 6 h grid any more
   const doses = [];
   // A-101b: the old 24 h step visited a 25 h fall-back day twice (double dose); the reference
   // now steps by calendar day too (__tests__/curveDstDoses.test.js proves the bug and the fix).
   for (let i = 0; ; i++) {
     const day = new Date(scanStartDay.getFullYear(), scanStartDay.getMonth(), scanStartDay.getDate() + i);
     if (day.getTime() > end) break;
-    const cnt = expectedDosesOn(p, day);
-    const slots = DOSE_SLOTS[cnt] || DOSE_SLOTS[4];
-    for (let k = 0; k < cnt; k++) {
-      const dd = new Date(day); dd.setHours(slots[k % slots.length], 0, 0, 0);
-      doses.push(snap(dd.getTime()));
-    }
+    for (const ts of ownDoseMoments(p, day)) doses.push(ts);
   }
   let nowLevel = 0;
   for (const d of doses) if (d <= now) nowLevel += doseMg * amountFraction(entry, (now - d) / 3600000);

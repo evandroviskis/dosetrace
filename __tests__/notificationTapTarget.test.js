@@ -72,3 +72,23 @@ test('the vial alert carries its protocol; Today, Protocols and Progress act on 
   assert.match(calc, /focus !== 'weighin'/);
   assert.match(read('screens/ProgressScreen.js'), /route\.params\.nonce/);
 });
+
+// A-163 TM-13 (iPhone simulator 2026-10-22): a tap that LAUNCHED the app on iOS stayed on Today.
+// expo-notifications on iOS sends notification.date in SECONDS (EXNotificationSerializer:
+// timeIntervalSince1970); Android sends milliseconds. App.js compared it with Date.now() as if it
+// were milliseconds, so every iOS launch tap looked 55 years old and was dropped as stale.
+test('a launch tap is stale only when really older than the limit, with iOS seconds or Android ms', () => {
+  const { launchTapStale } = require('../lib/notificationPlan');
+  const H = 3600 * 1000, MAX = 12 * H;
+  const at = (date) => ({ notification: { date, request: { identifier: 'x', content: { data: { type: 'team_message', id: 'm1' } } } } });
+  assert.equal(launchTapStale(at(NOW / 1000 - 5), NOW, MAX), false, 'iOS: a tap 5 s ago (seconds) is fresh');
+  assert.equal(launchTapStale(at(NOW - 5000), NOW, MAX), false, 'Android: a tap 5 s ago (ms) is fresh');
+  assert.equal(launchTapStale(at((NOW - 13 * H) / 1000), NOW, MAX), true, 'iOS: 13 h old is stale');
+  assert.equal(launchTapStale(at(NOW - 13 * H), NOW, MAX), true, 'Android: 13 h old is stale');
+  assert.equal(launchTapStale(at((NOW - 11 * H) / 1000 + 0.25), NOW, MAX), false, 'iOS fractional seconds, 11 h old');
+  assert.equal(launchTapStale(at(undefined), NOW, MAX), false, 'no date: routed');
+  assert.equal(launchTapStale(at(NOW / 1000), NOW, 0), false, 'the running listener (no limit) is never stale');
+  const app = read('App.js');
+  assert.match(app, /if \(launchTapStale\(response, Date\.now\(\), maxAgeMs\)\) return true;/, 'App.js routeTap uses the unit-safe check');
+  assert.doesNotMatch(app, /Date\.now\(\) - at > maxAgeMs/, 'no raw ms comparison with the notification date');
+});

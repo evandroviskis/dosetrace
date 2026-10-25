@@ -36,6 +36,7 @@ import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { hasPremium } from '../../lib/entitlement';
+import { usePremiumUpdates } from '../../lib/usePremium';
 import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
 import { profileBodyInputs } from '../../lib/bodyProfile';
 import { activitySource, activityKeyForMultiplier, legacyActivity } from '../../lib/activityLevels';
@@ -53,6 +54,7 @@ import {
 } from '../../lib/energyCalc';
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
+import { createScreenSave } from '../../lib/calcInputsSync';
 import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,7 +64,7 @@ import { localISO } from '../../lib/localDate';
 import { createDebouncedSave } from '../../lib/debouncedSave';
 import {
   getFoodLogsSince,
-  getRealityChecks, upsertRealityCheck, clearRealityChecks,
+  getRealityChecks, upsertRealityCheck,
   getCalcSnapshots, upsertCalcSnapshot, correctCalcSnapshot, deleteCalcSnapshot,
   getCalcTarget, upsertCalcTarget, clearCalcTarget,
 } from '../../lib/database';
@@ -213,8 +215,18 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [bfMsg, setBfMsg] = useState(false);
 
   const loadedRef = useRef(false);
+  // DV-010: the inputs as this screen loaded / last SAVED them (lib/calcInputsSync createScreenSave).
+  const screenSave = useRef(null);
+  if (!screenSave.current) screenSave.current = createScreenSave(saveCalcInputs);
   const userIdRef = useRef(null);
   const migratedRef = useRef(false); // legacy metadata->table migration ran this session
+  // A-164: a Premium change made elsewhere applies while open (the free week follows it too).
+  usePremiumUpdates((pro) => {
+    setPremium(pro);
+    // Not before load() knows the user: loadFoodAccess(null) would lock the free week (Gate B review).
+    if (!userIdRef.current) return;
+    loadFoodAccess(userIdRef.current).then((r) => setRcFree(!!r.access.canLog)).catch(() => {});
+  });
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -325,6 +337,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       if (saved.goal) setGoal(saved.goal);
       if (saved.waist != null) setWaist(savedFieldText(saved.waist, language));
     }
+    // DV-010 (Gate B 1.3.1 item 5): what this screen shows; its saves send only the keys edited here.
+    screenSave.current.loaded(saved);
     loadedRef.current = true;
     setLoaded(true);
   }
@@ -383,7 +397,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // less than 0.9 s before the screen goes away (back, or a fold / unfold moving it) is
   // flushed on unmount and in the screen's beforeLeave, never dropped (S-26 BK-10).
   const inputsSave = useRef(null);
-  if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => saveCalcInputs(payload).then(calcChanged), 900); // synced table + user_metadata mirror
+  // DV-010: each save is compared with what the screen loaded / last saved (another phone's values
+  // pulled while this screen is open are never sent back as this phone's edit).
+  if (!inputsSave.current) inputsSave.current = createDebouncedSave((payload) => screenSave.current.save(payload).then(calcChanged), 900); // synced table + user_metadata mirror
   useEffect(() => {
     if (!loadedRef.current) return;
     // oneCard marks a payload saved by this version (PO-13: a weight + body fat payload
@@ -934,10 +950,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     });
   }
 
-  // Stop the reality check entirely (founder-requested, one easy-to-reach button):
-  // confirm in a DoseTrace sheet, then clear the open check-in AND the saved numbers,
-  // and cancel both the weigh-in reminder and the daily food-log reminder. Logged meals
-  // and weigh-ins are KEPT. Nothing is cleared before the confirm.
+  // Stop the reality check (founder-requested, one easy-to-reach button): confirm in a
+  // DoseTrace sheet, then end the OPEN check only and cancel both the weigh-in reminder and
+  // the daily food-log reminder. AD-91 / DV-004: earlier results, logged meals and weigh-ins
+  // are KEPT (Stop never touches reality_checks). Nothing changes before the confirm.
   function stopRealityCheck() {
     setConfirm({
       title: t('cal_rc_stop_title'),
@@ -945,9 +961,19 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         { label: t('cal_rc_stop_confirm'), kind: 'danger', onPress: async () => {
-          setRcStart(null); setRealityLog([]);
+          const stoppedStart = rcStart ? String(rcStart.date).slice(0, 10) : null;
+          setRcStart(null);
           await clearRealityStart();
-          if (userIdRef.current) { clearRealityChecks(userIdRef.current); requestSync?.(); }
+          // The stopped check's typed calorie average goes with it (it is keyed by the start date, so a
+          // new check started on that date would reuse it as its intake). Only that entry: result
+          // sources and the rest of the payload stay (merge, never clobber).
+          if (stoppedStart) {
+            const sameStart = (v) => !!(v && v.rcTypedKcal && String(v.rcTypedKcal.start).slice(0, 10) === stoppedStart);
+            const clearTyped = typedIntakePatch(stoppedStart, null);
+            setRcInputs(prev => (sameStart(prev) ? mergeCalcInputs(prev, clearTyped) : prev));
+            const saved = await getCalcInputs().catch(() => null);
+            if (sameStart(saved)) await saveCalcInputs(clearTyped).catch(() => {});
+          }
           calcChanged();
           syncAllNotifications().catch(() => {});
         } },
@@ -1476,7 +1502,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             </TouchableOpacity>
           ) : null}
           {howRow}
-          {(rcStart || realityLog.length > 0) ? stopLink : null}
+          {rcStart ? stopLink : null}
         </>
       ) : rcStart && !checkSaved ? (
         // Part 8: in progress — no fold to open; Start over / Stop always in view.
@@ -1542,7 +1568,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <TouchableOpacity style={s.btnO} onPress={openRcStart} activeOpacity={0.75} accessibilityRole="button">
             <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
           </TouchableOpacity>
-          {stopLink}
+          {/* AD-91: Stop only while a check is open. A check open yet counted as saved (checkSaved)
+              shows this view, so it keeps its Stop; a finished result with nothing running has none. */}
+          {rcStart ? stopLink : null}
         </>
       ) : (
         // Part 9: not run yet — the row opens the start sheet.

@@ -23,6 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../lib/supabase';
+import { clearAnalyticsQueue, noteAnalyticsChoice } from '../lib/analytics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText, storeKey } from '../lib/storeText';
 import { formatDate, decimalText, unitText } from '../lib/localeFormat';
@@ -37,6 +38,7 @@ import {
   getLogsSince, getActiveVials as getLocalVials,
 } from '../lib/database';
 import { hasPremium, getBillingStore } from '../lib/entitlement';
+import { usePremiumUpdates } from '../lib/usePremium';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
@@ -60,6 +62,10 @@ import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
 import { protocolDisplayName } from '../lib/protocolName';
+import { hasAIConsent, grantAIConsent, revokeAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
+import { createAIUseSwitch } from '../lib/aiUseSwitch';
+import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages';
+import { useTeamMessages } from '../lib/useTeamMessages';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
 // the report is made from the rows already on the phone (no scan from a half-synced phone). The
@@ -206,11 +212,18 @@ export default function SettingsScreen({ navigation }) {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [premium, setPremium] = useState(false);
+  // A-164: a grant/revoke made elsewhere updates the badge and the upgrade card while open.
+  usePremiumUpdates(setPremium);
   // Which store bills the Premium (undefined = not answered yet), for the delete sheet (3 C).
   const [billingStore, setBillingStore] = useState(undefined);
   const billingLoad = useRef(null);
   const deleteOpening = useRef(false);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+  const analyticsSaved = useRef(true); // DV-008: the value the account holds (a failed tap reverts to it)
+  // DV-007 = A: the "AI use" switch shows this account's AI consent (on this phone, per account).
+  const [aiUseOn, setAiUseOn] = useState(false);
+  const [aiUse] = useState(createAIUseSwitch);
+  const savingProfile = useRef(false); // DV-008: Edit profile Save in flight (a double tap sends one save)
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   // Profile fields
@@ -328,9 +341,14 @@ export default function SettingsScreen({ navigation }) {
   const [reminderBlocks, setReminderBlocks] = useState(0);
   // A-112 SP-1: Android's "Make sure your reminders arrive" row state (block / N of M ready / all set).
   const [setupRow, setSetupRow] = useState(null);
+  // A-163 TM-17: "Team messages" under Support only after the account received a message.
+  const teamList = useTeamMessages(user && user.id);
+  const teamRow = settingsRow({ list: teamList, pending: {} });
+  const groupSum = (g) => t(g.key === 'support' && teamRow ? 'settings_sum_support_msgs' : g.sumKey);
   useFocusEffect(
     useCallback(() => {
       fetchUser();
+      teamMessages().refresh().catch(() => {}); // A-163: the row follows the server list
       readReminderHealth().then((h) => {
         setReminderBlocks(blockingCount(reminderChecks(h), scheduleState(h)));
         setSetupRow({ ...setupRowState(h), nextAtMs: h.next ? h.next.atMs : null });
@@ -354,10 +372,13 @@ export default function SettingsScreen({ navigation }) {
     bl.then(setBillingStore, () => setBillingStore(null));
     const user = await getCachedUser();
     setUser(user);
+    aiUse.load(aiUseDeps()); // per account: signed out or another account → OFF
     // Real subscription status (non-throwing; defaults to false on failure)
     hasPremium().then(setPremium).catch(() => setPremium(false));
     if (user) {
+      noteAnalyticsChoice(user.id, user.user_metadata?.analytics_opt_in !== false); // the background check (lib/analytics)
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
+      analyticsSaved.current = user.user_metadata?.analytics_opt_in !== false;
       setDoseReminders(user.user_metadata?.dose_reminders !== false);
       setCheckinReminders(user.user_metadata?.checkin_reminders !== false);
       setFoodReminders(user.user_metadata?.food_reminders !== false);
@@ -380,6 +401,23 @@ export default function SettingsScreen({ navigation }) {
       setActivityLevel(activitySourceKey(user.user_metadata, await getCalcInputs().catch(() => null)));
       setHasProvider(user.user_metadata?.has_provider || '');
     }
+  }
+
+  // DV-007 = A (lib/aiUseSwitch): OFF withdraws at once; ON asks with the AI features' own sheet.
+  function aiUseDeps() {
+    return {
+      t,
+      has: hasAIConsent,
+      grant: grantAIConsent,
+      revoke: revokeAIConsent,
+      setOn: setAiUseOn,
+      showSheet: setSheet,
+      openPrivacy: () => Linking.openURL(AI_PRIVACY_URL).catch(() => {}),
+    };
+  }
+
+  function toggleAIUse(val) {
+    aiUse.toggle(val, aiUseDeps());
   }
 
   async function toggleNotificationPref(key, val, setter) {
@@ -424,7 +462,24 @@ export default function SettingsScreen({ navigation }) {
 
   async function toggleAnalytics(val) {
     setAnalyticsEnabled(val);
-    await supabase.auth.updateUser({ data: { analytics_opt_in: val } });
+    // Council regulatory review (1.3.1): switching off clears the background queue and remembers
+    // the opt-out on this phone at once, started before the save and finished before this returns
+    // (a refused save keeps the intent: nothing waiting is sent; the next foreground event reads
+    // the account's own choice again).
+    const stopQueue = !val ? Promise.all([clearAnalyticsQueue(), noteAnalyticsChoice(user && user.id, false)]).catch(() => {}) : null;
+    // DV-008 / DL-56: a refused save (offline) must not LOOK saved: revert to what the account
+    // holds (not !val: two quick failing taps would end on a value never stored) and say so.
+    // Only its own key is written (merge).
+    let error = null;
+    try { ({ error } = await supabase.auth.updateUser({ data: { analytics_opt_in: val } })); } catch (e) { error = e; }
+    if (error) {
+      setAnalyticsEnabled(analyticsSaved.current);
+      errorSheet(friendlyError(error, t, 'error_save_failed'));
+    } else {
+      analyticsSaved.current = val;
+      if (val) await noteAnalyticsChoice(user && user.id, true);
+    }
+    if (stopQueue) await stopQueue;
   }
 
   async function saveProfile() {
@@ -444,8 +499,12 @@ export default function SettingsScreen({ navigation }) {
       setEditSheet({ icon: 'warning', title: t('profile_required_legend').replace(/^\*\s*/, ''), body: missing.join('\n'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
+    if (savingProfile.current) return; // a double tap on Save sends one save
+    savingProfile.current = true;
     try {
-      await supabase.auth.updateUser({
+      // DV-008 / DL-56: updateUser RESOLVES { error } when the save is refused (offline): that
+      // is a failure too — Edit profile stays open with the typed values and the error sheet shows.
+      const res = await supabase.auth.updateUser({
         data: {
           display_name: displayName.trim() || null,
           gender: gender || null,
@@ -462,11 +521,14 @@ export default function SettingsScreen({ navigation }) {
           has_provider: hasProvider || null,
         },
       });
+      if (res && res.error) throw res.error;
       setShowCountryPicker(false);
       setShowEditProfile(false);
       fetchUser();
     } catch (e) {
       setEditSheet({ icon: 'warning', title: t('error'), body: friendlyError(e, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    } finally {
+      savingProfile.current = false;
     }
   }
 
@@ -976,6 +1038,20 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={toggleAnalytics}
           />
         </View>
+        <View style={s.row}>
+          <View style={s.rowLeft}>
+            <FeatureIcon name="ai_spark" size={28} color={colors.text} />
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.rowLabel}>{t('settings_ai_use')}</Text>
+              <Text style={s.rowSub}>{t('settings_ai_use_sub')}</Text>
+            </View>
+          </View>
+          <GradSwitch
+            value={aiUseOn}
+            onValueChange={toggleAIUse}
+            accessibilityLabel={t('settings_ai_use')}
+          />
+        </View>
         <TouchableOpacity
           style={s.row}
           onPress={handleAdherenceReport}
@@ -1011,6 +1087,18 @@ export default function SettingsScreen({ navigation }) {
   function renderSupportBody() {
     return (
       <>
+        {teamRow ? (
+          <TouchableOpacity style={s.row} onPress={() => navigation.navigate('TeamMessages')} accessibilityRole="button">
+            <View style={s.rowLeft}>
+              <FeatureIcon name="mail" size={28} color={colors.text} />
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={s.rowLabel}>{t('settings_team_messages')}</Text>
+                <Text style={s.rowSub}>{settingsRowLine(teamRow, Date.now(), t, language)}</Text>
+              </View>
+            </View>
+            <RowChevron color={colors.tick} />
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="help" size={28} color={colors.text} />
@@ -1020,7 +1108,8 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity style={s.row} onPress={handleContactSupport}>
           <View style={s.rowLeft}>
-            <FeatureIcon name="mail" size={28} color={colors.text} />
+            {/* A-163 picture: the envelope is Team messages; Contact us is the speech bubble */}
+            <FeatureIcon name="chat" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_contact')}</Text>
           </View>
           <RowChevron color={colors.tick} />
@@ -1118,7 +1207,7 @@ export default function SettingsScreen({ navigation }) {
         >
           <View style={s.setHeadText}>
             <Text style={s.setTitle}>{t(g.labelKey)}</Text>
-            <Text style={s.setSum}>{t(g.sumKey)}</Text>
+            <Text style={s.setSum}>{groupSum(g)}</Text>
           </View>
           <View style={s.setChev}>
             <GroupChevron dir={open ? 'up' : 'down'} color={colors.ink} />
@@ -1207,7 +1296,7 @@ export default function SettingsScreen({ navigation }) {
                 >
                   <View style={s.setHeadText}>
                     <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
-                    <Text style={s.setSum} numberOfLines={2}>{t(g.sumKey)}</Text>
+                    <Text style={s.setSum} numberOfLines={2}>{groupSum(g)}</Text>
                   </View>
                   <RowChevron color={colors.tick} />
                 </TouchableOpacity>

@@ -155,6 +155,9 @@ Deno.serve(async (req) => {
       // Per-user reminder-send ledger (server push); cascades too, listed for the
       // same provable-erasure reason. Tolerated if the table doesn't exist yet.
       'notification_sends',
+      // A-163 messages from the DoseTrace team; cascades too (user_id → auth.users), listed
+      // for the same provable-erasure reason. Tolerated if the table doesn't exist yet.
+      'team_messages',
     ];
     // A-119: the account's devices (which one is active, each one's last send) are removed AFTER the
     // auth user (below): until then the active-device guard keeps refusing a replaced phone (Gate B).

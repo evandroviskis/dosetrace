@@ -108,8 +108,12 @@ test('BK-10 (F2): unfolding pops back to the tabs instead of pushing a second co
 });
 
 test('F10: a real sign-out clears every open right-page item', () => {
+  // The wipe steps live in lib/signedOut (runWipeSteps) and lib/accountGuard (the cross-account
+  // discard, DV-242 in 1.3.1); App hands both the function.
   const app = readSrc('App.js');
-  assert.match(app, /resetAllSelections\(\)/);
+  assert.match(app, /resetAllSelections, \/\/ S-26: the next account starts with no open right-page items/);
+  assert.match(readSrc('lib/signedOut.js'), /d\.resetAllSelections/);
+  assert.match(readSrc('lib/accountGuard.js'), /d\.resetAllSelections/);
 });
 
 // A-161 (founder 2026-10-22, on the Fold): the open Fold is nearly square both ways, so it shows two
@@ -145,10 +149,11 @@ for (const [file, prop] of [['screens/LogScreen.js', 'embedded'], ['screens/Prog
 }
 
 test('BK-14: a real sign-out also clears every kept draft (the next account never sees them)', () => {
+  // Same wipe steps as F10 (lib/signedOut runWipeSteps; DV-242 lib/accountGuard discard).
   const app = readSrc('App.js');
-  const i = app.indexOf('resetAllSelections();');
-  assert.ok(i > 0);
-  assert.match(app.slice(i - 400, i + 200), /clearAllDrafts\(\)/);
+  assert.match(app, /clearAllDrafts, \/\/ S-26 BK-14: typed-but-unsaved drafts stay with their account/);
+  assert.match(readSrc('lib/signedOut.js'), /d\.clearAllDrafts/);
+  assert.match(readSrc('lib/accountGuard.js'), /d\.clearAllDrafts/);
 });
 
 test('A-161: useBook no longer reads the screen posture (the old BK-13 rule is gone, not kept as a fallback)', () => {
