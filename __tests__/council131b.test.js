@@ -123,8 +123,8 @@ const PARA = {
   it: 'Messaggi dal team di DoseTrace. Possiamo inviare al tuo account un breve messaggio sull\'account o sull\'assistenza (per esempio, che il tuo accesso Premium è stato attivato o che un problema che ci hai segnalato è stato risolto). Arriva come notifica, a meno che le notifiche siano disattivate o la Modalità silenziosa sia attiva, e compare anche nell\'app, in Impostazioni › Supporto › Messaggi del team. Non usiamo mai questi messaggi per dare indicazioni su salute, dosi o trattamenti. I messaggi vengono conservati con il tuo account e cancellati quando elimini l\'account; registriamo anche quando è stato inviato ciascun messaggio, a quanti dispositivi e quando l\'hai letto. Per scrivere il titolo della notifica nella tua lingua, l\'app salva con il tuo account la lingua scelta.',
 };
 const DATE = {
-  en: 'Last updated: October 22, 2026', es: 'Última actualización: 22 de octubre de 2026', pt: 'Última atualização: 22 de outubro de 2026',
-  fr: 'Dernière mise à jour : 22 octobre 2026', de: 'Zuletzt aktualisiert: 22. Oktober 2026', it: 'Ultimo aggiornamento: 22 ottobre 2026',
+  en: 'Last updated: October 25, 2026', es: 'Última actualización: 25 de octubre de 2026', pt: 'Última atualização: 25 de outubro de 2026',
+  fr: 'Dernière mise à jour : 25 octobre 2026', de: 'Zuletzt aktualisiert: 25. Oktober 2026', it: 'Ultimo aggiornamento: 25 ottobre 2026',
 };
 const section = (body, n) => {
   const parts = body.split('\n\n');
@@ -151,11 +151,11 @@ test('council 4: section 4 of the in-app policy ends with the approved team-mess
   }
 });
 
-test('council 4: "Last updated" is October 22, 2026 in each language\'s own format (app and the website copies)', () => {
+test('council 4: "Last updated" moves with each change, now October 25, 2026 (A-183), in each language\'s own format (app and the website copies)', () => {
   const { translations: tr } = require('../i18n/translations');
   for (const l of LANGS) assert.equal(tr[l].settings_privacy_body.split('\n\n')[1], DATE[l], l);
-  assert.match(read('docs/legal/privacy-policy-2026-10.md'), /^Last updated: October 22, 2026$/m);
-  assert.match(read('docs/legal/privacy-policy-2026-10.pt.md'), /^Última atualização: 22 de outubro de 2026$/m);
+  assert.match(read('docs/legal/privacy-policy-2026-10.md'), /^Last updated: October 25, 2026$/m);
+  assert.match(read('docs/legal/privacy-policy-2026-10.pt.md'), /^Última atualização: 25 de outubro de 2026$/m);
 });
 
 test('council 4: the paragraph names the app\'s real Settings › Support › Team messages path and Silent mode label', () => {

@@ -1,6 +1,6 @@
 # DoseTrace — Privacy Policy
 
-Last updated: October 22, 2026
+Last updated: October 25, 2026
 
 Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. This policy explains what information the app handles, where it goes, and what you can do about it. DoseTrace is a personal journal and a calculator. It does not give medical advice.
 
@@ -26,7 +26,7 @@ Only to run DoseTrace for you: show your journal, calculate your numbers, schedu
 
 Dose, vial, food-log, and check-in reminders are scheduled on your phone. To keep reminders arriving on Android even when you do not open the app (Android can pause apps that are not opened), our server sends your Android phone one silent message a day. It contains no text and no health data; it only asks the app to refresh the reminders already on your phone.
 
-To deliver notifications we store a device notification token with your account. Notifications pass through **Expo** (our push service), **Google Firebase Cloud Messaging** on Android and **Apple Push Notification service** on iPhone. You can turn reminders off, or use Silent mode, in Settings at any time.
+To deliver notifications we store a device notification token with your account. Notifications pass through **Expo** (our push service), **Google Firebase Cloud Messaging** on Android and **Apple Push Notification service** on iPhone. You can turn reminders off, or use Silent mode, in Settings at any time. App updates that fix problems are delivered by **Expo**; to send them, the app shares the platform, the app version and a random installation ID, never your account or health data.
 
 **Messages from the DoseTrace team.** We may send your account a short message about your account or support (for example, that your Premium access was unlocked or that a problem you reported was fixed). It arrives as a notification, unless notifications are off or Silent mode is on, and it is also shown inside the app, in Settings › Support › Team messages. We never use these messages for health, dose, or treatment advice. The messages are stored with your account and deleted when you delete it; we also record when each one was sent, to how many devices, and when you read it. To write the notification title in your language, the app saves your app language with your account. Messages we write to you may be translated by our AI provider.
 
