@@ -243,3 +243,19 @@ test('A-177 Gate B: the A-123 case stays — a 09:00 Missed (before the time mov
   const taken = row(1, 'Taken', '2026-10-16T13:30:00.000Z'); // 09:30 New York
   assert.deepEqual(falseMissedRows([p], [odd, taken], NOW), []);
 });
+
+// Council 2026-10-25 (backend + QA): the cleanup assumes every Missed row was written by the
+// app's own scan — the user can never pick "Missed" by hand (the Missed editor offers Taken /
+// Skipped only; Undo restores a flipped row to the Missed the scan wrote). If a screen ever lets
+// the user choose Missed, the cleanup must learn to tell the two apart first.
+test('A-177 guard: only the missed-dose scan writes a Missed outcome', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const root = path.join(__dirname, '..');
+  const files = ['App.js', ...['lib', 'screens', 'components', 'screens/components'].flatMap((d) =>
+    fs.readdirSync(path.join(root, d)).filter((f) => f.endsWith('.js')).map((f) => `${d}/${f}`))];
+  const writers = files.filter((f) => /outcome:\s*'Missed'/.test(fs.readFileSync(path.join(root, f), 'utf8')));
+  assert.deepEqual(writers, ['lib/doseActions.js']);
+  // the only other way back to Missed is Undo of a flip, which restores the scan's own row
+  assert.match(fs.readFileSync(path.join(root, 'lib', 'markTaken.js'), 'utf8'), /restoreOutcome: u\.flippedFrom === 'Skipped' \? 'Skipped' : 'Missed'/);
+});

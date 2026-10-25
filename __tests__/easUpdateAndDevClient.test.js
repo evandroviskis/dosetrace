@@ -43,7 +43,7 @@ test('EAS Update: store/TestFlight builds listen on "production", test APKs on "
   assert.doesNotMatch(read('package.json'), /eas update/, 'no script publishes an update by itself');
 });
 
-test('Development client (option B): same app id as the real app, so reminders and Google sign-in work unchanged', () => {
+test('Development client (option B): same app id as the real app (Google sign-in on it is UNVERIFIED: needs the EAS upload key SHA-1 on an Android OAuth client)', () => {
   assert.equal(eas.build.development.developmentClient, true);
   assert.equal(eas.build.development.distribution, 'internal');
   assert.equal(eas.build.development.android?.buildType, 'apk');
