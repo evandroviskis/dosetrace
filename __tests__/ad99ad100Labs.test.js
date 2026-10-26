@@ -119,12 +119,14 @@ test('LB-5: the line sits right under the "Diário de exames" title (phone journ
 
 // ── LB-6: the number stays current ────────────────────────────────────────────────────────────
 test('LB-6: the count is asked again on focus, when the lab journal opens and after every lab scan answer', () => {
-  assert.match(sliceBlock(BODY, 'async function fetchReports('), /refreshScanUsage\(\);/);
-  assert.match(BODY, /useEffect\(\(\) => \{ if \(section === 'labs'\) refreshScanUsage\(\); \}, \[section\]\);/, 'the phone lab journal opening');
+  // AD-99 review: on focus only while the journal is shown, and when it comes into view (phone or
+  // Fold) — behaviour in __tests__/ad99CountLine.test.js.
+  assert.match(BODY, /fetchReports\(\);\s*if \(usageShownRef\.current\) refreshScanUsage\(\);/, 'on focus');
+  assert.match(BODY, /if \(usageShown\) refreshScanUsage\(\);\s*\}, \[usageShown\]\);/, 'the lab journal opening');
   const ex = sliceBlock(BODY, 'async function extractWithClaude(');
   assert.match(ex, /finally \{\s*refreshScanUsage\(\);\s*\}/, 'success, refusal or failure: asked again');
   const r = sliceBlock(BODY, 'function refreshScanUsage(');
-  assert.match(r, /fetchScanUsage\(\(name, opts\) => supabase\.functions\.invoke\(name, opts\)\)\.then\(setScanUsage\)/);
+  assert.match(r, /fetchScanUsage\(\(name, opts\) => supabase\.functions\.invoke\(name, opts\)\)\.then\(\(u\) => \{ if \(n === usageReq\.current\) setScanUsage\(u\); \}\)/);
 });
 
 // ── LB-7: words in all six languages ──────────────────────────────────────────────────────────
@@ -284,7 +286,9 @@ test('LB-12: the labels move to the new date (joined with any there); the old da
   assert.deepEqual(moveReportTags(tags, '2026-10-20', '2026-10-10', false), tags, 'no labels on the old date: unchanged');
   assert.deepEqual(tags, { '2026-10-19': ['Check-up'], '2026-08-02': ['baseline'] }, 'never mutates');
   const mv = sliceBlock(BODY, 'async function moveReportDate(');
-  assert.match(mv, /saveReportTagOp\(\(tags\) => moveReportTags\(tags, from, toDate, keepFrom\), \(\) => beforeTags\)/, 'merged on the fresh server value (DV-006 path); a failed save says so');
+  // AD-100 review: through moveLabels (one retry; a failure keeps the labels with the moved test —
+  // behaviour in __tests__/ad100LabelMoveFail.test.js).
+  assert.match(mv, /await moveLabels\(\{ from, to: toDate, keepFrom, labels: labels\.slice\(\) \}\);/, 'merged on the fresh server value (DV-006 path)');
 });
 
 // ── LB-13 / LB-14: the screen after Save ──────────────────────────────────────────────────────

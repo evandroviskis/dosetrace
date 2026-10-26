@@ -54,8 +54,8 @@ import { pluralKey } from '../lib/plural';
 import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
-import { fetchScanUsage, scanUsageLine } from '../lib/scanUsage';
-import { movedCardKey, moveReportTags } from '../lib/labDateMove';
+import { fetchScanUsage, scanUsageLine, scanUsageShown } from '../lib/scanUsage';
+import { movedCardKey, applyLabelMoves } from '../lib/labDateMove';
 
 // Small monoline controls of the Lab test journal (prototype CHEV / BI.star / BI.pen,
 // 24-grid, 1.8 stroke). Colors always come from the theme.
@@ -175,7 +175,8 @@ export default function BodyScreen({ navigation, route }) {
   const [uploading, setUploading] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showSerumPreview, setShowSerumPreview] = useState(false);
-  const [premium, setPremium] = useState(false);
+  // null until hasPremium answers (AD-99 review: no scan line is drawn while it is unknown).
+  const [premium, setPremium] = useState(null);
   usePremiumUpdates(setPremium); // A-164: a Premium change made elsewhere applies while open
   // DoseTrace sheets (MB-12, MB-13, MB-15, MB-25): `sheet` over the screen; `sourceChoice` the
   // bottom action sheet; `valueSheet` over Edit value; `exportSheet` over Choose what to export.
@@ -212,6 +213,10 @@ export default function BodyScreen({ navigation, route }) {
   const [scanUsage, setScanUsage] = useState(null);
   // AD-100: "Change this test's date" — { card, date } while its window is open.
   const [dateMove, setDateMove] = useState(null);
+  // AD-100 review: label moves whose save failed twice ({ from, to, keepFrom, labels },
+  // lib/labDateMove applyLabelMoves) — shown with the moved test and sent with the next label save
+  // and the next time My Body opens; never undone onto a date that may have no test.
+  const pendingLabelMoves = useRef([]);
 
   const q = search.trim().toLowerCase();
 
@@ -284,6 +289,10 @@ export default function BodyScreen({ navigation, route }) {
   const bookReport = rightPage?.type === 'report' ? buildReport(rows, rightPage.key) : null;
   const bookMarker = rightPage?.type === 'marker' ? allMarkerSeries.find(x => x.key === rightPage.key) || null : null;
   const bookVaccine = rightPage?.type === 'vaccine' ? vaccineList.find(v => String(v.id) === rightPage.key) || null : null;
+  // AD-99 review: the scan count line is on screen (the phone's lab journal, or the Fold's right
+  // page showing it) — the count is asked only then.
+  const usageShown = scanUsageShown({ book, section, rightPage: rightPage?.type });
+  const usageShownRef = useRef(usageShown);
   function selectReport(key) { if (key !== rightPage?.id) setTagDraft(''); select(key); }
   function selectMarker(key) { select('marker:' + key); }
   // BK-18: a vaccine tapped in the journal on the right page opens its read page there.
@@ -352,11 +361,11 @@ export default function BodyScreen({ navigation, route }) {
     useCallback(() => {
       Analytics.viewed('body');
       fetchReports();
+      if (usageShownRef.current) refreshScanUsage();
     }, [])
   );
 
   async function fetchReports() {
-    refreshScanUsage();
     const pro = await hasPremium();
     setPremium(pro);
     const user = await getCachedUser();
@@ -370,7 +379,9 @@ export default function BodyScreen({ navigation, route }) {
     try {
       const prefs = await loadLabPrefs();
       setFavorites(prefs.favorites);
-      setReportTags(prefs.tags);
+      setReportTags(applyLabelMoves(prefs.tags, pendingLabelMoves.current));
+      // AD-100 review: a label move not saved yet is sent again (quiet: the person was told once).
+      if (pendingLabelMoves.current.length) saveReportTagOp((tags) => tags, null, true);
     } catch { /* keeps what it shows; read again on the next focus */ }
   }
 
@@ -379,13 +390,22 @@ export default function BodyScreen({ navigation, route }) {
 
   // AD-99 (picture ad99-ad100-labs.html B / P2): how many AI scans this account used this month,
   // asked of the server (extract-bloodwork usage mode, the ai_scan_usage count it enforces). No
-  // answer (offline, an error) → no line. Asked on focus, when the lab journal opens and after a scan.
+  // answer (offline, an error) → no line. Asked on a focus while the journal is shown, when the
+  // journal comes into view and after a scan. AD-99 review: answers can land out of order, so only
+  // the latest request's answer is applied (never an older count).
+  const usageReq = useRef(0);
   function refreshScanUsage() {
-    fetchScanUsage((name, opts) => supabase.functions.invoke(name, opts)).then(setScanUsage);
+    const n = ++usageReq.current;
+    fetchScanUsage((name, opts) => supabase.functions.invoke(name, opts)).then((u) => { if (n === usageReq.current) setScanUsage(u); });
   }
 
-  // The phone's lab journal opening (its tile, the Today alert's deep link) asks again.
-  useEffect(() => { if (section === 'labs') refreshScanUsage(); }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The lab journal coming into view (its tile, the Today alert's deep link, the Fold's right page
+  // going back to it) asks again. On the first render the focus asks.
+  useEffect(() => {
+    if (usageShownRef.current === usageShown) return;
+    usageShownRef.current = usageShown;
+    if (usageShown) refreshScanUsage();
+  }, [usageShown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Starred markers. DV-006 (1.3.2): optimistic on screen; saved in the synced table lab_prefs
   // (offline too) — or, while the cloud table is not there yet, as 1.3.1 did (one operation on the
@@ -403,12 +423,17 @@ export default function BodyScreen({ navigation, route }) {
   // Per-test labels ("baseline", "week 8", …). The user's own categorization, keyed by report
   // date. Never interpreted. DV-006: every label change is one pure operation on the labels object
   // (apply), saved through lib/labPrefs saveLabTags — the one label write (table or, before the cloud
-  // table exists, the fresh user_metadata).
+  // table exists, the fresh user_metadata). A label move not saved yet (AD-100 review) goes first,
+  // so the change applies to the labels as the person sees them.
   async function saveReportTagOp(apply, undo, quiet = false) {
     setReportTags(prev => apply(prev));
-    const r = await saveLabTags(apply);
-    if (r.ok) setReportTags(r.tags);
-    else { if (undo) setReportTags(prev => undo(prev)); if (!quiet) saveFailed(); }
+    const sent = pendingLabelMoves.current.slice();
+    let r;
+    try { r = await saveLabTags((tags) => apply(applyLabelMoves(tags, sent))); } catch { r = { ok: false }; }
+    if (r.ok) {
+      pendingLabelMoves.current = pendingLabelMoves.current.filter(m => !sent.includes(m));
+      setReportTags(applyLabelMoves(r.tags, pendingLabelMoves.current));
+    } else { if (undo) setReportTags(prev => undo(prev)); if (!quiet) saveFailed(); }
   }
   function addReportTag(date) {
     const tag = tagDraft.trim();
@@ -731,7 +756,6 @@ export default function BodyScreen({ navigation, route }) {
     const user = await getCachedUser();
     if (!user) return;
     const from = card.date;
-    const beforeTags = reportTags;
     try {
       moveBiomarkerReport(user.id, from, card.batches, toDate); // one transaction: all values or none
     } catch {
@@ -745,10 +769,31 @@ export default function BodyScreen({ navigation, route }) {
     if (key && detail?.type === 'report' && detail.key === card.key) setDetail({ type: 'report', key });
     if (key && book && sel === card.key) select(key);
     // The labels go with the test; the old day keeps them only while another test is still on it.
-    if ((reportTags[from] || []).length > 0) {
+    const labels = reportTags[from] || [];
+    if (labels.length > 0) {
       const keepFrom = fresh.some(r => r.report_date === from);
-      saveReportTagOp((tags) => moveReportTags(tags, from, toDate, keepFrom), () => beforeTags);
+      await moveLabels({ from, to: toDate, keepFrom, labels: labels.slice() });
     }
+  }
+
+  // AD-100 review: the labels' save is separate from the values' (lib/labPrefs). It is tried once
+  // more; if it still fails the labels are NOT undone onto the old date (it may have no test any
+  // more): they stay with the moved test, are sent again later (pendingLabelMoves), and the message
+  // says the values moved and the labels are not saved yet. The stored labels are never lost.
+  async function moveLabels(move) {
+    setReportTags(prev => applyLabelMoves(prev, [move]));
+    const sent = [...pendingLabelMoves.current, move];
+    const apply = (tags) => applyLabelMoves(tags, sent);
+    const save = async () => { try { return await saveLabTags(apply); } catch { return { ok: false }; } };
+    let r = await save();
+    if (!r.ok) r = await save();
+    if (r.ok) {
+      pendingLabelMoves.current = pendingLabelMoves.current.filter(m => !sent.includes(m));
+      setReportTags(applyLabelMoves(r.tags, pendingLabelMoves.current));
+      return;
+    }
+    pendingLabelMoves.current = [...pendingLabelMoves.current, move];
+    notice({ title: t('blood_date_move_labels_title'), body: t('blood_date_move_labels_body') });
   }
 
   // Open the export picker with everything preselected — the user then chooses

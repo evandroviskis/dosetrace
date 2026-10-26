@@ -10,7 +10,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadFn, read, sliceBlock } = require('./helpers/extractFn');
-const { editMixDate } = require('../lib/vialEdit');
+const { editMixDate, mixDateError } = require('../lib/vialEdit');
 const { boxExpiresOn } = require('../lib/protocolForm');
 
 // A Date whose "now" is fixed (new Date() with no argument); everything else is the real Date.
@@ -31,7 +31,7 @@ function harness() {
   const db = { deactivateVialsByProtocol() {}, insertVial() { return 1; }, updateProtocol() {}, withImmediateTransaction: (fn) => fn() };
   const common = {
     getCachedUser: async () => ({ id: 'user-A' }),
-    editMixDate, boxExpiresOn, t,
+    editMixDate, mixDateError, boxExpiresOn, t,
     startNewVial: (p, mixDate, userId, _db, opts) => { calls.started.push({ p, mixDate, userId, opts }); return 1; },
     ...db,
     afterProtocolChange: async () => {},
@@ -104,6 +104,15 @@ for (const [where, open] of WINDOWS) {
     assert.equal(calls.sheets.length, 0);
   });
 
+  test(`NV-future (${where}) (review): an empty day says the mix date is missing (not "Invalid date"), nothing written`, async () => {
+    const { fn, calls } = open(OCT26);
+    await fn({ month: 9, day: '' });
+    assert.equal(calls.started.length, 0);
+    assert.equal(calls.sheets[0].title, 'vial_edit_day_empty_title');
+    assert.equal(calls.sheets[0].body, 'vial_edit_day_empty_body');
+    assert.equal(calls.closed, 0, 'the window stays open');
+  });
+
   test(`NV-future (${where}): an impossible day keeps the invalid-date message, nothing written`, async () => {
     for (const [month, day] of [[1, '31'], [3, '31']]) {
       const { fn, calls } = open(OCT26);
@@ -128,7 +137,7 @@ test('NV-future: the year-back rule is gone from the app (rebuild = replace)', (
     assert.doesNotMatch(read(f), /toPastDateString/, `${f}: no toPastDateString`);
   }
   for (const [f, header] of [['screens/TodayScreen.js', 'async function createNewVial('], ['screens/ProtocolsScreen.js', 'async function saveNewVial(']]) {
-    assert.match(sliceBlock(read(f), header), /editMixDate\(month, day, null, new Date\(\)\)/, `${f}: the Edit vial rule`);
+    assert.match(sliceBlock(read(f), header), /editMixDate\(month, day, new Date\(\)\)/, `${f}: the Edit vial rule`);
   }
 });
 
@@ -143,7 +152,7 @@ function formSave(now, form = {}) {
   const calls = { protocols: [], vials: [], sheets: [], steps: [], closed: 0, saving: [] };
   const f = { type: 'recon', skipVial: false, vialMonth: 9, vialDay: '26', editingId: null, ...form };
   const fn = loadFn('screens/ProtocolsScreen.js', 'async function saveProtocol(', 'saveProtocol', {
-    Date: now, editMixDate, t,
+    Date: now, editMixDate, mixDateError, t,
     name: 'Tirzepatide', doseStepBlocked: false, startDate: '2026-10-01', todayISO: () => '2026-10-26',
     type: f.type, skipVial: f.skipVial, vialMonth: f.vialMonth, vialDay: f.vialDay, editingId: f.editingId,
     amount: '10', unit: 'mg', dose: '2.5', doseUnit: 'mg', water: '1', language: 'en', intervalDays: 7, goals: [],
@@ -178,7 +187,7 @@ test('NV-form: Nov 5 typed on Oct 26 is refused in the form ("Date in the future
 });
 
 test('NV-form: Feb 31 shows the invalid-date message (never silently Feb 28), nothing written', async () => {
-  for (const [m, d] of [[1, '31'], [3, '31'], [9, '']]) {
+  for (const [m, d] of [[1, '31'], [3, '31']]) {
     const { fn, calls } = formSave(OCT26, { vialMonth: m, vialDay: d });
     await fn();
     assert.deepEqual(calls.protocols, [], `${m}/${d}: no protocol`);
@@ -186,6 +195,16 @@ test('NV-form: Feb 31 shows the invalid-date message (never silently Feb 28), no
     assert.equal(calls.sheets[0].body, 'today_invalid_date');
     assert.deepEqual(calls.steps, [5]);
   }
+});
+
+test('NV-form (review): an empty day says the mix date is missing (not "Invalid date"), nothing written', async () => {
+  const { fn, calls } = formSave(OCT26, { vialMonth: 9, vialDay: '' });
+  await fn();
+  assert.deepEqual(calls.protocols, []);
+  assert.deepEqual(calls.vials, []);
+  assert.equal(calls.sheets[0].title, 'vial_edit_day_empty_title');
+  assert.equal(calls.sheets[0].body, 'vial_edit_day_empty_body');
+  assert.deepEqual(calls.steps, [5]);
 });
 
 test('NV-form: today, an earlier day, and last December in January are saved as the vial mix date', async () => {
@@ -213,7 +232,7 @@ test('NV-form: "not mixed yet" and other types are not asked a mix date (a futur
 test('NV-form: one rule for every typed vial mix date; toPastSupabaseDate is gone; Edit never writes a recon mix date', () => {
   const prot = read('screens/ProtocolsScreen.js');
   assert.doesNotMatch(prot, /toPastSupabaseDate/, 'replaced, not kept');
-  assert.match(sliceBlock(prot, 'function formMixedOn('), /editMixDate\(vialMonth, vialDay, null, new Date\(\)\)/, 'the assistant reads the same date');
+  assert.match(sliceBlock(prot, 'function formMixedOn('), /editMixDate\(vialMonth, vialDay, new Date\(\)\)/, 'the assistant reads the same date');
   assert.match(prot, /\{step === 5 && type === 'recon' && !editingId && \(/, 'the mix-date step is create-only');
   const save = sliceBlock(prot, 'async function saveProtocol(');
   const start = save.indexOf('if (editingId) {');
