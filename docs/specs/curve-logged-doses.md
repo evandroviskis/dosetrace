@@ -15,7 +15,7 @@
 - R4 Time: a dose counts at its exact logged_at, no grid snap; drawing samples the exact instants; Est. level, date estimate and Journey tile use exact times.
 - R5 Plan: after now, the protocol's own slot times (expectedSlotTimesOn, DL-31); fixed 08:00 only without times (DL-77); days stepped by calendar day (A-101b).
 - R6 Open slot (due, no row yet): not in the level now; projected as a planned dose placed at now; drops out once a row closes it; a late Taken counts at its own time.
-  - R6 amendment 2026-10-26 (PK review) — needs the founder's signature: at most ONE open slot a day is projected at now (the latest due one); earlier open slots add nothing until a row closes them (a 4×/day protocol with nothing logged by 19:00 drew 3 doses as one spike at Now). Test: __tests__/curveOpenSlot.test.js "PK review 1 (R6)".
+  - R6 amendment 2026-10-26 (PK review) — signed by the founder 2026-10-26 18:28 EDT ("Assino os checklists da terceira leva e a emenda do R6"): at most ONE open slot a day is projected at now (the latest due one); earlier open slots add nothing until a row closes them (a 4×/day protocol with nothing logged by 19:00 drew 3 doses as one spike at Now). Test: __tests__/curveOpenSlot.test.js "PK review 1 (R6)".
 - R7 Counting by number: planned slots left today = max(0, expected today − today's Taken/Skipped/Missed rows), on the remaining slot times (no double count after an early dose or a zone change).
 - R8 The curve is a pure function of (protocols, versions, logs, now), recomputed on focus and after sync.
 - R9 Taken rows dated after now (a clock that was ahead) and unparseable logged_at are excluded, never throw (SQLite "YYYY-MM-DD HH:MM:SS" parsed).

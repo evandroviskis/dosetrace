@@ -8,7 +8,7 @@
   - while the cloud table does not exist (the migration file is not applied: PGRST205 / 42P01) the app keeps the 1.3.1 path exactly, and nothing else in the sync changes; a lab star or label waiting to be sent counts with the lab values in the "not backed up" texts (no new word).
 - not visual: the screen, its texts and both themes are unchanged (no new string); what changes is where the values are kept and that a star or label made offline is kept instead of refused.
 - code: lib/labPrefsStore.js (rules), lib/labPrefs.js (app wiring; the one read / write API: loadLabPrefs, saveLabStar, saveLabTags), lib/syncCore.js (lab_prefs in TABLES; LATE_TABLES, missingCloudTable, cloudTableReady), lib/syncMappers.js, lib/schema.js, lib/changeSeq.js, lib/database.js (sign-out wipe, local owner), lib/unsentSummary.js, screens/BodyScreen.js, supabase/functions/delete-user/index.ts (list only; it already tolerates a missing table), supabase/migrations/20261026000000_lab_prefs.sql (NOT applied).
-- checklist-signed: pending (founder)
+- checklist-signed: founder 2026-10-26 18:28 EDT ("Assino os checklists da terceira leva e a emenda do R6")
 - committed-to: 1.3.2
 
 ## Acceptance checklist

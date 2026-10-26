@@ -5,7 +5,7 @@
 - registry: AD-99, AD-100 (docs/review/features.md)
 - code: supabase/functions/extract-bloodwork/quota.ts (scanUsageReply), supabase/functions/extract-bloodwork/index.ts (mode 'usage'), lib/scanUsage.js (reading the answer, the line's words), lib/labDateMove.js (the moved test's key, the labels), lib/database.js (moveBiomarkerReport), screens/BodyScreen.js (the line, the button, the window), screens/components/ProtocolParts.js (DTSheet wheel slot), i18n/translations.js (x6).
 - tests: __tests__/ad99ad100Labs.test.js
-- checklist-signed: pending (founder)
+- checklist-signed: founder 2026-10-26 18:28 EDT ("Assino os checklists da terceira leva e a emenda do R6")
 - committed-to: 1.3.2 wave 3
 
 ## What the picture decides (summary)

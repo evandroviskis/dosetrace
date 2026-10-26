@@ -6,7 +6,7 @@
 - never nagging (coordinator 2026-10-26, by the standing rules): "Não permitir" in a system dialog the app itself just showed (the shared AD-88 ask, onboarding "Never miss a dose") is the person's own choice, seen seconds ago — the answer is remembered as seen and the sheet never follows it. Only a later change counts: notifications turned off afterwards in the phone's settings, or still off at a later open after they had been on.
 - no new visual pattern: the DoseTrace sheet (DTSheet: icon in a well circle, title, body, "Agora não" | primary), as Today's other sheets.
 - code: lib/notifBlocked.js (the rule, the sheet, rememberDialogAnswer / askAndRemember), screens/TodayScreen.js (checkNotifBlocked, read with the reminder health), lib/notifications.js askNotificationPermission and screens/OnboardingFlowScreen.js enableNotifications (remember the dialog answer), i18n nb_* ×6.
-- checklist-signed: pending (founder)
+- checklist-signed: founder 2026-10-26 18:28 EDT ("Assino os checklists da terceira leva e a emenda do R6")
 - committed-to: 1.3.2 (founder 2026-10-20, "1.3.2 recommendations accepted")
 
 ## Acceptance checklist
