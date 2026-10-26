@@ -65,7 +65,9 @@ test('the screens pick the singular with pluralKey', () => {
     'screens/FoodChatScreen.js': ['nutri_free_note'],
     'screens/components/FoodLogHero.js': ['nutri_hero_today'],
     'lib/notifications.js': ['notif_morning_due_private'],
-    'screens/TodayScreen.js': ['today_more_later', 'today_vial_new_capacity', 'protocols_vial_days_left'],
+    'screens/TodayScreen.js': ['today_more_later', 'protocols_vial_days_left'],
+    // A-132: the vial window moved to its own component (shared by Today and the protocol page).
+    'screens/components/NewVialPrompt.js': ['today_vial_new_capacity', 'today_new_vial_old'],
     'screens/BodyScreen.js': ['blood_premium_markers', 'blood_imported_body'],
     'screens/ProtocolsScreen.js': ['protocols_vial_days_left', 'protocols_doses_left', 'protocols_doses_capacity', 'protocols_low_supply', 'protocols_history_weeks', 'protocols_history_days'],
     'screens/SettingsScreen.js': ['report_streak_line', 'report_vial_line'],

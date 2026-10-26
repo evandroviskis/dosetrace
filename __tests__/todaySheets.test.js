@@ -66,20 +66,23 @@ test('part 16: site sheet — Injection site, name · time, no handle, Save dimm
 });
 
 test('part 17: the vial-finished pop-up is drawn with Graduated tokens (prototype .scrim / .sheet), same words', () => {
+  // A-132: the window is screens/components/NewVialPrompt.js (Today + the protocol page).
+  const VIALW = read('screens', 'components', 'NewVialPrompt.js');
   for (const k of ['promptOverlay', 'promptCard', 'promptTitle', 'promptProtocolName', 'promptSub', 'promptLabel', 'promptMonthPill', 'promptMonthPillOn', 'promptMonthText', 'promptMonthTextOn', 'promptDayInput', 'promptBtnSecondary', 'promptBtnSecondaryText', 'promptBtnPrimary', 'promptBtnPrimaryText', 'yesterdayPill', 'yesterdayPillText']) {
-    assert.doesNotMatch(style(TODAY, k), /c\.(accent|accentText|accentSoft|card2|card|border|textMuted|text|textFaint)\b/, `${k} still on a legacy token`);
+    assert.doesNotMatch(style(VIALW, k), /c\.(accent|accentText|accentSoft|card2|card|border|textMuted|text|textFaint)\b/, `${k} still on a legacy token`);
   }
-  assert.match(style(TODAY, 'promptOverlay'), /backgroundColor: c\.overlay[^}]*padding: 16/);
-  assert.match(style(TODAY, 'promptCard'), /backgroundColor: c\.raised, borderRadius: 26, padding: 20, gap: 14/);
-  assert.match(style(TODAY, 'promptTitle'), /fontSize: 22, fontWeight: '700'/);
-  assert.match(style(TODAY, 'promptProtocolName'), /fontSize: 17, fontWeight: '600', color: c\.ink/);
-  assert.match(style(TODAY, 'promptSub'), /fontSize: 17[^}]*color: c\.ink2/);
-  assert.match(style(TODAY, 'promptBtnPrimary'), /backgroundColor: c\.act/);
-  assert.match(style(TODAY, 'promptBtnSecondary'), /backgroundColor: c\.well/);
-  assert.match(style(TODAY, 'promptMonthPillOn'), /backgroundColor: c\.raised, borderWidth: 1\.5, borderColor: c\.ink/);
-  assert.match(style(TODAY, 'promptDayInput'), /backgroundColor: c\.raised[^}]*borderRadius: 14[^}]*minHeight: 50/);
+  assert.match(style(VIALW, 'promptOverlay'), /backgroundColor: c\.overlay[^}]*padding: 16/);
+  assert.match(style(VIALW, 'promptCard'), /backgroundColor: c\.raised, borderRadius: 26, padding: 20, gap: 14/);
+  assert.match(style(VIALW, 'promptTitle'), /fontSize: 22, fontWeight: '700'/);
+  assert.match(style(VIALW, 'promptProtocolName'), /fontSize: 17, fontWeight: '600', color: c\.ink/);
+  assert.match(style(VIALW, 'promptSub'), /fontSize: 17[^}]*color: c\.ink2/);
+  assert.match(style(VIALW, 'promptBtnPrimary'), /backgroundColor: c\.act/);
+  assert.match(style(VIALW, 'promptBtnSecondary'), /backgroundColor: c\.well/);
+  assert.match(style(VIALW, 'promptMonthPillOn'), /backgroundColor: c\.raised, borderWidth: 1\.5, borderColor: c\.ink/);
+  assert.match(style(VIALW, 'promptDayInput'), /backgroundColor: c\.raised[^}]*borderRadius: 14[^}]*minHeight: 50/);
   // same words as before
-  for (const k of ['today_vial_done_title', 'today_vial_done_sub', 'today_vial_mix_date', 'today_vial_finished', 'today_vial_add']) assert.match(TODAY, new RegExp(`t\\('${k}'\\)`));
+  assert.deepEqual(require('../lib/newVial').vialPromptKeys('finished'), { title: 'today_vial_done_title', sub: 'today_vial_done_sub', secondary: 'today_vial_finished', primary: 'today_vial_add' });
+  assert.match(VIALW, /t\('today_vial_mix_date'\)/);
   // The capacity line picks its singular or plural form (pluralCounts.test.js).
-  assert.match(TODAY, /t\(pluralKey\('today_vial_new_capacity'/);
+  assert.match(VIALW, /t\(pluralKey\('today_vial_new_capacity'/);
 });

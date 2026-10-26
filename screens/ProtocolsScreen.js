@@ -43,7 +43,7 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol, getVialsForProtocol,
-  setProtocolPlannedEnd,
+  setProtocolPlannedEnd, withImmediateTransaction,
 } from '../lib/database';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -65,7 +65,10 @@ import { supplyState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
+import { frequencyLabelFor, courseState, endDateRange, toPastDateString } from '../lib/schedule';
+import { startNewVial, showsNewVialButton } from '../lib/newVial';
+import { applyVialEdit, showsEditVialButton } from '../lib/vialEdit';
+import NewVialPrompt, { EditVialPrompt } from './components/NewVialPrompt';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
@@ -91,7 +94,7 @@ import { pluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import {
   isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
-  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext,
+  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn,
 } from '../lib/protocolForm';
 
 
@@ -589,8 +592,9 @@ function ProtocolServingHero({ p, t, onRefill }) {
 }
 
 // Vial block on the protocol screen: one cell per dose (remaining in data), doses left,
-// the mix / box date with days left, the supply tags, and New vial for a used RTU vial.
-function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
+// the mix / box date with days left, the supply tags, and New vial (a used RTU vial, or any
+// reconstituted vial — A-132).
+function ProtocolVialBlock({ p, vial, t, onRefillVial, onEditVial }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -644,11 +648,23 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
           )}
         </View>
       )}
-      {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
-        <TouchableOpacity style={s.obtn2} onPress={() => onRefillVial(p.id)} accessibilityRole="button">
-          <FeatureIcon name="repeat" size={18} color={c.ink} />
-          <Text style={s.obtn2Text}>{t('protocols_new_vial')}</Text>
-        </TouchableOpacity>
+      {/* AD-80 (option A): "Edit vial" (no icon) left of "New vial", the same size; alone it takes
+          the full width. A-132 screen 3: "New vial" for reconstituted vials too (any active vial,
+          expired or not); a ready-to-use vial once a dose was used, as before. */}
+      {(showsEditVialButton(p, vial) || showsNewVialButton(p, vial)) && (
+        <View style={s.vbtns}>
+          {showsEditVialButton(p, vial) && (
+            <TouchableOpacity style={[s.obtn2, s.vbtn]} onPress={() => onEditVial(p.id)} accessibilityRole="button">
+              <Text style={s.obtn2Text}>{t('vial_edit_title')}</Text>
+            </TouchableOpacity>
+          )}
+          {showsNewVialButton(p, vial) && (
+            <TouchableOpacity style={[s.obtn2, s.vbtn]} onPress={() => onRefillVial(p.id)} accessibilityRole="button">
+              <FeatureIcon name="repeat" size={18} color={c.ink} />
+              <Text style={s.obtn2Text}>{t('protocols_new_vial')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </View>
     </View>
@@ -761,7 +777,7 @@ export function noteDraftKey(id) {
 // protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
 // A-121 (option A, docs/design/a121-telas/4-*): onEndDate(p) — the "Termina em" row under Schedule & reminders on
 // every ACTIVE protocol (the planned end in the app language's format, or "Sem data"); null = no row.
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null }) {
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -860,7 +876,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
       {notice || null}
 
       {blocks.draw && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} />}
-      {vialShown && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} />}
+      {vialShown && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} onEditVial={onEditVial} />}
       <ProtocolServingHero p={p} t={t} onRefill={onRefill} />
 
       <RowsBlock s={s} title={t('protocols_step_schedule')} rows={scheduleRows} style={vialShown ? [s.blkD, s.blkNext] : s.blkD} />
@@ -998,6 +1014,12 @@ export default function ProtocolsScreen() {
   // only once the add/edit sheet is fully gone); wizSheet + scanChoice live inside it.
   const [screenSheet, setScreenSheet] = useState(null);
   const [wizSheet, setWizSheet] = useState(null);
+  // A-132 / AD-80: the protocol whose "New vial" / "Edit vial" window is open, and an error inside it.
+  const [newVialFor, setNewVialFor] = useState(null);
+  const [newVialMode, setNewVialMode] = useState('new');
+  const [newVialSheet, setNewVialSheet] = useState(null);
+  const [editVialFor, setEditVialFor] = useState(null);
+  const [editVialSheet, setEditVialSheet] = useState(null);
   // A-121: the end-date wheel — { mode: 'page' (the "Termina em" row) | 'startAfter' (the start-after-end
   // notice inside the edit sheet), id, name, iso, minKey, hasEnd, startKey }. Held by the screen, so a
   // fold / unfold never closes it (SG-30, as the syringe zoom, BK-10).
@@ -2312,17 +2334,15 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
-  // New vial / New bottle ask first (part 10, approved P5): Cancel changes nothing, Start new
-  // runs the reset below. Doses already logged stay in the history either way.
+  // "New vial" (A-132 screen 3, AD-80 screen 5): the "New vial" window over the protocol page — a
+  // reconstituted vial asks its mix date, a ready-to-use vial the new box's month/year (blank
+  // allowed). Cancel changes nothing; Start new = the one new-vial write (lib/newVial
+  // startNewVial): the vial in use goes to the history with its doses and date as they were, the
+  // new one starts full. Doses already logged stay in the history. Errors show inside the window.
+  // New bottle asks first (part 10, approved P5).
   function askRefillVial(id) {
-    setScreenSheet({
-      title: t('protocols_new_vial'),
-      body: t('protocols_new_vial_body'),
-      buttons: [
-        { label: t('cancel'), kind: 'secondary' },
-        { label: t('protocols_start_new'), kind: 'primary', onPress: () => refillVial(id) },
-      ],
-    });
+    const p = protocols.find(x => x.id === id);
+    if (p && (p.type === 'recon' || p.type === 'rtu')) { openNewVialWindow(p); return; }
   }
   function askRefillBottle(id) {
     setScreenSheet({
@@ -2343,14 +2363,60 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
-  // Reset an RTU vial's used count — "started a new vial" (same size/expiry).
-  function refillVial(id) {
-    const v = vialsByProtocol[id];
-    if (!v) return;
-    updateVial(v.id, { doses_taken: 0, active: 1 });
-    afterProtocolChange().catch(() => {}); // DV-051: the vial alerts follow the new vial
-    fetchProtocols();
-    requestSync();
+  // mode 'finished' = the last-dose window (after Edit vial counts every dose as used).
+  function openNewVialWindow(p, mode = 'new') {
+    setNewVialSheet(null);
+    setNewVialMode(mode);
+    setNewVialFor(p);
+  }
+  async function saveNewVial({ month, day, expMonth, expYear }) {
+    const p = newVialFor;
+    if (!p) return;
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      if (p.type === 'rtu') {
+        startNewVial(p, null, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction }, { oldVial: vialsByProtocol[p.id], expiresOn: boxExpiresOn(expMonth, expYear) });
+      } else {
+        const mixDate = toPastDateString(month, day);
+        if (!mixDate) { setNewVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+        startNewVial(p, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction });
+      }
+      afterProtocolChange().catch(() => {}); // DV-051: doses, the vial alerts, the summary
+      setNewVialFor(null);
+      fetchProtocols();
+      requestSync();
+    } catch (err) {
+      setNewVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    }
+  }
+
+  // "Edit vial" (AD-80 screens 3 and 4): corrects the vial in use — only its row (mix date or box
+  // month/year, doses already used) and the protocol's validity in days; never a dose. A mix date
+  // after today is refused ("Date in the future"; OK returns to the window, nothing written).
+  function openEditVial(id) {
+    const p = protocols.find(x => x.id === id);
+    if (!p || !vialsByProtocol[p.id]) return;
+    setEditVialSheet(null);
+    setEditVialFor(p);
+  }
+  async function saveVialEdit(input) {
+    const p = editVialFor;
+    if (!p || !vialsByProtocol[p.id]) return;
+    try {
+      const res = applyVialEdit(p, vialsByProtocol[p.id], input, new Date(), { updateVial, updateProtocol });
+      if (res.error === 'future') { setEditVialSheet({ icon: 'warning', title: t('vial_edit_future_title'), body: t('vial_edit_future_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+      if (res.error) { setEditVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+      if (res.vialUpdate || res.protocolUpdate) afterProtocolChange().catch(() => {}); // the vial alert and the 7-day / day-of notices
+      setEditVialFor(null);
+      fetchProtocols();
+      requestSync();
+      // Every dose used: finished as the last dose leaves it; a reconstituted vial then gets the
+      // last-dose window (the one Today shows), once this one has faded out (one modal at a time).
+      if (res.finished && p.type === 'recon') setTimeout(() => openNewVialWindow(p, 'finished'), 450);
+    } catch (err) {
+      setEditVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    }
   }
 
   const renderCard = (p) => {
@@ -2381,7 +2447,7 @@ export default function ProtocolsScreen() {
       openEdit={inBook ? (q, st) => { claimBookProtocol(q.id); openEdit(q, st); } : openEdit}
       onEndDate={inBook ? (q) => { claimBookProtocol(q.id); openEndDate(q); } : openEndDate}
       deleteProtocol={deleteProtocol}
-      onSaveNote={saveProtocolNote} onRefill={askRefillBottle} onRefillVial={askRefillVial}
+      onSaveNote={saveProtocolNote} onRefill={askRefillBottle} onRefillVial={askRefillVial} onEditVial={openEditVial}
       onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
       draft={getDraft(noteDraftKey(p.id))}
       onDraft={(id, text) => { if (inBook && text != null) claimBookProtocol(id); onNoteDraft(id, text); }}
@@ -2754,8 +2820,32 @@ export default function ProtocolsScreen() {
       {/* Delete / limit / log past doses: held back until the add sheet is gone. */}
       <DTSheet config={wizardPresented ? null : screenSheet} onClose={() => setScreenSheet(null)} />
 
+      {/* A-132 / AD-80: the "New vial" window (the same one as Today's; a ready-to-use vial asks the
+          new box's month/year) and the "Edit vial" window. */}
+      <NewVialPrompt
+        visible={!!newVialFor}
+        mode={newVialMode}
+        protocol={newVialFor}
+        protocolName={newVialFor ? protocolDisplayName(newVialFor, t) : null}
+        oldVial={newVialFor ? vialsByProtocol[newVialFor.id] : null}
+        onSecondary={() => setNewVialFor(null)}
+        onPrimary={saveNewVial}
+        sheet={newVialSheet}
+        onSheetClose={() => setNewVialSheet(null)}
+      />
+      <EditVialPrompt
+        visible={!!editVialFor}
+        protocol={editVialFor}
+        protocolName={editVialFor ? protocolDisplayName(editVialFor, t) : null}
+        vial={editVialFor ? vialsByProtocol[editVialFor.id] : null}
+        onCancel={() => setEditVialFor(null)}
+        onSave={saveVialEdit}
+        sheet={editVialSheet}
+        onSheetClose={() => setEditVialSheet(null)}
+      />
+
       {/* Part 18: a free-feature explainer on the first visit (never over the add / edit sheet). */}
-      {!showModal && !wizardPresented && <FeatureExplainerGate candidates={protocolExplainers} />}
+      {!showModal && !wizardPresented && !newVialFor && !editVialFor && <FeatureExplainerGate candidates={protocolExplainers} />}
 
       {/* The enlarged syringe, held here so a fold or unfold never closes it (BK-10). */}
       <SyringeZoomSheet p={zoomProtocol} visible={zoom.open} onClose={() => setZoom(z => ({ ...z, open: false }))} t={t} />
@@ -3730,6 +3820,8 @@ const protocolsGraduated = (c) => ({
   vialHead: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   vialSub: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   obtn2: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  vbtns: { flexDirection: 'row', gap: 10 }, // AD-80: Edit vial | New vial
+  vbtn: { flex: 1, minWidth: 0 },
   obtn2Text: { fontSize: 17, fontWeight: '700', color: c.ink },
   rows: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
   rw: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, minHeight: 50, paddingVertical: 13 },
