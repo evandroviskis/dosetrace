@@ -82,18 +82,22 @@ test('A-169: missing metadata reads as empty, like fetchUser()', () => {
   assert.deepEqual(g.primaryGoals, ['longevity']);
 });
 
-// ── the session cache: in memory, kept by a synchronous auth listener ────────────────────────────
-test('A-169: lib/supabase keeps the session user in memory from a synchronous auth listener', () => {
+// ── the session cache: in memory, written from App.js's synchronous auth listener ────────────────
+// (Review 2026-10-26: never an auth listener in lib/supabase — it loads headless and every
+// registration refreshes an expired token; __tests__/a169NoHeadlessRefresh.test.js.)
+test('A-169: lib/supabase keeps the session user in memory; App.js writes it from its synchronous listener', () => {
   const src = read('lib/supabase.js');
   assert.match(src, /export function peekCachedUser\(\)/, 'peekCachedUser exported');
-  const m = src.match(/supabase\.auth\.onAuthStateChange\(\(([^)]*)\) => \{([\s\S]*?)\}\);/);
-  assert.ok(m, 'one listener in lib/supabase');
-  const body = m[2];
-  assert.doesNotMatch(src.slice(m.index, m.index + 60), /async/, 'the callback is not async');
-  assert.doesNotMatch(body, /await|supabase\.|\.then\(|setTimeout/, 'a plain variable write only (never deadlocks the session)');
-  assert.match(body, /session/, 'reads the event session');
-  // Every event (SIGNED_OUT included) replaces it: another account never shows on the first frame.
-  assert.doesNotMatch(body, /if\s*\(\s*_?event/, 'no event filter');
+  assert.match(src, /export function noteSessionUser\(u\) \{ knownUser_ = u \|\| null; \}/, 'a plain setter');
+  const app = read('App.js');
+  const i = app.indexOf('supabase.auth.onAuthStateChange((_event, session) => {');
+  assert.ok(i > 0);
+  assert.doesNotMatch(app.slice(i, i + 60), /async/, 'the callback is not async');
+  // Every event (SIGNED_OUT included) replaces it, before any event filter: another account never
+  // shows on the first frame.
+  const head = app.slice(i, app.indexOf("if (_event === 'SIGNED_OUT')", i));
+  assert.match(head, /noteSessionUser\(\(session && session\.user\) \|\| null\);/);
+  assert.doesNotMatch(head, /await|\.then\(/, 'a plain variable write only (never deadlocks the session)');
 });
 
 // ── the screen ─────────────────────────────────────────────────────────────────────────────────

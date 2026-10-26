@@ -11,7 +11,7 @@ import { WindowSizeRoot } from './lib/windowSize';
 import { View, Text, ActivityIndicator, TouchableOpacity, Linking, Platform, AppState } from 'react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, exchangeAuthCodeFromUrl, isProfileComplete, takeAccountGone, probeAccountGone } from './lib/supabase';
+import { supabase, exchangeAuthCodeFromUrl, isProfileComplete, takeAccountGone, probeAccountGone, noteSessionUser } from './lib/supabase';
 import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, ownerBlocksSync, OWNER_KEY } from './lib/accountGuard';
 import { clearAIConsent } from './lib/aiConsent';
 import { clearAnalyticsQueue } from './lib/analytics';
@@ -943,6 +943,7 @@ export default function App() {
         getSession: () => supabase.auth.getSession(),
       });
       setSession(session);
+      noteSessionUser((session && session.user) || null); // A-169: Settings' first frame (a plain write)
       if (session?.user?.id) {
         initPurchases(session.user.id, session?.user?.email).catch(() => {});
 
@@ -1071,6 +1072,7 @@ export default function App() {
     // why signing out cleared the data but never routed back to the welcome screen.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session); // drives the navigator (null → Onboarding) immediately
+      noteSessionUser((session && session.user) || null); // A-169: every event, SIGNED_OUT → null (a variable write only)
 
       if (_event === 'SIGNED_OUT') {
         // lib/signedOut: the inline part is ref writes / pure reads only (safe in this callback);
