@@ -4,7 +4,7 @@
 - picture: docs/design/a139-sex-at-birth.html (binding: B, C, E, D′, in light and dark; section 4 holds the texts in the 6 languages).
 - registry: A-139 (docs/review/features.md)
 - code: lib/sexAtBirth.js (pure rules: when the change note shows, what a tap in Your numbers does), components/SexAtBirthWhy.js (SexWhy = the link + the full text; SexChangeNote = the "What this changes" note), components/featureIconsData.js + assets/feature-icons/info.svg (the note's info glyph, same monoline set), screens/SettingsScreen.js (Edit profile), screens/OnboardingFlowScreen.js (sign-up, About you), screens/components/CalculatorSection.js (Progress › Your numbers), i18n/translations.js (×6).
-- checklist-signed: pending (founder)
+- checklist-signed: founder 2026-10-26 ("Assino os três checklists e aprovo a correção na 1.3.1")
 - committed-to: 1.3.2 wave 2
 
 ## What the picture decides (summary)

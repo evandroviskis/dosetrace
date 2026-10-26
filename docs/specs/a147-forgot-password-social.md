@@ -4,7 +4,7 @@
 - picture: docs/design/a147-forgot-password-social.html (option A paragraph + title C; both themes; "already decided by logic": the sentence shows for everyone after "Esqueceu a senha?", the buttons are named as on the screen, and where the Apple button is not shown — Android without the web flow — only Google is named).
 - code: lib/authFlow.js forgotPasswordSheet; screens/AuthScreen.js handleForgotPassword (appleButtonShown); i18n/translations.js forgot_password_check_title, forgot_password_social_msg, forgot_password_social_msg_google (×6; forgot_password_sent_title removed).
 - not in this checklist: the reset email itself is still English only ("Reset Your Password") in all 6 languages — Supabase email templates (dashboard / production config), waits for the founder's go.
-- checklist-signed: pending (founder)
+- checklist-signed: founder 2026-10-26 ("Assino os três checklists e aprovo a correção na 1.3.1")
 - committed-to: 1.3.2 wave 2
 
 ## Acceptance checklist
