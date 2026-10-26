@@ -10,6 +10,8 @@
 //      spacer), so it can be scrolled while the keyboard is open;
 //   4. one mechanism: the existing useKeyboardLift (fieldProps(key, { next }) / nextProps(ref)),
 //      never a second keyboard handler.
+// Deviation (review 2026-10-26, kept as is): iPhone numeric keyboards (number-pad / decimal-pad)
+// have no return key at all (an iOS limitation), so a numeric field shows no Next on iPhone.
 // Pages: About you (name → birth year), sign in / create account (email → password), reset password
 // (new → confirm), Edit profile (name → birth year), Progress › Your numbers (weight → height →
 // age, skipped when it comes from the profile → body fat → waist).
