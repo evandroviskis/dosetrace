@@ -413,14 +413,17 @@ export default function SettingsScreen({ navigation }) {
     const bl = getBillingStore();
     billingLoad.current = bl;
     bl.then(setBillingStore, () => setBillingStore(null));
-    const user = await getCachedUser();
+    const userRead = getCachedUser();
+    // Real subscription status once the user is read (non-throwing; defaults to false on failure)
+    const premiumRead = userRead.then(() => hasPremium().then(setPremium).catch(() => setPremium(false)));
+    // A-169: the card is the real card once the user and its plan are read. The A-120 cap counts
+    // from the start of the read, and a read that throws settles it at once (review 2026-10-26): a
+    // hung or failed getCachedUser() never keeps the untappable skeleton. The profile fields below
+    // are set in the same tick as the user.
+    whenAllSettled([premiumRead]).then(() => setCardReady(true));
+    const user = await userRead;
     setUser(user);
     aiUse.load(aiUseDeps()); // per account: signed out or another account → OFF
-    // Real subscription status (non-throwing; defaults to false on failure)
-    const premiumRead = hasPremium().then(setPremium).catch(() => setPremium(false));
-    // A-169: the card is the real card once the user and its plan are read (the A-120 cap: a read
-    // that never ends does not keep the skeleton). The profile fields below are set in this same tick.
-    whenAllSettled([premiumRead]).then(() => setCardReady(true));
     if (user) {
       noteAnalyticsChoice(user.id, user.user_metadata?.analytics_opt_in !== false); // the background check (lib/analytics)
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
