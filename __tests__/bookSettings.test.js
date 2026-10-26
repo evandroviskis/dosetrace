@@ -165,7 +165,8 @@ test('BK-10/BK-11: sheets live outside both layouts, so a fold or unfold keeps t
   }
   // Nothing is keyed on the layout; typed profile values are screen state.
   assert.doesNotMatch(SRC, /key=\{book|key=\{String\(book/);
-  assert.match(SRC, /const \[displayName, setDisplayName\] = useState\(''\);/);
+  // A-169: starts from the cached session's name (lib/profileCardFirst), still plain screen state.
+  assert.match(SRC, /const \[displayName, setDisplayName\] = useState\(first\.displayName\);/);
   assert.match(SRC, /const \[countrySearch, setCountrySearch\] = useState\(''\);/);
   // Full-screen sheets keep one centred column (BK-11).
   assert.equal(count(SRC, /presentationStyle="pageSheet"/g), 4); // + the adherence report preview (Settings part 3)
