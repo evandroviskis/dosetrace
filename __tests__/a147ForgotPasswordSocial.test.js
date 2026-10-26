@@ -41,7 +41,19 @@ test('FP-2: option A, the drawn text as a second paragraph under the existing on
   assert.equal(pt.body, 'Se existir uma conta com voce@gmail.com, enviamos um link de redefinição para ele. Abra-o neste celular — a nova senha é definida dentro do DoseTrace.');
   assert.equal(pt.body2, 'Criou a conta com o Google ou com a Apple? Ela não tem senha no DoseTrace, então não há o que redefinir: entre por Continuar com o Google ou Continuar com a Apple.');
   const en = forgotPasswordSheet({ t: tFor('en'), email: 'you@gmail.com', appleShown: true });
-  assert.equal(en.body2, 'Created your account with Google or Apple? It has no DoseTrace password, so there is nothing to reset: sign in with Continue with Google or Continue with Apple.');
+  // Review 2026-10-26: the button names in quotes, in each language's usual marks (the app's English
+  // UI strings cite a button as "Name"; French « Nom », Italian «Nome», as es / de already did).
+  // Portuguese is the founder's approved text, unchanged.
+  assert.equal(en.body2, 'Created your account with Google or Apple? It has no DoseTrace password, so there is nothing to reset: sign in with "Continue with Google" or "Continue with Apple".');
+  const QUOTED = {
+    en: ['"{google}"', '"{apple}"'], fr: ['« {google} »', '« {apple} »'], it: ['«{google}»', '«{apple}»'],
+    es: ['«{google}»', '«{apple}»'], de: ['„{google}“', '„{apple}“'],
+  };
+  for (const [l, [g, a]] of Object.entries(QUOTED)) {
+    assert.ok(tr[l].forgot_password_social_msg.includes(g) && tr[l].forgot_password_social_msg.includes(a), `${l}: both names quoted`);
+    assert.ok(tr[l].forgot_password_social_msg_google.includes(g), `${l}: Google-only name quoted`);
+  }
+  assert.equal(tr.pt.forgot_password_social_msg, 'Criou a conta com o Google ou com a Apple? Ela não tem senha no DoseTrace, então não há o que redefinir: entre por {google} ou {apple}.');
   // Same sheet shape as before: check icon, one OK button; the note (small text, option B) is not used.
   assert.equal(pt.icon, 'check');
   assert.deepEqual(pt.buttons.map((b) => [b.label, b.kind]), [[tr.pt.ok, 'primary']]);
