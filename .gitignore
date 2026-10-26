@@ -72,3 +72,6 @@ grok/
 # Local, never in the repo or an EAS upload
 CLAUDE.md.bak-*
 Claude outputs/
+
+# Agent worktrees (full repo copies): never in git, never in the EAS build archive
+.claude/worktrees/
