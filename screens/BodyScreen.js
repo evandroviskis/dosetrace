@@ -54,7 +54,7 @@ import { pluralKey } from '../lib/plural';
 import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
-import { fetchScanUsage, scanUsageLine } from '../lib/scanUsage';
+import { fetchScanUsage, scanUsageLine, scanUsageShown } from '../lib/scanUsage';
 import { movedCardKey, applyLabelMoves } from '../lib/labDateMove';
 
 // Small monoline controls of the Lab test journal (prototype CHEV / BI.star / BI.pen,
@@ -175,7 +175,8 @@ export default function BodyScreen({ navigation, route }) {
   const [uploading, setUploading] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showSerumPreview, setShowSerumPreview] = useState(false);
-  const [premium, setPremium] = useState(false);
+  // null until hasPremium answers (AD-99 review: no scan line is drawn while it is unknown).
+  const [premium, setPremium] = useState(null);
   usePremiumUpdates(setPremium); // A-164: a Premium change made elsewhere applies while open
   // DoseTrace sheets (MB-12, MB-13, MB-15, MB-25): `sheet` over the screen; `sourceChoice` the
   // bottom action sheet; `valueSheet` over Edit value; `exportSheet` over Choose what to export.
@@ -288,6 +289,10 @@ export default function BodyScreen({ navigation, route }) {
   const bookReport = rightPage?.type === 'report' ? buildReport(rows, rightPage.key) : null;
   const bookMarker = rightPage?.type === 'marker' ? allMarkerSeries.find(x => x.key === rightPage.key) || null : null;
   const bookVaccine = rightPage?.type === 'vaccine' ? vaccineList.find(v => String(v.id) === rightPage.key) || null : null;
+  // AD-99 review: the scan count line is on screen (the phone's lab journal, or the Fold's right
+  // page showing it) — the count is asked only then.
+  const usageShown = scanUsageShown({ book, section, rightPage: rightPage?.type });
+  const usageShownRef = useRef(usageShown);
   function selectReport(key) { if (key !== rightPage?.id) setTagDraft(''); select(key); }
   function selectMarker(key) { select('marker:' + key); }
   // BK-18: a vaccine tapped in the journal on the right page opens its read page there.
@@ -356,11 +361,11 @@ export default function BodyScreen({ navigation, route }) {
     useCallback(() => {
       Analytics.viewed('body');
       fetchReports();
+      if (usageShownRef.current) refreshScanUsage();
     }, [])
   );
 
   async function fetchReports() {
-    refreshScanUsage();
     const pro = await hasPremium();
     setPremium(pro);
     const user = await getCachedUser();
@@ -385,13 +390,22 @@ export default function BodyScreen({ navigation, route }) {
 
   // AD-99 (picture ad99-ad100-labs.html B / P2): how many AI scans this account used this month,
   // asked of the server (extract-bloodwork usage mode, the ai_scan_usage count it enforces). No
-  // answer (offline, an error) → no line. Asked on focus, when the lab journal opens and after a scan.
+  // answer (offline, an error) → no line. Asked on a focus while the journal is shown, when the
+  // journal comes into view and after a scan. AD-99 review: answers can land out of order, so only
+  // the latest request's answer is applied (never an older count).
+  const usageReq = useRef(0);
   function refreshScanUsage() {
-    fetchScanUsage((name, opts) => supabase.functions.invoke(name, opts)).then(setScanUsage);
+    const n = ++usageReq.current;
+    fetchScanUsage((name, opts) => supabase.functions.invoke(name, opts)).then((u) => { if (n === usageReq.current) setScanUsage(u); });
   }
 
-  // The phone's lab journal opening (its tile, the Today alert's deep link) asks again.
-  useEffect(() => { if (section === 'labs') refreshScanUsage(); }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The lab journal coming into view (its tile, the Today alert's deep link, the Fold's right page
+  // going back to it) asks again. On the first render the focus asks.
+  useEffect(() => {
+    if (usageShownRef.current === usageShown) return;
+    usageShownRef.current = usageShown;
+    if (usageShown) refreshScanUsage();
+  }, [usageShown]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Starred markers. DV-006 (1.3.2): optimistic on screen; saved in the synced table lab_prefs
   // (offline too) — or, while the cloud table is not there yet, as 1.3.1 did (one operation on the

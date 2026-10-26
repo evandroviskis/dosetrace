@@ -119,12 +119,14 @@ test('LB-5: the line sits right under the "Diário de exames" title (phone journ
 
 // ── LB-6: the number stays current ────────────────────────────────────────────────────────────
 test('LB-6: the count is asked again on focus, when the lab journal opens and after every lab scan answer', () => {
-  assert.match(sliceBlock(BODY, 'async function fetchReports('), /refreshScanUsage\(\);/);
-  assert.match(BODY, /useEffect\(\(\) => \{ if \(section === 'labs'\) refreshScanUsage\(\); \}, \[section\]\);/, 'the phone lab journal opening');
+  // AD-99 review: on focus only while the journal is shown, and when it comes into view (phone or
+  // Fold) — behaviour in __tests__/ad99CountLine.test.js.
+  assert.match(BODY, /fetchReports\(\);\s*if \(usageShownRef\.current\) refreshScanUsage\(\);/, 'on focus');
+  assert.match(BODY, /if \(usageShown\) refreshScanUsage\(\);\s*\}, \[usageShown\]\);/, 'the lab journal opening');
   const ex = sliceBlock(BODY, 'async function extractWithClaude(');
   assert.match(ex, /finally \{\s*refreshScanUsage\(\);\s*\}/, 'success, refusal or failure: asked again');
   const r = sliceBlock(BODY, 'function refreshScanUsage(');
-  assert.match(r, /fetchScanUsage\(\(name, opts\) => supabase\.functions\.invoke\(name, opts\)\)\.then\(setScanUsage\)/);
+  assert.match(r, /fetchScanUsage\(\(name, opts\) => supabase\.functions\.invoke\(name, opts\)\)\.then\(\(u\) => \{ if \(n === usageReq\.current\) setScanUsage\(u\); \}\)/);
 });
 
 // ── LB-7: words in all six languages ──────────────────────────────────────────────────────────
