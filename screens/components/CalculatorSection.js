@@ -77,6 +77,8 @@ const rcRowToUI = (r) => ({ date: r.entry_date, tdee: r.tdee, ratePerWeekKg: r.r
 const snapRowToUI = (r) => ({ date: r.entry_date, weightKg: r.weight_kg, waistCm: r.waist_cm, bodyFatPct: r.body_fat_pct, lbm: r.lbm, bmr: r.bmr, tdee: r.tdee });
 import ProgressChart from './ProgressChart';
 import FeatureIcon from '../../components/FeatureIcon';
+import { SexWhy } from '../../components/SexAtBirthWhy';
+import { sexTapAction } from '../../lib/sexAtBirth';
 import { FoodReminderRow } from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
 import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
@@ -482,6 +484,21 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setSex(val);
     setProfileSex(val);
     try { await supabase.auth.updateUser({ data: { gender: val } }); } catch (e) { /* non-fatal */ }
+  }
+  // A-139 D′: a tap here saves at once, so changing a saved value asks first (DoseTrace sheet,
+  // Cancel / Change); only Change saves. A first choice saves at once; the chosen value does nothing.
+  function askProfileSex(val) {
+    const act = sexTapAction(profileSex, val);
+    if (act === 'none') return;
+    if (act === 'save') { saveProfileSex(val); return; }
+    setConfirm({
+      title: t('sex_change_confirm_title').replace('{value}', t(`profile_gender_${val}`)),
+      body: t('sex_change_body'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('sex_change_confirm_btn'), kind: 'primary', onPress: () => saveProfileSex(val) },
+      ],
+    });
   }
 
   // ── Weight in Your numbers (PO-14 / PO-15 / PO-17, founder 2026-10-02) ──
@@ -1098,7 +1115,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const act = ACTIVITY_LEVELS.find(a => a.value === activity);
     return numbersLine({
       weight, wUnit, height, hUnit, age, yr: t('cal_yr'),
-      sexLabel: profileSex ? t(`cal_sex_${profileSex}`) : null,
+      sexLabel: profileSex ? t(`profile_gender_${profileSex}`) : null,
       bodyFat: isUnknown ? null : bodyFat, bfShort: t('cal_bf_short'),
       activityLabel: act ? activityParts(t(act.key))[0] : null,
       language,
@@ -1374,15 +1391,18 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <TextInput {...pageLift.fieldProps('age', { next: 'bodyFat' })} style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder={eg('38')} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
-          <Text style={s.fieldLab}>{t('cal_sex')}</Text>
+          {/* A-139 E: the profile's own terms (Sex at birth, Male / Female as in Edit profile). */}
+          <Text style={s.fieldLab}>{t('profile_sex')}</Text>
           <SegmentedBar
-            accessibilityLabel={t('cal_sex')}
-            items={['male', 'female'].map(sx => ({ key: sx, label: t(`cal_sex_${sx}`) }))}
+            accessibilityLabel={t('profile_sex')}
+            items={['male', 'female'].map(sx => ({ key: sx, label: t(`profile_gender_${sx}`) }))}
             value={profileSex}
-            onChange={saveProfileSex}
+            onChange={askProfileSex}
           />
         </View>
       </View>
+      {/* A-139 E: the "Why do we ask?" link, full width under the Age / Sex row. */}
+      <SexWhy style={s.sexWhy} />
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_bodyfat')} (%) · {t('cal_optional')}</Text>
@@ -2022,6 +2042,7 @@ const makeStyles = (c) => StyleSheet.create({
   foldBlock: { gap: 12 },
   foldRowCard: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.line },
   formBlock: { gap: 12 },
+  sexWhy: { marginTop: -4 }, // A-139 E (picture .nlink): the link sits close under the Age / Sex row
   // inputs
   unitBar: { alignSelf: 'flex-start' },
   fieldRow: { flexDirection: 'row', gap: 12 },
