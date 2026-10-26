@@ -89,12 +89,12 @@ test('EV-4: validity takes whole numbers up to 3 digits (empty or 0 = 30); doses
 });
 
 test('EV-3: a mix date after today is refused — nothing written; the vial\'s own earlier year still saves', () => {
-  assert.deepEqual(VE.editMixDate(9, '13', '2026-09-13', OCT20), { date: '2026-10-13' });
-  assert.deepEqual(VE.editMixDate(10, '5', '2026-09-13', OCT20), { error: 'future' }, 'Nov 5 — never moved to last year');
-  assert.deepEqual(VE.editMixDate(9, '20', '2026-09-13', OCT20), { date: '2026-10-20' }, 'today');
-  assert.deepEqual(VE.editMixDate(1, '31', '2026-09-13', OCT20), { error: 'invalid' });
+  assert.deepEqual(VE.editMixDate(9, '13', OCT20), { date: '2026-10-13' });
+  assert.deepEqual(VE.editMixDate(10, '5', OCT20), { error: 'future' }, 'Nov 5 — never moved to last year');
+  assert.deepEqual(VE.editMixDate(9, '20', OCT20), { date: '2026-10-20' }, 'today');
+  assert.deepEqual(VE.editMixDate(1, '31', OCT20), { error: 'invalid' });
   // a vial mixed Dec 28 last year, edited on Jan 5: December still means that December
-  assert.deepEqual(VE.editMixDate(11, '28', '2026-12-28', new Date(2027, 0, 5)), { date: '2026-12-28' });
+  assert.deepEqual(VE.editMixDate(11, '28', new Date(2027, 0, 5)), { date: '2026-12-28' });
   const db = makeDb(); const a = app(db); const { tirz, tv } = seed(db);
   const before = vialRow(db, tv);
   const res = VE.applyVialEdit(protoRow(db, tirz), before, { month: 10, day: '5', validDays: '28', dosesUsed: '2' }, OCT20, a);
@@ -103,7 +103,8 @@ test('EV-3: a mix date after today is refused — nothing written; the vial\'s o
   assert.equal(protoRow(db, tirz).vial_valid_days, null);
   const prot = read('screens/ProtocolsScreen.js');
   const save = sliceBlock(prot, 'async function saveVialEdit(');
-  assert.match(save, /res\.error === 'future'[\s\S]*title: t\('vial_edit_future_title'\), body: t\('vial_edit_future_body'\)/);
+  assert.match(save, /if \(res\.error\) \{ setEditVialSheet\(\{ icon: 'warning', \.\.\.mixDateError\(res\.error, t\), buttons: \[\{ label: t\('ok'\), kind: 'primary' \}\] \}\); return; \}/);
+  assert.deepEqual(VE.mixDateError('future', (k) => k), { title: 'vial_edit_future_title', body: 'vial_edit_future_body' });
   assert.match(save, /buttons: \[\{ label: t\('ok'\), kind: 'primary' \}\]/, 'OK returns to the window');
 });
 
@@ -144,13 +145,13 @@ test('EV-11: an edit reaches the cloud through syncCore (vial and protocol), the
 // Oct 20), already past → saved (a December vial corrected in January).
 test('EV-3 (review): a future day is never moved back to the stored year', () => {
   const JAN5 = new Date(2027, 0, 5, 10, 0);
-  assert.deepEqual(VE.editMixDate(0, '14', '2026-12-28', JAN5), { error: 'future' }, 'Jan 14 on Jan 5 (was saved as 2026-01-14)');
-  assert.deepEqual(VE.editMixDate(1, '3', '2026-12-28', JAN5), { error: 'future' }, 'Feb 3 on Jan 5 (was saved as 2026-02-03)');
-  assert.deepEqual(VE.editMixDate(5, '10', '2025-12-01', JAN5), { error: 'future' }, 'Jun 10 on Jan 5 (was saved as 2025-06-10)');
-  assert.deepEqual(VE.editMixDate(11, '28', '2025-12-01', JAN5), { date: '2026-12-28' }, 'last December, whatever the stored year');
-  assert.deepEqual(VE.editMixDate(6, '20', null, JAN5), { date: '2026-07-20' }, 'last July: nearer than next July');
-  assert.deepEqual(VE.editMixDate(10, '5', '2024-11-05', OCT20), { error: 'future' }, 'the picture: Nov 5 on Oct 20 is refused');
-  assert.deepEqual(VE.editMixDate(0, '5', '2026-12-28', JAN5), { date: '2027-01-05' }, 'today');
+  assert.deepEqual(VE.editMixDate(0, '14', JAN5), { error: 'future' }, 'Jan 14 on Jan 5 (was saved as 2026-01-14)');
+  assert.deepEqual(VE.editMixDate(1, '3', JAN5), { error: 'future' }, 'Feb 3 on Jan 5 (was saved as 2026-02-03)');
+  assert.deepEqual(VE.editMixDate(5, '10', JAN5), { error: 'future' }, 'Jun 10 on Jan 5 (was saved as 2025-06-10)');
+  assert.deepEqual(VE.editMixDate(11, '28', JAN5), { date: '2026-12-28' }, 'last December, whatever the stored year');
+  assert.deepEqual(VE.editMixDate(6, '20', JAN5), { date: '2026-07-20' }, 'last July: nearer than next July');
+  assert.deepEqual(VE.editMixDate(10, '5', OCT20), { error: 'future' }, 'the picture: Nov 5 on Oct 20 is refused');
+  assert.deepEqual(VE.editMixDate(0, '5', JAN5), { date: '2027-01-05' }, 'today');
   assert.doesNotMatch(sliceBlock(read('lib/vialEdit.js'), 'function editMixDate('), /prevMixedOn\.|prevYear|slice\(0, 4\)/, 'no stored-year fallback');
 });
 
@@ -295,4 +296,52 @@ test('EV-10: both themes — the edit window and the button row use theme tokens
     assert.ok(at > 0, k);
     assert.doesNotMatch(prot.slice(at, prot.indexOf('\n', at)), /#|color/i);
   }
+});
+
+// Review 2026-10-26: an EMPTY day field said "Invalid date". It now says the mix date is missing
+// (title + body, 6 languages), in every window that reads a typed mix date; an impossible day keeps
+// "Invalid date". The stored mix date is no longer passed (it was never used).
+test('EV-3 (review): an empty day, or no month, is "missing", not "invalid"; Feb 31 stays invalid', () => {
+  assert.deepEqual(VE.editMixDate(9, '', OCT20), { error: 'empty' });
+  assert.deepEqual(VE.editMixDate(9, '  ', OCT20), { error: 'empty' });
+  assert.deepEqual(VE.editMixDate(9, null, OCT20), { error: 'empty' });
+  assert.deepEqual(VE.editMixDate(null, '5', OCT20), { error: 'empty' });
+  assert.deepEqual(VE.editMixDate(1, '31', OCT20), { error: 'invalid' });
+  assert.deepEqual(VE.editMixDate(9, '0', OCT20), { error: 'invalid' });
+  assert.deepEqual(VE.editMixDate(9, '13', OCT20), { date: '2026-10-13' });
+  const t = (k) => k;
+  assert.deepEqual(VE.mixDateError('empty', t), { title: 'vial_edit_day_empty_title', body: 'vial_edit_day_empty_body' });
+  assert.deepEqual(VE.mixDateError('invalid', t), { title: 'error', body: 'today_invalid_date' });
+  const db = makeDb(); const a = app(db); const { tirz, tv } = seed(db);
+  const before = vialRow(db, tv);
+  assert.deepEqual(VE.applyVialEdit(protoRow(db, tirz), before, { month: 9, day: '', validDays: '28', dosesUsed: '2' }, OCT20, a), { error: 'empty' });
+  assert.deepEqual(vialRow(db, tv), before, 'nothing is written');
+});
+
+test('EV-3 (review): Edit vial Save with an empty day shows the missing-day message and keeps the window open', () => {
+  const sheets = []; let closed = 0;
+  const fn = loadFn('screens/ProtocolsScreen.js', 'async function saveVialEdit(', 'saveVialEdit', {
+    editVialFor: { id: 7, type: 'recon' }, vialsByProtocol: { 7: { id: 1, mixed_on: '2026-09-13', doses_taken: 1, total_doses: 8 } },
+    applyVialEdit: VE.applyVialEdit, mixDateError: VE.mixDateError, Date, t: (k) => k, updateVial() {}, updateProtocol() {},
+    setEditVialSheet: (s) => sheets.push(s), setEditVialFor: () => { closed += 1; }, afterProtocolChange: async () => {},
+    fetchProtocols() {}, requestSync() {}, openNewVialWindow() {}, friendlyError: () => 'ERR',
+  });
+  return fn({ month: 9, day: '', validDays: '28', dosesUsed: '2' }).then(() => {
+    assert.equal(sheets.length, 1);
+    assert.equal(sheets[0].title, 'vial_edit_day_empty_title');
+    assert.equal(sheets[0].body, 'vial_edit_day_empty_body');
+    assert.equal(closed, 0, 'the window stays open');
+  });
+});
+
+test('EV-3 (review): the unused stored-date parameter is gone from editMixDate and every caller; the message exists in 6 languages', () => {
+  assert.equal(VE.editMixDate.length, 3, 'editMixDate(monthIdx, dayStr, now)');
+  for (const f of ['lib/vialEdit.js', 'screens/TodayScreen.js', 'screens/ProtocolsScreen.js']) {
+    assert.doesNotMatch(read(f), /_prevMixedOn|editMixDate\([^)]*, null, new Date\(\)\)|editMixDate\(i\.month, i\.day, v\.mixed_on/, f);
+  }
+  const { translations } = require('../i18n/translations');
+  for (const lang of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
+    for (const k of ['vial_edit_day_empty_title', 'vial_edit_day_empty_body']) assert.equal(typeof translations[lang][k], 'string', lang + '.' + k);
+  }
+  for (const k of ['vial_edit_day_empty_title', 'vial_edit_day_empty_body']) assert.doesNotMatch(translations.pt[k], /dá para|Não deu|a gente/);
 });

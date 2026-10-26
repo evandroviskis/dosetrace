@@ -67,7 +67,7 @@ import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
 import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
 import { startNewVial, showsNewVialButton } from '../lib/newVial';
-import { applyVialEdit, showsEditVialButton, editMixDate } from '../lib/vialEdit';
+import { applyVialEdit, showsEditVialButton, editMixDate, mixDateError } from '../lib/vialEdit';
 import NewVialPrompt, { EditVialPrompt } from './components/NewVialPrompt';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark } from '../lib/doseActions';
@@ -1931,7 +1931,7 @@ export default function ProtocolsScreen() {
   // The vial's mixing date as the form holds it, by the one rule for every typed mix date (Edit
   // vial, lib/vialEdit editMixDate): null while it is in the future or impossible.
   function formMixedOn() {
-    return editMixDate(vialMonth, vialDay, null, new Date()).date || null;
+    return editMixDate(vialMonth, vialDay, new Date()).date || null;
   }
 
   // The assistant ended. save: the same Save as the form (AP-17, AP-26 Done); fill: the form
@@ -2017,12 +2017,10 @@ export default function ProtocolsScreen() {
     // The first vial's mix date (step 5, create only), by the Edit vial rule (lib/vialEdit
     // editMixDate, AD-80 EV-3): a day after today or an impossible day (Feb 31) is refused here,
     // back on the vial step, before anything is written — never moved a year back or clamped.
-    const mix = !editingId && type === 'recon' && !skipVial ? editMixDate(vialMonth, vialDay, null, new Date()) : null;
+    const mix = !editingId && type === 'recon' && !skipVial ? editMixDate(vialMonth, vialDay, new Date()) : null;
     if (mix && mix.error) {
       setStep(5);
-      setWizSheet(mix.error === 'future'
-        ? { icon: 'warning', title: t('vial_edit_future_title'), body: t('vial_edit_future_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }
-        : { icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setWizSheet({ icon: 'warning', ...mixDateError(mix.error, t), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
     setSaving(true);
@@ -2381,9 +2379,8 @@ export default function ProtocolsScreen() {
       } else {
         // The "Edit vial" rule (lib/vialEdit editMixDate, AD-80 EV-3): the nearer of this year's and
         // last year's day; a day after today is refused in the window, never moved a year back.
-        const r = editMixDate(month, day, null, new Date());
-        if (r.error === 'future') { setNewVialSheet({ icon: 'warning', title: t('vial_edit_future_title'), body: t('vial_edit_future_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
-        if (r.error) { setNewVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+        const r = editMixDate(month, day, new Date());
+        if (r.error) { setNewVialSheet({ icon: 'warning', ...mixDateError(r.error, t), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
         const mixDate = r.date;
         startNewVial(p, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction });
       }
@@ -2410,8 +2407,7 @@ export default function ProtocolsScreen() {
     if (!p || !vialsByProtocol[p.id]) return;
     try {
       const res = applyVialEdit(p, vialsByProtocol[p.id], input, new Date(), { updateVial, updateProtocol });
-      if (res.error === 'future') { setEditVialSheet({ icon: 'warning', title: t('vial_edit_future_title'), body: t('vial_edit_future_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
-      if (res.error) { setEditVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+      if (res.error) { setEditVialSheet({ icon: 'warning', ...mixDateError(res.error, t), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
       if (res.vialUpdate || res.protocolUpdate) afterProtocolChange().catch(() => {}); // the vial alert and the 7-day / day-of notices
       setEditVialFor(null);
       fetchProtocols();
