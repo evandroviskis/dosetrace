@@ -79,7 +79,7 @@ test('TB3-5: Today queues every waiting prompt and opens the next when one close
   const release = fnCode('releasePendingVial');
   assert.match(release, /nextVialPrompt\(\{/);
   assert.match(release, /promptShowing: vialPromptShownRef\.current/);
-  assert.match(release, /showVialPromptFor\(next\.item\.protocol, 0\)/);
+  assert.match(release, /showVialPromptFor\(next\.item\.protocol, 0, 'finished'\)/); // A-132: the last-dose words
   const close = fnCode('closeVialPrompt');
   assert.match(close, /vialPromptShownRef\.current = false;/);
   assert.match(close, /if \(pendingVialsRef\.current\.length\) \{ setTimeout\(releasePendingVial, 450\); return; \}/, 'the next vial after this one has faded out');

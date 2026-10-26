@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  TextInput,
   AppState,
   Platform,
 } from 'react-native';
@@ -61,13 +60,13 @@ import { adherenceRings } from '../lib/adherenceRings';
 import { dayKeyAt, msUntilNextLocalMidnight } from '../lib/dayChange';
 import TodayTracker from './components/TodayTracker';
 import SyringeScale from './components/SyringeScale';
-import { newVialRecords } from '../lib/newVial';
+import { startNewVial, vialPastWindow, vialAlertTarget } from '../lib/newVial';
+import NewVialPrompt from './components/NewVialPrompt';
 import { supplyState } from '../lib/supplyLow';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
-import useSheetKeyboard from '../components/useSheetKeyboard';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
@@ -160,12 +159,6 @@ const localDayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}
 
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
 
-const MONTH_KEYS = [
-  'month_jan', 'month_feb', 'month_mar', 'month_apr',
-  'month_may', 'month_jun', 'month_jul', 'month_aug',
-  'month_sep', 'month_oct', 'month_nov', 'month_dec',
-];
-
 // ── Today alerts config ────────────────────────────────────────
 const BLOODWORK_INTERVAL_DAYS = 182; // ~6 months
 const VIAL_EXPIRY_SOON_DAYS = 7;     // flag a vial expiring within this many days
@@ -178,14 +171,6 @@ const TOAST_MS = 4000;
 
 // A-135: which first-load part ends each placeholder block ("add a protocol" waits for the doses).
 const SKEL_SECTION = { alerts: 'alerts', pending: 'pending', tracker: 'tracker', food: 'food', empty: 'doses', doses: 'doses' };
-
-// The vial prompt's body (build 54): on Android a ScrollView, so the card, capped above the
-// keyboard by useSheetKeyboard, scrolls its day field into view while its actions stay under it;
-// on iPhone a plain View, exactly as before. Platform is fixed, so the type never switches.
-function PromptBody({ style, scrollProps, children }) {
-  if (Platform.OS !== 'android') return <View style={style}>{children}</View>;
-  return <ScrollView {...scrollProps} contentContainerStyle={style} keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={false}>{children}</ScrollView>;
-}
 
 // ── Schedule math ──────────────────────────────────────────────
 // Extracted to lib/schedule.js (pure + unit-tested). Imported above.
@@ -360,8 +345,10 @@ export default function TodayScreen() {
 
   // Vial continuation state
   const [showVialPrompt, setShowVialPrompt] = useState(false);
-  // Android: the card sits above the keyboard (edge to edge, the Modal is never resized; build 54).
-  const vialKb = useSheetKeyboard(Platform.OS === 'android' && showVialPrompt, { gap: 16 });
+  // A-132: 'finished' = after the last dose of a vial (words unchanged); 'new' = "+ Add vial" /
+  // "+ New vial" / the book page's "New vial" ("New vial", Cancel / Start new). The window:
+  // screens/components/NewVialPrompt.js.
+  const [vialPromptMode, setVialPromptMode] = useState('new');
   const [continuationProtocol, setContinuationProtocol] = useState(null);
   // Inactivity nudge: a protocol with no doses logged for a while → "still going?"
   const [inactiveProtocol, setInactiveProtocol] = useState(null);
@@ -371,9 +358,6 @@ export default function TodayScreen() {
   const [inactiveKind, setInactiveKind] = useState('still_going');
   const [inactiveStep, setInactiveStep] = useState('ask');
   const [endPick, setEndPick] = useState(null);
-  const [newVialDoses, setNewVialDoses] = useState('');
-  const [newVialMonth, setNewVialMonth] = useState(new Date().getMonth());
-  const [newVialDay, setNewVialDay] = useState(String(new Date().getDate()));
 
   // Body map (injection site picker) state
   const [bodyMapVisible, setBodyMapVisible] = useState(false);
@@ -1506,7 +1490,7 @@ export default function TodayScreen() {
     pendingVialsRef.current = next.queue;
     if (next.action === 'drop') { freeVialQueue(); return; }
     if (next.action !== 'show') return;
-    showVialPromptFor(next.item.protocol, 0);
+    showVialPromptFor(next.item.protocol, 0, 'finished');
   }
   // Nothing waits any more and no prompt is open: the questions that waited behind go on.
   function freeVialQueue() {
@@ -1527,14 +1511,14 @@ export default function TodayScreen() {
   }
 
   // delayMs: after a site picker, wait for it to fade out (iOS shows one modal at a time).
-  function showVialPromptFor(protocol, delayMs) {
+  // mode (A-132): 'finished' only from the last-dose queue; every tap that asks for a vial = 'new'.
+  // The window picks "Today" each time it opens.
+  function showVialPromptFor(protocol, delayMs = 0, mode = 'new') {
     vialPromptShownRef.current = true;
     vialPromptOpenRef.current = true;
     vialPromptPendingRef.current = true;
     setContinuationProtocol(protocol);
-    setNewVialDoses('');
-    setNewVialMonth(new Date().getMonth());
-    setNewVialDay(String(new Date().getDate()));
+    setVialPromptMode(mode);
     clearTimeout(vialTimerRef.current);
     vialDeferredRef.current = false;
     // BK-20: the embedded Dose log's site editor is open — the prompt opens after it closes.
@@ -1542,18 +1526,17 @@ export default function TodayScreen() {
     if (delayMs) vialTimerRef.current = setTimeout(() => setShowVialPrompt(true), delayMs); else setShowVialPrompt(true);
   }
 
-  async function createNewVial() {
+  async function createNewVial(month, day) {
     if (!continuationProtocol) return;
     try {
       const user = await getCachedUser();
       if (!user) return;
-      const mixDate = toPastDateString(newVialMonth, newVialDay);
+      const mixDate = toPastDateString(month, day);
       if (!mixDate) { setVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: okButton() }); return; }
-      // Vial row from lib/newVial (tested): capacity derived from the protocol;
-      // the protocol itself is never changed, so its history is kept (S-01).
-      const { vial, protocolUpdate } = newVialRecords(continuationProtocol, mixDate, user.id);
-      insertVial(vial);
-      if (protocolUpdate) updateProtocol(continuationProtocol.id, protocolUpdate);
+      // The one new-vial write (lib/newVial startNewVial, tested — A-132): a vial still in use (an
+      // expired one with doses left) leaves use with its count and doses as they were; capacity
+      // derived from the protocol; the protocol itself is never changed, so its history is kept (S-01).
+      startNewVial(continuationProtocol, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol });
 
       // Gate B F4: the new vial re-plans everything once (doses, its expiry alert, the summary, the
       // iPhone 64 guard) through the one full resync.
@@ -1866,7 +1849,7 @@ export default function TodayScreen() {
           daysLeft = Math.ceil((new Date(v.expires_on + 'T00:00:00').getTime() - nowMs) / 86400000);
         }
         if (daysLeft != null && daysLeft <= VIAL_EXPIRY_SOON_DAYS) {
-          exp.push({ name: p.compound_id ? t(p.compound_id) : p.name, daysLeft });
+          exp.push({ name: p.compound_id ? t(p.compound_id) : p.name, daysLeft, protocolId: p.id });
         }
       }
       if (exp.length) {
@@ -1877,10 +1860,12 @@ export default function TodayScreen() {
               ? t('today_alert_vial_expired_one').replace('{name}', soonest.name)
               : t(pluralKey('today_alert_vial_expiry_days', soonest.daysLeft, language)).replace('{name}', soonest.name).replace('{n}', String(soonest.daysLeft)))
           : t('today_alert_vial_expiry_many').replace('{count}', String(exp.length));
+        // A-132: one vial opens that protocol's page (its "New vial"); several open the list.
+        const target = vialAlertTarget(exp);
         list.push({
           id: 'vial_expiry', iconName: 'clock', due: true,
           title: t('today_alert_vial_title'), body,
-          onPress: () => navigation.navigate('Protocols'),
+          onPress: () => navigation.navigate(target.screen, target.params),
           snoozeId: 'vial_expiry',
         });
       }
@@ -2121,7 +2106,7 @@ export default function TodayScreen() {
             openEdit={toProtocol}
             onEndDate={toProtocol}
             deleteProtocol={null}
-            onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={toProtocol} onZoom={toProtocol}
+            onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={p.type === 'recon' ? () => showVialPromptFor(p) : toProtocol} onZoom={toProtocol}
             draft={getDraft(noteDraftKey(p.id))}
             onDraft={(id, text) => { if (text == null) clearDraft(noteDraftKey(id)); else setDraft(noteDraftKey(id), text); setNoteTick((n) => n + 1); }}
             onNoteFocus={pageLift.liftField}
@@ -2273,6 +2258,8 @@ export default function TodayScreen() {
             : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
           const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
           const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
+          // A-132 screen 2 = A: past its window → "+ New vial", same type as "+ Add vial".
+          const pastWindow = vialPastWindow(p, vial, new Date());
           return (
             <View style={s.vialRow}>
               {/* Part 8: one cell per dose (prototype cells()), the remaining ones in data. */}
@@ -2288,6 +2275,11 @@ export default function TodayScreen() {
                   </Text>
                 )}
               </Text>
+              {pastWindow && (
+                <TouchableOpacity style={s.newVialBtn} onPress={() => showVialPromptFor(p)} accessibilityRole="button">
+                  <Text style={s.addVialText}>{t('today_new_vial')}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         })()}
@@ -2646,102 +2638,18 @@ export default function TodayScreen() {
         onSheetClose={() => setSiteSheet(null)}
       />
 
-      {/* Vial continuation modal */}
-      <Modal visible={showVialPrompt} transparent animationType="fade">
-        <View style={vialKb.lift ? [s.promptOverlay, { paddingBottom: vialKb.lift.bottom }] : s.promptOverlay} onLayout={vialKb.onLayout}>
-          <View style={[s.promptCard, vialKb.sheetStyle]}>
-            <PromptBody style={s.promptBody} scrollProps={vialKb.scrollProps}>
-              <Text style={s.promptTitle}>{t('today_vial_done_title')}</Text>
-              {continuationProtocol && (
-                <Text style={s.promptProtocolName}>{protocolDisplayName(continuationProtocol, t)}</Text>
-              )}
-              <Text style={s.promptSub}>{t('today_vial_done_sub')}</Text>
-
-              <Text style={s.promptLabel}>{t('today_vial_mix_date')}</Text>
-              <View style={s.yesterdayRow}>
-                <TouchableOpacity
-                  style={s.yesterdayPill}
-                  onPress={() => {
-                    const y = new Date();
-                    y.setDate(y.getDate() - 1);
-                    setNewVialMonth(y.getMonth());
-                    setNewVialDay(String(y.getDate()));
-                  }}
-                >
-                  <Text style={s.yesterdayPillText}>{t('today_yesterday')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.yesterdayPill}
-                  onPress={() => {
-                    const td = new Date();
-                    setNewVialMonth(td.getMonth());
-                    setNewVialDay(String(td.getDate()));
-                  }}
-                >
-                  <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
-                </TouchableOpacity>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={s.promptMonthRow}>
-                  {MONTH_KEYS.map((mk, idx) => (
-                    <TouchableOpacity
-                      key={mk}
-                      style={[s.promptMonthPill, newVialMonth === idx && s.promptMonthPillOn]}
-                      onPress={() => setNewVialMonth(idx)}
-                    >
-                      <Text style={[s.promptMonthText, newVialMonth === idx && s.promptMonthTextOn]}>
-                        {t(mk)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-              <TextInput
-                style={s.promptDayInput}
-                placeholder={t('protocols_day_dd')}
-                placeholderTextColor={colors.ink3}
-                keyboardType="numeric"
-                maxLength={2}
-                value={newVialDay}
-                onChangeText={(val) => {
-                  const num = parseInt(val);
-                  if (val === '' || (num >= 1 && num <= 31)) setNewVialDay(val);
-                }}
-              />
-
-              {continuationProtocol && (() => {
-                const cap = dosesPerVial({
-                  amount: continuationProtocol.amount, unit: continuationProtocol.unit,
-                  dose: continuationProtocol.dose, doseUnit: continuationProtocol.dose_unit,
-                });
-                return cap ? (
-                  <Text style={s.promptLabel}>
-                    {t(pluralKey('today_vial_new_capacity', cap, language)).replace('{n}', String(cap))}
-                  </Text>
-                ) : null;
-              })()}
-
-            </PromptBody>
-
-            <View style={s.promptActions}>
-              <TouchableOpacity
-                style={s.promptBtnSecondary}
-                onPress={closeVialPrompt}
-              >
-                <Text style={s.promptBtnSecondaryText}>{t('today_vial_finished')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={s.promptBtnPrimary}
-                onPress={createNewVial}
-              >
-                <Text style={s.promptBtnPrimaryText}>{t('today_vial_add')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-        {/* Errors from the vial prompt are presented from inside it (M1/M4). */}
-        <DTSheet config={vialSheet} onClose={() => setVialSheet(null)} />
-      </Modal>
+      {/* The new-vial window (A-132: screens/components/NewVialPrompt.js, shared with the protocol page). */}
+      <NewVialPrompt
+        visible={showVialPrompt}
+        mode={vialPromptMode}
+        protocol={continuationProtocol}
+        protocolName={continuationProtocol ? protocolDisplayName(continuationProtocol, t) : null}
+        oldVial={continuationProtocol ? vials[continuationProtocol.id] : null}
+        onSecondary={closeVialPrompt}
+        onPrimary={createNewVial}
+        sheet={vialSheet}
+        onSheetClose={() => setVialSheet(null)}
+      />
 
       {/* "Ainda em andamento?" (A-121: + "Continua até uma data…", and "Até quando?" in the same box)
           and "Ciclo concluído — encerrar {name}?" — one protocol at a time
@@ -2968,15 +2876,7 @@ const legacyStyles = (c) => ({
   promptTitle: { fontSize: 22, fontWeight: '700', lineHeight: 28, color: c.ink },
   promptProtocolName: { fontSize: 17, fontWeight: '600', color: c.ink },
   promptSub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
-  promptLabel: { fontSize: 17, fontWeight: '600', color: c.ink },
-  promptMonthRow: { flexDirection: 'row', gap: 8 },
-  promptMonthPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1, borderColor: c.line },
-  promptMonthPillOn: { backgroundColor: c.raised, borderWidth: 1.5, borderColor: c.ink },
-  promptMonthText: { fontSize: 15, color: c.ink2 },
-  promptMonthTextOn: { color: c.ink, fontWeight: '600' },
-  promptDayInput: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingVertical: 12, paddingHorizontal: 14, fontSize: 17, color: c.ink, width: 90, textAlign: 'center' },
   promptActions: { flexDirection: 'row', gap: 10 },
-  promptBody: { gap: 14 }, // the card's gap, inside its (Android: scrolling) body
   promptBtnSecondary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   promptBtnSecondaryText: { fontSize: 15, fontWeight: '700', color: c.ink, textAlign: 'center' },
   promptBtnPrimary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
@@ -2985,9 +2885,6 @@ const legacyStyles = (c) => ({
   promptStack: { gap: 8 },
   promptStackBtn: { flex: 0, alignSelf: 'stretch' },
   // Yesterday / Today shortcut pills
-  yesterdayRow: { flexDirection: 'row', gap: 8 },
-  yesterdayPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1, borderColor: c.line },
-  yesterdayPillText: { fontSize: 15, color: c.ink2 },
 });
 
 // Today v2.1 (DESIGN.md §2–§5 + the approved prototype): titles 700, big numbers 500;
@@ -3071,6 +2968,7 @@ const todayV21Styles = (c) => ({
   noVialBody: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   noVialBtn: { alignSelf: 'flex-start', marginTop: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   noVialBtnText: { fontSize: 15, fontWeight: '600', color: c.onAct },
+  newVialBtn: { flexBasis: '100%', minHeight: 32, justifyContent: 'center' }, // A-132: "+ New vial" on its own line in the vial row
   addVialText: { fontSize: 17, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick, minHeight: 32, textAlignVertical: 'center' },
   acts: { flexDirection: 'row', gap: 10 },
   // A-78: a skipped slot's "you can still log it" line and its Mark taken.

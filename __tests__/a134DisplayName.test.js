@@ -71,7 +71,8 @@ test('A-134 (4b): the provider report names each protocol as Today does', () => 
 test('A-134 (4b): Today — skip sheet, vial-done prompt and site sheet use the display name', () => {
   const s = read('screens/TodayScreen.js');
   assert.match(s, /setSkipAsk\(\{ name: protocolDisplayName\(protocol, t\), onSkip: write \}\);/);
-  assert.match(s, /<Text style=\{s\.promptProtocolName\}>\{protocolDisplayName\(continuationProtocol, t\)\}<\/Text>/);
+  // A-132: the vial window is screens/components/NewVialPrompt.js; Today hands it the display name.
+  assert.match(s, /protocolName=\{continuationProtocol \? protocolDisplayName\(continuationProtocol, t\) : null\}/);
   assert.match(s, /protocolName=\{protocolDisplayName\(protocols\.find\(p => p\.id === bodyMapTarget\?\.protocolId\), t\) \|\| null\}/);
 });
 

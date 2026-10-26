@@ -449,6 +449,10 @@ export const translations = {
     today_vial_new_capacity_one: 'New vial: ~{n} dose (from your vial size and dose).', // singular (lib/plural.js)
     today_vial_add: 'Log new vial',
     today_add_vial: '+ Add vial',
+    today_new_vial: "+ New vial", // A-132: Today's card, a vial past its window
+    today_new_vial_old: "The {date} vial goes to your history, with its {n} leftover doses.",
+    today_new_vial_old_one: "The {date} vial goes to your history, with its {n} leftover dose.", // singular (lib/plural.js)
+    today_new_vial_old_date: "The {date} vial goes to your history.",
     today_novial_title: "No mixed vial right now",
     today_novial_body: "Without a vial the app doesn't know the concentration, so it can't show the syringe or what's left. Add the vial you're going to use.",
     today_nobottle_title: "No bottle added yet",
@@ -2958,6 +2962,10 @@ export const translations = {
     today_vial_new_capacity_one: 'Nuevo vial: ~{n} dosis (según el tamaño del vial y la dosis).', // singular (lib/plural.js)
     today_vial_add: 'Registrar nuevo vial',
     today_add_vial: '+ Añadir vial',
+    today_new_vial: "+ Nuevo vial", // A-132: Today's card, a vial past its window
+    today_new_vial_old: "El vial del {date} pasa a tu historial, con las {n} dosis que sobraron.",
+    today_new_vial_old_one: "El vial del {date} pasa a tu historial, con {n} dosis sin usar.", // singular (lib/plural.js)
+    today_new_vial_old_date: "El vial del {date} pasa a tu historial.",
     today_novial_title: "Ahora no hay ningún vial mezclado",
     today_novial_body: "Sin un vial, la app no conoce la concentración: por eso no muestra la jeringa ni cuánto queda. Añade el vial que vas a usar.",
     today_nobottle_title: "Ningún envase añadido",
@@ -5467,6 +5475,10 @@ export const translations = {
     today_vial_new_capacity_one: 'Novo frasco: ~{n} dose (com base no tamanho do frasco e na dose).', // singular (lib/plural.js)
     today_vial_add: 'Registrar novo frasco',
     today_add_vial: '+ Adicionar frasco',
+    today_new_vial: "+ Novo frasco", // A-132: Today's card, a vial past its window
+    today_new_vial_old: "O frasco de {date} vai para o histórico, com as {n} doses que sobraram.",
+    today_new_vial_old_one: "O frasco de {date} vai para o histórico, com {n} dose que sobrou.", // singular (lib/plural.js)
+    today_new_vial_old_date: "O frasco de {date} vai para o histórico.",
     today_novial_title: "Nenhum frasco reconstituído agora",
     today_novial_body: "Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.",
     today_nobottle_title: "Nenhum frasco informado",
@@ -7975,6 +7987,10 @@ export const translations = {
     today_vial_new_capacity_one: 'Nouveau flacon : ~{n} dose (selon la taille du flacon et la dose).', // singular (lib/plural.js)
     today_vial_add: 'Enregistrer un nouveau flacon',
     today_add_vial: '+ Ajouter un flacon',
+    today_new_vial: "+ Nouveau flacon", // A-132: Today's card, a vial past its window
+    today_new_vial_old: "Le flacon du {date} passe dans votre historique, avec ses {n} doses restantes.",
+    today_new_vial_old_one: "Le flacon du {date} passe dans votre historique, avec {n} dose restante.", // singular (lib/plural.js)
+    today_new_vial_old_date: "Le flacon du {date} passe dans votre historique.",
     today_novial_title: "Aucun flacon reconstitué pour l'instant",
     today_novial_body: "Sans flacon, l'app ne connaît pas la concentration : elle ne peut afficher ni la seringue ni ce qu'il reste. Ajoutez le flacon que vous allez utiliser.",
     today_nobottle_title: "Aucun flacon ajouté",
@@ -10483,6 +10499,10 @@ export const translations = {
     today_vial_new_capacity_one: 'Neues Fläschchen: ~{n} Dosis (aus Fläschchengröße und Dosis).', // singular (lib/plural.js)
     today_vial_add: 'Neues Fläschchen erfassen',
     today_add_vial: '+ Fläschchen hinzufügen',
+    today_new_vial: "+ Neues Fläschchen", // A-132: Today's card, a vial past its window
+    today_new_vial_old: "Das Fläschchen vom {date} kommt in deinen Verlauf, mit den {n} übrigen Dosen.",
+    today_new_vial_old_one: "Das Fläschchen vom {date} kommt in deinen Verlauf, mit {n} übrigen Dosis.", // singular (lib/plural.js)
+    today_new_vial_old_date: "Das Fläschchen vom {date} kommt in deinen Verlauf.",
     today_novial_title: "Gerade kein angemischtes Fläschchen",
     today_novial_body: "Ohne Fläschchen kennt die App die Konzentration nicht und kann weder die Spritze noch den Rest zeigen. Füge das Fläschchen hinzu, das du verwenden wirst.",
     today_nobottle_title: "Noch keine Packung angegeben",
@@ -12992,6 +13012,10 @@ export const translations = {
     today_vial_new_capacity_one: 'Nuovo flacone: ~{n} dose (in base alla dimensione del flacone e alla dose).', // singular (lib/plural.js)
     today_vial_add: 'Registra nuovo flacone',
     today_add_vial: '+ Aggiungi flacone',
+    today_new_vial: "+ Nuovo flacone", // A-132: Today's card, a vial past its window
+    today_new_vial_old: "Il flacone del {date} passa nella tua cronologia, con le {n} dosi rimaste.",
+    today_new_vial_old_one: "Il flacone del {date} passa nella tua cronologia, con {n} dose rimasta.", // singular (lib/plural.js)
+    today_new_vial_old_date: "Il flacone del {date} passa nella tua cronologia.",
     today_novial_title: "Nessun flacone ricostituito al momento",
     today_novial_body: "Senza un flacone l'app non conosce la concentrazione, quindi non può mostrare la siringa né quanto resta. Aggiungi il flacone che userai.",
     today_nobottle_title: "Nessuna confezione aggiunta",

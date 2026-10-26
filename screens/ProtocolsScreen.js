@@ -65,7 +65,9 @@ import { supplyState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
+import { frequencyLabelFor, courseState, endDateRange, toPastDateString } from '../lib/schedule';
+import { startNewVial, showsNewVialButton } from '../lib/newVial';
+import NewVialPrompt from './components/NewVialPrompt';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
@@ -589,7 +591,8 @@ function ProtocolServingHero({ p, t, onRefill }) {
 }
 
 // Vial block on the protocol screen: one cell per dose (remaining in data), doses left,
-// the mix / box date with days left, the supply tags, and New vial for a used RTU vial.
+// the mix / box date with days left, the supply tags, and New vial (a used RTU vial, or any
+// reconstituted vial — A-132).
 function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
@@ -644,7 +647,8 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial }) {
           )}
         </View>
       )}
-      {p.type === 'rtu' && vial && (vial.doses_taken || 0) > 0 && (
+      {/* A-132 screen 3: reconstituted vials too (any active vial, expired or not); RTU as before. */}
+      {showsNewVialButton(p, vial) && (
         <TouchableOpacity style={s.obtn2} onPress={() => onRefillVial(p.id)} accessibilityRole="button">
           <FeatureIcon name="repeat" size={18} color={c.ink} />
           <Text style={s.obtn2Text}>{t('protocols_new_vial')}</Text>
@@ -998,6 +1002,9 @@ export default function ProtocolsScreen() {
   // only once the add/edit sheet is fully gone); wizSheet + scanChoice live inside it.
   const [screenSheet, setScreenSheet] = useState(null);
   const [wizSheet, setWizSheet] = useState(null);
+  // A-132: the protocol whose "New vial" window is open (reconstituted), and an error inside it.
+  const [reconVialFor, setReconVialFor] = useState(null);
+  const [reconVialSheet, setReconVialSheet] = useState(null);
   // A-121: the end-date wheel — { mode: 'page' (the "Termina em" row) | 'startAfter' (the start-after-end
   // notice inside the edit sheet), id, name, iso, minKey, hasEnd, startKey }. Held by the screen, so a
   // fold / unfold never closes it (SG-30, as the syringe zoom, BK-10).
@@ -2314,7 +2321,10 @@ export default function ProtocolsScreen() {
 
   // New vial / New bottle ask first (part 10, approved P5): Cancel changes nothing, Start new
   // runs the reset below. Doses already logged stay in the history either way.
+  // A-132: a reconstituted vial opens the "New vial" window (its mix date), as on Today.
   function askRefillVial(id) {
+    const p = protocols.find(x => x.id === id);
+    if (p && p.type === 'recon') { openReconNewVial(p); return; }
     setScreenSheet({
       title: t('protocols_new_vial'),
       body: t('protocols_new_vial_body'),
@@ -2341,6 +2351,31 @@ export default function ProtocolsScreen() {
     afterProtocolChange().catch(() => {}); // DV-051: the supply alerts follow the new bottle
     fetchProtocols();
     requestSync();
+  }
+
+  // A-132 screen 3 → 4: the "New vial" window over the protocol page; Start new = the one new-vial
+  // write (lib/newVial startNewVial): the vial in use goes to the history with its doses as they
+  // were, the new one starts full. Errors show inside the window.
+  function openReconNewVial(p) {
+    setReconVialSheet(null);
+    setReconVialFor(p);
+  }
+  async function saveReconNewVial(month, day) {
+    const p = reconVialFor;
+    if (!p) return;
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const mixDate = toPastDateString(month, day);
+      if (!mixDate) { setReconVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+      startNewVial(p, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol });
+      afterProtocolChange().catch(() => {}); // DV-051: doses, the vial alerts, the summary
+      setReconVialFor(null);
+      fetchProtocols();
+      requestSync();
+    } catch (err) {
+      setReconVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    }
   }
 
   // Reset an RTU vial's used count — "started a new vial" (same size/expiry).
@@ -2754,8 +2789,21 @@ export default function ProtocolsScreen() {
       {/* Delete / limit / log past doses: held back until the add sheet is gone. */}
       <DTSheet config={wizardPresented ? null : screenSheet} onClose={() => setScreenSheet(null)} />
 
+      {/* A-132: a reconstituted vial's "New vial" window (the same one as Today's). */}
+      <NewVialPrompt
+        visible={!!reconVialFor}
+        mode="new"
+        protocol={reconVialFor}
+        protocolName={reconVialFor ? protocolDisplayName(reconVialFor, t) : null}
+        oldVial={reconVialFor ? vialsByProtocol[reconVialFor.id] : null}
+        onSecondary={() => setReconVialFor(null)}
+        onPrimary={saveReconNewVial}
+        sheet={reconVialSheet}
+        onSheetClose={() => setReconVialSheet(null)}
+      />
+
       {/* Part 18: a free-feature explainer on the first visit (never over the add / edit sheet). */}
-      {!showModal && !wizardPresented && <FeatureExplainerGate candidates={protocolExplainers} />}
+      {!showModal && !wizardPresented && !reconVialFor && <FeatureExplainerGate candidates={protocolExplainers} />}
 
       {/* The enlarged syringe, held here so a fold or unfold never closes it (BK-10). */}
       <SyringeZoomSheet p={zoomProtocol} visible={zoom.open} onClose={() => setZoom(z => ({ ...z, open: false }))} t={t} />

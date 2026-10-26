@@ -102,8 +102,13 @@ test('A-89: Restore twice — the second does nothing, the protocol stays as the
 // only closes the prompt (never ends the protocol and its reminders).
 test('the vial prompt\'s "Protocol finished" only closes it (no end until the approved picture)', () => {
   const s = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/TodayScreen.js'), 'utf8');
-  const btn = s.slice(s.indexOf("{t('today_vial_finished')}") - 260, s.indexOf("{t('today_vial_finished')}"));
-  assert.match(btn, /onPress=\{closeVialPrompt\}/);
+  // A-132: the window is screens/components/NewVialPrompt.js; its secondary button ("Protocol
+  // finished" after the last dose) is Today's closeVialPrompt.
+  assert.equal(require('../lib/newVial').vialPromptKeys('finished').secondary, 'today_vial_finished');
+  assert.match(s, /onSecondary=\{closeVialPrompt\}/);
+  const w = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/components/NewVialPrompt.js'), 'utf8');
+  const btn = w.slice(w.indexOf('{t(keys.secondary)}') - 200, w.indexOf('{t(keys.secondary)}'));
+  assert.match(btn, /onPress=\{onSecondary\}/);
   const inactive = s.slice(s.indexOf('async function endInactiveProtocol() {'), s.indexOf('async function endInactiveProtocol() {') + 700);
   assert.match(inactive, /endProtocolAtLastDose\(p\.id\)/);
 });
