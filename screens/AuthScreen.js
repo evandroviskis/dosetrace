@@ -21,7 +21,7 @@ import { normalizeActivityLevel } from '../lib/activityLevels';
 import { beginExplicitSignIn, endExplicitSignIn } from '../lib/explicitSignIn';
 import {
   validateCredentials, signupNext, authErrorMessage, isNotConfirmed, consentParts,
-  socialConsentPatch, initialAuthMode, initialConsent,
+  socialConsentPatch, initialAuthMode, initialConsent, forgotPasswordSheet,
 } from '../lib/authFlow';
 import Svg, { Path } from 'react-native-svg';
 import FeatureIcon from '../components/FeatureIcon';
@@ -72,6 +72,13 @@ function AppleLogo({ color }) {
       <Path fill={color} d="M14.1 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.8-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.5 4.8 1.9 5.8 1 7.4c-1.9 3.2-.5 8 1.3 10.6.9 1.3 1.9 2.7 3.3 2.6 1.3-.1 1.8-.8 3.4-.8 1.6 0 2 .8 3.4.8 1.4 0 2.3-1.3 3.2-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.9-1.1-2.9-4.4zM11.5 3c.7-.9 1.2-2.1 1.1-3.3-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.2 1.1.1 2.3-.6 3-1.5z" />
     </Svg>
   );
+}
+
+// Whether the Apple button is on this screen (the same two conditions AppleSignInButton checks), so
+// the "Forgot password?" sheet names only the buttons the person can see (A-147).
+function appleButtonShown(appleWeb) {
+  if (Platform.OS === 'android') return !!appleWeb;
+  return !!getAppleAuth()?.AppleAuthenticationButton;
 }
 
 // The Sign in with Apple button. iOS: the system button (Apple HIG): black on light, white on
@@ -221,7 +228,7 @@ export default function AuthScreen({ onBack, initialMode }) {
     busyRef.current = false;
     setLoading(false);
     if (error) errorSheet(authErrorMessage(error, t, 'reset_request'));
-    else setSheet({ icon: 'check', title: t('forgot_password_sent_title'), body: t('forgot_password_sent_msg').replace('{email}', trimmed), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    else setSheet(forgotPasswordSheet({ t, email: trimmed, appleShown: appleButtonShown(appleWeb) }));
   }
 
   // Resend the signup confirmation email (with a 30 s cooldown to avoid spam).
