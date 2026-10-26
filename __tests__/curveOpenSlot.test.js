@@ -70,3 +70,42 @@ test('R6: the open dose follows now (a later compute places it at that moment)',
   assert.ok(p.doses.includes(later + M.OPEN_AT_NOW_MS));
   assert.ok(!p.doses.includes(NOW + M.OPEN_AT_NOW_MS));
 });
+
+// PK review of AD-96 B (2026-10-26), finding 1 (R6 amendment, needs the founder's signature): a 4×/day
+// protocol with nothing logged by 19:00 has three open slots (08:00, 12:00, 16:00). Projecting each as a
+// dose at now drew them as one spike at Now — it read like "take the missed doses together now". At
+// most ONE open slot per day is projected (the latest due one); the earlier ones add nothing until a row
+// closes them.
+const fourADay = (over = {}) => ({
+  id: 5, type: 'recon', name: 'BPC-157', compound_id: null, dose: '250', dose_unit: 'mcg',
+  interval_days: 1, doses_per_day: 4, reminder_time: '08:00,12:00,16:00,20:00', start_date: '2026-10-20',
+  created_at: iso(at(10, 20, 7)), ...over,
+});
+const bpc = H.getHalfLifeEntry('BPC-157');
+const row5 = (outcome, ms) => ({ protocol_id: 5, outcome, logged_at: iso(ms), sync_status: 'synced' });
+const plan4 = (logs, now) => M.curvePlan(fourADay(), bpc, M.curveGridStart(now, 3), now + 2 * 864e5, now, { logs });
+const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+
+test('PK review 1 (R6): a 4×/day protocol with nothing logged by 19:00 projects ONE dose at now, never three', () => {
+  const now = at(10, 23, 19);
+  const p = plan4([], now);
+  assert.equal(p.open, 1);
+  assert.deepEqual(p.doses.filter((d) => d > now - 12 * HOUR && d <= now + 1), [now + M.OPEN_AT_NOW_MS]);
+  // The 20:00 slot is still the plan, at its own time; tomorrow is the full schedule.
+  assert.deepEqual(p.doses.filter((d) => d > now && sameDay(d, now)), [now + M.OPEN_AT_NOW_MS, at(10, 23, 20)]);
+  assert.equal(p.doses.filter((d) => sameDay(d, at(10, 24, 12))).length, 4);
+});
+
+test('PK review 1 (R6): one open dose while any due slot is open; none once every due slot is closed', () => {
+  const now = at(10, 23, 19, 10);
+  // One Taken at 19:05: it closes one slot; two due slots are still open → still one dose at now.
+  const one = plan4([row5('Taken', at(10, 23, 19, 5))], now);
+  assert.equal(one.open, 1);
+  assert.ok(one.doses.includes(at(10, 23, 19, 5)));
+  assert.ok(one.doses.includes(now + M.OPEN_AT_NOW_MS));
+  // Every due slot answered (Taken, Skipped, Missed): nothing at now; 20:00 stays planned.
+  const all = plan4([row5('Taken', at(10, 23, 8, 2)), row5('Skipped', at(10, 23, 12, 1)), row5('Missed', at(10, 23, 16))], now);
+  assert.equal(all.open, 0);
+  assert.ok(!all.doses.includes(now + M.OPEN_AT_NOW_MS));
+  assert.ok(all.doses.includes(at(10, 23, 20)));
+});
