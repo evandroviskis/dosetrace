@@ -28,7 +28,8 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { handledSlotIndexes, ymd } from '../lib/notificationPlan';
-import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
+import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
+import { blockedSheetStep, blockedSheet, NOTIF_BLOCKED_KEY } from '../lib/notifBlocked';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery, shouldWarnWindow, windowAlertTitle } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
@@ -215,10 +216,12 @@ export default function TodayScreen() {
       .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h)); setRemindersBattery(shouldWarnBattery(h)); setRemindersWindow(shouldWarnWindow(h));
         // Decision 5: Android users who already have a reminder time see the setup step once.
         // A-120: never while Today is still loading its first screen.
+        // NB-4: the Android setup screen goes first (it lists Notifications too); the blocked sheet
+        // is checked only when it did not open (docs/specs/notifications-blocked.md).
         setTimeout(() => {
           firstShownRef.current.p.then(() => {
             if (!navigation.isFocused()) return; // never pull the user off another screen (ship-check)
-            maybeOpenSetupForExisting(navigation, h.activeWithTime).catch(() => {});
+            maybeOpenSetupForExisting(navigation, h.activeWithTime).then((opened) => { if (!opened) checkNotifBlocked(h); }).catch(() => {});
           });
         }, 600);
       })
@@ -1186,6 +1189,36 @@ export default function TodayScreen() {
         onDiscard: () => { discardOrphaned().then(() => { remember(0); refreshOffline(); }).catch(() => {}); },
       }));
     })().catch(() => {});
+  }
+
+  // Notifications blocked on the phone (docs/specs/notifications-blocked.md, founder 2026-10-20): one
+  // short DoseTrace sheet, once per state change (lib/notifBlocked, remembered on this phone), with
+  // the Reminder check's own fix for the notifications row. Never over one of Today's popups, a site
+  // question or off Today — then it waits for a later read (focus, a finished resync). readReminders
+  // keeps its first closure, so the words are read through a ref (a language change applies).
+  const notifBlockedBusyRef = useRef(false);
+  const notifBlockedTRef = useRef(t);
+  notifBlockedTRef.current = t;
+  function checkNotifBlocked(h) {
+    if (notifBlockedBusyRef.current) return;
+    notifBlockedBusyRef.current = true;
+    (async () => {
+      let last = null;
+      try { last = await AsyncStorage.getItem(NOTIF_BLOCKED_KEY); } catch { return; } // unreadable: a later read
+      const step = blockedSheetStep(h, last);
+      if (!step.show) {
+        if (step.save) await AsyncStorage.setItem(NOTIF_BLOCKED_KEY, step.save).catch(() => {});
+        return;
+      }
+      if (!focusedRef.current || todayPopupBusy() || siteQueueRef.current.length) return;
+      await AsyncStorage.setItem(NOTIF_BLOCKED_KEY, step.save);
+      if (!focusedRef.current || todayPopupBusy()) {
+        // A popup opened meanwhile: not shown, so not remembered either (a later read shows it).
+        await (last == null ? AsyncStorage.removeItem(NOTIF_BLOCKED_KEY) : AsyncStorage.setItem(NOTIF_BLOCKED_KEY, last)).catch(() => {});
+        return;
+      }
+      showTodaySheet(blockedSheet({ t: notifBlockedTRef.current, onOpen: () => { openReminderFix('notifications').catch(() => {}); } }));
+    })().catch(() => {}).finally(() => { notifBlockedBusyRef.current = false; });
   }
 
   // A popup of Today's own is open (or the vial prompt is about to open).
