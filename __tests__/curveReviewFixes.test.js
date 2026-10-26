@@ -175,3 +175,28 @@ test('ENG-2 / PK-15 (AD-96 B): the Dose log read reaches 967 days (the longest w
   assert.match(row, /\| built \|/);
   assert.match(row, /curveLookback\.test\.js/);
 });
+
+// ── AD-96 B PK review 6: curvePlan kept its last result per schedule list under a 32-bit hash of the
+// dose lists — two different inputs with the same hash got the other one's doses. The cache now compares
+// the lists exactly.
+test('PK review 6 (AD-96 B): two different inputs never share a cached curvePlan list', () => {
+  const at = (mo, d, h, mi = 0) => new Date(2026, mo - 1, d, h, mi).getTime();
+  const p = { id: 9, type: 'recon', name: 'BPC-157', compound_id: null, dose: '250', dose_unit: 'mcg', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', start_date: '2026-10-10', created_at: new Date(at(10, 10, 7)).toISOString() };
+  const e = H.getHalfLifeEntry('BPC-157');
+  const t0 = at(10, 25, 12);
+  const start = M.curveGridStart(t0, 14);
+  const log = (t) => ({ logs: [{ protocol_id: 9, outcome: 'Taken', logged_at: new Date(t).toISOString(), sync_status: 'synced' }] });
+  // These two logged times gave the same 32-bit key under the old hash (found by search).
+  const t1 = 1792469032218;
+  const t2 = 1792469479194;
+  const a = M.curvePlan(p, e, start, t0 + 7 * DAY, t0, log(t1));
+  const b = M.curvePlan(p, e, start, t0 + 7 * DAY, t0, log(t2));
+  assert.ok(a.taken.includes(t1) && a.doses.includes(t1));
+  assert.ok(b.taken.includes(t2) && b.doses.includes(t2), 'the second input gets its own doses');
+  assert.ok(!b.doses.includes(t1));
+  assert.notEqual(a, b);
+  // The same input still comes back as the same frozen list (ENG-1: curveSampling keeps its carried sums).
+  assert.equal(M.curvePlan(p, e, start, t0 + 7 * DAY, t0, log(t2)), b);
+  // A source check: no hash key left in curvePlan's cache.
+  assert.doesNotMatch(src('lib/serumModel.js'), /hashTimes/);
+});
