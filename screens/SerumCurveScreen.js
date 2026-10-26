@@ -30,8 +30,9 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate,
+  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
 } from '../lib/serumModel';
+import { isOne } from '../lib/plural';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
@@ -494,6 +495,9 @@ export default function SerumCurveScreen({ embedded = false }) {
       // Exact level at this moment, for the numbers.
       const nowLevel = levelAt(doses, doseMg, entry, now);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
+      // A-160 (founder 2026-10-26, option B): the doses that still add at least 1% of their amount to
+      // the level now (lib/serumModel dosesInLevel) — the number beside the level.
+      const levelDoses = doses.filter((ts) => dosesInLevel([ts], entry, now) === 1);
       return {
         id: p.id,
         p,
@@ -508,6 +512,8 @@ export default function SerumCurveScreen({ embedded = false }) {
         instants,
         nowLevel,
         dosesInWindow,
+        levelDoses,
+        dosesInLevel: levelDoses.length,
         doses,       // raw dose timestamps, for date-readout math
         // DV-072 C: a hollow tick for a planned dose the Dose log does not show as Taken.
         ticks: doseTicks(p, doses, doseLogs, now),
@@ -701,12 +707,15 @@ export default function SerumCurveScreen({ embedded = false }) {
   const singlePre = single ? single.pre : null;
   const singleNow = single ? single.nowLevel : 0;
   const modelXs = single ? single.xs : null;
+  // A-160: the count runs with the pen over the in-level doses drawn in the window, from the ones
+  // before it (those are already in the level when the line starts).
   const singleDoseIdx = useMemo(() => {
     if (!single || !model) return [];
-    return single.doses
+    return single.levelDoses
       .map((ts) => (ts - model.start) / stepMs)
       .filter((i) => i >= 0 && i <= model.nowIdx);
   }, [single, model]);
+  const singleLevelPre = single && model ? single.levelDoses.filter((ts) => ts < model.start).length : 0;
   const statLevel = useDerivedValue(() => {
     if (!singlePts || !modelXs) return 0;
     const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
@@ -715,10 +724,10 @@ export default function SerumCurveScreen({ embedded = false }) {
   }, [singlePts, singlePre, modelXs, singleNow, mNow, mN]);
   const statDoses = useDerivedValue(() => {
     const rev = Math.min(revealAt(clock.value, mNow, mN), mNow);
-    let c = 0;
+    let c = singleLevelPre;
     for (let i = 0; i < singleDoseIdx.length; i++) if (singleDoseIdx[i] <= rev + 1e-6) c++;
     return c;
-  }, [singleDoseIdx, mNow, mN]);
+  }, [singleDoseIdx, singleLevelPre, mNow, mN]);
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
   const unitLbl = unitText(model ? model.unit : 'mg', language); // A-134: UI / IE in the app language
@@ -841,7 +850,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               </>
             )}
             <Text style={s.rangeLabel}>
-              {t('curve_last_days')} {pastDays}{du} · +{futureDays}{du} {t('curve_projection')}
+              {t('curve_last_days')} {pastDays}{du}{single ? ` · ${single.dosesInWindow} ${t(isOne(single.dosesInWindow, language) ? 'log_dose' : 'log_doses')}` : ''} · +{futureDays}{du} {t('curve_projection')}
               {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)}\u00A0${unitLbl}` : ''}
             </Text>
             {/* A-30 (a): a fixed label — the part before the protocol was added is estimated from
@@ -988,6 +997,7 @@ export default function SerumCurveScreen({ embedded = false }) {
 
           {single ? (
             // One compound → the three stats (.curvestats), 34 pt numbers.
+            <>
             <View style={s.curvestats}>
               <View style={s.statCol}>
                 <Text style={s.statCap}>{t('curve_current_level')}</Text>
@@ -1007,10 +1017,13 @@ export default function SerumCurveScreen({ embedded = false }) {
                 </View>
               </View>
               <View style={s.statCol}>
-                <Text style={s.statCap}>{t('curve_doses_counted')}</Text>
-                <AnimatedNumber value={statDoses} format={cntFmt} style={s.statNum} width={numW(single.dosesInWindow)} />
+                <Text style={s.statCap}>{t('curve_doses_in_level')}</Text>
+                <AnimatedNumber value={statDoses} format={cntFmt} style={s.statNum} width={numW(single.dosesInLevel)} />
               </View>
             </View>
+            {/* A-160 option B: what the count means, in one line under the numbers (picture .cfoot) */}
+            <Text style={s.statNote}>{t('curve_doses_in_level_note')}</Text>
+            </>
           ) : (
             // Multiple compounds → a legend, one row each, sharing the y-scale.
             <View style={s.list}>
@@ -1261,6 +1274,7 @@ function makeStyles(c) {
     curvestats: { flexDirection: 'row', gap: 8, backgroundColor: c.raised, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16 },
     statCol: { flex: 1, minWidth: 0, gap: 4 },
     statCap: { fontSize: 12, fontWeight: '500', color: c.ink2 },
+    statNote: { marginTop: -6, paddingHorizontal: 4, fontSize: 13, lineHeight: 18, color: c.ink3 },
     statNumRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' },
     statNum: { fontSize: 34, fontWeight: '300', color: c.ink, letterSpacing: -1, fontVariant: ['tabular-nums'] },
     statUnit: { fontSize: 13, color: c.ink3, fontFamily: MONO['400'], marginLeft: 3 },

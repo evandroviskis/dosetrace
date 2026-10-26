@@ -87,24 +87,24 @@ test('PK-4: the one-pass path is chosen by the marker amountFraction.exactCarry,
   assert.ok(calls > 0, 'an unmarked one is called (any model)');
 });
 
-// ── PK-5 (final verify 2026-10-20): "Doses contadas" stays exactly what 1.3.0 shows — the doses
-// inside the visible window. Counting the whole look-back (e.g. 767 for BPC-157 twice daily on every
-// window) is a visible change the founder has not seen, so it does not ship in 1.3.1.
-// KNOWN LIMITATION (founder question for 1.3.2, registered by the coordinator): the count and the
-// Est. level do not cover the same doses — Testosterone Undecanoate every 70 days shows 0 doses on the
-// 3-day window next to an Est. level of ~1,000 mg (its doses are older than the window).
-test('PK-5 reverted: "Doses contadas" counts the doses inside the visible window, as in 1.3.0', () => {
+// ── PK-5 (final verify 2026-10-20) kept the 1.3.0 count (doses inside the visible window) for 1.3.1
+// and registered the limitation as A-160: Testosterone Undecanoate every 70 days showed 0 doses on the
+// 3-day window next to an Est. level of ~1,000 mg. Founder 2026-10-26 (option B, "Vamos com B nas
+// duas"): the number beside the level is "Doses in level" (lib/serumModel dosesInLevel, the doses that
+// still add at least 1% of their amount now); the window count moves to the top line
+// (__tests__/a160DosesInLevel.test.js).
+test('PK-5 → A-160 B: the window count stays for the top line; the stat counts the doses in the level', () => {
   const p = { id: 'tu', type: 'rtu', name: 'Testosterone Undecanoate', dose: '1000', dose_unit: 'mg', interval_days: 70, doses_per_day: 1, reminder_time: '09:00', start_date: iso(now - 1460 * DAY), created_at: new Date(now - 1460 * DAY).toISOString() };
   const e = H.getHalfLifeEntry(M.matchName(p));
   const start = M.curveGridStart(now, 3);
   const doses = M.scheduledDoses(p, e, start, now + 7 * DAY, now);
   const inWindow = doses.filter((ts) => ts >= start && ts <= now).length;
-  assert.equal(inWindow, 0, 'the known limitation above, documented, not a goal');
+  assert.equal(inWindow, 0, 'the window count (top line) is still 0');
   assert.ok(M.levelAt(doses, 1000, e, now) > 500);
+  assert.ok(M.dosesInLevel(doses, e, now) > 0, 'the stat beside the level is no longer 0');
   const scr = src('screens/SerumCurveScreen.js');
   assert.match(scr, /const dosesInWindow = doses\.filter\(ts => ts >= start && ts <= now\)\.length;/);
-  assert.match(scr, /width=\{numW\(single\.dosesInWindow\)\}/);
-  assert.match(scr, /const statDoses = useDerivedValue\(\(\) => \{\n    const rev = Math\.min\(revealAt\(clock\.value, mNow, mN\), mNow\);\n    let c = 0;/);
+  assert.match(scr, /width=\{numW\(single\.dosesInLevel\)\}/);
   assert.doesNotMatch(scr, /doseCounts|dosesBefore|dosesCounted/);
   assert.equal(M.doseCounts, undefined, 'removed: nothing else used it');
 });

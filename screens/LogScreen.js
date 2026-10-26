@@ -16,8 +16,9 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { protocolDisplayName } from '../lib/protocolName';
 import { getAllLogs, getLogsSince, getTodayLogs, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
-import { scanMissedDoses, recordDoseTaken } from '../lib/doseActions';
-import { requestSync } from '../lib/sync';
+import { scanMissedDoses, recordDoseTaken, unsyncedState } from '../lib/doseActions';
+import { requestSync, forceSync } from '../lib/sync';
+import { pluralKey } from '../lib/plural';
 import { summarizeStored, describeStored } from '../lib/injectionSites';
 import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose';
 import { syncAllNotifications, cancelTodaysDoseReminders } from '../lib/notifications';
@@ -92,6 +93,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // choice, errors); `siteSheet` presented from inside the site picker.
   const [logSheet, setLogSheet] = useState(null);
   const [siteSheet, setSiteSheet] = useState(null);
+  // A-181 (founder 2026-10-26, option B): "Not synced since {date}" while the A-177 rule holds doses
+  // back (lib/doseActions unsyncedState; null = nothing to say). syncing: Sync now is running.
+  const [unsync, setUnsync] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const insets = useSafeAreaInsets();
 
   // BK-10: a Dose log pushed while folded moves onto Today's right page on unfold.
@@ -113,9 +118,28 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       scanMissedDoses().then((n) => {
         if (n > 0) requestSync();
         fetchLogs();
+        refreshUnsync();
       }).catch(() => {});
     }, [])
   );
+
+  // A-181: read after the scan, so the rows it wrote or removed are counted.
+  function refreshUnsync() {
+    unsyncedState().then((st) => setUnsync(st && st.notice ? st.notice : null)).catch(() => {});
+  }
+  // Sync now: a full pass, then the scan (it writes the misses the pull now proves), then the notice.
+  async function syncNow() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      await forceSync();
+      const n = await scanMissedDoses({ maxWaitMs: 15000 });
+      if (n > 0) requestSync();
+    } catch { /* the card stays: the next opening tries again */ }
+    fetchLogs();
+    refreshUnsync();
+    setSyncing(false);
+  }
 
   // A dose auto-marked "Missed" can be corrected here — the user took it but
   // didn't log it in time. Changing the outcome updates the same row (no new
@@ -507,6 +531,23 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   const header = (
     <View style={s.top}>
       <Text style={s.title}>{t('log_title')}</Text>
+      {/* A-181 option B: the state of the data, never an alert colour (DESIGN.md §2.5) */}
+      {unsync ? (
+        <View style={s.unsyncCard}>
+          <View style={s.unsyncHead}>
+            <FeatureIcon name="refresh" size={18} color={colors.ink2} />
+            <Text style={s.unsyncTitle}>
+              {unsync.never ? t('log_unsynced_never') : t('log_unsynced_title').replace('{date}', formatDate(new Date(unsync.sinceMs), language, 'dayMonth') || '')}
+            </Text>
+          </View>
+          <Text style={s.unsyncBody}>{t(pluralKey('log_unsynced_count', unsync.count, language)).replace('{n}', String(unsync.count))}</Text>
+          {unsync.old ? <Text style={s.unsyncBody}>{t('log_unsynced_old')}</Text> : null}
+          <TouchableOpacity onPress={syncNow} disabled={syncing} style={s.syncBtn} accessibilityRole="button" accessibilityState={{ busy: syncing, disabled: syncing }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.syncBtnText}>{t('sync_now')}</Text>
+            {syncing ? <ActivityIndicator size="small" color={colors.ink2} /> : null}
+          </TouchableOpacity>
+        </View>
+      ) : null}
       {/* Why the log matters — moved here from Today (today-build-handoff.md item 15) */}
       <View style={s.expl}>
         <Text style={s.explText}>{t('today_streak_explainer')}</Text>
@@ -520,6 +561,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
               <View style={[s.statusDot, { backgroundColor: outcomeColor(c.key) }]} />
               <Text style={s.trioCap}>{outcomeLabel(c.key)}</Text>
             </View>
+            {c.key === 'Missed' && unsync ? <Text style={s.trioSub}>{t('log_unrecorded_n').replace('{n}', String(unsync.count))}</Text> : null}
           </View>
         ))}
       </View>
@@ -761,6 +803,14 @@ const makeStyles = (c) => StyleSheet.create({
   trioCapRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   trioCap: { fontSize: 12, fontWeight: '500', color: c.ink2, flexShrink: 1 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
+  trioSub: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink3, fontVariant: ['tabular-nums'] },
+  // A-181 option B (picture .ncard / .tbtn): a raised card, a text button.
+  unsyncCard: { backgroundColor: c.raised, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, gap: 6 },
+  unsyncHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  unsyncTitle: { fontSize: 17, fontWeight: '600', color: c.ink, flexShrink: 1 },
+  unsyncBody: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  syncBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', minHeight: 24, paddingTop: 4 },
+  syncBtnText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, textDecorationLine: 'underline' },
   emptyState: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 20 },
   loadingBox: { flex: 1, paddingTop: 96, alignItems: 'center' }, // A-120: first load
   emptyIcon: { marginBottom: 16 },

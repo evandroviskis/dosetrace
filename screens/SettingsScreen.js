@@ -57,7 +57,10 @@ import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
-import { scanMissedDoses } from '../lib/doseActions';
+import { scanMissedDoses, unsyncedState } from '../lib/doseActions';
+import { readUnrecordedGaps } from '../lib/pullStamp';
+import { heldByProtocol, reportGaps } from '../lib/unsyncedDoses';
+import { forceSync } from '../lib/sync';
 import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
@@ -251,6 +254,10 @@ export default function SettingsScreen({ navigation }) {
   const [editSheet, setEditSheet] = useState(null);
   // The adherence report preview (Settings part 3): the exact text before the share sheet.
   const [reportPreview, setReportPreview] = useState(null);
+  // A-181 option B: above the paper (never in the report), "This phone hasn't synced since {date}" +
+  // Sync now, while the A-177 rule holds doses back. { sinceMs } or null; reportSyncing: Sync now runs.
+  const [reportUnsync, setReportUnsync] = useState(null);
+  const [reportSyncing, setReportSyncing] = useState(false);
   const lastReport = useRef('');
   if (reportPreview) lastReport.current = reportPreview;
   const reportShown = reportPreview || lastReport.current;
@@ -565,6 +572,15 @@ export default function SettingsScreen({ navigation }) {
       // complete ÷ (complete + skipped + missed).
       const stats = adherenceStats({ protocols, logs, sinceMs: thirtyDaysAgo.getTime(), nowMs: now.getTime() });
       const vials = getLocalVials(user.id) || [];
+      // A-181 (founder 2026-10-26, option B): doses the A-177 rule still holds back are not counted as
+      // missed yet — the report says so (asterisks, a line, "No record since" per protocol), and every
+      // gap of more than 14 days without a sync stays written while it falls in these 30 days.
+      const unsync = await unsyncedState();
+      const notice = unsync.notice;
+      const heldIn = notice ? heldByProtocol(unsync.held, thirtyDaysAgo.getTime(), now.getTime()) : {};
+      const gaps = reportGaps(await readUnrecordedGaps(AsyncStorage, user.id, now.getTime()), thirtyDaysAgo.getTime(), now.getTime());
+      // No good pull ever on this phone: the first held dose stands for "since".
+      const unsyncSinceMs = notice ? (notice.sinceMs != null ? notice.sinceMs : Math.min(...unsync.held.map((h) => h.scheduledAtMs))) : null;
 
       if (protocols.length === 0) {
         notice(t('settings_report_title'), t('settings_report_empty'));
@@ -601,6 +617,7 @@ export default function SettingsScreen({ navigation }) {
           skipped,
           missed,
           adherence,
+          unrecorded: heldIn[p.id] || 0,
           streak,
           vialRemaining: vial ? (vial.total_doses || 0) - (vial.doses_taken || 0) : null,
         };
@@ -618,7 +635,9 @@ export default function SettingsScreen({ navigation }) {
       report += `${'─'.repeat(40)}\n`;
       report += `${t('report_user').replace('{name}', userName)}\n`;
       report += `${t('report_period').replace('{range}', dateRange)}\n`;
-      report += `${fillPercent(t('report_overall'), stats.overall.adherence)}\n`;
+      report += `${fillPercent(t('report_overall'), stats.overall.adherence)}${notice || gaps.length ? '*' : ''}\n`;
+      if (notice) report += `${t('report_unsynced').replace('{date}', formatDate(new Date(unsyncSinceMs), language, 'dayMonthYear') || '')}\n`;
+      for (const g of gaps) report += `${t('report_gap').replace('{from}', formatDate(new Date(g.fromMs), language, 'dayMonth') || '').replace('{to}', formatDate(new Date(g.toMs - 1), language, 'dayMonth') || '')}\n`;
       report += `${t('report_active_protocols').replace('{count}', protocols.filter((p) => !isEnded(p)).length)}\n`;
       report += `${t('report_total_logged').replace('{count}', totalAll)}\n`;
       report += `${'─'.repeat(40)}\n\n`;
@@ -626,7 +645,8 @@ export default function SettingsScreen({ navigation }) {
       protocolStats.forEach(ps => {
         report += `${ps.name}\n`;
         report += `  ${t('report_dose_line').replace('{dose}', ps.dose).replace('{frequency}', ps.frequency)}\n`;
-        report += `  ${fillPercent(t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{missed}', ps.missed), ps.adherence)}\n`;
+        report += `  ${fillPercent(t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{missed}', ps.missed), ps.adherence)}${ps.unrecorded > 0 ? '*' : ''}\n`;
+        if (ps.unrecorded > 0) report += `  ${t('report_unrecorded').replace('{date}', formatDate(new Date(unsyncSinceMs), language, 'dayMonth') || '').replace('{n}', ps.unrecorded)}\n`;
         report += `  ${t(pluralKey('report_streak_line', ps.streak, language)).replace('{days}', ps.streak)}\n`;
         if (ps.vialRemaining !== null) {
           report += `  ${t(pluralKey('report_vial_line', ps.vialRemaining, language)).replace('{count}', ps.vialRemaining)}\n`;
@@ -640,11 +660,22 @@ export default function SettingsScreen({ navigation }) {
       report += `${t('report_footer_2')}\n`;
 
       // Shown first, exactly as it will be sent (Settings part 3); Share opens the system sheet.
+      setReportUnsync(notice ? { sinceMs: unsyncSinceMs } : null);
       setReportPreview(report);
     } catch (e) {
       errorSheet(friendlyError(e, t));
     }
     setExporting(false);
+  }
+
+  // A-181: Sync now above the paper — a full pass, then the report is built again (its scan writes the
+  // misses the pull now proves).
+  async function reportSyncNow() {
+    if (reportSyncing) return;
+    setReportSyncing(true);
+    try { await forceSync(); } catch { /* the notice stays */ }
+    await handleAdherenceReport();
+    setReportSyncing(false);
   }
 
   // The system share sheet opens only after the preview page has closed (iOS cannot present it
@@ -1351,6 +1382,18 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
             <Text style={s.sheetIntro}>{t('settings_report_preview_note')}</Text>
+            {reportUnsync ? (
+              <View style={s.reportUnsync}>
+                <FeatureIcon name="refresh" size={18} color={colors.ink2} />
+                <View style={s.reportUnsyncCol}>
+                  <Text style={s.reportUnsyncText}>{t('settings_report_unsynced').replace('{date}', formatDate(new Date(reportUnsync.sinceMs), language, 'dayMonth') || '')}</Text>
+                  <TouchableOpacity onPress={reportSyncNow} disabled={reportSyncing} style={s.reportSyncBtn} accessibilityRole="button" accessibilityState={{ busy: reportSyncing, disabled: reportSyncing }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={s.reportSyncBtnText}>{t('sync_now')}</Text>
+                    {reportSyncing ? <ActivityIndicator size="small" color={colors.ink2} /> : null}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
             <View style={s.reportPaper}>
               <Text style={s.reportText} selectable>{reportShown}</Text>
             </View>
@@ -1810,6 +1853,12 @@ const settingsGraduated = (c) => ({
   // The adherence report as it will be sent: plain text on a well "paper", mono for the columns.
   reportPaper: { backgroundColor: c.well, borderRadius: 14, padding: 16, marginTop: 4 },
   reportText: { fontFamily: MONO['500'], fontSize: 12, lineHeight: 18, color: c.ink },
+  // A-181 option B (picture .flat.inSheet): plain on the sheet, a text button.
+  reportUnsync: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 4, paddingBottom: 10 },
+  reportUnsyncCol: { flex: 1, minWidth: 0, gap: 4 },
+  reportUnsyncText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  reportSyncBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', minHeight: 24 },
+  reportSyncBtnText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, textDecorationLine: 'underline' },
   reportFoot: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 12 },
   sheetDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
 

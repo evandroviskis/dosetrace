@@ -379,7 +379,7 @@ test('A-123 (5): the Dose log loads its list at once, not after the waiting Miss
   assert.ok(scanAt > 0);
   const firstFetch = focus.indexOf('fetchLogs();');
   assert.ok(firstFetch >= 0 && firstFetch < scanAt, 'fetchLogs() runs before the scan is started');
-  assert.match(focus.slice(scanAt), /^scanMissedDoses\(\)\.then\(\(n\) => \{\s*if \(n > 0\) requestSync\(\);\s*fetchLogs\(\);\s*\}\)\.catch\(\(\) => \{\}\);/, 'and again after it');
+  assert.match(focus.slice(scanAt), /^scanMissedDoses\(\)\.then\(\(n\) => \{\s*if \(n > 0\) requestSync\(\);\s*fetchLogs\(\);\s*(refreshUnsync\(\);\s*)?\}\)\.catch\(\(\) => \{\}\);/, 'and again after it (A-181: then the not-synced notice)');
   // Today never waits for the scan before its first screen (A-120's first reads do not include it).
   const today = read('screens/TodayScreen.js');
   const reads = today.slice(today.indexOf('const firstReads = ['), today.indexOf('];', today.indexOf('const firstReads = [')));
