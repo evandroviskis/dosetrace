@@ -496,3 +496,15 @@ All 6 are on-slot with no injection site. 5 were inserted within seconds of thei
 - Exclusion proof: report test counts before/after. Only energy.test.ts may disappear; 261 pass + 6 todo must remain.
 
 A-30 / A-32 / A-33 registry thread: CLOSED 2026-09-27 (all three registered for 1.2.6 with their criteria).
+
+## 1.3.2 build status update — 2026-10-26 16:17 EDT (rows above whose status column is older win here)
+Built on redesign/graduated (eddea35), test first, checklists signed by the founder 2026-10-26; device check in both themes owed for all:
+- A-181 + A-160 (option B) — docs/specs/unsynced-and-doses-in-level.md.
+- A-171 old notification tap routes on launch (+ food tap older than 7 days opens today).
+- A-147 forgot password on a Google/Apple account — docs/specs/a147-forgot-password-social.md.
+- A-170 Next key chains fields (iOS numeric keyboards have no return key: documented deviation).
+- A-169 profile card never shows "??" (first frame from App.js's listener; no second auth listener).
+- A-139 why we ask sex at birth (B, C, E + D′) — docs/specs/a139-sex-at-birth.md.
+- A-132 new vial for an expired vial + A-158 / AD-80 Edit vial (A for both) — docs/specs/a132-new-vial.md.
+- DV-184 headless refresh at import (supabase-js own listener) — fixed here and in release/1.3.1 (e3e20a4).
+- A-156 server pushes in the person's language — already built (push_tokens.language, migration 20261021230000, not applied in production).
