@@ -2050,7 +2050,8 @@ export default function ProtocolsScreen() {
       if (vialPatch) {
         const existing = vialsByProtocol[editingId];
         if (existing) updateVial(existing.id, vialPatch);
-        else insertVial({ user_id: user.id, protocol_id: editingId, doses_taken: 0, ...rtuVialFields(currentForm(), language) });
+        // A-185: with the protocol's cloud id, or the vial would wait for it forever
+        else insertVial({ user_id: user.id, protocol_id: editingId, protocol_remote_id: (getProtocolById(editingId) || {}).remote_id || null, doses_taken: 0, ...rtuVialFields(currentForm(), language) });
       }
       setSaving(false);
       // Reschedule from the freshly-persisted row (real user_id/created_at) so
