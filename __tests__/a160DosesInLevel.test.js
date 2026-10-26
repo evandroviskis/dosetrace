@@ -45,7 +45,21 @@ test('the rule: a dose counts while its share of its own amount now is at least 
 test('the level itself is untouched (the number beside it changes, not the estimate)', () => {
   const { p, entry, doses } = cypionate();
   const lv = M.levelAt(doses, doseInCurveUnit(100, 'mg', entry), entry, NOW);
-  assert.equal(Math.round(lv), Math.round(M.estimatedLevelNow(p, NOW).value));
+  // AD-96 B (1.3.2): the level reads the Dose log — every planned dose logged as Taken here.
+  const logs = require('./helpers/curveLogs').takenAtEverySlot([p], NOW);
+  assert.equal(Math.round(lv), Math.round(M.estimatedLevelNow(p, NOW, { logs }).value));
+});
+
+test('AD-96 B: with logged doses the count is the logged doses still in the level (Skipped / Missed never count)', () => {
+  const { p, entry, doses } = cypionate();
+  const logs = doses.filter((d) => d <= NOW).map((d, i) => ({ id: i + 1, protocol_id: 1, outcome: i % 3 === 2 ? 'Skipped' : 'Taken', logged_at: new Date(d + 15 * 60000).toISOString(), sync_status: 'synced' }));
+  const drawn = M.curvePlan(p, entry, M.curveGridStart(NOW, 3), NOW + 7 * 864e5, NOW, { logs }).doses;
+  const taken = logs.filter((l) => l.outcome === 'Taken').map((l) => Date.parse(l.logged_at));
+  const inLevel = taken.filter((t) => amountFraction(entry, (NOW - t) / 3600000) >= 0.01);
+  assert.equal(M.dosesInLevel(drawn, entry, NOW), inLevel.length);
+  assert.ok(inLevel.length > 0 && inLevel.length < M.dosesInLevel(doses, entry, NOW), 'fewer than the planned 8');
+  // the planned doses after now never count
+  assert.ok(drawn.some((d) => d > NOW));
 });
 
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');

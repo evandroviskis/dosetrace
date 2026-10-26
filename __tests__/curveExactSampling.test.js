@@ -54,7 +54,9 @@ test('a BPC-157 dose at 10:30 draws its full spike at 10:30 (level includes it, 
   assert.ok(pre[i] < 1e-9, 'the line jumps at the dose, it does not ramp in');
   // The Now sample carries the same number as the Est. level.
   const k = times.indexOf(now);
-  assert.ok(Math.abs(points[k] - M.estimatedLevelNow(p, now).value) < 1e-9);
+  // AD-96 B: with every planned dose logged as Taken at its slot the Est. level is the planned one.
+  const { takenAtEverySlot } = require('./helpers/curveLogs');
+  assert.ok(Math.abs(points[k] - M.estimatedLevelNow(p, now, { logs: takenAtEverySlot([p], now) }).value) < 1e-9);
   // The peak of the drawn curve is a full dose (the scale is set by the real spike).
   assert.ok(Math.abs(Math.max(...points) - 0.25) < 1e-9);
 });

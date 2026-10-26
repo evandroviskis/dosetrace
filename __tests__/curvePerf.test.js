@@ -241,3 +241,37 @@ test('the date estimate is a sample, so its dot sits on the drawn line (across 2
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
   assert.match(src, /extraTimes: \[readoutAt\]/);
 });
+
+// ── AD-96 B (1.3.2, spec R8 / A-93 / ENG-1): the logged-doses model keeps the budget ──────────────
+// The dense review case with every slot since its start 500 days ago logged (4 protocols × 4 a day,
+// ≈ 8 000 rows; added 400 days ago, so the first 100 days are the declared part): one build of all four
+// lines stays within the 1.3.1 one-pass budget, and a rebuild with the same data (a date chip, a toggle, a reload that brought nothing) gets the same frozen dose lists back,
+// so lib/curveSampling reuses their carried sums — no exponential is recomputed for the doses.
+test('AD-96 B: the dense 365 + 90 day case with every slot logged — one pass, and a rebuild reuses the dose lists', () => {
+  const { takenAtEverySlot } = require('./helpers/curveLogs');
+  const logs = takenAtEverySlot(DENSE, now, { from: now - 900 * 864e5 });
+  assert.ok(logs.length > 7500, `${logs.length} rows`);
+  const ctx = ctxFor(365, 90);
+  const end = ctx.start + ctx.nSteps * stepMs;
+  const build = () => DENSE.map((p) => {
+    const entry = H.getHalfLifeEntry(M.matchName(p));
+    const doses = M.curvePlan(p, entry, ctx.start, end, now, { logs, siblings: DENSE }).doses;
+    return { doses, s: M.lineSamples(doses, 1, entry, ctx, H.amountFraction) };
+  });
+  const t0 = Date.now();
+  const first = countExp(build);
+  const ms = Date.now() - t0;
+  let items = 0;
+  for (const l of first.out) items += l.doses.length + l.s.times.length;
+  assert.ok(first.calls <= 4 * items, `Math.exp calls ${first.calls} vs ${items} doses + samples`);
+  assert.ok(ms < 1500, `${ms} ms for four dense lines`);
+  const again = countExp(build);
+  first.out.forEach((l, i) => assert.equal(again.out[i].doses, l.doses, 'the same frozen list'));
+  assert.ok(again.calls < first.calls, `rebuild ${again.calls} vs first ${first.calls} exponentials`);
+  // the drawn numbers are the planned ones (every slot was logged)
+  for (const [i, p] of DENSE.entries()) {
+    const entry = H.getHalfLifeEntry(M.matchName(p));
+    const planned = M.scheduledDoses(p, entry, ctx.start, end, now).filter((d) => d <= now);
+    assert.ok(Math.abs(M.levelAt(first.out[i].doses, 1, entry, now) - M.levelAt(planned, 1, entry, now)) < 1e-9, p.name);
+  }
+});

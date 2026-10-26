@@ -164,12 +164,14 @@ test('ENG-1: a rebuild re-samples from the carried sums — the work does not gr
   close(again.points, brute(doses, 1, e, [...times, now + 2 * HOUR].sort((x, y) => x - y)).points, 'carried');
 });
 
-// ── ENG-2: the Dose log read is the longest window again (367 days) until AD-96 B reads older rows
-test('ENG-2: the Dose log read reaches the longest window (367 days); 967 days ships with AD-96 B in 1.3.2', () => {
-  assert.equal(M.CURVE_LOG_LOOKBACK_DAYS, M.CURVE_MAX_PAST_DAYS + 2);
+// ── ENG-2: the Dose log read was the longest window (367 days) until AD-96 B read older rows; with
+// AD-96 B (1.3.2) the level reads logged rows, so the read is the whole look-back: 967 days (PK-15).
+test('ENG-2 / PK-15 (AD-96 B): the Dose log read reaches 967 days (the longest window + the 600-day cap)', () => {
+  assert.equal(M.CURVE_LOG_LOOKBACK_DAYS, M.CURVE_MAX_PAST_DAYS + 2 + M.LOOKBACK_CAP_DAYS);
+  assert.equal(M.CURVE_LOG_LOOKBACK_DAYS, 967);
   assert.match(src('screens/SerumCurveScreen.js'), /getLogsSince\(userId, new Date\(Date\.now\(\) - CURVE_LOG_LOOKBACK_DAYS \* 24 \* 3600 \* 1000\)\.toISOString\(\)\)/);
+  assert.match(src('screens/JourneyScreen.js'), /getLogsSince\(userId, new Date\(Date\.now\(\) - CURVE_LOG_LOOKBACK_DAYS \* 24 \* 3600 \* 1000\)\.toISOString\(\)\)/);
   const row = src('docs/specs/curve-logged-doses.md').split('\n').find((l) => l.startsWith('| PK-15 |'));
-  // Recorded missing (spec audit 2026-10-21): only the schedule part is built in 1.3.1; the logged-dose part is AD-96 B.
-  assert.match(row, /\| missing \| schedule part only \(1\.3\.1\)/);
-  assert.match(row, /log read 967 d ships with AD-96 B, 1\.3\.2/);
+  assert.match(row, /\| built \|/);
+  assert.match(row, /curveLookback\.test\.js/);
 });

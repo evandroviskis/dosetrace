@@ -81,7 +81,7 @@ test('MB-4 (amended 2026-10-15): Dose accumulation is icon, title, description a
   assert.doesNotMatch(code, /\n\s+(levelRow|levelName|levelNum|level|dot|secInk): \{/, 'the level-line styles are gone');
   assert.doesNotMatch(fnCode(BODY, 'fetchReports'), /getActiveProtocols|curveView/);
   // Journey's card and the Curve keep their level (unchanged).
-  assert.match(read('screens', 'JourneyScreen.js'), /defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView\)/);
+  assert.match(read('screens', 'JourneyScreen.js'), /defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView, curveLevelData\(user\.id\)\)/);
   assert.match(read('screens', 'JourneyScreen.js'), /t\('curve_current_level'\)/);
   assert.match(read('screens', 'SerumCurveScreen.js'), /t\('curve_current_level'\)/);
 });

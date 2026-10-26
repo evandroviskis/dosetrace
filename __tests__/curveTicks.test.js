@@ -3,7 +3,8 @@
 // planned dose tick under the axis shows what the Dose log says about it: a planned dose in the logged era
 // (from the protocol's creation − 1 h, spec R1) with no Taken row — Skipped, Missed, never answered, or due
 // and still open — is drawn HOLLOW (spec R16); a Taken dose, the declared part before creation and the
-// plan after Now stay solid. Option B (the past from Taken rows only) is 1.3.2 — not built here.
+// plan after Now stay solid. UPDATED 1.3.2: option B (AD-96 B, the past from Taken rows only) is built —
+// the hollow doses are no longer in the level (PK-17 below; lib/serumModel curvePlan).
 process.env.TZ = 'America/Sao_Paulo';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -37,8 +38,35 @@ test('DV-072 C: 7 Taken / 2 Skipped / 1 Missed over 10 days → exactly those 3 
   assert.deepEqual(hollowDays, [12, 14, 17]);
   // The future plan stays solid.
   assert.ok(ticks.filter((k) => k.ts > now).every((k) => !k.hollow));
-  // C: the number is the planned one (schedule-driven), whatever the log says.
-  assert.equal(M.estimatedLevelNow(p, now).value, M.levelAt(doses.filter((d) => d <= now), 20, e, now));
+  // UPDATED 1.3.2 (AD-96 B): the number is no longer the planned one — the hollow doses are not in it.
+  const takenAt = logs.filter((l) => l.outcome === 'Taken').map((l) => Date.parse(l.logged_at));
+  assert.equal(M.estimatedLevelNow(p, now, { logs }).value, M.levelAt(takenAt, 20, e, now));
+  assert.ok(M.estimatedLevelNow(p, now, { logs }).value < M.levelAt(doses.filter((d) => d <= now), 20, e, now));
+});
+
+test('PK-17 (AD-96 B): the screen\'s ticks are the plan\'s slots — hollow for every logged-era slot without a Taken row, none for Taken', () => {
+  const p = daily({ reminder_time: '09:00,21:00', doses_per_day: 2, start_date: '2026-10-05', created_at: iso(at(15, 16)) });
+  const e = entryOf(p);
+  const now = at(18, 12);
+  // 15th 21:00 Taken late (22:10); 16th 09:00 Skipped, 21:00 Taken; 17th 09:00 Missed, 21:00 nothing; 18th 09:00 open.
+  const logs = [row(5, 'Taken', at(15, 22, 10)), row(5, 'Skipped', at(16, 9, 5)), row(5, 'Taken', at(16, 21, 0)), row(5, 'Missed', at(17, 9))];
+  const plan = M.curvePlan(p, e, M.curveGridStart(now, 14), now + 7 * 864e5, now, { logs });
+  const ticks = M.doseTicks(p, plan.planned, logs, now);
+  const past = ticks.filter((k) => k.ts <= now && k.ts >= at(15, 15)).map((k) => [new Date(k.ts).getDate(), new Date(k.ts).getHours(), k.hollow]);
+  assert.deepEqual(past, [[15, 21, false], [16, 9, true], [16, 21, false], [17, 9, true], [17, 21, true], [18, 9, true]]);
+  // The declared part before the protocol was added stays solid, and it is in the level.
+  assert.ok(ticks.filter((k) => k.ts < at(15, 15)).every((k) => !k.hollow));
+  assert.ok(plan.declared.length > 0);
+  // The future plan stays solid.
+  assert.ok(ticks.filter((k) => k.ts > now).every((k) => !k.hollow));
+  // A start TODAY with the creation-day slot already passed: that slot was never planned → no tick at all.
+  const fresh = daily({ reminder_time: '08:00', start_date: '2026-10-18', created_at: iso(at(18, 11)) });
+  const fp = M.curvePlan(fresh, e, M.curveGridStart(now, 3), now + 864e5, now, { logs: [] });
+  assert.ok(!fp.planned.includes(at(18, 8)));
+  assert.deepEqual(M.doseTicks(fresh, fp.planned, [], now).filter((k) => k.ts <= now), []);
+  // The screen draws its ticks from that list.
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /ticks: doseTicks\(p, planned, doseLogs, now\)/);
 });
 
 test('DV-072 C / R16: a past planned dose with no row at all (never answered) and the open slot are hollow', () => {

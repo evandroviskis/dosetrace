@@ -78,7 +78,7 @@ test('Curve: the view is per user and never written on open — only when the us
     assert.match(body[0], /rememberView\(/, `${fn} remembers the choice`);
   }
   const journey = read('screens/JourneyScreen.js');
-  assert.match(journey, /defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView\)/, 'the Journey tile uses the remembered selection');
+  assert.match(journey, /defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView, curveLevelData\(user\.id\)\)/, 'the Journey tile uses the remembered selection');
   assert.match(journey, /const savedView = await loadCurveView\(user\.id\);/);
   assert.match(src, /saveCurveView\(userIdRef\.current, patch\)\.then\(\(\) => notifyDataChanged\('curve'\)\)/, 'the tile beside the curve page follows a change');
   assert.match(journey, /e\.what === 'curve'/);

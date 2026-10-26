@@ -118,6 +118,10 @@ function oldSeries(p, now, futureDays) {
 }
 
 const serum = require('../lib/serumModel');
+// AD-96 B (1.3.2): the level's past comes from the Dose log. A person who marked every planned dose as
+// Taken at its slot time sees exactly the old planned level — that is what these guards now prove.
+const { takenAtEverySlot } = require('./helpers/curveLogs');
+const logged = (list, now) => ({ logs: takenAtEverySlot(list, now) });
 const t = (k) => (translations.en[k] != null ? translations.en[k] : k);
 
 const NOW_LIST = [
@@ -155,12 +159,12 @@ test('the charted list (what the curve can open on) is unchanged, blends expande
   assert.ok(old.active.some(p => p.id === 'hcg'), 'HCG charts in IU');
 });
 
-test('estimatedLevelNow equals the screen\'s old Est. level for every charted protocol and time', () => {
+test('estimatedLevelNow equals the screen\'s old Est. level for every charted protocol and time (every dose logged as Taken)', () => {
   const active = oldActive(PROTOCOLS, t).active;
   for (const now of NOW_LIST) {
     for (const p of active) {
       const ref = oldSeries(p, now, 7);
-      const got = serum.estimatedLevelNow(p, now);
+      const got = serum.estimatedLevelNow(p, now, logged([p], now));
       assert.ok(got, `${p.id}: charted, so a level`);
       assert.equal(got.value, ref.nowLevel, `${p.id} @ ${new Date(now).toString()}`);
       assert.equal(got.unit, ref.unit);
@@ -171,9 +175,11 @@ test('estimatedLevelNow equals the screen\'s old Est. level for every charted pr
 test('the fixtures exercise real values (not all zero)', () => {
   const now = NOW_LIST[0];
   const byId = Object.fromEntries(oldActive(PROTOCOLS, t).active.map(p => [p.id, p]));
-  assert.ok(serum.estimatedLevelNow(byId.cyp, now).value > 10, 'weekly ester accumulates');
-  assert.ok(serum.estimatedLevelNow(byId.sema, now).value > 0, 'modeled peak');
-  assert.equal(serum.estimatedLevelNow(byId.future, now).value, 0, 'future start: nothing yet');
+  assert.ok(serum.estimatedLevelNow(byId.cyp, now, logged([byId.cyp], now)).value > 10, 'weekly ester accumulates');
+  assert.ok(serum.estimatedLevelNow(byId.sema, now, logged([byId.sema], now)).value > 0, 'modeled peak');
+  assert.equal(serum.estimatedLevelNow(byId.future, now, logged([byId.future], now)).value, 0, 'future start: nothing yet');
+  // AD-96 B: with nothing logged the same protocol reads 0 (no start date before it was added → no declared part)
+  assert.equal(serum.estimatedLevelNow(byId.cyp, now).value, 0, 'no logs → 0');
   assert.equal(serum.estimatedLevelNow(byId.hcg, now).unit, 'IU', 'IU compound keeps its unit');
   assert.ok(byId['wolv__lyo_bpc_157'] && byId['wolv__lyo_tb_500'], 'blend split into components');
 });
@@ -208,8 +214,8 @@ test('not charted → null (IU-dosed, no dose, no half-life data, oral)', () => 
 
 test('the tile opens on the curve\'s default compound (first charted, blend → first component)', () => {
   const now = NOW_LIST[0];
-  const def = serum.defaultCurveLevel(PROTOCOLS, now, t);
   const first = oldActive(PROTOCOLS, t).active[0];
+  const def = serum.defaultCurveLevel(PROTOCOLS, now, t, null, logged(oldActive(PROTOCOLS, t).active, now));
   assert.equal(def.protocol.id, first.id);
   assert.equal(def.value, oldSeries(first, now, 7).nowLevel);
   const blendFirst = serum.defaultCurveLevel(PROTOCOLS.filter(p => p.id === 'wolv'), now, t);
@@ -229,7 +235,7 @@ test('levelLabel keeps the screen\'s number format', () => {
 test('the Curve screen and the Journey tile read the estimate from lib/serumModel', () => {
   const curve = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
   assert.match(curve, /from '\.\.\/lib\/serumModel'/);
-  assert.match(curve, /scheduledDoses\(/);
+  assert.match(curve, /curvePlan\(/);
   assert.doesNotMatch(curve, /expectedDosesOn/, 'the screen no longer builds doses inline');
   const journey = fs.readFileSync(path.join(__dirname, '..', 'screens', 'JourneyScreen.js'), 'utf8');
   assert.match(journey, /defaultCurveLevel\(/);
