@@ -86,6 +86,26 @@ test('PK-9: history_from set — nothing from the schedule before it; the Taken 
   assert.ok(near(M.estimatedLevelNow(p, NOW, { logs: [backfill, ...after] }).value, sum(after.map((r) => Date.parse(r.logged_at)), NOW)));
 });
 
+test('PK review 5 (R6): created today at 14:00 with start TODAY — the 08:00 slot Today shows as due is an open slot, projected at now', () => {
+  const p = prot({ start_date: '2026-10-25', created_at: iso(at(25, 14)) });
+  const now = at(25, 15);
+  const plan = M.curvePlan(p, e, M.curveGridStart(now, 3), now + 3 * 864e5, now, { logs: [] });
+  assert.equal(plan.open, 1);
+  assert.ok(plan.doses.includes(now + M.OPEN_AT_NOW_MS));
+  assert.equal(M.levelAt(plan.doses, 10, e, now), 0, 'not in the level now');
+  // Nothing else today (one dose a day); tomorrow at 08:00 as planned.
+  assert.deepEqual(plan.doses.filter((d) => sameDay(d, now)), [now + M.OPEN_AT_NOW_MS]);
+  assert.ok(plan.doses.includes(at(26, 8)));
+  // A row closes it: Skipped → nothing at now; Taken → counts at its own time, nothing at now.
+  assert.equal(M.curvePlan(p, e, M.curveGridStart(now, 3), now + 3 * 864e5, now, { logs: [row('Skipped', at(25, 14, 20))] }).open, 0);
+  const taken = M.curvePlan(p, e, M.curveGridStart(now, 3), now + 3 * 864e5, now, { logs: [row('Taken', at(25, 14, 5))] });
+  assert.equal(taken.open, 0);
+  assert.deepEqual(taken.doses.filter((d) => sameDay(d, now)), [at(25, 14, 5)]);
+  // Created on an earlier day (start that day): its catch-up slot is past, never projected at a later now.
+  const older = prot({ start_date: '2026-10-24', created_at: iso(at(24, 14)) });
+  assert.equal(M.curvePlan(older, e, M.curveGridStart(at(25, 7), 3), at(25, 7) + 864e5, at(25, 7), { logs: [] }).open, 0);
+});
+
 test('PK review 4 (R3): a Skipped or Missed row on an estimated day before creation answers that day\'s slot — it adds nothing', () => {
   const p = prot();
   // Backfill before C: 15th Skipped, 16th Missed (half an hour after the slot), 17th Taken (it counts once,
