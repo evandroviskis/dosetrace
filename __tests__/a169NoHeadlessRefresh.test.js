@@ -85,6 +85,9 @@ test('A-169 / DV-184: importing the app supabase client with an expired stored s
     await exports.supabase.auth.initializePromise;
     await settle();
     assert.deepEqual(calls, [], 'a headless start never calls the auth server');
+    // Second review 2026-10-26: the skip relies on auth-js internals; it reports whether it is in place,
+    // so an auth-js bump that renames them fails here (CI), never crashes every launch.
+    assert.equal(exports.headlessInitialSkip, true, 'the INITIAL_SESSION skip is installed');
     assert.ok(mem[KEY], 'and the stored session is kept for the next foreground open');
     // supabase-js's own listener is still registered: its later events (realtime token) still arrive.
     assert.equal(exports.supabase.auth.stateChangeEmitters.size, 1);
