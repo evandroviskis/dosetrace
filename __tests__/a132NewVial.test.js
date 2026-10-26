@@ -95,6 +95,32 @@ test('NV-6 (review): a failing insert rolls the old vial back into use (one tran
   assert.match(sliceBlock(read('lib/newVial.js'), 'function startNewVial('), /db\.withImmediateTransaction\(/);
 });
 
+// Data review 2026-10-26 (finding 3): a double tap on "Start new" / "Save" ran the save twice
+// (each awaits the user before writing) — two vials, the first retired at once, an empty ghost
+// synced forever. The primary button takes a latch once per opening; an error shown inside the
+// window frees it (so the person can correct and try again); closing and reopening frees it.
+test('NV-5 (review): one save per opening of the window — a double tap writes once', () => {
+  const { createOpenLatch } = require('../lib/busyGuard');
+  const latch = createOpenLatch();
+  assert.equal(latch.take(), true, 'first tap');
+  assert.equal(latch.take(), false, 'second tap while saving / fading out: ignored');
+  latch.release();
+  assert.equal(latch.take(), true, 'after an error sheet or a new opening');
+  const comp = read('screens/components/NewVialPrompt.js');
+  for (const fn of ['export default function NewVialPrompt(', 'export function EditVialPrompt(']) {
+    const body = sliceBlock(comp, fn);
+    assert.match(body, /const latch = useRef\(createOpenLatch\(\)\)\.current;/, fn);
+    assert.match(body, /useEffect\(\(\) => \{ if \(visible\) latch\.release\(\); \}, \[visible\]\);/, `${fn} frees on open`);
+    assert.match(body, /useEffect\(\(\) => \{ if \(sheet\) latch\.release\(\); \}, \[sheet\]\);/, `${fn} frees on an error`);
+    assert.match(body, /onPrimary=\{\(\) => \{ if \(!latch\.take\(\)\) return;/, `${fn} primary button`);
+  }
+  // the Today path: one tap = one vial (the queue of the second call never reaches the database)
+  const db = makeDb(); const a = app(db); const { protocol } = tirzepatide(db);
+  const tap = () => { if (latch.take()) NV.startNewVial(protocol, '2026-10-20', USER, a); };
+  latch.release(); tap(); tap();
+  assert.equal(db.getAllSync('SELECT * FROM vials').length, 2, 'the old vial + ONE new vial');
+});
+
 test('NV-5: the last-dose path is the same write — the finished vial stays as the dose left it', () => {
   const db = makeDb(); const a = app(db); const { vialId, protocol } = tirzepatide(db);
   db.runSync('UPDATE vials SET doses_taken = 3 WHERE id = ?', [vialId]);
@@ -187,7 +213,7 @@ test('NV-3: the window says "New vial" (Cancel / Start new) when asked for; afte
   assert.match(comp, /mode === 'new' \? oldVialNote\(protocol, oldVial\) : null/);
   assert.match(comp, /t\(pluralKey\('today_new_vial_old', note\.left, language\)\)/);
   assert.match(comp, /t\('today_new_vial_old_date'\)/);
-  assert.match(comp, /secondary=\{t\(keys\.secondary\)\} onSecondary=\{onSecondary\}\s*primary=\{t\(keys\.primary\)\} onPrimary=\{\(\) => onPrimary\(\{ month: newVialMonth, day: newVialDay, expMonth, expYear \}\)\}/);
+  assert.match(comp, /secondary=\{t\(keys\.secondary\)\} onSecondary=\{onSecondary\}\s*primary=\{t\(keys\.primary\)\} onPrimary=\{\(\) => \{ if \(!latch\.take\(\)\) return; onPrimary\(\{ month: newVialMonth, day: newVialDay, expMonth, expYear \}\); \}\}/);
   assert.match(sliceBlock(comp, 'function Actions('), /onPress=\{onSecondary\}[\s\S]*\{secondary\}[\s\S]*onPress=\{onPrimary\}[\s\S]*\{primary\}/);
   // Today: "+ Add vial" and "+ New vial" open the "new" window; only the last-dose queue opens "finished".
   const today = read('screens/TodayScreen.js');

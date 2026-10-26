@@ -13,7 +13,7 @@
 // EditVialPrompt (AD-80 screens 3 and 4): "Edit vial" — a reconstituted vial's mix date, the
 // protocol's validity in days and the doses already used; a ready-to-use vial's box month/year
 // and the doses already used. Opens with the current values.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Platform, StyleSheet } from 'react-native';
 import Modal from '../../components/PresenceModal';
 import { useTheme } from '../../lib/theme';
@@ -26,6 +26,7 @@ import { vialPromptKeys, oldVialNote } from '../../lib/newVial';
 import { editVialStart, acceptValidDaysText, acceptDosesUsedText, expiryYears } from '../../lib/vialEdit';
 import { supplyState } from '../../lib/supplyLow';
 import { DEFAULT_VALID_DAYS } from '../../lib/vialExpiry';
+import { createOpenLatch } from '../../lib/busyGuard';
 import { DTSheet } from './ProtocolParts';
 
 const MONTH_KEYS = [
@@ -171,6 +172,10 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol, protoco
     setNewVialDay(String(td.getDate()));
     setExpMonth(null); setExpYear(null);
   }, [visible]);
+  // One save per opening: a double tap on Start new never writes twice (data review 2026-10-26).
+  const latch = useRef(createOpenLatch()).current;
+  useEffect(() => { if (visible) latch.release(); }, [visible]);
+  useEffect(() => { if (sheet) latch.release(); }, [sheet]);
 
   const rtu = protocol && protocol.type === 'rtu';
   const keys = vialPromptKeys(mode);
@@ -213,7 +218,7 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol, protoco
           <Actions
             s={s}
             secondary={t(keys.secondary)} onSecondary={onSecondary}
-            primary={t(keys.primary)} onPrimary={() => onPrimary({ month: newVialMonth, day: newVialDay, expMonth, expYear })}
+            primary={t(keys.primary)} onPrimary={() => { if (!latch.take()) return; onPrimary({ month: newVialMonth, day: newVialDay, expMonth, expYear }); }}
           />
         </View>
       </View>
@@ -244,6 +249,10 @@ export function EditVialPrompt({ visible, protocol, protocolName, vial, onCancel
     setMonth(v.month); setDay(v.day); setValidDays(v.validDays); setDosesUsed(v.dosesUsed);
     setExpMonth(v.expMonth); setExpYear(v.expYear); setCapacity(v.capacity);
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  // One save per opening (data review 2026-10-26); "Date in the future" frees it.
+  const latch = useRef(createOpenLatch()).current;
+  useEffect(() => { if (visible) latch.release(); }, [visible]);
+  useEffect(() => { if (sheet) latch.release(); }, [sheet]);
 
   const recon = protocol && protocol.type === 'recon';
   return (
@@ -294,7 +303,7 @@ export function EditVialPrompt({ visible, protocol, protocolName, vial, onCancel
           <Actions
             s={s}
             secondary={t('cancel')} onSecondary={onCancel}
-            primary={t('save')} onPrimary={() => onSave({ month, day, validDays, dosesUsed, expMonth, expYear })}
+            primary={t('save')} onPrimary={() => { if (!latch.take()) return; onSave({ month, day, validDays, dosesUsed, expMonth, expYear }); }}
           />
         </View>
       </View>
