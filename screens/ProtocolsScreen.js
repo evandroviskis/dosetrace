@@ -1016,6 +1016,7 @@ export default function ProtocolsScreen() {
   const [wizSheet, setWizSheet] = useState(null);
   // A-132 / AD-80: the protocol whose "New vial" / "Edit vial" window is open, and an error inside it.
   const [newVialFor, setNewVialFor] = useState(null);
+  const [newVialMode, setNewVialMode] = useState('new');
   const [newVialSheet, setNewVialSheet] = useState(null);
   const [editVialFor, setEditVialFor] = useState(null);
   const [editVialSheet, setEditVialSheet] = useState(null);
@@ -2362,8 +2363,10 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
-  function openNewVialWindow(p) {
+  // mode 'finished' = the last-dose window (after Edit vial counts every dose as used).
+  function openNewVialWindow(p, mode = 'new') {
     setNewVialSheet(null);
+    setNewVialMode(mode);
     setNewVialFor(p);
   }
   async function saveNewVial({ month, day, expMonth, expYear }) {
@@ -2408,6 +2411,9 @@ export default function ProtocolsScreen() {
       setEditVialFor(null);
       fetchProtocols();
       requestSync();
+      // Every dose used: finished as the last dose leaves it; a reconstituted vial then gets the
+      // last-dose window (the one Today shows), once this one has faded out (one modal at a time).
+      if (res.finished && p.type === 'recon') setTimeout(() => openNewVialWindow(p, 'finished'), 450);
     } catch (err) {
       setEditVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
     }
@@ -2818,7 +2824,7 @@ export default function ProtocolsScreen() {
           new box's month/year) and the "Edit vial" window. */}
       <NewVialPrompt
         visible={!!newVialFor}
-        mode="new"
+        mode={newVialMode}
         protocol={newVialFor}
         protocolName={newVialFor ? protocolDisplayName(newVialFor, t) : null}
         oldVial={newVialFor ? vialsByProtocol[newVialFor.id] : null}

@@ -154,6 +154,36 @@ test('EV-3 (review): a future day is never moved back to the stored year', () =>
   assert.doesNotMatch(sliceBlock(read('lib/vialEdit.js'), 'function editMixDate('), /prevMixedOn\.|prevYear|slice\(0, 4\)/, 'no stored-year fallback');
 });
 
+// Data review 2026-10-26 (finding 4, decided by product logic): "Doses já usadas" set to the
+// vial's total is the same state as a dose emptying it — the vial is finished exactly as the last
+// dose leaves it (active 0, the count at the total), and a reconstituted vial then offers the
+// existing last-dose window ("Todas as doses registradas" / Registrar novo frasco). No new flow.
+test('EV-4 (review): doses used = the total finishes the vial exactly as the last dose does', () => {
+  const { markTakenDay, planMarkTaken } = require('../lib/markTaken');
+  // the last-dose path, on its own database
+  const dbA = makeDb(); const a = app(dbA); const sA = seed(dbA);
+  for (const n of ['insertDoseLog', 'updateDoseLog', 'deleteDoseLog', 'getLogsSince', 'doseLogBySourceKey', 'recordDoseTapKey']) a[n] = loadFn('lib/database.js', `export function ${n}(`, n, { getDB: () => dbA });
+  dbA.runSync('UPDATE vials SET doses_taken = 7 WHERE id = ?', [sA.tv]);
+  const record = loadFn('lib/doseActions.js', 'export function recordDoseTaken(', 'recordDoseTaken', { ...a, markTakenDay, planMarkTaken });
+  assert.equal(record(sA.tirz, { atNow: true }).vialFinished, true);
+  const byDose = vialRow(dbA, sA.tv);
+  // the edit
+  const dbB = makeDb(); const b = app(dbB); const sB = seed(dbB);
+  const res = VE.applyVialEdit(protoRow(dbB, sB.tirz), vialRow(dbB, sB.tv), { month: 8, day: '13', validDays: '30', dosesUsed: '8' }, OCT20, b);
+  assert.deepEqual(res, { vialUpdate: { doses_taken: 8, active: 0 }, protocolUpdate: null, finished: true });
+  const byEdit = vialRow(dbB, sB.tv);
+  assert.deepEqual([byEdit.active, byEdit.doses_taken], [byDose.active, byDose.doses_taken], 'the same finished state');
+  assert.equal(b.getActiveVials(USER).filter((v) => v.protocol_id === sB.tirz).length, 0, 'no vial in use, as after the last dose');
+  // below the total: still in use
+  assert.equal(VE.editVialPlan(protoRow(dbA, sA.tirz), { mixed_on: '2026-09-13', total_doses: 8, doses_taken: 1 }, { month: 8, day: '13', validDays: '30', dosesUsed: '7' }, OCT20).finished, undefined);
+  // the page then opens the existing last-dose window for a reconstituted vial
+  const prot = read('screens/ProtocolsScreen.js');
+  const save = sliceBlock(prot, 'async function saveVialEdit(');
+  assert.match(save, /if \(res\.finished && p\.type === 'recon'\) setTimeout\(\(\) => openNewVialWindow\(p, 'finished'\), 450\);/);
+  assert.match(prot, /<NewVialPrompt\s+visible=\{!!newVialFor\}\s+mode=\{newVialMode\}/);
+  assert.match(sliceBlock(prot, 'function openNewVialWindow('), /setNewVialMode\(mode\);/);
+});
+
 // ── EV-6: the ready-to-use edit window ───────────────────────────────────────────────────
 test('EV-6: the ready-to-use window edits the box month/year (blank allowed) and the doses used', () => {
   const db = makeDb(); const a = app(db); const { test: pid, rv } = seed(db);

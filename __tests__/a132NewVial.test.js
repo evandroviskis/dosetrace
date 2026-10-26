@@ -190,7 +190,8 @@ test('NV-2: "New vial" on the protocol page for every active reconstituted vial 
   const ask = sliceBlock(prot, 'function askRefillVial(');
   // (AD-80: ready-to-use opens the same window, asking the new box's month/year.)
   assert.match(ask, /if \(p && \(p\.type === 'recon' \|\| p\.type === 'rtu'\)\) \{ openNewVialWindow\(p\); return; \}/);
-  assert.match(prot, /<NewVialPrompt\s+visible=\{!!newVialFor\}\s+mode="new"/);
+  assert.match(prot, /<NewVialPrompt\s+visible=\{!!newVialFor\}\s+mode=\{newVialMode\}/);
+  assert.match(prot, /function openNewVialWindow\(p, mode = 'new'\)/, '"New vial" opens the new-vial words');
   // Today's book page (Fold): a recon vial's "New vial" opens Today's own window.
   const today = read('screens/TodayScreen.js');
   assert.match(today, /onRefillVial=\{p\.type === 'recon' \? \(\) => showVialPromptFor\(p\) : toProtocol\}/);
