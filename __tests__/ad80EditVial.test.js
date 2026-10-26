@@ -138,6 +138,22 @@ test('EV-11: an edit reaches the cloud through syncCore (vial and protocol), the
   assert.equal(db.getAllSync(`SELECT * FROM dose_logs WHERE sync_status != 'synced'`).length, 0, 'no dose row touched');
 });
 
+// Data review 2026-10-26 (finding 1): the stored year was used as a fallback, so a future day was
+// silently saved a year (or more) back. The year is never taken from the stored date: the mix date
+// is the nearer of this year's and last year's day — after today → refused (the picture's Nov 5 on
+// Oct 20), already past → saved (a December vial corrected in January).
+test('EV-3 (review): a future day is never moved back to the stored year', () => {
+  const JAN5 = new Date(2027, 0, 5, 10, 0);
+  assert.deepEqual(VE.editMixDate(0, '14', '2026-12-28', JAN5), { error: 'future' }, 'Jan 14 on Jan 5 (was saved as 2026-01-14)');
+  assert.deepEqual(VE.editMixDate(1, '3', '2026-12-28', JAN5), { error: 'future' }, 'Feb 3 on Jan 5 (was saved as 2026-02-03)');
+  assert.deepEqual(VE.editMixDate(5, '10', '2025-12-01', JAN5), { error: 'future' }, 'Jun 10 on Jan 5 (was saved as 2025-06-10)');
+  assert.deepEqual(VE.editMixDate(11, '28', '2025-12-01', JAN5), { date: '2026-12-28' }, 'last December, whatever the stored year');
+  assert.deepEqual(VE.editMixDate(6, '20', null, JAN5), { date: '2026-07-20' }, 'last July: nearer than next July');
+  assert.deepEqual(VE.editMixDate(10, '5', '2024-11-05', OCT20), { error: 'future' }, 'the picture: Nov 5 on Oct 20 is refused');
+  assert.deepEqual(VE.editMixDate(0, '5', '2026-12-28', JAN5), { date: '2027-01-05' }, 'today');
+  assert.doesNotMatch(sliceBlock(read('lib/vialEdit.js'), 'function editMixDate('), /prevMixedOn\.|prevYear|slice\(0, 4\)/, 'no stored-year fallback');
+});
+
 // ── EV-6: the ready-to-use edit window ───────────────────────────────────────────────────
 test('EV-6: the ready-to-use window edits the box month/year (blank allowed) and the doses used', () => {
   const db = makeDb(); const a = app(db); const { test: pid, rv } = seed(db);
