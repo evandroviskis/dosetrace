@@ -57,3 +57,17 @@ test('PK-12: the Journey tile reads the ended runs too (data.history), so tile =
   const screen = M.levelAt(M.curvePlan(run2, e, M.curveGridStart(now, 3), now + 7 * 864e5, now, { logs, siblings: [run2, run1] }).doses, 100, e, now);
   assert.equal(tile.value, screen);
 });
+
+test('PK review 2 (R12): a protocol ended today at 12:00 with an unlogged 08:00 slot projects nothing after the end', () => {
+  // Daily 08:00, ended Tue 2026-10-20 at 12:00; the 08:00 slot has no row; it is 15:00.
+  const daily = { ...base, id: 7, interval_days: 1, start_date: '2026-10-10', created_at: iso(at(10, 10, 7)), active: 0, ended_at: iso(at(10, 20, 12)) };
+  const now = at(10, 20, 15);
+  const logs = [at(10, 18, 8, 5), at(10, 19, 8, 10)].map((t) => row(7, 'Taken', t));
+  const plan = M.curvePlan(daily, e, M.curveGridStart(now, 14), now + 7 * 864e5, now, { logs });
+  assert.equal(plan.open, 0);
+  assert.ok(plan.doses.every((d) => d <= at(10, 20, 12)), 'no dose after the end');
+  assert.deepEqual([...plan.doses], logs.map((r) => Date.parse(r.logged_at)));
+  // While it was still running (11:00) the open slot is projected as usual.
+  const running = { ...daily, active: 1, ended_at: null };
+  assert.equal(M.curvePlan(running, e, M.curveGridStart(at(10, 20, 11), 14), at(10, 27, 11), at(10, 20, 11), { logs }).open, 1);
+});
