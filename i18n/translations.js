@@ -671,6 +671,11 @@ export const translations = {
     rc_test_body: "This is a test reminder. If you can see it, dose reminders can reach you.",
     today_alert_reminders_title: "Your reminders are blocked",
     today_alert_reminders_body: "Dose reminders can't reach you. Tap to see why.",
+    // Notifications blocked on the phone (docs/specs/notifications-blocked.md, founder 2026-10-20)
+    nb_title: "Your reminders can't reach you",
+    nb_body: "DoseTrace notifications are off on this phone, so dose reminders won't show up. You can turn them on in your phone's settings.",
+    nb_open: "Open phone settings",
+    nb_later: "Not now",
     today_alert_rc_due: 'Ready now — tap to log your weight',
     today_alert_rc_needs_food: "Weight logged — log food {n} more days in a row for your result",
     today_alert_rc_needs_food_one: "Weight logged — log food {n} more day for your result",
@@ -2551,12 +2556,12 @@ export const translations = {
     upd_req_title: "Actualiza DoseTrace para continuar",
     upd_req_body: "Esta versión ya no se puede usar.",
     upd_req_safe: "Tus datos siguen guardados: al actualizar no se borra nada.",
+    upd_req_export: "Exportar mis datos", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Novedades de DoseTrace",
     settings_version_news_sub: "Una notificación cuando sale una versión nueva, con lo que cambió.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
     dev_counting_title: "No se pudo comprobar este teléfono",
     dev_counting_body: "Tu cuenta se abrió en otro dispositivo. Antes de quitar la cuenta de este teléfono, la app tiene que contar lo que aún no tiene copia de seguridad aquí, y ahora no pudo. No se borró nada.",
-    upd_req_export: "Exportar mis datos", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_counting_retry: "Intentar de nuevo",
     dev_counting_auto: "La app también lo vuelve a intentar sola cada vez que se abre.",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -3201,6 +3206,11 @@ export const translations = {
     rc_test_body: "Este es un recordatorio de prueba. Si lo ves, los recordatorios de dosis te llegan.",
     today_alert_reminders_title: "Tus recordatorios están bloqueados",
     today_alert_reminders_body: 'Los recordatorios de dosis no te pueden llegar. Toca para ver por qué.',
+    // Notifications blocked on the phone (docs/specs/notifications-blocked.md, founder 2026-10-20)
+    nb_title: "Tus recordatorios no te pueden llegar",
+    nb_body: "Las notificaciones de DoseTrace están desactivadas en este teléfono, así que los recordatorios de dosis no aparecen. Puedes activarlas en los ajustes del teléfono.",
+    nb_open: "Abrir ajustes del teléfono",
+    nb_later: "Ahora no",
     today_alert_rc_due: 'Ya es el momento: toca para registrar tu peso',
     today_alert_rc_needs_food: "Peso registrado: faltan {n} días seguidos de registro de comida para tu resultado",
     today_alert_rc_needs_food_one: "Peso registrado: falta {n} día más de registro de comida para tu resultado",
@@ -5081,6 +5091,7 @@ export const translations = {
     upd_req_title: "Atualize o DoseTrace para continuar",
     upd_req_body: "Esta versão não pode mais ser usada.",
     upd_req_safe: "Seus dados continuam guardados — nada é apagado ao atualizar.",
+    upd_req_export: "Exportar meus dados", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Novidades do DoseTrace",
     settings_version_news_sub: "Uma notificação quando sair uma versão nova, com o que mudou.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -5091,7 +5102,6 @@ export const translations = {
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
     dev_ask_unsent_one: "Este celular tem 1 alteração ainda sem backup: {what}. Ela não está na sua conta e, seja qual for a sua escolha, será apagada deste celular.",
     dev_ask_unsent_many: "Este celular tem {n} alterações ainda sem backup: {what}. Elas não estão na sua conta e, seja qual for a sua escolha, serão apagadas deste celular.",
-    upd_req_export: "Exportar meus dados", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_ask_unknown_removes: "Seja qual for a sua escolha, o que não teve backup será apagado daqui.",
     settings_delete_device_wait: "Este celular ainda não foi confirmado como o aparelho da sua conta, então nada foi excluído. Confira sua conexão e tente de novo daqui a pouco.",
     settings_delete_device_wait_title: "Não foi possível excluir a conta",
@@ -5731,6 +5741,11 @@ export const translations = {
     rc_test_body: "Este é um lembrete de teste. Se você está vendo, os lembretes de dose chegam até você.",
     today_alert_reminders_title: "Seus lembretes estão bloqueados",
     today_alert_reminders_body: 'Os lembretes de dose não conseguem chegar até você. Toque para ver por quê.',
+    // Notifications blocked on the phone (docs/specs/notifications-blocked.md, founder 2026-10-20)
+    nb_title: "Seus lembretes não podem chegar",
+    nb_body: "As notificações do DoseTrace estão desligadas neste celular, por isso os lembretes de dose não aparecem. Você pode ligá-las nos ajustes do celular.",
+    nb_open: "Abrir ajustes do celular",
+    nb_later: "Agora não",
     today_alert_rc_due: 'Chegou a hora — toque para registrar seu peso',
     today_alert_rc_needs_food: "Peso registrado — faltam {n} dias seguidos de registro de comida para o seu resultado",
     today_alert_rc_needs_food_one: "Peso registrado — falta mais {n} dia de registro de comida para o seu resultado",
@@ -7610,6 +7625,7 @@ export const translations = {
     upd_req_title: "Mettez à jour DoseTrace pour continuer",
     upd_req_body: "Cette version ne peut plus être utilisée.",
     upd_req_safe: "Vos données restent enregistrées — rien n'est effacé pendant la mise à jour.",
+    upd_req_export: "Exporter mes données", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Nouveautés de DoseTrace",
     settings_version_news_sub: "Une notification à chaque nouvelle version, avec ce qui a changé.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -7625,7 +7641,6 @@ export const translations = {
     settings_delete_device_wait_title: "Impossible de supprimer le compte",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} à {time}",
-    upd_req_export: "Exporter mes données", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_named_in: "sur votre {name}",
     dev_named_subj: "votre {name}",
     dev_brand_in: "sur votre {name}",
@@ -8260,6 +8275,11 @@ export const translations = {
     rc_test_body: "Ceci est un rappel test. Si vous le voyez, les rappels de dose vous parviennent.",
     today_alert_reminders_title: "Vos rappels sont bloqués",
     today_alert_reminders_body: "Les rappels de dose ne peuvent pas vous parvenir. Touchez pour voir pourquoi.",
+    // Notifications blocked on the phone (docs/specs/notifications-blocked.md, founder 2026-10-20)
+    nb_title: "Vos rappels ne peuvent pas vous parvenir",
+    nb_body: "Les notifications de DoseTrace sont désactivées sur ce téléphone : les rappels de dose ne s'affichent donc pas. Vous pouvez les activer dans les réglages du téléphone.",
+    nb_open: "Ouvrir les réglages du téléphone",
+    nb_later: "Pas maintenant",
     today_alert_rc_due: "C'est l'heure — touchez pour enregistrer votre poids",
     today_alert_rc_needs_food: "Poids enregistré — encore {n} jours d'affilée de journal alimentaire pour votre résultat",
     today_alert_rc_needs_food_one: "Poids enregistré — encore {n} jour de journal alimentaire pour votre résultat",
@@ -10139,6 +10159,7 @@ export const translations = {
     upd_req_title: "Aktualisiere DoseTrace, um weiterzumachen",
     upd_req_body: "Diese Version kann nicht mehr verwendet werden.",
     upd_req_safe: "Deine Daten bleiben gespeichert – beim Aktualisieren wird nichts gelöscht.",
+    upd_req_export: "Meine Daten exportieren", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Neuigkeiten von DoseTrace",
     settings_version_news_sub: "Eine Benachrichtigung, wenn eine neue Version erscheint – mit dem, was sich geändert hat.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -10159,7 +10180,6 @@ export const translations = {
     dev_brand_in: "auf deinem {name}",
     dev_brand_subj: "dein {name}",
     dev_android_in: "auf dem Android-Handy",
-    upd_req_export: "Meine Daten exportieren", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_android_subj: "das Android-Handy",
     dev_unknown_in: "auf deinem anderen Gerät",
     dev_unknown_subj: "dein anderes Gerät",
@@ -10789,6 +10809,11 @@ export const translations = {
     rc_test_body: "Das ist eine Test-Erinnerung. Wenn du sie siehst, erreichen dich Dosis-Erinnerungen.",
     today_alert_reminders_title: "Deine Erinnerungen sind blockiert",
     today_alert_reminders_body: "Dosis-Erinnerungen können dich nicht erreichen. Tippe, um zu sehen, warum.",
+    // Notifications blocked on the phone (docs/specs/notifications-blocked.md, founder 2026-10-20)
+    nb_title: "Deine Erinnerungen können dich nicht erreichen",
+    nb_body: "Die Mitteilungen von DoseTrace sind auf diesem Handy ausgeschaltet, deshalb erscheinen keine Dosis-Erinnerungen. Du kannst sie in den Handy-Einstellungen einschalten.",
+    nb_open: "Handy-Einstellungen öffnen",
+    nb_later: "Nicht jetzt",
     today_alert_rc_due: 'Jetzt bereit – tippen, um dein Gewicht einzutragen',
     today_alert_rc_needs_food: "Gewicht eingetragen – trag noch {n} Tage in Folge dein Essen ein, dann siehst du dein Ergebnis",
     today_alert_rc_needs_food_one: "Gewicht eingetragen – trag noch {n} Tag dein Essen ein, dann siehst du dein Ergebnis",
@@ -12669,6 +12694,7 @@ export const translations = {
     upd_req_title: "Aggiorna DoseTrace per continuare",
     upd_req_body: "Questa versione non si può più usare.",
     upd_req_safe: "I tuoi dati restano salvati — con l'aggiornamento non si cancella nulla.",
+    upd_req_export: "Esporta i miei dati", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Novità di DoseTrace",
     settings_version_news_sub: "Una notifica quando esce una nuova versione, con cosa è cambiato.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -12694,7 +12720,6 @@ export const translations = {
     dev_unknown_subj: "il tuo altro dispositivo",
     dev_notice_title: "Il tuo account era su un altro dispositivo",
     dev_notice_dated: "Fino al {when}, tutto ciò che era {dev_in} aveva un backup. Ciò che è stato registrato lì dopo, senza internet, potrebbe non essere qui.",
-    upd_req_export: "Esporta i miei dati", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_notice_never: "{dev} non ha mai fatto un backup. Ciò che è stato registrato lì potrebbe non essere qui.",
     dev_notice_now_here: "Ora il tuo account è solo su questo telefono. {dev} uscirà dall'account appena tornerà online.",
     dev_notice_own_one: "Ciò che non aveva ancora un backup è rimasto fuori: {what}. Non è nel tuo account: se ti serve, registralo di nuovo qui.",
@@ -13319,6 +13344,11 @@ export const translations = {
     rc_test_body: "Questo è un promemoria di prova. Se lo vedi, i promemoria delle dosi ti raggiungono.",
     today_alert_reminders_title: "I tuoi promemoria sono bloccati",
     today_alert_reminders_body: "I promemoria delle dosi non possono raggiungerti. Tocca per vedere perché.",
+    // Notifications blocked on the phone (docs/specs/notifications-blocked.md, founder 2026-10-20)
+    nb_title: "I tuoi promemoria non possono raggiungerti",
+    nb_body: "Le notifiche di DoseTrace sono disattivate su questo telefono, quindi i promemoria delle dosi non compaiono. Puoi attivarle nelle impostazioni del telefono.",
+    nb_open: "Apri le impostazioni del telefono",
+    nb_later: "Non ora",
     today_alert_rc_due: 'È il momento: tocca per registrare il peso',
     today_alert_rc_needs_food: "Peso registrato — mancano {n} giorni di fila di diario alimentare per il tuo risultato",
     today_alert_rc_needs_food_one: "Peso registrato — manca {n} giorno di diario alimentare per il tuo risultato",
