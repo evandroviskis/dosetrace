@@ -40,7 +40,7 @@ function settings({ getCachedUser, cap = 60 } = {}) {
     setShowEditProfile: set('showEditProfile'), editProfileOpen: { current: false }, profileLoaded: deferred(),
   };
   const names = Object.keys(deps);
-  const headers = ['async function fetchUser() {', 'function setEditProfileOpen(', 'function openEditProfile(']
+  const headers = ['async function fetchUser() {', 'async function loadUser(', 'function setEditProfileOpen(', 'function openEditProfile(']
     .filter((h, i) => i === 0 || SRC.includes(h));
   const body = headers.map((h) => sliceBlock(SRC, h)).join('\n');
   // eslint-disable-next-line no-new-func

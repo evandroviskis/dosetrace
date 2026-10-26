@@ -26,7 +26,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
 import { getPremiumSnapshot } from '../lib/premiumState';
 import { firstProfile, profileCardView } from '../lib/profileCardFirst';
-import { whenAllSettled } from '../lib/firstLoad';
+import { whenAllSettled, deferred } from '../lib/firstLoad';
 import { Bar, Dot, usePulse } from './components/TodaySkeleton';
 import { clearAnalyticsQueue, noteAnalyticsChoice } from '../lib/analytics';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -262,6 +262,10 @@ export default function SettingsScreen({ navigation }) {
   const savingProfile = useRef(false); // DV-008: Edit profile Save in flight (a double tap sends one save)
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  // A-169 review: Edit profile open, for fetchUser (a ref: read in the same tick it is set), and the
+  // first profile read finished (Edit profile opens after it, openEditProfile).
+  const editProfileOpen = useRef(false);
+  const [profileLoaded] = useState(deferred);
   // Profile fields
   const [displayName, setDisplayName] = useState(first.displayName);
   const [gender, setGender] = useState('');
@@ -421,7 +425,15 @@ export default function SettingsScreen({ navigation }) {
     // hung or failed getCachedUser() never keeps the untappable skeleton. The profile fields below
     // are set in the same tick as the user.
     whenAllSettled([premiumRead]).then(() => setCardReady(true));
-    const user = await userRead;
+    try {
+      await loadUser(await userRead);
+    } finally {
+      profileLoaded.resolve(); // Edit profile may open (openEditProfile)
+    }
+  }
+
+  // fetchUser's second half: the read user into the screen.
+  async function loadUser(user) {
     setUser(user);
     aiUse.load(aiUseDeps()); // per account: signed out or another account → OFF
     if (user) {
@@ -436,7 +448,12 @@ export default function SettingsScreen({ navigation }) {
       setSilentMode(user.user_metadata?.silent_mode === true);
       versionNewsShown(user.user_metadata).then(setVersionNews).catch(() => setVersionNews(false)); // A-127: display only
       setPersistentReminders(user.user_metadata?.persistent_reminders === true);
-      // Load profile
+      // Load profile. The ONE activity answer (m14): the profile's level, or a later choice made in
+      // the calculator — the same level Journey shows. Old 4-level values map to 5 (never lost).
+      // Read first (the one await), then every field in one step — and never while Edit profile is
+      // open: what the user typed there stays until Save or Cancel (A-169 review 2026-10-26).
+      const activity = activitySourceKey(user.user_metadata, await getCalcInputs().catch(() => null));
+      if (editProfileOpen.current) return;
       setDisplayName(user.user_metadata?.display_name || '');
       setGender(user.user_metadata?.gender || '');
       setBirthMonth(user.user_metadata?.birth_month != null ? user.user_metadata.birth_month - 1 : null); // stored 1-based → 0-11 index
@@ -445,11 +462,21 @@ export default function SettingsScreen({ navigation }) {
       setCountry(user.user_metadata?.country || '');
       const pg = user.user_metadata?.primary_goal || '';
       setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []);
-      // The ONE activity answer (m14): the profile's level, or a later choice made in the
-      // calculator — the same level Journey shows. Old 4-level values map to 5 (never lost).
-      setActivityLevel(activitySourceKey(user.user_metadata, await getCalcInputs().catch(() => null)));
+      setActivityLevel(activity);
       setHasProvider(user.user_metadata?.has_provider || '');
     }
+  }
+
+  // A-169 review (2026-10-26): the card is tappable on its first frame, so Edit profile opens once
+  // Settings has read the profile (a few ms; at most the A-120 cap) — the read never lands over
+  // what the user types. Every open and close goes through setEditProfileOpen, which keeps the
+  // ref fetchUser reads in step at once (Cancel / Save close it, then fetchUser reloads).
+  function setEditProfileOpen(v) {
+    editProfileOpen.current = !!v;
+    setShowEditProfile(!!v);
+  }
+  function openEditProfile() {
+    whenAllSettled([profileLoaded.p]).then(() => setEditProfileOpen(true));
   }
 
   // DV-007 = A (lib/aiUseSwitch): OFF withdraws at once; ON asks with the AI features' own sheet.
@@ -572,7 +599,7 @@ export default function SettingsScreen({ navigation }) {
       });
       if (res && res.error) throw res.error;
       setShowCountryPicker(false);
-      setShowEditProfile(false);
+      setEditProfileOpen(false);
       fetchUser();
     } catch (e) {
       setEditSheet({ icon: 'warning', title: t('error'), body: friendlyError(e, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
@@ -868,7 +895,7 @@ export default function SettingsScreen({ navigation }) {
   function renderProfileCard() {
     if (!cardReady) return renderProfileSkeleton();
     return (
-      <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
+      <TouchableOpacity style={s.profileCard} onPress={openEditProfile} activeOpacity={0.7}>
         <View style={s.avatar}>
           <Text style={s.avatarText}>{initials}</Text>
         </View>
@@ -1541,11 +1568,11 @@ export default function SettingsScreen({ navigation }) {
         visible={showEditProfile}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => { setShowCountryPicker(false); setShowEditProfile(false); fetchUser(); }}
+        onRequestClose={() => { setShowCountryPicker(false); setEditProfileOpen(false); fetchUser(); }}
       >
         <SafeAreaView style={s.modal}>
           <View style={s.modalNav}>
-            <TouchableOpacity onPress={() => { setShowCountryPicker(false); setShowEditProfile(false); fetchUser(); }} style={{ minWidth: 60 }}>
+            <TouchableOpacity onPress={() => { setShowCountryPicker(false); setEditProfileOpen(false); fetchUser(); }} style={{ minWidth: 60 }}>
               <Text style={s.modalCancel}>{t('cancel')}</Text>
             </TouchableOpacity>
             <Text style={s.modalTitle}>{t('profile_edit_title')}</Text>

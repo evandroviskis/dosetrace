@@ -40,7 +40,7 @@ function profile(mode, supabase = null) {
     primaryGoals: ['fat_loss'], activityLevel: 'moderate', hasProvider: 'yes',
     user: { id: 'u1', user_metadata: { display_name: 'Sam', activity_level: 'moderate', analytics_opt_in: false } },
     setEditSheet: (v) => out.editSheet.push(v),
-    setShowEditProfile: (v) => { if (v === false) out.closedEdit++; },
+    setEditProfileOpen: (v) => { if (v === false) out.closedEdit++; }, // A-169 review: every close goes through it
     setShowCountryPicker: (v) => { if (v === false) out.closedPicker++; },
     fetchUser: () => { out.refetched++; },
   });

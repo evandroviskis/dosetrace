@@ -107,7 +107,7 @@ test('BK-7: every group body, the profile, Premium and the version come from ONE
   assert.equal(count(BOOK, /<View style=\{s\.group\}>/g), 1);
   assert.match(BOOK, /<View style=\{s\.group\}>\{renderGroupBody\(open\)\}<\/View>/);
   // Each action is wired exactly once in the whole screen (Restore moved to the Protocols list).
-  for (const action of ["toggleNotificationPref('dose_reminders'", 'onPress={handleSignOut}', 'onPress={handleDeleteAccount}', 'onPress={handleExportData}', 'setShowLanguagePicker(true)', 'setShowEditProfile(true)']) {
+  for (const action of ["toggleNotificationPref('dose_reminders'", 'onPress={handleSignOut}', 'onPress={handleDeleteAccount}', 'onPress={handleExportData}', 'setShowLanguagePicker(true)', 'onPress={openEditProfile}']) {
     assert.equal(SRC.split(action).length - 1, 1, `${action} wired once`);
   }
   // Premium stays for free users only.

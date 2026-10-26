@@ -61,7 +61,8 @@ test('the calculator reads the one source and writes a user choice to the profil
 
 test('Edit profile shows the same level and stamps only a changed answer', () => {
   const src = read('screens/SettingsScreen.js');
-  assert.match(src, /setActivityLevel\(activitySourceKey\(user\.user_metadata, await getCalcInputs\(\)\.catch\(\(\) => null\)\)\)/);
+  assert.match(src, /const activity = activitySourceKey\(user\.user_metadata, await getCalcInputs\(\)\.catch\(\(\) => null\)\);/);
+  assert.match(src, /setActivityLevel\(activity\);/);
   assert.match(src, /activity_set_at: new Date\(\)\.toISOString\(\)/);
   assert.match(src, /activityLevel !== normalizeActivityLevel\(user\?\.user_metadata\?\.activity_level\)/);
 });
