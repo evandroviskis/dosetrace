@@ -2,7 +2,7 @@
 
 - source: founder 2026-10-26 10:59 EDT — "Vamos com B nas duas. Pode executar." (supersedes "Opcao A nas duas" of 10:58). Picture docs/design/a181-a160-proposals.html (branch design/a181-a160, eaedeb5), option B of each item. Ledger: docs/decisions.md 2026-10-26.
 - code: lib/unsyncedDoses.js (held slots, the notice, per protocol, report gaps), lib/pullStamp.js (unrecorded gaps per account), lib/doseActions.js unsyncedState, screens/LogScreen.js (card, "+n not recorded"), screens/SettingsScreen.js (report lines, notice above the paper), lib/serumModel.js dosesInLevel, screens/SerumCurveScreen.js, i18n ×6.
-- checklist-signed: pending (founder)
+- checklist-signed: founder 2026-10-26 ("Assino o checklist, pode juntar na linha principal")
 - committed-to: 1.3.2 (wave 2)
 
 ## Acceptance checklist
