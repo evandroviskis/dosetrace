@@ -43,7 +43,7 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol, getVialsForProtocol,
-  setProtocolPlannedEnd,
+  setProtocolPlannedEnd, withImmediateTransaction,
 } from '../lib/database';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -2373,11 +2373,11 @@ export default function ProtocolsScreen() {
       const user = await getCachedUser();
       if (!user) return;
       if (p.type === 'rtu') {
-        startNewVial(p, null, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol }, { oldVial: vialsByProtocol[p.id], expiresOn: boxExpiresOn(expMonth, expYear) });
+        startNewVial(p, null, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction }, { oldVial: vialsByProtocol[p.id], expiresOn: boxExpiresOn(expMonth, expYear) });
       } else {
         const mixDate = toPastDateString(month, day);
         if (!mixDate) { setNewVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
-        startNewVial(p, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol });
+        startNewVial(p, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction });
       }
       afterProtocolChange().catch(() => {}); // DV-051: doses, the vial alerts, the summary
       setNewVialFor(null);

@@ -82,6 +82,19 @@ test('NV-6: the old and the new vial reach the cloud through syncCore, the old o
   assert.equal(db.getAllSync(`SELECT * FROM vials WHERE sync_status = 'pending'`).length, 0, 'both pushed');
 });
 
+// Data review 2026-10-26 (finding 2): retire + insert were two separate writes — a failure in
+// between left the protocol with no active vial and lost the typed date. Now all or nothing.
+test('NV-6 (review): a failing insert rolls the old vial back into use (one transaction)', () => {
+  const db = makeDb(); const a = app(db); const { id, vialId, protocol } = tirzepatide(db);
+  const before = vialRow(db, vialId);
+  const failing = { ...a, insertVial: (v) => { a.insertVial(v); throw new Error('disk I/O'); } };
+  assert.throws(() => NV.startNewVial(protocol, '2026-10-20', USER, failing), /disk I\/O/);
+  assert.deepEqual(vialRow(db, vialId), before, 'the old vial is still the active one, unchanged');
+  assert.deepEqual(a.getActiveVials(USER).filter((v) => v.protocol_id === id).map((v) => v.id), [vialId], 'no half-written vial');
+  assert.equal(db.getAllSync('SELECT * FROM vials').length, 1);
+  assert.match(sliceBlock(read('lib/newVial.js'), 'function startNewVial('), /db\.withImmediateTransaction\(/);
+});
+
 test('NV-5: the last-dose path is the same write — the finished vial stays as the dose left it', () => {
   const db = makeDb(); const a = app(db); const { vialId, protocol } = tirzepatide(db);
   db.runSync('UPDATE vials SET doses_taken = 3 WHERE id = ?', [vialId]);
@@ -98,12 +111,12 @@ test('NV-5: the last-dose path is the same write — the finished vial stays as 
 test('NV-5: Today and the protocol page both write through lib/newVial startNewVial (one path)', () => {
   const today = read('screens/TodayScreen.js');
   const create = sliceBlock(today, 'async function createNewVial(');
-  assert.match(create, /startNewVial\(continuationProtocol, mixDate, user\.id, \{ deactivateVialsByProtocol, insertVial, updateProtocol \}\)/);
+  assert.match(create, /startNewVial\(continuationProtocol, mixDate, user\.id, \{ deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction \}\)/);
   assert.doesNotMatch(create, /newVialRecords|insertVial\(vial\)/, 'no second write in Today');
   assert.match(create, /afterProtocolChange\(\)/);
   const prot = read('screens/ProtocolsScreen.js');
   const save = sliceBlock(prot, 'async function saveNewVial('); // AD-80: one save for both vial types
-  assert.match(save, /startNewVial\(p, mixDate, user\.id, \{ deactivateVialsByProtocol, insertVial, updateProtocol \}\)/);
+  assert.match(save, /startNewVial\(p, mixDate, user\.id, \{ deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction \}\)/);
   assert.match(save, /afterProtocolChange\(\)/);
   assert.match(save, /requestSync\(\)/);
   const start = sliceBlock(read('lib/newVial.js'), 'function startNewVial(');

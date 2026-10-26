@@ -37,7 +37,7 @@ import {
   getProtocolById, hardDeleteOldProtocols, endProtocol, endProtocolAtLastDose, getHistoryProtocols, deactivateVialsByProtocol,
   markProtocolStillGoing, setProtocolPlannedEnd, continueProtocolCourse, endProtocolNow,
   getBiomarkers,
-  getDB, getLocalDataUserId,
+  getDB, getLocalDataUserId, withImmediateTransaction,
 } from '../lib/database';
 import { requestSync, addSyncListener, isOnlineNow, notifyDataChanged } from '../lib/sync';
 import { offlinePendingAlert } from '../lib/offlineAlert';
@@ -1536,7 +1536,7 @@ export default function TodayScreen() {
       // The one new-vial write (lib/newVial startNewVial, tested — A-132): a vial still in use (an
       // expired one with doses left) leaves use with its count and doses as they were; capacity
       // derived from the protocol; the protocol itself is never changed, so its history is kept (S-01).
-      startNewVial(continuationProtocol, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol });
+      startNewVial(continuationProtocol, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction });
 
       // Gate B F4: the new vial re-plans everything once (doses, its expiry alert, the summary, the
       // iPhone 64 guard) through the one full resync.

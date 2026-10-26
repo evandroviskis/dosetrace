@@ -23,7 +23,7 @@ function app(db) {
   const getDB = () => db;
   const fromDb = (name) => loadFn('lib/database.js', `export function ${name}(`, name, { getDB });
   const f = {};
-  for (const n of ['getActiveVials', 'insertVial', 'updateVial', 'deactivateVialsByProtocol', 'updateProtocol', 'getProtocolById']) f[n] = fromDb(n);
+  for (const n of ['getActiveVials', 'insertVial', 'updateVial', 'deactivateVialsByProtocol', 'updateProtocol', 'getProtocolById', 'withImmediateTransaction']) f[n] = fromDb(n);
   return f;
 }
 const vialRow = (db, id) => db.getFirstSync('SELECT * FROM vials WHERE id = ?', [id]);
@@ -198,7 +198,7 @@ test('EV-7 / EV-8: the page opens the window for both types; RTU shows the box p
   assert.match(ask, /if \(p && \(p\.type === 'recon' \|\| p\.type === 'rtu'\)\) \{ openNewVialWindow\(p\); return; \}/);
   assert.doesNotMatch(prot, /function refillVial\(/, 'the old same-row reset is gone (rebuild = replace)');
   const save = sliceBlock(prot, 'async function saveNewVial(');
-  assert.match(save, /p\.type === 'rtu'[\s\S]*startNewVial\(p, null, user\.id, \{ deactivateVialsByProtocol, insertVial, updateProtocol \}, \{ oldVial: vialsByProtocol\[p\.id\], expiresOn: boxExpiresOn\(expMonth, expYear\) \}\)/);
+  assert.match(save, /p\.type === 'rtu'[\s\S]*startNewVial\(p, null, user\.id, \{ deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction \}, \{ oldVial: vialsByProtocol\[p\.id\], expiresOn: boxExpiresOn\(expMonth, expYear\) \}\)/);
   assert.match(save, /afterProtocolChange\(\)/); assert.match(save, /requestSync\(\)/);
   const comp = read('screens/components/NewVialPrompt.js');
   assert.match(comp, /const rtu = protocol && protocol\.type === 'rtu';/);
