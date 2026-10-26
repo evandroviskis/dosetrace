@@ -1666,17 +1666,6 @@ export default function ProtocolsScreen() {
     return `${y}-${String(monthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
-  // Vials are always mixed in the past: resolve to the most recent occurrence
-  function toPastSupabaseDate(monthIdx, dayStr) {
-    const year = new Date().getFullYear();
-    const lastDay = new Date(year, monthIdx + 1, 0).getDate();
-    const day = Math.min(parseInt(dayStr) || 1, lastDay);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-    const y = new Date(year, monthIdx, day) > todayEnd ? year - 1 : year;
-    return `${y}-${String(monthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  }
-
   function adjustWater(dir) {
     touch('water');
     const current = parseDecimal(water, language) || 0;
@@ -1939,9 +1928,10 @@ export default function ProtocolsScreen() {
     return { recon: list(LYOPHILIZED_KEYS), rtu: list(RTU_KEYS), oral: list(ORAL_KEYS) };
   }
 
-  // The vial's mixing date as the form holds it (month + day, resolved to the past).
+  // The vial's mixing date as the form holds it, by the one rule for every typed mix date (Edit
+  // vial, lib/vialEdit editMixDate): null while it is in the future or impossible.
   function formMixedOn() {
-    return toPastSupabaseDate(vialMonth, vialDay);
+    return editMixDate(vialMonth, vialDay, null, new Date()).date || null;
   }
 
   // The assistant ended. save: the same Save as the form (AP-17, AP-26 Done); fill: the form
@@ -2024,6 +2014,17 @@ export default function ProtocolsScreen() {
       showCheckValues();
       return;
     }
+    // The first vial's mix date (step 5, create only), by the Edit vial rule (lib/vialEdit
+    // editMixDate, AD-80 EV-3): a day after today or an impossible day (Feb 31) is refused here,
+    // back on the vial step, before anything is written — never moved a year back or clamped.
+    const mix = !editingId && type === 'recon' && !skipVial ? editMixDate(vialMonth, vialDay, null, new Date()) : null;
+    if (mix && mix.error) {
+      setStep(5);
+      setWizSheet(mix.error === 'future'
+        ? { icon: 'warning', title: t('vial_edit_future_title'), body: t('vial_edit_future_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }
+        : { icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      return;
+    }
     setSaving(true);
     // Never persist an invalid start_date (a bad picker value must not reach the
     // cloud as e.g. 1969). Clamp to a valid YYYY-MM-DD, falling back to today.
@@ -2082,7 +2083,7 @@ export default function ProtocolsScreen() {
       if (type === 'recon' && !skipVial) {
         insertVial({
           user_id: user.id, protocol_id: newId,
-          mixed_on: toPastSupabaseDate(vialMonth, vialDay),
+          mixed_on: mix.date,
           water_ml: parseDecimal(water, language) || null,
           // Vial capacity is derived (vial amount ÷ dose), not asked.
           total_doses: dosesPerVial({ amount, unit, dose, doseUnit, language }),
