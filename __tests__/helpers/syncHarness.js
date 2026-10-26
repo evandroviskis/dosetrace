@@ -46,6 +46,8 @@ function makeCloud() {
   const stamp = () => String(++clock).padStart(6, '0');
   let idSeq = 0;
   const newId = () => `cloud-${++idSeq}`;
+  const lost = []; // A-143: insert answers to lose
+  const inserted = []; // A-143: every insert payload sent
 
   return {
     _store: store,
@@ -75,10 +77,23 @@ function makeCloud() {
       if (table === 'protocols') for (const c of ['ends_on', 'still_going_at']) if (c in after) status[c] = after[c] ?? null;
       return { data: [{ id: remoteId, updated_at, ...status }], error: null };
     },
+    // A-143: the answers to lose. loseInsertAnswers(n, how): the next n inserts LAND in the cloud,
+    // then the phone gets no answer — 'error' (supabase-js reports the network failure) or 'throw'.
+    _lost: lost,
+    loseInsertAnswers(n = 1, how = 'error') { for (let i = 0; i < n; i++) lost.push(how); },
+    insertedPayloads: inserted,
     async insert(table, payload) {
-      const id = payload.id || newId(); // an explicit id is kept (the purge tombstone re-insert)
+      inserted.push({ table, payload: { ...payload } });
+      // Postgres: an id already taken is refused (primary key), whoever owns the row.
+      if (payload.id && store[table].has(payload.id)) {
+        return { data: null, error: { code: '23505', message: `duplicate key value violates unique constraint "${table}_pkey"` } };
+      }
+      const id = payload.id || newId(); // an explicit id is kept (the purge tombstone re-insert, A-143)
       const updated_at = stamp();
       store[table].set(id, { ...payload, id, created_at: payload.created_at || updated_at, updated_at });
+      const lose = lost.shift();
+      if (lose === 'throw') throw new Error('Network request failed');
+      if (lose) return { data: null, error: { message: 'TypeError: Network request failed' } };
       return { data: { id, updated_at }, error: null };
     },
     async fetchSince(table, userId, since) {
