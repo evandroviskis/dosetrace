@@ -146,9 +146,10 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
   );
 }
 import {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, frequencyLabelFor, upcomingAgenda,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, nextDoseAt, frequencyLabelFor, upcomingAgenda,
   courseState, endDateRange,
 } from '../lib/schedule';
+import { editMixDate } from '../lib/vialEdit';
 import { nextTodayQuestion } from '../lib/protocolEnd';
 import CheckMark from '../components/CheckMark';
 import { pluralKey } from '../lib/plural';
@@ -1531,8 +1532,12 @@ export default function TodayScreen() {
     try {
       const user = await getCachedUser();
       if (!user) return;
-      const mixDate = toPastDateString(month, day);
-      if (!mixDate) { setVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: okButton() }); return; }
+      // The "Edit vial" rule (lib/vialEdit editMixDate, AD-80 EV-3): the nearer of this year's and
+      // last year's day; a day after today is refused in the window, never moved a year back.
+      const r = editMixDate(month, day, null, new Date());
+      if (r.error === 'future') { setVialSheet({ icon: 'warning', title: t('vial_edit_future_title'), body: t('vial_edit_future_body'), buttons: okButton() }); return; }
+      if (r.error) { setVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: okButton() }); return; }
+      const mixDate = r.date;
       // The one new-vial write (lib/newVial startNewVial, tested — A-132): a vial still in use (an
       // expired one with doses left) leaves use with its count and doses as they were; capacity
       // derived from the protocol; the protocol itself is never changed, so its history is kept (S-01).
