@@ -204,6 +204,27 @@ async function versionNewsShown(meta) {
   try { return (await notificationsGranted()) === true; } catch { return false; }
 }
 
+// A-169: the profile card before its user and plan are known — the A-135 placeholder (the real card
+// in its real colour, quiet c.well bars where the avatar, name, email and plan will be, the same slow
+// pulse; no text). Screen readers hear "loading" once. Its own component (review 2026-10-26): the
+// pulse runs only while the skeleton is shown and stops when it unmounts — Settings is a tab that
+// stays mounted all session.
+function ProfileCardSkeleton({ s, colors, label }) {
+  const pulse = usePulse();
+  return (
+    <View style={s.profileCard} accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={label}>
+      <Animated.View style={[s.profileSkel, pulse]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Dot size={56} color={colors.well} />
+        <View style={s.profileInfo}>
+          <Bar w="62%" h={16} lh={27} color={colors.well} style={s.profileSkelName} />
+          <Bar w="78%" h={10} lh={18} color={colors.well} style={s.profileSkelEmail} />
+          <View style={[s.profileSkelBadge, { backgroundColor: colors.well }]} />
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
   const { colors, mode, setMode } = useTheme();
@@ -214,7 +235,6 @@ export default function SettingsScreen({ navigation }) {
   const [first] = useState(() => firstProfile(peekCachedUser(), getPremiumSnapshot()));
   const [user, setUser] = useState(first.user);
   const [cardReady, setCardReady] = useState(() => profileCardView({ loaded: false, user: first.user, premiumKnown: first.premiumKnown }) === 'card');
-  const profilePulse = usePulse();
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [doseReminders, setDoseReminders] = useState(true);
   const [checkinReminders, setCheckinReminders] = useState(true);
@@ -837,22 +857,9 @@ export default function SettingsScreen({ navigation }) {
 
   // One render per Settings piece, used by BOTH layouts (the phone list and the book's
   // pages), so a group shows the same rows and actions wherever it is drawn (S-26 BK-7).
-  // A-169: the profile card before its user and plan are known — the A-135 placeholder (the real
-  // card in its real colour, quiet c.well bars where the avatar, name, email and plan will be, the
-  // same slow pulse; no text). Screen readers hear "loading" once.
+  // A-169: the profile card before its user and plan are known (ProfileCardSkeleton, above).
   function renderProfileSkeleton() {
-    return (
-      <View style={s.profileCard} accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={t('loading')}>
-        <Animated.View style={[s.profileSkel, profilePulse]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Dot size={56} color={colors.well} />
-          <View style={s.profileInfo}>
-            <Bar w="62%" h={16} lh={27} color={colors.well} style={s.profileSkelName} />
-            <Bar w="78%" h={10} lh={18} color={colors.well} style={s.profileSkelEmail} />
-            <View style={[s.profileSkelBadge, { backgroundColor: colors.well }]} />
-          </View>
-        </Animated.View>
-      </View>
-    );
+    return <ProfileCardSkeleton s={s} colors={colors} label={t('loading')} />;
   }
 
   function renderProfileCard() {

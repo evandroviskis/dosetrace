@@ -135,16 +135,18 @@ test('A-169: the skeleton reuses the A-135 pattern — its bars, dot and pulse, 
   assert.match(sk, /export const Dot = /);
   const src = read('screens/SettingsScreen.js');
   assert.match(src, /import \{ Bar, Dot, usePulse \} from '\.\/components\/TodaySkeleton';/);
-  const i = src.indexOf('function renderProfileSkeleton()');
-  assert.ok(i > 0, 'renderProfileSkeleton');
-  const fn = src.slice(i, src.indexOf('function renderProfileCard()'));
+  // The markup lives in its own component (review 2026-10-26, __tests__/a169SkeletonPulse.test.js).
+  const i = src.indexOf('function ProfileCardSkeleton(');
+  assert.ok(i > 0, 'ProfileCardSkeleton');
+  const fn = src.slice(i, src.indexOf('export default function SettingsScreen('));
   assert.match(fn, /style=\{s\.profileCard\}/, 'the real card, in its real colour');
   assert.match(fn, /<Dot size=\{56\} color=\{colors\.well\}/, 'the avatar as a quiet dot');
   assert.match(fn, /<Bar [^>]*color=\{colors\.well\}/, 'bars in c.well on the card');
   assert.doesNotMatch(fn, /#[0-9a-fA-F]{3,8}\b|'white'|'black'|rgba\(/, 'theme tokens only');
   assert.doesNotMatch(fn, /\?\?|'—'|<Text/, 'no text, no "??", no dash');
-  assert.match(fn, /accessibilityLabel=\{t\('loading'\)\}/, 'screen readers hear the app\'s "loading" once');
+  assert.match(fn, /accessibilityLabel=\{label\}/, 'screen readers hear the app\'s "loading" once');
+  assert.match(src, /<ProfileCardSkeleton s=\{s\} colors=\{colors\} label=\{t\('loading'\)\} \/>/);
   assert.match(fn, /importantForAccessibility="no-hide-descendants"/);
-  // The hook runs on every render, not only while the skeleton shows (rules of hooks).
-  assert.match(src, /const profilePulse = usePulse\(\);/);
+  // The hook runs on every render of the skeleton, and only while it is shown.
+  assert.match(fn, /const pulse = usePulse\(\);/);
 });
