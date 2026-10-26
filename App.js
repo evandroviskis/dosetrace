@@ -27,6 +27,7 @@ import { UpdateInviteSheet, UpdateRequiredScreen, UpdateReadyBar } from './compo
 import { useUpdateNotice } from './components/useUpdateNotice';
 import { isUpdateTap } from './lib/updateRules';
 import { requestForcedInvite } from './lib/updateRuntime';
+import { markCurveNoticeSince } from './lib/curveNoticeRuntime';
 import { runSignOut } from './lib/settingsSignOut';
 import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
 import { createBusyGuard } from './lib/busyGuard';
@@ -540,6 +541,9 @@ export default function App() {
     deviceFlow().refreshVerdict().then(reloadDevice).catch(() => {});
     return unsub;
   }, [reloadDevice]);
+  // AD-96 B copy: the moment this phone first ran 1.3.2 — the curve's one-time notice is only for
+  // accounts that had a protocol before it (lib/curveNotice). Fire and forget.
+  useEffect(() => { markCurveNoticeSince(); }, []);
   // DV-242: { previous, pending, userId } while the cross-account sheet is up; guardTick re-reads
   // the local data owner after a discard.
   const [accountAsk, setAccountAsk] = useState(null);

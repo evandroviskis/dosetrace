@@ -31,7 +31,9 @@ import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
+  hasLoggedDose, nowLabelLines,
 } from '../lib/serumModel';
+import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
 import { isOne } from '../lib/plural';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
@@ -294,6 +296,8 @@ export default function SerumCurveScreen({ embedded = false }) {
   const [showReadoutPicker, setShowReadoutPicker] = useState(false);
   const [labDates, setLabDates] = useState([]);         // distinct blood-exam dates
   const [doseLogs, setDoseLogs] = useState([]);         // DV-072 C: Dose log rows, for the hollow ticks only
+  // AD-96 B copy, option B (founder 2026-10-26): the one-time notice card, until "Got it".
+  const [noticeOn, setNoticeOn] = useState(false);
   // Founder 2026-10-02: the curve opens on the last 3 days (a new protocol fills the chart);
   // choosing an earlier date in "Estimate on a date" reaches the chart back to it.
   const pastDays = curveWindowDays(readoutDate, todayISO());
@@ -374,6 +378,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     setFutureDays(view.futureDays);
     setLabDates(d.labDates);
     setDoseLogs(d.doseLogs);
+    curveNoticeShown(getHistoryProtocols(user.id) || []).then(setNoticeOn).catch(() => setNoticeOn(false));
     // From here a reload may run: its selection updater queues after this view.
     viewReadyRef.current = true;
   }
@@ -573,6 +578,13 @@ export default function SerumCurveScreen({ embedded = false }) {
   const nowX = model ? xForIndex(model.nowF) : plotLeft;
   // A-101a: the x-axis labels never overlap (measured widths; lib/curveAxis).
   const nowLabelLeft = Math.max(0, (nowX - AXIS_W) - 14);
+  // E-A label geometry: two lines of 10 pt (≈5.6 px a character), ending 6 px before the Now line.
+  const nowLabel = (() => {
+    const lines = nowLabelLines(t('curve_lg_estimate'));
+    const w = Math.max(0, ...lines.map(l => l.length)) * 5.6;
+    const left = nowX - plotLeft >= w + 10;
+    return { lines, x: left ? nowX - 6 : nowX + 6, anchor: left ? 'end' : 'start', y0: PLOT_BOTTOM - (lines.length > 1 ? 25 : 13) };
+  })();
   const axisShow = axisLabels({ plotW: axisW, nowLeft: nowLabelLeft, nowW: axisNowW, leftW: axisLeftW, rightW: axisRightW });
   const single = model && model.series.length === 1 ? model.series[0] : null;
   // One compound draws in data blue (prototype curveScreen); several keep their protocol colors.
@@ -830,10 +842,31 @@ export default function SerumCurveScreen({ embedded = false }) {
           </TouchableOpacity>
           {notChartedLines().map(line => <Text key={line} style={s.notCharted}>{line}</Text>)}
 
+          {/* AD-96 B copy, option B (founder 2026-10-26): for accounts that had the old curve, a card
+              above the chart until "Got it" — facts only, never a judgement of the level (lib/curveNotice) */}
+          {noticeOn ? (
+            <View style={s.noticeCard}>
+              <View style={s.noticeHead}>
+                <FeatureIcon name="info" size={18} color={colors.ink2} />
+                <Text style={s.noticeTitle}>{t('curve_logged_notice_title')}</Text>
+              </View>
+              <Text style={s.noticeBody}>{t('curve_logged_notice_body')}</Text>
+              <TouchableOpacity
+                onPress={() => { setNoticeOn(false); dismissCurveNotice(); }}
+                style={s.noticeBtn}
+                accessibilityRole="button"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={s.noticeBtnText}>{t('curve_logged_notice_ok')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
           {/* Chart card */}
           <View style={s.card}>
             {/* Part 17: the number the Journey tile shows leads the card. */}
             {single ? (
+              <>
               <View style={s.heroRow}>
                 <View style={s.heroCol}>
                   <Text style={s.foot}>{t('curve_level_now')}</Text>
@@ -843,6 +876,9 @@ export default function SerumCurveScreen({ embedded = false }) {
                 </View>
                 <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
               </View>
+              {/* PK-11 (founder 2026-10-26): the same line as the Journey tile while nothing is marked complete */}
+              {!hasLoggedDose(single.p, doseLogs, model.now) ? <Text style={s.heroFoot}>{t('curve_no_logs')}</Text> : null}
+              </>
             ) : (
               <>
                 {model && model.series.map(ser => (
@@ -851,6 +887,9 @@ export default function SerumCurveScreen({ embedded = false }) {
                     <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
                     <Text style={s.readoutVal}>{mgLabel(ser.nowLevel)}{'\u00A0'}{unitLbl}</Text>
                   </View>
+                ))}
+                {model && model.series.filter(ser => !hasLoggedDose(ser.p, doseLogs, model.now)).map(ser => (
+                  <Text key={`nl-${ser.id}`} style={s.heroFoot}>{t('curve_no_logs_named').replace('{name}', ser.name)}</Text>
                 ))}
                 <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
               </>
@@ -961,6 +1000,14 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model && model.max > 0 && showCombined && model.combined.map(c => (
                 <Circle key={`d-${c.id}`} cx={nowX} cy={yForLevel(c.nowLevel)} r={4} fill={colors.ink} />
               ))}
+              {/* E-A (founder 2026-10-26): "from your logged doses" at the Now marker, beside the line
+                  (left of it when there is room, else right), over a halo of the card colour */}
+              {model && model.max > 0 && nowLabel.lines.map((ln, i) => (
+                <React.Fragment key={`nl-${i}`}>
+                  <SvgText x={nowLabel.x} y={nowLabel.y0 + i * 12} fontSize={10} fontWeight="500" textAnchor={nowLabel.anchor} fill={colors.raised} stroke={colors.raised} strokeWidth={3} strokeLinejoin="round">{ln}</SvgText>
+                  <SvgText x={nowLabel.x} y={nowLabel.y0 + i * 12} fontSize={10} fontWeight="500" textAnchor={nowLabel.anchor} fill={colors.ink2}>{ln}</SvgText>
+                </React.Fragment>
+              ))}
               </AG>
             </Svg>
             </View>
@@ -983,11 +1030,17 @@ export default function SerumCurveScreen({ embedded = false }) {
             {/* Legend (part 17): estimate · projection · scheduled doses */}
             <View style={s.legendKeys}>
               <View style={s.legendKey}><View style={s.lgSolid} /><Text style={s.legendKeyText}>{t('curve_lg_estimate')}</Text></View>
+              {/* AD-96 B copy: the start-date line's own key, only while that line is inside the window */}
+              {model && model.max > 0 && model.estBefore && model.estBefore > model.start ? (
+                <View style={s.legendKey}><View style={s.lgEst}>{[0, 1].map(k => <View key={k} style={s.lgEstBit} />)}</View><Text style={s.legendKeyText}>{t('curve_lg_declared')}</Text></View>
+              ) : null}
               <View style={s.legendKey}><View style={s.lgDash}>{[0, 1, 2].map(k => <View key={k} style={s.lgDashBit} />)}</View><Text style={s.legendKeyText}>{t('curve_lg_projection')}</Text></View>
               <View style={s.legendKey}><View style={s.lgTick} /><Text style={s.legendKeyText}>{t('curve_lg_doses')}</Text></View>
               {/* DV-072 C: the hollow tick — a planned dose the Dose log does not show as Taken */}
               <View style={s.legendKey}><View style={s.lgTickHollow} /><Text style={s.legendKeyText}>{t('curve_lg_not_taken')}</Text></View>
             </View>
+            {/* AD-96 B (R4): a dose counts at the time it was marked, not at its scheduled tick */}
+            <Text style={s.markedNote}>{t('curve_marked_time_note')}</Text>
 
             {/* Projection horizon: the shared bar */}
             <View style={s.fld}>
@@ -1265,6 +1318,16 @@ function makeStyles(c) {
     lgSolid: { width: 18, height: 2, backgroundColor: c.data },
     lgDash: { width: 18, height: 2, flexDirection: 'row', justifyContent: 'space-between' },
     lgDashBit: { width: 4, height: 2, backgroundColor: c.data },
+    lgEst: { width: 2, height: 12, justifyContent: 'space-between' },
+    lgEstBit: { width: 2, height: 4, backgroundColor: c.ink3 },
+    markedNote: { fontSize: 13, lineHeight: 18, color: c.ink3 },
+    heroFoot: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: -6 },
+    noticeCard: { backgroundColor: c.raised, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, gap: 8 },
+    noticeHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    noticeTitle: { flex: 1, fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
+    noticeBody: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+    noticeBtn: { alignSelf: 'flex-start', minHeight: 24, paddingTop: 4 },
+    noticeBtnText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, textDecorationLine: 'underline' },
     // The chart's tick marks × TICK_LEGEND_SCALE (one factor, so both read as the same marks).
     lgTick: { width: TICK.w * TICK_LEGEND_SCALE, height: TICK.h * TICK_LEGEND_SCALE, backgroundColor: c.data },
     lgTickHollow: { width: TICK.hollowW * TICK_LEGEND_SCALE, height: TICK.h * TICK_LEGEND_SCALE, borderWidth: TICK.hollowStroke * TICK_LEGEND_SCALE, borderColor: c.data },

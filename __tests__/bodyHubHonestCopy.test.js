@@ -28,12 +28,14 @@ test('the dose-accumulation card says published half-lives, never one the user e
   }
 });
 
-// Round 2: the curve follows the PLANNED schedule (A-07, the curve disclaimer), so the card does
-// not say "your logged doses".
-test('the dose-accumulation card says the planned schedule, not the logged doses', () => {
+// Round 2 → AD-96 B (1.3.2, founder 2026-10-26 "textos aprovados", docs/design/ad96-curve-copy.html):
+// the curve's past is the doses the user logged and its future the planned schedule, so the card
+// names both (it said "planned schedule" only while the whole curve followed the schedule).
+test('the dose-accumulation card says the logged doses and the planned schedule', () => {
   const PLANNED = { en: /planned schedule/, es: /esquema planificado/, pt: /esquema planejado/, fr: /schéma prévu/, de: /geplanten Schema/, it: /schema pianificato/ };
+  const LOGGED = { en: /doses you logged/, es: /dosis que registraste/, pt: /doses que você registrou/, fr: /doses que vous avez enregistrées/, de: /von dir erfassten Dosen/, it: /dosi che hai registrato/ };
   for (const l of Object.keys(PLANNED)) {
     assert.match(tr[l].body_card_dosing_desc, PLANNED[l], l);
-    assert.doesNotMatch(tr[l].body_card_dosing_desc, /logged|registrad|enregistrées|erfassten|registri/i, l);
+    assert.match(tr[l].body_card_dosing_desc, LOGGED[l], l);
   }
 });

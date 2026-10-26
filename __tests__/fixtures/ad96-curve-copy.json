@@ -1,0 +1,106 @@
+{
+  "curve_no_logs": {
+    "en": "No doses logged yet",
+    "pt": "Nenhuma dose registrada ainda",
+    "es": "Aún no hay dosis registradas",
+    "fr": "Aucune dose enregistrée pour l’instant",
+    "de": "Noch keine Dosen erfasst",
+    "it": "Ancora nessuna dose registrata"
+  },
+  "curve_no_logs_named": {
+    "en": "{name}: no doses logged yet",
+    "pt": "{name}: nenhuma dose registrada ainda",
+    "es": "{name}: aún no hay dosis registradas",
+    "fr": "{name} : aucune dose enregistrée pour l’instant",
+    "de": "{name}: noch keine Dosen erfasst",
+    "it": "{name}: ancora nessuna dose registrata"
+  },
+  "curve_lg_estimate": {
+    "en": "from your logged doses",
+    "pt": "com base nas doses registradas",
+    "es": "según tus dosis registradas",
+    "fr": "d’après vos doses enregistrées",
+    "de": "aus deinen erfassten Dosen",
+    "it": "dalle dosi registrate"
+  },
+  "curve_lg_projection": {
+    "en": "planned schedule",
+    "pt": "esquema planejado",
+    "es": "esquema planificado",
+    "fr": "schéma prévu",
+    "de": "geplantes Schema",
+    "it": "schema pianificato"
+  },
+  "curve_lg_declared": {
+    "en": "estimated from your start date",
+    "pt": "estimado a partir da data de início",
+    "es": "estimado desde tu fecha de inicio",
+    "fr": "estimé à partir de votre date de début",
+    "de": "geschätzt ab deinem Startdatum",
+    "it": "stimato dalla data di inizio"
+  },
+  "curve_lg_doses": {
+    "en": "scheduled doses",
+    "pt": "doses programadas",
+    "es": "dosis programadas",
+    "fr": "doses prévues",
+    "de": "geplante Dosen",
+    "it": "dosi programmate"
+  },
+  "curve_lg_not_taken": {
+    "en": "scheduled, not marked complete",
+    "pt": "programadas, não marcadas como concluídas",
+    "es": "programadas, sin marcar como completadas",
+    "fr": "prévues, non marquées comme effectuées",
+    "de": "geplant, nicht als erledigt markiert",
+    "it": "programmate, non contrassegnate come completate"
+  },
+  "curve_marked_time_note": {
+    "en": "Doses count at the time you marked them.",
+    "pt": "Cada dose entra na curva no horário em que você a marcou.",
+    "es": "Cada dosis entra en la curva a la hora en que la marcaste.",
+    "fr": "Chaque dose compte dans la courbe à l’heure où vous l’avez marquée.",
+    "de": "Jede Dosis zählt in der Kurve ab dem Zeitpunkt, zu dem du sie markiert hast.",
+    "it": "Ogni dose entra nella curva all’ora in cui l’hai segnata."
+  },
+  "curve_logged_notice_title": {
+    "en": "The curve now uses your logged doses",
+    "pt": "A curva agora usa as doses registradas",
+    "es": "La curva ahora usa tus dosis registradas",
+    "fr": "La courbe utilise désormais vos doses enregistrées",
+    "de": "Die Kurve nutzt jetzt deine erfassten Dosen",
+    "it": "La curva ora usa le dosi registrate"
+  },
+  "curve_logged_notice_body": {
+    "en": "From the day you added a protocol until Now, the curve adds only the doses you marked complete, at the time you marked them. Doses not marked complete are left out, so your estimated level may be lower than before. After Now, it follows your planned schedule.",
+    "pt": "Do dia em que você adicionou o protocolo até “Agora”, a curva soma só as doses marcadas como concluídas, no horário em que você as marcou. As doses não marcadas ficam de fora, por isso o nível estimado pode estar menor do que antes. Depois de “Agora”, a curva segue o seu esquema planejado.",
+    "es": "Desde el día en que añadiste el protocolo hasta «Ahora», la curva solo suma las dosis que marcaste como completadas, a la hora en que las marcaste. Las dosis sin marcar quedan fuera, por eso tu nivel estimado puede ser más bajo que antes. Después de «Ahora», sigue tu esquema planificado.",
+    "fr": "Du jour où vous avez ajouté le protocole jusqu’à « Maintenant », la courbe n’additionne que les doses marquées comme effectuées, à l’heure où vous les avez marquées. Les doses non marquées sont exclues : votre niveau estimé peut donc être plus bas qu’avant. Après « Maintenant », elle suit votre schéma prévu.",
+    "de": "Ab dem Tag, an dem du das Protokoll angelegt hast, bis „Jetzt“ zählt die Kurve nur die Dosen, die du als erledigt markiert hast, zum Zeitpunkt der Markierung. Nicht markierte Dosen zählen nicht – dein geschätzter Spiegel kann deshalb niedriger sein als vorher. Nach „Jetzt“ folgt sie deinem geplanten Schema.",
+    "it": "Dal giorno in cui hai aggiunto il protocollo fino a «Ora», la curva somma solo le dosi segnate come completate, all’ora in cui le hai segnate. Le dosi non segnate restano fuori, quindi il livello stimato può risultare più basso di prima. Dopo «Ora» segue lo schema che hai pianificato."
+  },
+  "curve_logged_notice_ok": {
+    "en": "Got it",
+    "pt": "Entendi",
+    "es": "Entendido",
+    "fr": "Compris",
+    "de": "Verstanden",
+    "it": "Ho capito"
+  },
+  "body_card_dosing_desc": {
+    "en": "See how your doses may add up over time, from the doses you logged, your planned schedule, and published half-lives. A math estimate — never a measurement.",
+    "pt": "Veja como suas doses podem se acumular ao longo do tempo, pelas doses que você registrou, pelo seu esquema planejado e por meias-vidas publicadas. Uma estimativa matemática, nunca uma medição.",
+    "es": "Mira cómo pueden acumularse tus dosis con el tiempo, según las dosis que registraste, tu esquema planificado y vidas medias publicadas. Una estimación matemática, nunca una medición.",
+    "fr": "Visualisez comment vos doses peuvent s’accumuler dans le temps, d’après les doses que vous avez enregistrées, votre schéma prévu et des demi-vies publiées. Une estimation mathématique, jamais une mesure.",
+    "de": "Sieh, wie sich deine Dosen im Lauf der Zeit summieren können – nach den von dir erfassten Dosen, deinem geplanten Schema und veröffentlichten Halbwertszeiten. Eine mathematische Schätzung, keine Messung.",
+    "it": "Guarda come le tue dosi possono accumularsi nel tempo, in base alle dosi che hai registrato, allo schema pianificato e alle emivite pubblicate. Una stima matematica, mai una misurazione."
+  },
+  "__whats_new": {
+    "en": "• Dose accumulation: the curve now uses the doses you marked complete, at the time you marked them, so your estimated level may be lower.",
+    "pt": "• Acúmulo de doses: a curva passa a usar as doses marcadas como concluídas, no horário em que você as marcou; o nível estimado pode ficar menor.",
+    "es": "• Acumulación de dosis: la curva ahora usa las dosis que marcaste como completadas, a la hora en que las marcaste, así que tu nivel estimado puede ser más bajo.",
+    "fr": "• Accumulation des doses : la courbe utilise désormais les doses marquées comme effectuées, à l’heure où vous les avez marquées ; votre niveau estimé peut donc être plus bas.",
+    "de": "• Dosis-Akkumulation: Die Kurve nutzt jetzt die Dosen, die du als erledigt markiert hast, zum Zeitpunkt der Markierung – dein geschätzter Spiegel kann daher niedriger sein.",
+    "it": "• Accumulo delle dosi: la curva ora usa le dosi segnate come completate, all’ora in cui le hai segnate, quindi il livello stimato può risultare più basso."
+  }
+}
