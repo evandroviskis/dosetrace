@@ -107,8 +107,9 @@ test('the vial prompt\'s "Protocol finished" only closes it (no end until the ap
   assert.equal(require('../lib/newVial').vialPromptKeys('finished').secondary, 'today_vial_finished');
   assert.match(s, /onSecondary=\{closeVialPrompt\}/);
   const w = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/components/NewVialPrompt.js'), 'utf8');
-  const btn = w.slice(w.indexOf('{t(keys.secondary)}') - 200, w.indexOf('{t(keys.secondary)}'));
-  assert.match(btn, /onPress=\{onSecondary\}/);
+  assert.match(w, /secondary=\{t\(keys\.secondary\)\} onSecondary=\{onSecondary\}/);
+  const actions = w.slice(w.indexOf('function Actions('), w.indexOf('function Actions(') + 500);
+  assert.match(actions, /onPress=\{onSecondary\}/);
   const inactive = s.slice(s.indexOf('async function endInactiveProtocol() {'), s.indexOf('async function endInactiveProtocol() {') + 700);
   assert.match(inactive, /endProtocolAtLastDose\(p\.id\)/);
 });

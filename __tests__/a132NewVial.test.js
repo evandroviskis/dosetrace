@@ -102,7 +102,7 @@ test('NV-5: Today and the protocol page both write through lib/newVial startNewV
   assert.doesNotMatch(create, /newVialRecords|insertVial\(vial\)/, 'no second write in Today');
   assert.match(create, /afterProtocolChange\(\)/);
   const prot = read('screens/ProtocolsScreen.js');
-  const save = sliceBlock(prot, 'async function saveReconNewVial(');
+  const save = sliceBlock(prot, 'async function saveNewVial('); // AD-80: one save for both vial types
   assert.match(save, /startNewVial\(p, mixDate, user\.id, \{ deactivateVialsByProtocol, insertVial, updateProtocol \}\)/);
   assert.match(save, /afterProtocolChange\(\)/);
   assert.match(save, /requestSync\(\)/);
@@ -145,12 +145,13 @@ test('NV-2: "New vial" on the protocol page for every active reconstituted vial 
   assert.equal(NV.showsNewVialButton({ type: 'oral' }, { doses_taken: 2 }), false);
   const prot = read('screens/ProtocolsScreen.js');
   const block = sliceBlock(prot, 'function ProtocolVialBlock(');
-  assert.match(block, /\{showsNewVialButton\(p, vial\) && \(\s*<TouchableOpacity style=\{s\.obtn2\} onPress=\{\(\) => onRefillVial\(p\.id\)\}/);
+  assert.match(block, /\{showsNewVialButton\(p, vial\) && \(\s*<TouchableOpacity style=\{\[s\.obtn2, s\.vbtn\]\} onPress=\{\(\) => onRefillVial\(p\.id\)\}/);
   assert.match(block, /<FeatureIcon name="repeat" size=\{18\} color=\{c\.ink\} \/>\s*<Text style=\{s\.obtn2Text\}>\{t\('protocols_new_vial'\)\}<\/Text>/);
   // A recon vial opens the "New vial" window; RTU keeps its confirm sheet.
   const ask = sliceBlock(prot, 'function askRefillVial(');
-  assert.match(ask, /if \(p && p\.type === 'recon'\) \{ openReconNewVial\(p\); return; \}/);
-  assert.match(prot, /<NewVialPrompt\s+visible=\{!!reconVialFor\}\s+mode="new"/);
+  // (AD-80: ready-to-use opens the same window, asking the new box's month/year.)
+  assert.match(ask, /if \(p && \(p\.type === 'recon' \|\| p\.type === 'rtu'\)\) \{ openNewVialWindow\(p\); return; \}/);
+  assert.match(prot, /<NewVialPrompt\s+visible=\{!!newVialFor\}\s+mode="new"/);
   // Today's book page (Fold): a recon vial's "New vial" opens Today's own window.
   const today = read('screens/TodayScreen.js');
   assert.match(today, /onRefillVial=\{p\.type === 'recon' \? \(\) => showVialPromptFor\(p\) : toProtocol\}/);
@@ -166,13 +167,15 @@ test('NV-3: the window says "New vial" (Cancel / Start new) when asked for; afte
   assert.deepEqual(NV.oldVialNote(p, { mixed_on: '2026-09-13', total_doses: 4, doses_taken: 4 }), { mixedOn: '2026-09-13', left: null }, 'no leftover: date only');
   assert.deepEqual(NV.oldVialNote({ type: 'recon' }, { mixed_on: '2026-09-13', doses_taken: 1 }), { mixedOn: '2026-09-13', left: null }, 'unknown capacity: date only');
   assert.equal(NV.oldVialNote(p, null), null, '"+ Add vial": no old vial, no line');
-  assert.equal(NV.oldVialNote(p, { mixed_on: null, total_doses: 4, doses_taken: 1 }), null);
+  // no mix date (AD-80): "the previous vial", with its leftover doses
+  assert.deepEqual(NV.oldVialNote(p, { mixed_on: null, total_doses: 4, doses_taken: 1 }), { mixedOn: null, left: 3 });
   const comp = read('screens/components/NewVialPrompt.js');
   assert.match(comp, /const keys = vialPromptKeys\(mode\);/);
   assert.match(comp, /mode === 'new' \? oldVialNote\(protocol, oldVial\) : null/);
   assert.match(comp, /t\(pluralKey\('today_new_vial_old', note\.left, language\)\)/);
   assert.match(comp, /t\('today_new_vial_old_date'\)/);
-  assert.match(comp, /onPress=\{onSecondary\}[\s\S]*t\(keys\.secondary\)[\s\S]*onPress=\{\(\) => onPrimary\(newVialMonth, newVialDay\)\}[\s\S]*t\(keys\.primary\)/);
+  assert.match(comp, /secondary=\{t\(keys\.secondary\)\} onSecondary=\{onSecondary\}\s*primary=\{t\(keys\.primary\)\} onPrimary=\{\(\) => onPrimary\(\{ month: newVialMonth, day: newVialDay, expMonth, expYear \}\)\}/);
+  assert.match(sliceBlock(comp, 'function Actions('), /onPress=\{onSecondary\}[\s\S]*\{secondary\}[\s\S]*onPress=\{onPrimary\}[\s\S]*\{primary\}/);
   // Today: "+ Add vial" and "+ New vial" open the "new" window; only the last-dose queue opens "finished".
   const today = read('screens/TodayScreen.js');
   assert.match(sliceBlock(today, 'function releasePendingVial('), /showVialPromptFor\(next\.item\.protocol, 0, 'finished'\)/);

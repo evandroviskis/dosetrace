@@ -74,6 +74,7 @@ const ALLOW = [
   { file: 'screens/components/FoodEntryEditor.js', has: 'TextInput', why: 'Rendered only inside the food entry editor sheet (its own useKeyboardLift)' },
   { file: 'screens/ProtocolsScreen.js', has: 'placeholderTextColor={c.ink3}\n      {...props}', why: 'WInput, the editor field component: rendered only inside the protocol editor Modal (editorKb)' },
   { file: 'components/AuthField.js', has: '{...inputProps}', why: 'The field component: each page passes its lift through inputProps (sign in, reset password)' },
+  { file: 'screens/components/NewVialPrompt.js', has: "placeholder={t('protocols_day_dd')}", why: 'MixDateField, the vial windows\' day field: rendered only inside the New vial / Edit vial Modals (their useSheetKeyboard; A-132, AD-80)' },
 ];
 
 test('A-152 (1): every field on a page is wired to a keyboard lift, or listed with its reason', () => {

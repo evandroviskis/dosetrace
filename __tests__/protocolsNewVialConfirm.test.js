@@ -23,13 +23,14 @@ function loadTranslations() {
   return mod.exports.translations;
 }
 
-test('part 10: New vial asks before the count is reset; Cancel writes nothing', () => {
+// A-132 / AD-80: New vial asks in the "New vial" window (the same words, + the mix date or the new
+// box's month/year) instead of a sheet; Cancel still writes nothing.
+test('part 10: New vial asks before a new count starts; Cancel writes nothing', () => {
   const ask = fnBody(SCREEN, 'askRefillVial');
-  assert.match(ask, /title: t\('protocols_new_vial'\)/);
-  assert.match(ask, /body: t\('protocols_new_vial_body'\)/);
-  assert.match(ask, /\{ label: t\('cancel'\), kind: 'secondary' \}/);
-  assert.match(ask, /\{ label: t\('protocols_start_new'\), kind: 'primary', onPress: \(\) => refillVial\(id\) \}/);
-  assert.doesNotMatch(ask, /updateVial|updateProtocol/, 'nothing is written before Start new');
+  assert.match(ask, /openNewVialWindow\(p\)/);
+  assert.doesNotMatch(ask, /updateVial|updateProtocol|insertVial|startNewVial/, 'nothing is written before Start new');
+  assert.deepEqual(require('../lib/newVial').vialPromptKeys('new'), { title: 'protocols_new_vial', sub: 'protocols_new_vial_body', secondary: 'cancel', primary: 'protocols_start_new' });
+  assert.match(SCREEN, /onSecondary=\{\(\) => setNewVialFor\(null\)\}/, 'Cancel only closes');
   assert.match(SCREEN, /onRefillVial=\{askRefillVial\}/);
 });
 
@@ -42,8 +43,12 @@ test('part 10: New bottle asks the same, in bottle words', () => {
   assert.match(SCREEN, /onRefill=\{askRefillBottle\}/);
 });
 
-test('part 10: the reset itself is unchanged (doses already logged stay in the history)', () => {
-  assert.match(fnBody(SCREEN, 'refillVial'), /updateVial\(v\.id, \{ doses_taken: 0, active: 1 \}\)/);
+// AD-80: a ready-to-use "New vial" starts a new vial row (the old one keeps its count and box
+// date in the history — __tests__/ad80EditVial.test.js EV-7); the bottle reset is unchanged.
+test('part 10: the new count keeps the doses already logged in the history', () => {
+  const save = SCREEN.slice(SCREEN.indexOf('async function saveNewVial('), SCREEN.indexOf('function openEditVial('));
+  assert.match(save, /startNewVial\(/);
+  assert.doesNotMatch(save, /updateVial\(/, 'the vial in use is never reset in place');
   assert.match(fnBody(SCREEN, 'refillOralBottle'), /updateProtocol\(id, \{ units_taken: 0 \}\)/);
 });
 

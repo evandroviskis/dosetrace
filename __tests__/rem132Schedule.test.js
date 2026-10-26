@@ -148,7 +148,7 @@ test('DV-051: delete a protocol → the summary plan excludes it (every Protocol
   for (const fnName of ['async function deleteProtocol(id) {', 'function deleteEndedProtocol(p) {', 'function confirmPurge(ids) {']) {
     assert.match(sliceBlock(src, fnName), /cancelDoseReminder\([^)]*\)\.catch[\s\S]*afterProtocolChange\(\)\.catch/, fnName);
   }
-  for (const fnName of ['async function restoreProtocol(id) {', 'function refillVial(id) {', 'function refillOralBottle(id) {']) {
+  for (const fnName of ['async function restoreProtocol(id) {', 'async function saveNewVial({', 'async function saveVialEdit(input) {', 'function refillOralBottle(id) {']) {
     assert.match(sliceBlock(src, fnName), /afterProtocolChange\(/, fnName);
   }
   assert.match(src, /if \(protocolData\) afterProtocolChange\(\{ saved: protocolData \}\)/, 'create');

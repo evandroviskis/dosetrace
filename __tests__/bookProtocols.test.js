@@ -168,8 +168,8 @@ test('BK-10, BK-11: every sheet sits outside the book switch, so a fold or unfol
   const after = rootKids.slice(rootKids.indexOf(bookSwitch) + 1).map(kidName).filter(Boolean);
   // + the free-feature explainer (Today redesign part 18), a sheet like the others.
   // + the A-121 end-date wheel ("Termina em"), held by the screen like the enlarged syringe (SG-30).
-  // + A-132: the reconstituted vial's "New vial" window, held by the screen.
-  assert.deepEqual(after, ['DTSheet', 'NewVialPrompt', 'FeatureExplainerGate', 'SyringeZoomSheet', 'EndDateSheet', 'Modal'], 'delete/limit sheet, explainer, enlarged syringe, end-date wheel, add/edit wizard');
+  // + A-132 / AD-80: the "New vial" and "Edit vial" windows, held by the screen.
+  assert.deepEqual(after, ['DTSheet', 'NewVialPrompt', 'EditVialPrompt', 'FeatureExplainerGate', 'SyringeZoomSheet', 'EndDateSheet', 'Modal'], 'delete/limit sheet, explainer, enlarged syringe, end-date wheel, add/edit wizard');
   assert.equal(rootKids.indexOf(bookSwitch), 0, 'the switch is the first child, so the sheets keep their place');
   for (const branch of [bookBranch, phoneBranch]) {
     assert.doesNotMatch(branch, /<Modal\b|<DTSheet\b|<DTPickerSheet\b|<DTActionSheet\b|<SyringeZoomSheet\b|<EndDateSheet\b/);

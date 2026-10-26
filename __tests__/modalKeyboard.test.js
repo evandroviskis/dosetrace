@@ -157,7 +157,10 @@ test('modal keyboard: Today\'s vial prompt sits above the Android keyboard; iPho
   const body = src.slice(src.indexOf('<Modal visible={!!visible}'), src.indexOf('</Modal>', src.indexOf('<Modal visible={!!visible}')));
   assert.match(body, /<View style=\{vialKb\.lift \? \[s\.promptOverlay, \{ paddingBottom: vialKb\.lift\.bottom \}\] : s\.promptOverlay\} onLayout=\{vialKb\.onLayout\}>/);
   assert.match(body, /<View style=\{\[s\.promptCard, vialKb\.sheetStyle\]\}>/, 'the cap');
-  assert.match(body, /<PromptBody style=\{s\.promptBody\} scrollProps=\{vialKb\.scrollProps\}>[\s\S]*<TextInput[\s\S]*<\/PromptBody>\s*<View style=\{s\.promptActions\}>/, 'the day field scrolls in the body, the actions stay under it');
+  // (AD-80: the day field is MixDateField's TextInput; the actions are the shared Actions row.)
+  assert.match(body, /<PromptBody style=\{s\.promptBody\} scrollProps=\{vialKb\.scrollProps\}>[\s\S]*<MixDateField[\s\S]*<\/PromptBody>\s*<Actions/, 'the day field scrolls in the body, the actions stay under it');
+  assert.match(src.slice(src.indexOf('function MixDateField('), src.indexOf('function BoxExpiryField(')), /<TextInput/);
+  assert.match(src.slice(src.indexOf('function Actions('), src.indexOf('function Actions(') + 300), /<View style=\{s\.promptActions\}>/);
   const pb = src.slice(src.indexOf('function PromptBody('));
   assert.match(pb, /if \(Platform\.OS !== 'android'\) return <View style=\{style\}>\{children\}<\/View>;/, 'iPhone: a plain View, as before');
   assert.match(pb, /<ScrollView \{\.\.\.scrollProps\} contentContainerStyle=\{style\} keyboardShouldPersistTaps="handled"/);

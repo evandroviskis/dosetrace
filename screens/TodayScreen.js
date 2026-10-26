@@ -1526,7 +1526,7 @@ export default function TodayScreen() {
     if (delayMs) vialTimerRef.current = setTimeout(() => setShowVialPrompt(true), delayMs); else setShowVialPrompt(true);
   }
 
-  async function createNewVial(month, day) {
+  async function createNewVial({ month, day }) {
     if (!continuationProtocol) return;
     try {
       const user = await getCachedUser();
@@ -2106,7 +2106,7 @@ export default function TodayScreen() {
             openEdit={toProtocol}
             onEndDate={toProtocol}
             deleteProtocol={null}
-            onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={p.type === 'recon' ? () => showVialPromptFor(p) : toProtocol} onZoom={toProtocol}
+            onSaveNote={saveProtocolNote} onRefill={toProtocol} onRefillVial={p.type === 'recon' ? () => showVialPromptFor(p) : toProtocol} onEditVial={toProtocol} onZoom={toProtocol}
             draft={getDraft(noteDraftKey(p.id))}
             onDraft={(id, text) => { if (text == null) clearDraft(noteDraftKey(id)); else setDraft(noteDraftKey(id), text); setNoteTick((n) => n + 1); }}
             onNoteFocus={pageLift.liftField}

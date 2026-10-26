@@ -453,6 +453,15 @@ export const translations = {
     today_new_vial_old: "The {date} vial goes to your history, with its {n} leftover doses.",
     today_new_vial_old_one: "The {date} vial goes to your history, with its {n} leftover dose.", // singular (lib/plural.js)
     today_new_vial_old_date: "The {date} vial goes to your history.",
+    today_new_vial_prev: "The previous vial goes to your history, with its {n} leftover doses.", // AD-80: a ready-to-use vial (no mix date)
+    today_new_vial_prev_one: "The previous vial goes to your history, with its {n} leftover dose.", // singular (lib/plural.js)
+    vial_edit_title: "Edit vial",
+    vial_edit_body: "Correct this vial’s details. The doses already logged don’t change.",
+    vial_edit_valid_next: "Also applies to this protocol’s next vials.",
+    vial_edit_used: "Doses already used",
+    vial_edit_of: "of {total}",
+    vial_edit_future_title: "Date in the future",
+    vial_edit_future_body: "The mix date can’t be after today.",
     today_novial_title: "No mixed vial right now",
     today_novial_body: "Without a vial the app doesn't know the concentration, so it can't show the syringe or what's left. Add the vial you're going to use.",
     today_nobottle_title: "No bottle added yet",
@@ -2966,6 +2975,15 @@ export const translations = {
     today_new_vial_old: "El vial del {date} pasa a tu historial, con las {n} dosis que sobraron.",
     today_new_vial_old_one: "El vial del {date} pasa a tu historial, con {n} dosis sin usar.", // singular (lib/plural.js)
     today_new_vial_old_date: "El vial del {date} pasa a tu historial.",
+    today_new_vial_prev: "El vial anterior pasa a tu historial, con las {n} dosis que sobraron.", // AD-80: a ready-to-use vial (no mix date)
+    today_new_vial_prev_one: "El vial anterior pasa a tu historial, con {n} dosis sin usar.", // singular (lib/plural.js)
+    vial_edit_title: "Editar vial",
+    vial_edit_body: "Corrige los datos de este vial. Las dosis ya registradas no cambian.",
+    vial_edit_valid_next: "También se aplica a los próximos viales de este protocolo.",
+    vial_edit_used: "Dosis ya usadas",
+    vial_edit_of: "de {total}",
+    vial_edit_future_title: "Fecha en el futuro",
+    vial_edit_future_body: "La fecha de mezcla no puede ser posterior a hoy.",
     today_novial_title: "Ahora no hay ningún vial mezclado",
     today_novial_body: "Sin un vial, la app no conoce la concentración: por eso no muestra la jeringa ni cuánto queda. Añade el vial que vas a usar.",
     today_nobottle_title: "Ningún envase añadido",
@@ -5479,6 +5497,15 @@ export const translations = {
     today_new_vial_old: "O frasco de {date} vai para o histórico, com as {n} doses que sobraram.",
     today_new_vial_old_one: "O frasco de {date} vai para o histórico, com {n} dose que sobrou.", // singular (lib/plural.js)
     today_new_vial_old_date: "O frasco de {date} vai para o histórico.",
+    today_new_vial_prev: "O frasco anterior vai para o histórico, com as {n} doses que sobraram.", // AD-80: a ready-to-use vial (no mix date)
+    today_new_vial_prev_one: "O frasco anterior vai para o histórico, com {n} dose que sobrou.", // singular (lib/plural.js)
+    vial_edit_title: "Editar frasco",
+    vial_edit_body: "Corrija os dados deste frasco. As doses já registradas não mudam.",
+    vial_edit_valid_next: "Vale também para os próximos frascos deste protocolo.",
+    vial_edit_used: "Doses já usadas",
+    vial_edit_of: "de {total}",
+    vial_edit_future_title: "Data no futuro",
+    vial_edit_future_body: "A data da reconstituição não pode ser depois de hoje.",
     today_novial_title: "Nenhum frasco reconstituído agora",
     today_novial_body: "Sem um frasco, o app não sabe a concentração: por isso não mostra a seringa nem quanto resta. Adicione o frasco que você vai usar.",
     today_nobottle_title: "Nenhum frasco informado",
@@ -7991,6 +8018,15 @@ export const translations = {
     today_new_vial_old: "Le flacon du {date} passe dans votre historique, avec ses {n} doses restantes.",
     today_new_vial_old_one: "Le flacon du {date} passe dans votre historique, avec {n} dose restante.", // singular (lib/plural.js)
     today_new_vial_old_date: "Le flacon du {date} passe dans votre historique.",
+    today_new_vial_prev: "Le flacon précédent passe dans votre historique, avec ses {n} doses restantes.", // AD-80: a ready-to-use vial (no mix date)
+    today_new_vial_prev_one: "Le flacon précédent passe dans votre historique, avec {n} dose restante.", // singular (lib/plural.js)
+    vial_edit_title: "Modifier le flacon",
+    vial_edit_body: "Corrigez les informations de ce flacon. Les doses déjà enregistrées ne changent pas.",
+    vial_edit_valid_next: "S’applique aussi aux prochains flacons de ce protocole.",
+    vial_edit_used: "Doses déjà utilisées",
+    vial_edit_of: "sur {total}",
+    vial_edit_future_title: "Date dans le futur",
+    vial_edit_future_body: "La date de reconstitution ne peut pas être postérieure à aujourd’hui.",
     today_novial_title: "Aucun flacon reconstitué pour l'instant",
     today_novial_body: "Sans flacon, l'app ne connaît pas la concentration : elle ne peut afficher ni la seringue ni ce qu'il reste. Ajoutez le flacon que vous allez utiliser.",
     today_nobottle_title: "Aucun flacon ajouté",
@@ -10503,6 +10539,15 @@ export const translations = {
     today_new_vial_old: "Das Fläschchen vom {date} kommt in deinen Verlauf, mit den {n} übrigen Dosen.",
     today_new_vial_old_one: "Das Fläschchen vom {date} kommt in deinen Verlauf, mit {n} übrigen Dosis.", // singular (lib/plural.js)
     today_new_vial_old_date: "Das Fläschchen vom {date} kommt in deinen Verlauf.",
+    today_new_vial_prev: "Das vorherige Fläschchen kommt in deinen Verlauf, mit den {n} übrigen Dosen.", // AD-80: a ready-to-use vial (no mix date)
+    today_new_vial_prev_one: "Das vorherige Fläschchen kommt in deinen Verlauf, mit {n} übrigen Dosis.", // singular (lib/plural.js)
+    vial_edit_title: "Fläschchen bearbeiten",
+    vial_edit_body: "Korrigiere die Angaben zu diesem Fläschchen. Die bereits erfassten Dosen bleiben unverändert.",
+    vial_edit_valid_next: "Gilt auch für die nächsten Fläschchen dieses Protokolls.",
+    vial_edit_used: "Bereits verwendete Dosen",
+    vial_edit_of: "von {total}",
+    vial_edit_future_title: "Datum in der Zukunft",
+    vial_edit_future_body: "Das Anmischdatum darf nicht nach heute liegen.",
     today_novial_title: "Gerade kein angemischtes Fläschchen",
     today_novial_body: "Ohne Fläschchen kennt die App die Konzentration nicht und kann weder die Spritze noch den Rest zeigen. Füge das Fläschchen hinzu, das du verwenden wirst.",
     today_nobottle_title: "Noch keine Packung angegeben",
@@ -13016,6 +13061,15 @@ export const translations = {
     today_new_vial_old: "Il flacone del {date} passa nella tua cronologia, con le {n} dosi rimaste.",
     today_new_vial_old_one: "Il flacone del {date} passa nella tua cronologia, con {n} dose rimasta.", // singular (lib/plural.js)
     today_new_vial_old_date: "Il flacone del {date} passa nella tua cronologia.",
+    today_new_vial_prev: "Il flacone precedente passa nella tua cronologia, con le {n} dosi rimaste.", // AD-80: a ready-to-use vial (no mix date)
+    today_new_vial_prev_one: "Il flacone precedente passa nella tua cronologia, con {n} dose rimasta.", // singular (lib/plural.js)
+    vial_edit_title: "Modifica flacone",
+    vial_edit_body: "Correggi i dati di questo flacone. Le dosi già registrate non cambiano.",
+    vial_edit_valid_next: "Vale anche per i prossimi flaconi di questo protocollo.",
+    vial_edit_used: "Dosi già usate",
+    vial_edit_of: "di {total}",
+    vial_edit_future_title: "Data nel futuro",
+    vial_edit_future_body: "La data di ricostituzione non può essere successiva a oggi.",
     today_novial_title: "Nessun flacone ricostituito al momento",
     today_novial_body: "Senza un flacone l'app non conosce la concentrazione, quindi non può mostrare la siringa né quanto resta. Aggiungi il flacone che userai.",
     today_nobottle_title: "Nessuna confezione aggiunta",
