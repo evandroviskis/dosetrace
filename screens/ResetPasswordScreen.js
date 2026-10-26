@@ -102,7 +102,7 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
 
           <AuthField
             label={t('reset_pw_new')}
-            inputProps={kb.fieldProps('new')}
+            inputProps={kb.fieldProps('new', { next: 'confirm' })}
             value={password}
             onChangeText={setPassword}
             password
