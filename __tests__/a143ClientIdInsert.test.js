@@ -50,6 +50,8 @@ const SEED = {
   reality_checks: (db) => db.runSync(`INSERT INTO reality_checks (user_id, entry_date, tdee, updated_at, sync_status) VALUES (?, '2026-10-20', 2400, 'L1', 'pending')`, [USER]).lastInsertRowId,
   calc_snapshots: (db) => db.runSync(`INSERT INTO calc_snapshots (user_id, entry_date, weight_kg, updated_at, sync_status) VALUES (?, '2026-10-20', 82.5, 'L1', 'pending')`, [USER]).lastInsertRowId,
   calc_targets: (db) => db.runSync(`INSERT INTO calc_targets (user_id, entry_date, target_weight_kg, updated_at, sync_status) VALUES (?, '2026-10-20', 78, 'L1', 'pending')`, [USER]).lastInsertRowId,
+  // DV-006 (merged in wave 3): lab stars and labels sync through the same engine.
+  lab_prefs: (db) => db.runSync(`INSERT INTO lab_prefs (user_id, kind, test_key, item_key, value, updated_at, sync_status) VALUES (?, 'star', '', 'Testosterone', '1', 'L1', 'pending')`, [USER]).lastInsertRowId,
   reality_check_open: (db) => db.runSync(`INSERT INTO reality_check_open (user_id, start_date, start_weight_kg, created_at, updated_at, sync_status) VALUES (?, '2026-10-20', 82.5, '2026-10-20T08:00:00.000Z', 'L1', 'pending')`, [USER]).lastInsertRowId,
 };
 const GENERIC = TABLES.filter((t) => t !== 'calc_inputs');
@@ -85,6 +87,8 @@ for (const how of ['error', 'throw']) {
       const db = makeDb();
       const cloud = makeCloud();
       const p = await syncedProtocol(db, cloud);
+      // DV-006: a late table pushes once this phone has read it in full (as the app does after a pull).
+      if (table === 'lab_prefs') await pullChanges(db, cloud, USER);
       const id = SEED[table](db, p);
       const before = cloud.rows(table, USER).length;
       const back = dropAfterLanding(cloud, how);

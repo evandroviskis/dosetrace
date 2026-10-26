@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
       'calc_targets',
       'reality_check_open',
       'calc_inputs',
+      'lab_prefs',
       'ai_food_usage',
       'ai_scan_usage',
       'reminders',

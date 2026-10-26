@@ -303,9 +303,13 @@ test('MB-28: every delete in My Body is the synced tombstone; nothing stored is 
     assert.match(db.slice(i, i + 600), /SET sync_status = 'deleted'/, `${fn} writes a tombstone`);
   }
   assert.doesNotMatch(strip(BODY + VAX), /DELETE FROM|hardDelete|clearLocalDatabase|AsyncStorage\.removeItem/);
-  // the stored shapes are read as before (favourites and labels still in user_metadata)
-  assert.match(BODY, /user\.user_metadata\?\.favorite_markers/);
-  assert.match(BODY, /user\.user_metadata\?\.report_tags/);
+  // the stored shapes are still read: DV-006 (founder 2026-10-20, 1.3.2) moves favourites and labels
+  // to the synced table lab_prefs through lib/labPrefs; the user_metadata values are read as the
+  // fallback and the source of a merge-only copy, never dropped (__tests__/dv006LabPrefsTable).
+  assert.match(BODY, /await loadLabPrefs\(\)/);
+  const store = read('lib', 'labPrefsStore.js');
+  assert.match(store, /m\.favorite_markers/);
+  assert.match(store, /m\.report_tags/);
 });
 
 test('MB-29: the new strings exist in all 6 languages with their placeholders', () => {

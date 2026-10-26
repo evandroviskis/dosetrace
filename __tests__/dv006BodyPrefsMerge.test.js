@@ -85,8 +85,14 @@ test('DV-006: BodyScreen writes through saveBodyPref, never a whole array from i
   const src = read('screens/BodyScreen.js');
   assert.doesNotMatch(src, /updateUser\(\{ data: \{ favorite_markers: next \} \}\)\.catch\(\(\) => \{\}\)/);
   assert.doesNotMatch(src, /updateUser\(\{ data: \{ report_tags: next \} \}\)\.catch\(\(\) => \{\}\)/);
-  assert.match(src, /saveBodyPref\(bodyPrefDeps, 'favorite_markers'/);
-  assert.match(src, /saveBodyPref\(bodyPrefDeps, 'report_tags'/);
+  // 1.3.2 (DV-006 synced table): the screen saves through lib/labPrefs; while the cloud table is not
+  // there yet, lib/labPrefsStore uses this same saveBodyPref path for both keys
+  // (__tests__/dv006LabPrefsTable "LT-4").
+  const store = read('lib/labPrefsStore.js');
+  assert.match(store, /saveBodyPref\(\{ readFresh: deps\.readFresh, write: deps\.writeMeta \}, key, apply\)/);
+  assert.match(store, /viaMeta\(s, 'favorite_markers'/);
+  assert.match(store, /viaMeta\(s, 'report_tags'/);
+  assert.match(src, /saveLabStar\(marker, on\)/);
   assert.match(src, /t\('error_save_failed'\)/);
   assert.match(src, /isFav: isFavorite\(favorites, display\)/);
 });

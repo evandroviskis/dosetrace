@@ -55,7 +55,11 @@ test('OD-7 / DL-105 / OD-17: the guard refuses with distinct codes, never an emp
 
 test('OD-7: reads AND writes of every synced table are checked before the query (PostgREST pre-request), writes again in statement triggers', () => {
   const p = fn('dt_pre_request');
-  for (const t of TABLES) assert.match(p, new RegExp(`'${t}'`), t);
+  // DV-006: a table whose cloud table comes in a LATER migration (lib/syncCore LATE_TABLES) gets the
+  // guard from that migration (it may not exist when this one runs); __tests__/dv006LabPrefsTable LT-10.
+  const { LATE_TABLES } = require('../lib/syncCore');
+  const GUARDED = TABLES.filter((t) => !LATE_TABLES.has(t));
+  for (const t of GUARDED) assert.match(p, new RegExp(`'${t}'`), t);
   assert.match(p, /perform public\.dt_require_active_device\(v_method not in \('GET', 'HEAD'\)\)/);
   assert.match(sql, /alter role authenticator set pgrst\.db_pre_request to 'public\.dt_pre_request';/);
   assert.match(sql, /notify pgrst, 'reload config';/);
@@ -63,7 +67,7 @@ test('OD-7: reads AND writes of every synced table are checked before the query 
   assert.match(raw, /NEVER drop or rename public\.dt_pre_request while pgrst\.db_pre_request names it/);
   const arr = /foreach t in array array\[([^\]]+)\]/.exec(sql);
   assert.ok(arr, 'the trigger loop');
-  for (const t of [...TABLES, 'push_tokens']) assert.match(arr[1], new RegExp(`'${t}'`), t);
+  for (const t of [...GUARDED, 'push_tokens']) assert.match(arr[1], new RegExp(`'${t}'`), t);
   assert.match(sql, /before insert or update or delete on public\.%I for each statement execute function public\.dt_device_guard\(\)/);
 });
 

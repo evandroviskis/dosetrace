@@ -24,7 +24,8 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
-import { asList, asTags, isFavorite, setFavorite, setReportTag, dropReportDate, saveBodyPref } from '../lib/bodyPrefs';
+import { isFavorite, setFavorite, setReportTag, dropReportDate } from '../lib/bodyPrefs';
+import { loadLabPrefs, saveLabStar, saveLabTags } from '../lib/labPrefs';
 import { hasNativeModule } from '../lib/nativeModule';
 import { removeExportFiles, sharedFilePath, moveIntoSharedFile, RECORDS_CSV_NAME, RECORDS_PDF_NAME } from '../lib/exportFile';
 import { requestSync } from '../lib/sync';
@@ -188,9 +189,9 @@ export default function BodyScreen({ navigation, route }) {
   const [viewMode, setViewMode] = useState('date');     // 'date' | 'marker'
   const [search, setSearch] = useState('');
   const [newestFirst, setNewestFirst] = useState(true);
-  const [favorites, setFavorites] = useState([]);       // marker names, from user_metadata
+  const [favorites, setFavorites] = useState([]);       // marker names (lib/labPrefs, DV-006)
   const [favOnly, setFavOnly] = useState(false);
-  const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] }, from user_metadata
+  const [reportTags, setReportTags] = useState({});     // { 'YYYY-MM-DD': [label, ...] } (lib/labPrefs, DV-006)
   const [tagDraft, setTagDraft] = useState('');
   const [section, setSection] = useState(null);         // null (hub) | 'labs' | 'vaccines' | 'calc'
 
@@ -360,14 +361,17 @@ export default function BodyScreen({ navigation, route }) {
     setPremium(pro);
     const user = await getCachedUser();
     if (!user) { setLoading(false); return; }
-    const favs = user.user_metadata?.favorite_markers;
-    setFavorites(Array.isArray(favs) ? favs : []);
-    const tags = user.user_metadata?.report_tags;
-    setReportTags(tags && typeof tags === 'object' ? tags : {});
     const data = getBiomarkers(user.id);
     setRows(data || []);
     setVaccineList(getVaccines(user.id) || []);
     setLoading(false);
+    // DV-006: stars and labels from the synced table (lib/labPrefs; user_metadata only as its
+    // fallback) — read after the values, so the one-time copy's server read never holds the journal.
+    try {
+      const prefs = await loadLabPrefs();
+      setFavorites(prefs.favorites);
+      setReportTags(prefs.tags);
+    } catch { /* keeps what it shows; read again on the next focus */ }
   }
 
   // Distinct markers available to include in an export (canonical-merged).
@@ -383,30 +387,27 @@ export default function BodyScreen({ navigation, route }) {
   // The phone's lab journal opening (its tile, the Today alert's deep link) asks again.
   useEffect(() => { if (section === 'labs') refreshScanUsage(); }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Favorite markers live in Supabase user_metadata (per-user, multi-device).
-  // DV-006: optimistic on screen; the change itself is applied to the FRESH server value (never
-  // this screen's cached copy) and only that key is written (lib/bodyPrefs). A failed save undoes
-  // only this change and says so.
-  const bodyPrefDeps = {
-    readFresh: async () => { const { data, error } = await supabase.auth.getUser(); if (error || !data?.user) throw error || new Error('no user'); return data.user.user_metadata || {}; },
-    write: (data) => supabase.auth.updateUser({ data }),
-  };
+  // Starred markers. DV-006 (1.3.2): optimistic on screen; saved in the synced table lab_prefs
+  // (offline too) — or, while the cloud table is not there yet, as 1.3.1 did (one operation on the
+  // fresh user_metadata, only that key) — through lib/labPrefs. A failed save undoes only this change
+  // and says so.
   function saveFailed() { notice({ title: t('error'), body: t('error_save_failed') }); }
   async function toggleFavorite(marker) {
     const on = !isFavorite(favorites, marker);
     setFavorites(prev => setFavorite(prev, marker, on));
-    const r = await saveBodyPref(bodyPrefDeps, 'favorite_markers', (cur) => setFavorite(asList(cur), marker, on));
-    if (r.ok) setFavorites(r.value);
+    const r = await saveLabStar(marker, on);
+    if (r.ok) setFavorites(r.favorites);
     else { setFavorites(prev => setFavorite(prev, marker, !on)); saveFailed(); }
   }
 
-  // Per-test labels ("baseline", "week 8", …). The user's own categorization,
-  // stored per-user in user_metadata keyed by report date. Never interpreted.
-  // DV-006: each add / remove is one operation on the fresh server value (lib/bodyPrefs).
+  // Per-test labels ("baseline", "week 8", …). The user's own categorization, keyed by report
+  // date. Never interpreted. DV-006: every label change is one pure operation on the labels object
+  // (apply), saved through lib/labPrefs saveLabTags — the one label write (table or, before the cloud
+  // table exists, the fresh user_metadata).
   async function saveReportTagOp(apply, undo, quiet = false) {
     setReportTags(prev => apply(prev));
-    const r = await saveBodyPref(bodyPrefDeps, 'report_tags', (cur) => apply(asTags(cur)));
-    if (r.ok) setReportTags(r.value);
+    const r = await saveLabTags(apply);
+    if (r.ok) setReportTags(r.tags);
     else { if (undo) setReportTags(prev => undo(prev)); if (!quiet) saveFailed(); }
   }
   function addReportTag(date) {
