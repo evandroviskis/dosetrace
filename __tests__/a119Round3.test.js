@@ -201,7 +201,7 @@ test('R3-2: a database created with the first trigger body gets the current one 
   createSchema(db); // the app opens after the update
   createSchema(db); // and again: idempotent
   const names = raw.prepare(`SELECT name FROM sqlite_master WHERE type = 'trigger' ORDER BY name`).all().map((r) => r.name);
-  assert.equal(names.length, 22, 'one insert and one update trigger per synced table');
+  assert.equal(names.length, 24, 'one insert and one update trigger per synced table (12 with DV-006 lab_prefs)');
   assert.ok(!names.some((n) => /^dt_seq_(ins|upd)_[a-z_]+$/.test(n) && !/_v\d+_/.test(n)), `old names gone: ${names.join(', ')}`);
   const cloud = makeCloud();
   cloud._store.protocols.set('P1', { id: 'P1', user_id: U, name: 'cloud', type: 'recon', active: false, deleted_at: old, created_at: old, updated_at: '2026-10-19T00:00:00.000Z' });
