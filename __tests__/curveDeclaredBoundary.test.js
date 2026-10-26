@@ -85,3 +85,25 @@ test('PK-9: history_from set — nothing from the schedule before it; the Taken 
   assert.deepEqual(plan.doses, after.map((r) => Date.parse(r.logged_at)));
   assert.ok(near(M.estimatedLevelNow(p, NOW, { logs: [backfill, ...after] }).value, sum(after.map((r) => Date.parse(r.logged_at)), NOW)));
 });
+
+test('PK review 4 (R3): a Skipped or Missed row on an estimated day before creation answers that day\'s slot — it adds nothing', () => {
+  const p = prot();
+  // Backfill before C: 15th Skipped, 16th Missed (half an hour after the slot), 17th Taken (it counts once,
+  // as the estimated slot), 18th–20th nothing (estimated as scheduled).
+  const backfill = [row('Skipped', at(15, 8, 0)), row('Missed', at(16, 8, 30)), row('Taken', at(17, 8, 0))];
+  const after = [21, 22, 24].map((d) => row('Taken', at(d, 9, 15)));
+  const plan = M.curvePlan(p, e, M.curveGridStart(NOW, 14), NOW, NOW, { logs: [...backfill, ...after] });
+  const sched = M.scheduledDoses(p, e, M.curveGridStart(NOW, 14), NOW, NOW).filter((d) => d < C);
+  const expectedDeclared = sched.filter((d) => d !== at(15, 8) && d !== at(16, 8));
+  assert.deepEqual([...plan.declared], expectedDeclared);
+  assert.ok(plan.declared.includes(at(17, 8)), 'a Taken backfill keeps its estimated slot, once');
+  assert.equal(plan.doses.filter((d) => sameDay(d, at(17, 8))).length, 1);
+  const lv = M.estimatedLevelNow(p, NOW, { logs: [...backfill, ...after] }).value;
+  // The level is the one without those rows minus exactly the two answered days.
+  const without = M.estimatedLevelNow(p, NOW, { logs: after }).value;
+  assert.ok(near(lv, without - sum([at(15, 8), at(16, 8)], NOW)), `${lv} vs ${without - sum([at(15, 8), at(16, 8)], NOW)}`);
+  // No solid (estimated-dose) tick on those two days; the Taken backfill day keeps its tick.
+  const ticks = M.doseTicks(p, plan.planned, [...backfill, ...after], NOW);
+  assert.ok(!ticks.some((k) => k.ts === at(15, 8) || k.ts === at(16, 8)));
+  assert.ok(ticks.some((k) => k.ts === at(17, 8) && !k.hollow));
+});
