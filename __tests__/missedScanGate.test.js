@@ -123,6 +123,8 @@ function phone(db, sync, { sinceMs = at(1, 0).getTime(), scheduleSince = at(30, 
     AsyncStorage: {},
     readDoseLogsPull: async () => pulledAt,
     _missedScanInFlight: false,
+    heldMissedSlots: require('../lib/unsyncedDoses').heldMissedSlots, // A-181
+    _lastHeld: null,
   });
   return { scan, firstSyncGate };
 }

@@ -69,6 +69,8 @@ function scanner(db) {
     AsyncStorage: {},
     readDoseLogsPull: async () => Date.now(), // A-177: a successful pull just finished
     _missedScanInFlight: false,
+    heldMissedSlots: require('../lib/unsyncedDoses').heldMissedSlots, // A-181
+    _lastHeld: null,
   });
 }
 

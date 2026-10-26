@@ -51,12 +51,44 @@ test('held slots follow the same gates as the scan (watermark, schedule ledger) 
   assert.equal(U.heldMissedSlots([p], [], NOW, SINCE, { pulledMs: PULLED, scheduleSince: {} }).length, 0);
 });
 
-test('held slots past 14 days are counted too (they are the ones that will never be written)', () => {
+// Code review 2026-10-26 (#2, #4): the count says "recorded as missed at the next sync", so it holds only
+// what the scan writes — its own 14 days. A wider window also matched logs to other slots at its edge.
+test('held slots never reach past the 14 days of the scan (the count promises they are written at the next sync)', () => {
   const p = proto(1);
   const pulled = NOW - 20 * DAY;
   const held = U.heldMissedSlots([p], [], NOW, SINCE, { pulledMs: pulled });
-  assert.ok(held.length >= 19 && held.length <= 20, `about 20 days of slots, got ${held.length}`);
+  const afterPull = computeMissedDoses([p], [], NOW, SINCE, { lookbackDays: 14, pulledThroughMs: NOW });
+  assert.deepEqual(held.map((h) => h.scheduledAtMs), afterPull.map((h) => h.scheduledAtMs), 'exactly what a pull now lets the scan write');
+  assert.equal(held.length, 14);
+  // The review's edge case: day −15 not logged, day −14 logged at 06:00 → day −14 is covered, never held.
+  const d14 = new Date(2026, 9, 11, 6, 0).toISOString();
+  const edge = U.heldMissedSlots([p], [{ protocol_id: 1, outcome: 'Taken', logged_at: d14 }], NOW, SINCE, { pulledMs: pulled });
+  assert.ok(!edge.some((h) => new Date(h.scheduledAtMs).getDate() === 11), 'day −14 is covered by its 06:00 dose');
 });
+
+test('the held list is computed INSIDE the scan from its cleaned rows; the screens read it from there', () => {
+  const src = read('lib/doseActions.js');
+  const scan = src.slice(src.indexOf('export async function scanMissedDoses'));
+  const body = scan.slice(0, scan.indexOf('\n}\n'));
+  assert.match(body, /heldMissedSlots\(protocols, kept, nowMs, sinceMs, \{ pulledMs: pulledThroughMs, zoneHistory, scheduleSince \}\)/);
+  const st = src.slice(src.indexOf('export async function unsyncedState'));
+  const stBody = st.slice(0, st.indexOf('\n}\n'));
+  assert.doesNotMatch(stBody, /getMissedWatermark|observeSchedules|getLogsSince/, 'no second copy of the scan inputs');
+});
+
+test('a gap is printed only when the scan would have written at least one miss in it (honest journal)', () => {
+  const p = proto(1);
+  const gap = { fromMs: new Date(2026, 9, 2, 0, 0).getTime(), toMs: new Date(2026, 9, 6, 0, 0).getTime() };
+  // Every dose of the gap logged on the phone: nothing was missed → no line.
+  const all = [2, 3, 4, 5].map((d) => ({ protocol_id: 1, outcome: 'Taken', logged_at: at(d, 20, 5) }));
+  assert.deepEqual(U.gapsWithMisses([gap], [p], all, NOW, SINCE, {}), []);
+  // Two not logged → the line, with its count.
+  const some = [2, 3].map((d) => ({ protocol_id: 1, outcome: 'Taken', logged_at: at(d, 20, 5) }));
+  assert.deepEqual(U.gapsWithMisses([gap], [p], some, NOW, SINCE, {}), [{ ...gap, count: 2 }]);
+  // No protocol during the gap → no line.
+  assert.deepEqual(U.gapsWithMisses([gap], [proto(1, { start_date: '2026-10-20', created_at: '2026-10-20T00:00:00Z' })], [], NOW, SINCE, {}), []);
+});
+
 
 test('the notice: only after more than 24 h without a good pull AND with at least one held dose', () => {
   const held = [{ protocol_id: 1, scheduledAtMs: 1 }, { protocol_id: 1, scheduledAtMs: 2 }, { protocol_id: 2, scheduledAtMs: 3 }];
@@ -133,6 +165,40 @@ test('report gaps are clipped to the report period', () => {
   assert.deepEqual(U.reportGaps(gaps, 30, 250), [{ fromMs: 30, toMs: 40 }, { fromMs: 100, toMs: 200 }]);
 });
 
+test("one period when the date already ends in one (simulator 2026-10-26: \"desde 18 de out..\")", () => {
+  assert.equal(U.fillDate("Este celular não sincroniza desde {date}. Sincronize", "18 de out."), "Este celular não sincroniza desde 18 de out. Sincronize");
+  assert.equal(U.fillDate("This phone hasn't synced since {date}. Sync", "Oct 18"), "This phone hasn't synced since Oct 18. Sync");
+  assert.equal(U.fillDate("Dieses Handy ist seit {date} nicht synchronisiert.", "18. Okt."), "Dieses Handy ist seit 18. Okt. nicht synchronisiert.");
+  const src = fs.readFileSync(path.join(__dirname, "..", "screens/SettingsScreen.js"), "utf8");
+  assert.match(src, /fillDate\(t\('settings_report_unsynced'\)/);
+});
+
+test('code review #1: the report never hides the screen\'s notice() helper (the empty report shows its own message)', () => {
+  const src = read('screens/SettingsScreen.js');
+  const fn = src.slice(src.indexOf('async function handleAdherenceReport'), src.indexOf('function shareReport'));
+  assert.doesNotMatch(fn, /const notice\s*=/);
+  assert.match(fn, /notice\(t\('settings_report_title'\), t\('settings_report_empty'\)\)/);
+});
+
+test('code review #5: a phone that never synced never prints a made-up "since" date', () => {
+  const src = read('screens/SettingsScreen.js');
+  assert.ok(src.includes("'report_unsynced_never'") && src.includes("'settings_report_unsynced_never'"));
+  assert.doesNotMatch(src, /Math\.min\(\.\.\.unsync\.held/);
+});
+
+test('code review #6: Sync now rebuilds the report only while its page is open; Share waits for it', () => {
+  const src = read('screens/SettingsScreen.js');
+  const fn = src.slice(src.indexOf('async function reportSyncNow'), src.indexOf('async function reportSyncNow') + 600);
+  assert.match(fn, /reportOpenRef\.current/);
+  assert.match(src, /onPress=\{shareReport\} disabled=\{reportSyncing\}/);
+});
+
+test('code review #7: the Dose log card follows a finished sync and Today\'s changes on the Fold page', () => {
+  const src = read('screens/LogScreen.js');
+  assert.match(src, /addSyncListener\(/);
+  assert.match(src, /if \(embedded\) \{ fetchLogs\(\); refreshUnsync\(\); \}/);
+});
+
 // ── Wiring (the screens use the module the way the picture shows) ──
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
@@ -152,17 +218,9 @@ test('Report: asterisks, the explaining line, per-protocol "No record since", th
   assert.doesNotMatch(src, /report \+= [^\n]*settings_report_unsynced/);
 });
 
-test('the scan state reads the same inputs the scan uses (one definition, lib/doseActions)', () => {
-  const src = read('lib/doseActions.js');
-  const fn = src.slice(src.indexOf('export async function unsyncedState'));
-  assert.ok(fn.length > 0, 'unsyncedState exists');
-  const body = fn.slice(0, fn.indexOf('\n}\n'));
-  for (const s of ['getMissedWatermark', 'observeSchedules', 'readDoseLogsPull', 'heldMissedSlots', 'MISSED_LOOKBACK_DAYS']) assert.ok(body.includes(s), s);
-});
-
 test('six languages: every new key, with the singular forms', () => {
   const { translations } = require('../i18n/translations.js');
-  const keys = ['log_unsynced_title', 'log_unsynced_never', 'log_unsynced_count', 'log_unsynced_count_one', 'log_unsynced_old', 'sync_now', 'log_unrecorded_n', 'report_unsynced', 'report_unrecorded', 'report_gap', 'settings_report_unsynced'];
+  const keys = ['log_unsynced_title', 'log_unsynced_never', 'log_unsynced_count', 'log_unsynced_count_one', 'log_unsynced_old', 'sync_now', 'log_unrecorded_n', 'log_unrecorded_n_one', 'report_unsynced', 'report_unsynced_never', 'report_unrecorded', 'report_gap', 'settings_report_unsynced', 'settings_report_unsynced_never'];
   for (const lang of ['en', 'pt', 'es', 'fr', 'de', 'it']) for (const k of keys) assert.ok(translations[lang][k], `${lang}.${k}`);
   assert.equal(translations.pt.log_unsynced_title, 'Sem sincronização desde {date}');
   assert.equal(translations.pt.sync_now, 'Sincronizar agora');

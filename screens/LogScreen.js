@@ -17,7 +17,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { protocolDisplayName } from '../lib/protocolName';
 import { getAllLogs, getLogsSince, getTodayLogs, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
 import { scanMissedDoses, recordDoseTaken, unsyncedState } from '../lib/doseActions';
-import { requestSync, forceSync } from '../lib/sync';
+import { requestSync, forceSync, addSyncListener } from '../lib/sync';
 import { pluralKey } from '../lib/plural';
 import { summarizeStored, describeStored } from '../lib/injectionSites';
 import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose';
@@ -107,8 +107,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   const firstRefresh = useRef(true);
   useEffect(() => {
     if (firstRefresh.current) { firstRefresh.current = false; return; }
-    if (embedded) fetchLogs();
+    if (embedded) { fetchLogs(); refreshUnsync(); }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A-181 code review #7: a sync that finished (a pull may have landed) refreshes the card.
+  useEffect(() => addSyncListener((e) => { if (e && e.type === 'sync_complete') refreshUnsync(); }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFocusEffect(
     useCallback(() => {
@@ -561,7 +564,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
               <View style={[s.statusDot, { backgroundColor: outcomeColor(c.key) }]} />
               <Text style={s.trioCap}>{outcomeLabel(c.key)}</Text>
             </View>
-            {c.key === 'Missed' && unsync ? <Text style={s.trioSub}>{t('log_unrecorded_n').replace('{n}', String(unsync.count))}</Text> : null}
+            {c.key === 'Missed' && unsync ? <Text style={s.trioSub}>{t(pluralKey('log_unrecorded_n', unsync.count, language)).replace('{n}', String(unsync.count))}</Text> : null}
           </View>
         ))}
       </View>

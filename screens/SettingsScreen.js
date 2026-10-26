@@ -57,9 +57,9 @@ import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
-import { scanMissedDoses, unsyncedState } from '../lib/doseActions';
+import { scanMissedDoses, unsyncedState, unrecordedGapsWithMisses } from '../lib/doseActions';
 import { readUnrecordedGaps } from '../lib/pullStamp';
-import { heldByProtocol, reportGaps } from '../lib/unsyncedDoses';
+import { heldByProtocol, reportGaps, fillDate } from '../lib/unsyncedDoses';
 import { forceSync } from '../lib/sync';
 import { DTSheet } from './components/ProtocolParts';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
@@ -258,6 +258,9 @@ export default function SettingsScreen({ navigation }) {
   // Sync now, while the A-177 rule holds doses back. { sinceMs } or null; reportSyncing: Sync now runs.
   const [reportUnsync, setReportUnsync] = useState(null);
   const [reportSyncing, setReportSyncing] = useState(false);
+  // Code review #6: Sync now rebuilds the report only while its page is still open.
+  const reportOpenRef = useRef(false);
+  reportOpenRef.current = !!reportPreview;
   const lastReport = useRef('');
   if (reportPreview) lastReport.current = reportPreview;
   const reportShown = reportPreview || lastReport.current;
@@ -575,12 +578,14 @@ export default function SettingsScreen({ navigation }) {
       // A-181 (founder 2026-10-26, option B): doses the A-177 rule still holds back are not counted as
       // missed yet — the report says so (asterisks, a line, "No record since" per protocol), and every
       // gap of more than 14 days without a sync stays written while it falls in these 30 days.
+      // Code review 2026-10-26: unsyncNotice, never "notice" (that name is this screen's sheet helper);
+      // a gap only when the scan would have written a miss in it; no sync ever → the wording with no date.
       const unsync = await unsyncedState();
-      const notice = unsync.notice;
-      const heldIn = notice ? heldByProtocol(unsync.held, thirtyDaysAgo.getTime(), now.getTime()) : {};
-      const gaps = reportGaps(await readUnrecordedGaps(AsyncStorage, user.id, now.getTime()), thirtyDaysAgo.getTime(), now.getTime());
-      // No good pull ever on this phone: the first held dose stands for "since".
-      const unsyncSinceMs = notice ? (notice.sinceMs != null ? notice.sinceMs : Math.min(...unsync.held.map((h) => h.scheduledAtMs))) : null;
+      const unsyncNotice = unsync.notice;
+      const heldIn = unsyncNotice ? heldByProtocol(unsync.held, thirtyDaysAgo.getTime(), now.getTime()) : {};
+      const gaps = await unrecordedGapsWithMisses(reportGaps(await readUnrecordedGaps(AsyncStorage, user.id, now.getTime()), thirtyDaysAgo.getTime(), now.getTime()));
+      const unsyncSinceMs = unsyncNotice ? unsyncNotice.sinceMs : null;
+      const sinceText = (fmt) => formatDate(new Date(unsyncSinceMs), language, fmt) || '';
 
       if (protocols.length === 0) {
         notice(t('settings_report_title'), t('settings_report_empty'));
@@ -635,8 +640,8 @@ export default function SettingsScreen({ navigation }) {
       report += `${'─'.repeat(40)}\n`;
       report += `${t('report_user').replace('{name}', userName)}\n`;
       report += `${t('report_period').replace('{range}', dateRange)}\n`;
-      report += `${fillPercent(t('report_overall'), stats.overall.adherence)}${notice || gaps.length ? '*' : ''}\n`;
-      if (notice) report += `${t('report_unsynced').replace('{date}', formatDate(new Date(unsyncSinceMs), language, 'dayMonthYear') || '')}\n`;
+      report += `${fillPercent(t('report_overall'), stats.overall.adherence)}${unsyncNotice || gaps.length ? '*' : ''}\n`;
+      if (unsyncNotice) report += `${unsyncNotice.never ? t('report_unsynced_never') : t('report_unsynced').replace('{date}', sinceText('dayMonthYear'))}\n`;
       for (const g of gaps) report += `${t('report_gap').replace('{from}', formatDate(new Date(g.fromMs), language, 'dayMonth') || '').replace('{to}', formatDate(new Date(g.toMs - 1), language, 'dayMonth') || '')}\n`;
       report += `${t('report_active_protocols').replace('{count}', protocols.filter((p) => !isEnded(p)).length)}\n`;
       report += `${t('report_total_logged').replace('{count}', totalAll)}\n`;
@@ -646,7 +651,7 @@ export default function SettingsScreen({ navigation }) {
         report += `${ps.name}\n`;
         report += `  ${t('report_dose_line').replace('{dose}', ps.dose).replace('{frequency}', ps.frequency)}\n`;
         report += `  ${fillPercent(t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{missed}', ps.missed), ps.adherence)}${ps.unrecorded > 0 ? '*' : ''}\n`;
-        if (ps.unrecorded > 0) report += `  ${t('report_unrecorded').replace('{date}', formatDate(new Date(unsyncSinceMs), language, 'dayMonth') || '').replace('{n}', ps.unrecorded)}\n`;
+        if (ps.unrecorded > 0) report += `  ${(unsyncNotice.never ? t('report_unrecorded_never') : t('report_unrecorded').replace('{date}', sinceText('dayMonth'))).replace('{n}', ps.unrecorded)}\n`;
         report += `  ${t(pluralKey('report_streak_line', ps.streak, language)).replace('{days}', ps.streak)}\n`;
         if (ps.vialRemaining !== null) {
           report += `  ${t(pluralKey('report_vial_line', ps.vialRemaining, language)).replace('{count}', ps.vialRemaining)}\n`;
@@ -660,7 +665,7 @@ export default function SettingsScreen({ navigation }) {
       report += `${t('report_footer_2')}\n`;
 
       // Shown first, exactly as it will be sent (Settings part 3); Share opens the system sheet.
-      setReportUnsync(notice ? { sinceMs: unsyncSinceMs } : null);
+      setReportUnsync(unsyncNotice ? { sinceMs: unsyncSinceMs, never: unsyncNotice.never } : null);
       setReportPreview(report);
     } catch (e) {
       errorSheet(friendlyError(e, t));
@@ -674,7 +679,7 @@ export default function SettingsScreen({ navigation }) {
     if (reportSyncing) return;
     setReportSyncing(true);
     try { await forceSync(); } catch { /* the notice stays */ }
-    await handleAdherenceReport();
+    if (reportOpenRef.current) await handleAdherenceReport();
     setReportSyncing(false);
   }
 
@@ -1386,7 +1391,7 @@ export default function SettingsScreen({ navigation }) {
               <View style={s.reportUnsync}>
                 <FeatureIcon name="refresh" size={18} color={colors.ink2} />
                 <View style={s.reportUnsyncCol}>
-                  <Text style={s.reportUnsyncText}>{t('settings_report_unsynced').replace('{date}', formatDate(new Date(reportUnsync.sinceMs), language, 'dayMonth') || '')}</Text>
+                  <Text style={s.reportUnsyncText}>{reportUnsync.never ? t('settings_report_unsynced_never') : fillDate(t('settings_report_unsynced'), formatDate(new Date(reportUnsync.sinceMs), language, 'dayMonth'))}</Text>
                   <TouchableOpacity onPress={reportSyncNow} disabled={reportSyncing} style={s.reportSyncBtn} accessibilityRole="button" accessibilityState={{ busy: reportSyncing, disabled: reportSyncing }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Text style={s.reportSyncBtnText}>{t('sync_now')}</Text>
                     {reportSyncing ? <ActivityIndicator size="small" color={colors.ink2} /> : null}
@@ -1400,7 +1405,7 @@ export default function SettingsScreen({ navigation }) {
             <View style={{ height: 24 }} />
           </ScrollView>
           <View style={s.reportFoot}>
-            <TouchableOpacity style={s.premiumBtn} onPress={shareReport} accessibilityRole="button">
+            <TouchableOpacity style={[s.premiumBtn, reportSyncing && { opacity: 0.5 }]} onPress={shareReport} disabled={reportSyncing} accessibilityRole="button" accessibilityState={{ disabled: reportSyncing }}>
               <Text style={s.premiumBtnText}>{t('settings_report_share')}</Text>
             </TouchableOpacity>
           </View>
