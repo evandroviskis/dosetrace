@@ -4,7 +4,7 @@
 //          (14-day grid) and the curve screen (3-day grid) can never disagree, also across a clock change.
 //   DV-069 / DL-31 (spec R5): the plan uses the protocol's OWN slot times (lib/schedule expectedSlotTimesOn);
 //          08:00 only for a protocol without times (DL-77), never the old 12:00 / 06+18 grid hours.
-// Pure math, schedule-driven (1.3.1 keeps the planned curve; option B, logged doses, is 1.3.2).
+// Pure math. AD-96 B (1.3.2): the past from the Dose log (PK-2, PK-3), the plan at the own times (PK-19).
 // This file runs in America/New_York (US fall back 2026-11-01); curveExactTimeBerlin.test.js runs the
 // same checks in Europe/Berlin (EU fall back 2026-10-25). node --test runs every file in its own process.
 process.env.TZ = 'America/New_York';
@@ -21,17 +21,53 @@ const bpc = (over = {}) => ({
 const entryOf = (p) => H.getHalfLifeEntry(M.matchName(p));
 const near = (a, b, eps = 1e-12) => Math.abs(a - b) <= eps;
 
+// AD-96 B (1.3.2): the past is the Dose log — a person who marked every planned dose as Taken at its slot
+// time (helpers/curveLogs) reads the planned numbers below; spec PK-2 / PK-3 read a single logged row.
+const { takenAtEverySlot } = require('./helpers/curveLogs');
+const takenRow = (ms) => ({ protocol_id: 7, outcome: 'Taken', logged_at: new Date(ms).toISOString(), sync_status: 'synced' });
+
 test('DV-068: BPC-157 (t½ 0.5 h) dosed 1 h ago reads 0.25 × 2^(−2) mg, no snap', () => {
   const now = new Date(2026, 10, 6, 11, 30).getTime(); // Fri 2026-11-06 11:30, after the US clock change
-  const lv = M.estimatedLevelNow(bpc(), now);
+  const lv = M.estimatedLevelNow(bpc(), now, { logs: takenAtEverySlot([bpc()], now) });
   assert.ok(near(lv.value, 0.25 * Math.pow(2, -2)), `level ${lv.value}`);
   assert.equal(lv.unit, 'mg');
 });
 
+test('PK-2: a Taken row 1 h ago, BPC-157 250 mcg → 0.25 × 2^(−2) mg, no snap; tile = screen = date estimate across the 2026-11-01 fall back', () => {
+  // Logged 01:30 EDT, now 01:30 EST: the same wall-clock time, one real hour later (R14: absolute instants).
+  const logged = Date.UTC(2026, 10, 1, 5, 30);
+  const now = Date.UTC(2026, 10, 1, 6, 30);
+  assert.equal(new Date(logged).getHours(), 1);
+  assert.equal(new Date(now).getHours(), 1, 'the repeated hour');
+  const p = bpc({ start_date: '2026-10-25', created_at: '2026-10-25T14:00:00Z' });
+  const e = entryOf(p);
+  const doseMg = H.doseInCurveUnit(250, 'mcg', e);
+  const data = { logs: [takenRow(logged)] };
+  const want = 0.25 * Math.pow(2, -2);
+  const tile = M.defaultCurveLevel([p], now, undefined, null, { logs: data.logs, history: [p] }).value;
+  const start = M.curveGridStart(now, M.CURVE_DEFAULT_PAST_DAYS);
+  const winEnd = now + 7 * 864e5;
+  const screenDoses = M.curvePlan(p, e, start, winEnd, now, { ...data, siblings: [p] }).doses;
+  const screen = M.levelAt(screenDoses, doseMg, e, now);
+  const dateEstimate = M.levelOnDate(p, e, doseMg, screenDoses, M.readoutMoment('2026-11-01', '2026-11-01', now), now, winEnd, data);
+  for (const [k, v] of [['tile', tile], ['screen', screen], ['date estimate', dateEstimate]]) assert.ok(near(v, want), `${k} ${v}`);
+  assert.equal(tile, screen);
+  assert.equal(dateEstimate, screen);
+  assert.ok(screenDoses.includes(logged), 'the dose sits at its logged instant');
+});
+
 test('DV-068: a dose 30 min ago is never left out of the level now (no rounding into the future)', () => {
   const now = new Date(2026, 10, 6, 11, 0).getTime();
-  const lv = M.estimatedLevelNow(bpc(), now);
+  const lv = M.estimatedLevelNow(bpc(), now, { logs: takenAtEverySlot([bpc()], now) });
   assert.ok(near(lv.value, 0.25 * Math.pow(2, -1)), `level ${lv.value}`);
+});
+
+test('PK-3: a Taken row 30 min ago is never left out of the level now', () => {
+  const now = new Date(2026, 10, 6, 15, 7, 33).getTime(); // off every grid line
+  const lv = M.estimatedLevelNow(bpc(), now, { logs: [takenRow(now - 30 * 60000)] });
+  assert.ok(near(lv.value, 0.25 * Math.pow(2, -1)), `level ${lv.value}`);
+  // A row logged this very second counts in full.
+  assert.ok(near(M.estimatedLevelNow(bpc(), now, { logs: [takenRow(now)] }).value, 0.25));
 });
 
 test('DV-068: the Journey tile, the curve screen and the date estimate read the same number across the clock change', () => {
@@ -41,12 +77,13 @@ test('DV-068: the Journey tile, the curve screen and the date estimate read the 
     const e = entryOf(p);
     const doseMg = H.doseInCurveUnit(250, 'mcg', e);
     for (const now of [new Date(2026, 10, 6, 12, 30).getTime(), new Date(2026, 10, 6, 11, 30).getTime(), new Date(2026, 10, 2, 0, 15).getTime()]) {
-      const tile = M.defaultCurveLevel([p], now).value;              // Journey tile (14-day model)
-      const screenDoses = M.scheduledDoses(p, e, M.curveGridStart(now, M.CURVE_DEFAULT_PAST_DAYS), now + 7 * 864e5, now);
+      const data = { logs: takenAtEverySlot([p], now), siblings: [p] };
+      const tile = M.defaultCurveLevel([p], now, undefined, null, { logs: data.logs, history: [p] }).value; // Journey tile (14-day model)
+      const screenDoses = M.curvePlan(p, e, M.curveGridStart(now, M.CURVE_DEFAULT_PAST_DAYS), now + 7 * 864e5, now, data).doses;
       const screen = M.levelAt(screenDoses, doseMg, e, now);          // curve screen "Est. level · now"
       assert.equal(tile, screen, `${rt} @ ${new Date(now).toString()}: tile ${tile} vs screen ${screen}`);
       // The same dose instants whatever the window (no window-dependent grid).
-      const tileDoses = M.scheduledDoses(p, e, M.curveGridStart(now), now, now);
+      const tileDoses = M.curvePlan(p, e, M.curveGridStart(now), now, now, data).doses;
       assert.deepEqual(tileDoses.filter((d) => d <= now), screenDoses.filter((d) => d <= now));
       // "Estimate on a date": today reads at this moment.
       assert.equal(M.readoutMoment('2026-11-06', '2026-11-06', now), now);
@@ -74,8 +111,14 @@ test('DV-069: a daily 22:00 protocol is drawn at 22:00 — at 13:00 today\'s dos
   assert.ok(!doses.includes(new Date(2026, 9, 20, 12, 0).getTime()), 'no dose at the old 12:00 grid hour');
   for (const d of doses) assert.equal(new Date(d).getHours(), 22);
   // Yesterday 22:00 is 15 h ago: 0.25 × 2^(−30); the old 12:00 placement read 0.25 × 2^(−2).
-  const lv = M.estimatedLevelNow(p, now).value;
+  const logs = takenAtEverySlot([p], now);
+  const lv = M.estimatedLevelNow(p, now, { logs }).value;
   assert.ok(near(lv, 0.25 * Math.pow(2, -30) + 0.25 * Math.pow(2, -78), 1e-15), `level ${lv}`);
+  // PK-19 under AD-96 B: today's 22:00 is the plan (drawn after Now), not in the level now.
+  const plan = M.curvePlan(p, e, M.curveGridStart(now, 3), now + 2 * 864e5, now, { logs });
+  assert.ok(plan.doses.includes(new Date(2026, 9, 20, 22, 0).getTime()), 'planned at 22:00');
+  assert.equal(plan.open, 0);
+  assert.ok(plan.doses.filter((d) => d <= now).every((d) => new Date(d).getHours() === 22));
 });
 
 test('DV-069: twice daily at the user\'s own times (07:15, 19:45), one dose each, never 06:00 / 18:00', () => {
@@ -118,7 +161,7 @@ test('DV-069 re-review: more doses a day than times stay at the user\'s own time
   assert.deepEqual(curveDay(bpc({ reminder_time: '07:15,19:45', doses_per_day: 2 }), day, now), [at(7, 15), at(19, 45)]);
   // Two doses at one instant draw one double-height spike (that is the plan): 2 × 0.25 mg, 1 h later.
   const p = bpc({ reminder_time: '08:00,08:00', doses_per_day: 2 });
-  assert.ok(Math.abs(M.estimatedLevelNow(p, at(9)).value - 2 * 0.25 * Math.pow(2, -2)) < 1e-9);
+  assert.ok(Math.abs(M.estimatedLevelNow(p, at(9), { logs: takenAtEverySlot([p], at(9)) }).value - 2 * 0.25 * Math.pow(2, -2)) < 1e-9);
 });
 
 test('DV-069 re-review: 23:59 × 2 keeps both doses; the count matches Today', () => {

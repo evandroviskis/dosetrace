@@ -29,7 +29,7 @@ import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { parseDecimal } from '../lib/doseMath';
 import {
-  STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, scheduledDoses, levelAt, levelLabel,
+  STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
 } from '../lib/serumModel';
 import { isOne } from '../lib/plural';
@@ -345,9 +345,8 @@ export default function SerumCurveScreen({ embedded = false }) {
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(userId) || [];
     const labDates = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
-    // DV-072 C: the Dose log over the longest window (367 days; the 967-day read of spec PK-15 ships
-    // with AD-96 B in 1.3.2). Read only; the level stays the planned schedule — the rows only mark
-    // which planned ticks are hollow.
+    // AD-96 B: the Dose log over the whole look-back (967 days, spec PK-15) — the past of every line
+    // is drawn from its Taken rows (lib/serumModel curvePlan); the rows also mark the hollow ticks.
     let doseLogs = [];
     try {
       doseLogs = getLogsSince(userId, new Date(Date.now() - CURVE_LOG_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString()) || [];
@@ -475,11 +474,15 @@ export default function SerumCurveScreen({ embedded = false }) {
     const end = now + futureDays * 24 * 3600 * 1000;
     const nSteps = Math.round((end - start) / stepMs);
 
+    // AD-96 B (docs/specs/curve-logged-doses.md): the past from the doses logged as Taken (at their
+    // exact time), the part before the protocol was added from its start date, the future from the
+    // plan at its own dose times (lib/serumModel curvePlan). The charted protocols are the siblings a
+    // Restart's declared part must not overlap (R12).
+    const curveData = { logs: doseLogs, siblings: protocols };
     const base = selected.map(p => {
       const entry = getHalfLifeEntry(matchName(p));
-      // Dose events come from the protocol's SCHEDULE at its own dose times (lib/serumModel
-      // scheduledDoses, DV-069), not from hand-logged doses (1.3.1 keeps the planned curve).
-      return { p, entry, doses: scheduledDoses(p, entry, start, end, now) };
+      const plan = curvePlan(p, entry, start, end, now, curveData);
+      return { p, entry, doses: plan.doses, planned: plan.planned };
     });
     // Each line is sampled at the grid, Now, the date estimate (its dot sits on the line) and ONLY
     // its own dose instants (none for a long rise; merged to the plot's pixels past 30 days) —
@@ -487,7 +490,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     const readoutAt = readoutMoment(readoutDate || todayISO(), todayISO(), now);
     const ctx = { start, stepMs, nSteps, now, plotPx: plotRight - plotLeft, extraTimes: [readoutAt] };
 
-    const series = base.map(({ p, entry, doses }) => {
+    const series = base.map(({ p, entry, doses, planned }) => {
       const doseMg = doseInCurveUnit(parseDecimal(p.dose), p.dose_unit, entry) || 0;
       const halfLifeMs = entry.hours * 3600 * 1000;
       // A-93: sorted doses in a moving window (same numbers, far fewer calls — lib/curveSampling).
@@ -496,7 +499,8 @@ export default function SerumCurveScreen({ embedded = false }) {
       const nowLevel = levelAt(doses, doseMg, entry, now);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       // A-160 (founder 2026-10-26, option B): the doses that still add at least 1% of their amount to
-      // the level now (lib/serumModel dosesInLevel) — the number beside the level.
+      // the level now (lib/serumModel dosesInLevel) — the number beside the level; with AD-96 B the
+      // logged doses (and the declared part), never a planned one.
       const levelDoses = doses.filter((ts) => dosesInLevel([ts], entry, now) === 1);
       return {
         id: p.id,
@@ -514,9 +518,10 @@ export default function SerumCurveScreen({ embedded = false }) {
         dosesInWindow,
         levelDoses,
         dosesInLevel: levelDoses.length,
-        doses,       // raw dose timestamps, for date-readout math
-        // DV-072 C: a hollow tick for a planned dose the Dose log does not show as Taken.
-        ticks: doseTicks(p, doses, doseLogs, now),
+        doses,       // the drawn dose timestamps (logged past + plan), for date-readout math
+        // DV-072 C / R16: a tick per planned dose; hollow when the Dose log does not show it as Taken.
+        ticks: doseTicks(p, planned, doseLogs, now),
+        curveData,
         doseMg,
         unit: curveUnit(entry),
         halfLifeMs,
@@ -586,13 +591,14 @@ export default function SerumCurveScreen({ embedded = false }) {
   // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
   const levelAtDate = (ser, T) => levelAt(ser.doses, ser.doseMg, ser.entry, T);
   // The date estimate (lib/serumModel levelOnDate): the drawn doses inside the longest window; a
-  // date past the projection or before that window uses its own scheduled doses up to that date,
-  // with the full history before it (curve fix 2).
-  const readoutLevel = (ser, T) => (model ? levelOnDate(ser.p, ser.entry, ser.doseMg, ser.doses, T, model.now, winEnd) : 0);
-  // Part 19: the next three days with a scheduled dose, as chips.
+  // date past the projection or before that window uses its own doses up to that date (the logged
+  // past and the plan, AD-96 B), with the full history before it (curve fix 2).
+  const readoutLevel = (ser, T) => (model ? levelOnDate(ser.p, ser.entry, ser.doseMg, ser.doses, T, model.now, winEnd, ser.curveData) : 0);
+  // Part 19: the next three days with a planned dose, as chips (a dose of today already logged
+  // leaves today out, R7).
   const upcoming = useMemo(
-    () => upcomingDoseDays(protocols.filter(p => selectedIds.includes(p.id)), Date.now(), 3),
-    [protocols, selectedIds],
+    () => upcomingDoseDays(protocols.filter(p => selectedIds.includes(p.id)), Date.now(), 3, 180, { logs: doseLogs, siblings: protocols }),
+    [protocols, selectedIds, doseLogs],
   );
   const chipDay = (iso) => formatDate(iso, language, 'weekdayDayMonth');
   const customDate = !!readoutDate && !upcoming.includes(readoutDate) && !labDates.includes(readoutDate);
@@ -875,8 +881,8 @@ export default function SerumCurveScreen({ embedded = false }) {
                 </React.Fragment>
               ))}
               {/* a short tick under the axis for every scheduled dose in the window, at its exact
-                  time; DV-072 C: hollow when the Dose log does not show it as Taken (Skipped,
-                  Missed, not answered yet) — the level itself stays the planned one */}
+                  time; DV-072 C / R16: hollow when the Dose log does not show it as Taken (Skipped,
+                  Missed, not answered yet) — AD-96 B: such a dose is not in the level either */}
               {model && model.max > 0 && model.series.map(ser => ser.ticks
                 .filter(k => k.ts >= model.start && k.ts <= model.start + model.nSteps * stepMs)
                 .map(({ ts, hollow }, i) => {

@@ -51,7 +51,9 @@ test('3-day window: the estimate itself never changes — doses before the windo
   for (const T of [now, now - 2 * 86400000, now + 5 * 86400000]) {
     assert.ok(Math.abs(serum.levelAt(d14, 100, entry, T) - serum.levelAt(d3, 100, entry, T)) < 1e-9);
   }
-  assert.equal(serum.estimatedLevelNow(p, now).value, serum.levelAt(d14, 100, entry, now), 'the Journey tile number is unchanged');
+  // AD-96 B: with every planned dose logged as Taken at its slot, the tile reads the same doses.
+  const { takenAtEverySlot } = require('./helpers/curveLogs');
+  assert.equal(serum.estimatedLevelNow(p, now, { logs: takenAtEverySlot([p], now) }).value, serum.levelAt(d14, 100, entry, now), 'the Journey tile number is unchanged');
 });
 
 test('Part 17: "Est. level · now" leads the chart card for one compound, with the Estimated chip', () => {

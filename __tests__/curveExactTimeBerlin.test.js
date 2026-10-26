@@ -15,6 +15,8 @@ const bpc = (over = {}) => ({
   interval_days: 1, doses_per_day: 1, start_date: '2026-10-01', created_at: '2026-10-01T00:00:00', reminder_time: '10:30', ...over,
 });
 const entryOf = (p) => H.getHalfLifeEntry(M.matchName(p));
+// AD-96 B (1.3.2): every planned dose logged as Taken at its slot time reads the planned numbers.
+const { takenAtEverySlot } = require('./helpers/curveLogs');
 
 test('DV-068 Berlin: tile = screen in the 14 days after the EU clock change, for every hour of a day', () => {
   for (const rt of ['12:00', '10:30', '07:00,19:00']) {
@@ -24,8 +26,10 @@ test('DV-068 Berlin: tile = screen in the 14 days after the EU clock change, for
     // From the 28th the 3-day window starts after the change (CET) while the 14-day one starts before it (CEST).
     for (let h = 0; h < 24 * 6; h++) {
       const now = new Date(2026, 9, 28, h, 30).getTime();
-      const tile = M.defaultCurveLevel([p], now).value;
-      const screen = M.levelAt(M.scheduledDoses(p, e, M.curveGridStart(now, 3), now + 7 * 864e5, now), doseMg, e, now);
+      const logs = takenAtEverySlot([p], now);
+      const tile = M.defaultCurveLevel([p], now, undefined, null, { logs, history: [p] }).value;
+      const screen = M.levelAt(M.curvePlan(p, e, M.curveGridStart(now, 3), now + 7 * 864e5, now, { logs, siblings: [p] }).doses, doseMg, e, now);
+      assert.ok(tile > 0, 'real values (the logged doses are read)');
       assert.equal(tile, screen, `${rt} @ ${new Date(now).toString()}`);
     }
   }
@@ -33,7 +37,7 @@ test('DV-068 Berlin: tile = screen in the 14 days after the EU clock change, for
 
 test('DV-068 Berlin: BPC-157 dosed 1 h ago reads 0.25 × 2^(−2) mg two days after the change', () => {
   const now = new Date(2026, 9, 27, 11, 30).getTime();
-  const v = M.estimatedLevelNow(bpc(), now).value;
+  const v = M.estimatedLevelNow(bpc(), now, { logs: takenAtEverySlot([bpc()], now) }).value;
   assert.ok(Math.abs(v - 0.0625) <= 1e-12, `level ${v}`);
 });
 

@@ -173,7 +173,7 @@ test('E: the Journey tile keeps its state when a reload reads the same level (no
   assert.equal(sameCurveLevel(lv(1, 0.5), lv(1, 0.5, 'IU')), false);
   assert.equal(sameCurveLevel(null, lv(1, 0.5)), false);
   const src = read('screens/JourneyScreen.js');
-  assert.match(src, /const next = defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView\);/);
+  assert.match(src, /const next = defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView, curveLevelData\(user\.id\)\);/);
   assert.match(src, /setLevel\(\(prev\) => \(sameCurveLevel\(prev, next\) \? prev : next\)\);/);
   assert.match(src, /import \{ curveReloadOnSync, sameCurveLevel \} from '\.\.\/lib\/curveReload';/);
 });

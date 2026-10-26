@@ -34,11 +34,11 @@ import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
 import { curveReloadOnSync, sameCurveLevel } from '../lib/curveReload';
 import { getCachedUser } from '../lib/supabase';
-import { getActiveProtocols, getCalcSnapshots, getRealityChecks } from '../lib/database';
+import { getActiveProtocols, getHistoryProtocols, getLogsSince, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
 import { formatDate, formatNumber, formatInt, unitText } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
-import { defaultCurveLevel, levelLabel } from '../lib/serumModel';
+import { defaultCurveLevel, levelLabel, CURVE_LOG_LOOKBACK_DAYS } from '../lib/serumModel';
 import { loadCurveView } from '../lib/curveViewStore';
 import { MONO } from '../lib/fonts';
 import { displayColor } from '../lib/protocolColors';
@@ -54,6 +54,17 @@ function tilesNeedRefresh(e) {
   if (!e) return false;
   if (e.type === 'sync_complete' || e.type === 'import_complete') return true;
   return e.type === 'data_changed' && e.what === 'calc';
+}
+
+// AD-96 B: what the Est. level tile is computed from, read as the Curve screen reads it — the Dose log
+// over the whole look-back (spec PK-15) and the protocols the Curve offers, ended runs included (a
+// Restart's declared part never overlaps them, R12) — so the tile and the screen show one number.
+function curveLevelData(userId) {
+  let logs = [];
+  try {
+    logs = getLogsSince(userId, new Date(Date.now() - CURVE_LOG_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString()) || [];
+  } catch { logs = []; }
+  return { logs, history: getHistoryProtocols(userId) };
 }
 
 export default function JourneyScreen() {
@@ -110,7 +121,7 @@ export default function JourneyScreen() {
     const savedView = await loadCurveView(user.id);
     if (!isAlive()) return;
     try {
-      const next = defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView);
+      const next = defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView, curveLevelData(user.id));
       // The same compound, value and unit → no state change (a reload is not a re-render).
       setLevel((prev) => (sameCurveLevel(prev, next) ? prev : next));
     } catch { setLevel(null); }

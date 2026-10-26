@@ -102,10 +102,12 @@ test('SX-10: the Dose accumulation model never reads sex — sources and behavio
   const serum = require('../lib/serumModel');
   const now = new Date(2026, 9, 1, 12, 0, 0).getTime();
   const p = { id: 'cyp', type: 'rtu', compound_id: 'rtu_testosterone_cypionate', name: 'Testosterone Cypionate', dose: 100, dose_unit: 'mg', interval_days: 7, doses_per_day: 1, start_date: '2026-06-01', reminder_time: '09:00' };
-  const plain = serum.estimatedLevelNow(p, now);
+  // AD-96 B: the level's past comes from the Dose log (every planned dose logged as Taken here).
+  const data = { logs: require('./helpers/curveLogs').takenAtEverySlot([p], now) };
+  const plain = serum.estimatedLevelNow(p, now, data);
   assert.ok(plain && plain.value > 0);
   for (const g of ['male', 'female']) {
-    const withSex = serum.estimatedLevelNow({ ...p, gender: g, sex: g, user_metadata: { gender: g } }, now);
+    const withSex = serum.estimatedLevelNow({ ...p, gender: g, sex: g, user_metadata: { gender: g } }, now, data);
     assert.equal(withSex.value, plain.value, `same level with ${g}`);
   }
 });
