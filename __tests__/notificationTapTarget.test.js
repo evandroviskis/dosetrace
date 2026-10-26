@@ -54,9 +54,10 @@ test('App.js routes every tap (listener and launch) through notifTapTarget', () 
   const app = read('App.js');
   const at = app.indexOf('notifResponseSub = N.addNotificationResponseReceivedListener(response =>');
   const listener = sliceBlock(app.slice(at), 'response => {');
-  assert.match(listener, /routeTap\(response, 0\)/);
+  assert.match(listener, /routeTap\(response\)/);
   assert.doesNotMatch(listener, /screen: 'Journey'/, 'no tap lands on the Journey hub');
-  assert.match(app, /getLastNotificationResponseAsync\(\)\.then\(\(last\) => \{ if \(last\) routeTap\(last, 12 \* 3600 \* 1000\); \}\)/);
+  // A-171: the launch tap is routed exactly like the listener's (no age limit).
+  assert.match(app, /getLastNotificationResponseAsync\(\)\.then\(\(last\) => \{ if \(last\) routeTap\(last\); \}\)/);
   assert.match(app, /const target = notifTapTarget\(response, Date\.now\(\)\);/);
   assert.match(app, /nav\.navigate\('Main', \{ screen: target\.screen, params: target\.params \}\);/);
 });
@@ -77,18 +78,21 @@ test('the vial alert carries its protocol; Today, Protocols and Progress act on 
 // expo-notifications on iOS sends notification.date in SECONDS (EXNotificationSerializer:
 // timeIntervalSince1970); Android sends milliseconds. App.js compared it with Date.now() as if it
 // were milliseconds, so every iOS launch tap looked 55 years old and was dropped as stale.
-test('a launch tap is stale only when really older than the limit, with iOS seconds or Android ms', () => {
-  const { launchTapStale } = require('../lib/notificationPlan');
-  const H = 3600 * 1000, MAX = 12 * H;
-  const at = (date) => ({ notification: { date, request: { identifier: 'x', content: { data: { type: 'team_message', id: 'm1' } } } } });
-  assert.equal(launchTapStale(at(NOW / 1000 - 5), NOW, MAX), false, 'iOS: a tap 5 s ago (seconds) is fresh');
-  assert.equal(launchTapStale(at(NOW - 5000), NOW, MAX), false, 'Android: a tap 5 s ago (ms) is fresh');
-  assert.equal(launchTapStale(at((NOW - 13 * H) / 1000), NOW, MAX), true, 'iOS: 13 h old is stale');
-  assert.equal(launchTapStale(at(NOW - 13 * H), NOW, MAX), true, 'Android: 13 h old is stale');
-  assert.equal(launchTapStale(at((NOW - 11 * H) / 1000 + 0.25), NOW, MAX), false, 'iOS fractional seconds, 11 h old');
-  assert.equal(launchTapStale(at(undefined), NOW, MAX), false, 'no date: routed');
-  assert.equal(launchTapStale(at(NOW / 1000), NOW, 0), false, 'the running listener (no limit) is never stale');
+// A-171 (1.3.2): the launch tap has no age limit at all now, so its date can never drop it.
+test('a launch tap is never dropped for its date, with iOS seconds or Android ms', async () => {
+  const { makeApp } = require('./helpers/routeTapHarness');
+  const H = 3600 * 1000;
+  const at = (date) => ({ actionIdentifier: 'expo.modules.notifications.actions.DEFAULT', notification: { date, request: { identifier: 'x', content: { data: { type: 'team_message', id: 'm1' } } } } });
+  const now = Date.now();
+  for (const [date, label] of [[now / 1000 - 5, 'iOS: 5 s ago (seconds)'], [now - 5000, 'Android: 5 s ago (ms)'],
+    [(now - 13 * H) / 1000, 'iOS: 13 h old'], [now - 13 * H, 'Android: 13 h old'],
+    [(now - 11 * H) / 1000 + 0.25, 'iOS fractional seconds, 11 h old'], [undefined, 'no date']]) {
+    const app = makeApp();
+    await app.launch(at(date));
+    assert.equal(app.navs.length, 1, label);
+    assert.deepEqual(app.navs[0].params.params.teamMessage.id, 'm1', `${label}: that message`);
+  }
   const app = read('App.js');
-  assert.match(app, /if \(launchTapStale\(response, Date\.now\(\), maxAgeMs\)\) return true;/, 'App.js routeTap uses the unit-safe check');
-  assert.doesNotMatch(app, /Date\.now\(\) - at > maxAgeMs/, 'no raw ms comparison with the notification date');
+  assert.doesNotMatch(app, /launchTapStale|maxAgeMs/, 'no age check on any tap');
+  assert.doesNotMatch(app, /Date\.now\(\) - at > /, 'no raw ms comparison with the notification date');
 });

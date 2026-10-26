@@ -47,7 +47,7 @@ import { initPurchases, logOutPurchases } from './lib/purchases';
 import { registerReminderRefresh } from './lib/backgroundTasks';
 import { initNotifications, askPermissionForArrivedProtocols, syncAllNotifications, watchExactAlarms, cancelAllNotifications, dismissAllNotifications, registerPushToken, RC_START_KEY } from './lib/notifications';
 import { getRealityStart, runRealityMigration, clearRealityDeviceFlags } from './lib/realityCheck';
-import { notifTapTarget, responseKey, launchTapStale } from './lib/notificationPlan';
+import { notifTapTarget, responseKey } from './lib/notificationPlan';
 import { readAppLanguage } from './lib/appLanguage';
 import { consumeIntentionalSignOut } from './lib/authIntent';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
@@ -702,20 +702,22 @@ export default function App() {
     flushPendingNav();
   }, [flushPendingNav]);
   // Each tap is routed once, whether it comes from the running listener or the
-  // launch path (persisted, so a relaunch never replays an old tap).
+  // launch path (persisted, so a relaunch never replays an old tap). A-171: no age limit on
+  // either path — a tap that launched the app lands on its reason like a background tap,
+  // however long ago the notification arrived; the stored keys alone stop replays, so the
+  // list keeps the last 200 taps (__tests__/notificationLaunchTap.test.js).
   const routedRef = useRef(new Set());
-  const routeTap = useCallback(async (response, maxAgeMs) => {
+  const routeTap = useCallback(async (response) => {
     const target = notifTapTarget(response, Date.now());
     if (!target) return false;
     const key = responseKey(response);
     if (routedRef.current.has(key)) return true;
     routedRef.current.add(key);
-    if (launchTapStale(response, Date.now(), maxAgeMs)) return true; // a stale launch response (iOS dates are seconds)
     try {
       const raw = await AsyncStorage.getItem('dosetrace_nav_handled');
       const list = raw ? JSON.parse(raw) : [];
       if (Array.isArray(list) && list.includes(key)) return true;
-      await AsyncStorage.setItem('dosetrace_nav_handled', JSON.stringify([...(Array.isArray(list) ? list : []), key].slice(-30)));
+      await AsyncStorage.setItem('dosetrace_nav_handled', JSON.stringify([...(Array.isArray(list) ? list : []), key].slice(-200)));
     } catch { /* best effort — the in-memory set still dedupes this run */ }
     if (isUpdateTap(response)) requestForcedInvite(); // A-127 UN-6: the version push opens the invitation
     pendingNavRef.current = target;
@@ -835,13 +837,13 @@ export default function App() {
         // navigation: A-44 — every tap lands on its reason (lib/notificationPlan notifTapTarget):
         // a dose on that dose at the top of Today, a vial on its protocol, the weigh-in on
         // "Log today's weight", day 21 on the reality check, the food question on the chat.
-        routeTap(response, 0);
+        routeTap(response);
       });
       // Cold start: a tap that LAUNCHED the app may never
-      // reach the listener above — route the launch response too (deduped with
-      // the listener by responseKey; older than 12 h = stale, ignored).
+      // reach the listener above — route the launch response too, exactly like the
+      // listener (deduped with it by responseKey; A-171: whatever its age).
       if (N.getLastNotificationResponseAsync) {
-        N.getLastNotificationResponseAsync().then((last) => { if (last) routeTap(last, 12 * 3600 * 1000); }).catch(() => {});
+        N.getLastNotificationResponseAsync().then((last) => { if (last) routeTap(last); }).catch(() => {});
       }
     } catch {
       // expo-notifications not available — skip listener
