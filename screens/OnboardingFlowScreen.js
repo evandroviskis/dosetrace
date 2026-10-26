@@ -37,6 +37,8 @@ import ReminderSetupList from '../components/ReminderSetupList';
 import { readReminderHealth } from '../lib/notifications';
 import { setupSteps } from '../lib/reminderHealth';
 import { markSetupSeen } from '../lib/reminderSetup';
+import { askAndRemember } from '../lib/notifBlocked';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import CheckMark from '../components/CheckMark';
 import useKeyboardLift from '../components/useKeyboardLift';
 import SegmentedBar from '../components/SegmentedBar';
@@ -309,8 +311,9 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   // "Never miss a dose": iOS asks for notifications, then Create account (both buttons go
   // there — the "You're all set" step is gone, founder 2026-09-29).
+  // NB-2: the answer is remembered as the person's own choice, never followed by the blocked sheet.
   async function enableNotifications() {
-    try { await Notifications.requestPermissionsAsync(); } catch (e) { /* later */ }
+    await askAndRemember(Notifications, AsyncStorage);
     if (Platform.OS === 'android') { await markSetupSeen(); setShowSetup(true); return; } // A-112 SP-4
     toAuth('create');
   }

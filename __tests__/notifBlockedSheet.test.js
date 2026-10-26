@@ -54,6 +54,60 @@ test('NB-1 / NB-3 the sheet: bell icon, title, body, "Agora não" then "Abrir aj
   assert.equal(c.locked, undefined, 'a tap outside closes it like "Agora não"');
 });
 
+// Coordinator 2026-10-26 (never nagging): "Não permitir" in the system dialog the app itself just
+// showed is the person's own choice, seen seconds ago — the sheet never follows it. Only a later
+// change counts: turned off afterwards in the phone's settings, or still off after it had been on.
+function memStore(init = {}) {
+  const m = new Map(Object.entries(init));
+  return { m, getItem: async (k) => (m.has(k) ? m.get(k) : null), setItem: async (k, v) => { m.set(k, String(v)); } };
+}
+
+test('NB-2 "Não permitir" in the system dialog the app just showed is remembered as seen: no sheet after it; turned on later then off again → once', async () => {
+  const { askAndRemember, rememberDialogAnswer } = require('../lib/notifBlocked');
+  const store = memStore();
+  const N = { requestPermissionsAsync: async () => ({ status: 'denied' }) };
+  assert.equal(await askAndRemember(N, store), 'denied');
+  assert.equal(store.m.get(NOTIF_BLOCKED_KEY), 'denied');
+  assert.deepEqual(blockedSheetStep(h(), store.m.get(NOTIF_BLOCKED_KEY)), { show: false, save: null }, 'not right after the dialog');
+  // Next opens: still off → still quiet.
+  assert.deepEqual(blockedSheetStep(h(), 'denied'), { show: false, save: null });
+  // Later turned on in the phone's settings (seen at an open), then off again → once.
+  const on = blockedSheetStep(h({ permission: 'granted' }), 'denied');
+  assert.equal(on.save, 'granted');
+  assert.deepEqual(blockedSheetStep(h(), on.save), { show: true, save: 'denied' });
+  // "Permitir" in the dialog is remembered too; an unreadable answer leaves the record alone.
+  const s2 = memStore({ [NOTIF_BLOCKED_KEY]: 'denied' });
+  await rememberDialogAnswer(s2, 'granted');
+  assert.equal(s2.m.get(NOTIF_BLOCKED_KEY), 'granted');
+  await rememberDialogAnswer(s2, null);
+  await rememberDialogAnswer(s2, 'undetermined');
+  assert.equal(s2.m.get(NOTIF_BLOCKED_KEY), 'granted');
+  // A dialog that throws: no answer, nothing remembered, never throws itself.
+  const s3 = memStore();
+  assert.equal(await askAndRemember({ requestPermissionsAsync: async () => { throw new Error('x'); } }, s3), null);
+  assert.equal(s3.m.size, 0);
+  // A storage that fails never blocks the answer.
+  assert.equal(await askAndRemember(N, { setItem: async () => { throw new Error('full'); } }), 'denied');
+});
+
+test('NB-2 both system dialogs the app shows remember the answer (the shared AD-88 ask and onboarding "Never miss a dose")', async () => {
+  const { loadFn } = require('./helpers/extractFn');
+  const store = memStore();
+  const remembered = [];
+  const ask = loadFn('lib/notifications.js', 'export async function askNotificationPermission(', 'askNotificationPermission', {
+    getNotifications: () => ({ getPermissionsAsync: async () => ({ status: 'undetermined' }), requestPermissionsAsync: async () => ({ status: 'denied' }) }),
+    AsyncStorage: store, DEVICE_VERDICT_KEY: 'V', syncAllNotifications: async () => {}, registerPushToken: async () => {}, _askInFlight: null,
+    rememberDialogAnswer: async (st, status) => { remembered.push([st === store, status]); },
+  });
+  assert.equal(await ask(), true);
+  assert.deepEqual(remembered, [[true, 'denied']]);
+  assert.match(read('lib/notifications.js'), /import \{ rememberDialogAnswer \} from '\.\/notifBlocked';/);
+  const onb = read('screens/OnboardingFlowScreen.js');
+  assert.match(onb, /import \{ askAndRemember \} from '\.\.\/lib\/notifBlocked';/);
+  assert.match(sliceBlock(onb, 'async function enableNotifications('), /await askAndRemember\(Notifications, AsyncStorage\);/);
+  assert.doesNotMatch(onb, /Notifications\.requestPermissionsAsync\(/, 'no dialog left that skips the record');
+});
+
 test('NB-2 the state is kept on this phone (the permission belongs to the phone, not the account)', () => {
   assert.equal(NOTIF_BLOCKED_KEY, 'dosetrace_notif_blocked_seen');
 });
