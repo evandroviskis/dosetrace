@@ -12,7 +12,9 @@ test('S-08 / AD-96 B: the curve disclaimer names the logged doses (before Now) a
   const src = fs.readFileSync(path.join(__dirname, '..', 'i18n', 'translations.js'), 'utf8');
   const v = [...src.matchAll(/\n\s+curve_disclaimer: (['"])(.*)\1,/g)].map((m) => m[2]);
   assert.equal(v.length, 6);
-  const logged = [/the doses you logged \(before Now\)/, /las dosis que registraste \(antes de «Ahora»\)/, /doses que você registrou \(antes de “Agora”\)/, /doses que vous avez enregistrées \(avant « Maintenant »\)/, /von dir erfassten Dosen \(vor „Jetzt“\)/, /dosi che hai registrato \(prima di «Ora»\)/];
+  // PK review 7 (2026-10-26): the logged part's parenthesis also names the estimated part (before a
+  // protocol was added, its schedule from the start date).
+  const logged = [/the doses you logged \(before Now; before you added a protocol, its schedule from your start date\)/, /las dosis que registraste \(antes de «Ahora»; antes de añadir un protocolo, su esquema desde tu fecha de inicio\)/, /doses que você registrou \(antes de “Agora”; antes de você adicionar um protocolo, o esquema do protocolo a partir da data de início\)/, /doses que vous avez enregistrées \(avant « Maintenant » ; avant l’ajout d’un protocole, son schéma depuis votre date de début\)/, /von dir erfassten Dosen \(vor „Jetzt“; vor dem Hinzufügen eines Protokolls: dessen Schema ab deinem Startdatum\)/, /dosi che hai registrato \(prima di «Ora»; prima di aggiungere un protocollo, il suo schema dalla data di inizio\)/];
   const planned = [/your planned schedule \(after Now\)/, /tu esquema planificado \(después de «Ahora»\)/, /seu esquema planejado \(depois de “Agora”\)/, /votre schéma prévu \(après « Maintenant »\)/, /deines geplanten Schemas \(nach „Jetzt“\)/, /orari che hai pianificato \(dopo «Ora»\)/];
   v.forEach((s, i) => {
     assert.match(s, logged[i], s.slice(0, 120));
