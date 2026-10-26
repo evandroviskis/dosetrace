@@ -1,7 +1,8 @@
 // Keeps a focused field of a scrolling page above the keyboard (A-136 (9), A-152). Spread
 // scrollProps on the page's ScrollView, put spacer at the end of its content (room to scroll the
 // last field up while the keyboard is open), and either spread fieldProps(key) on each field or
-// call liftField(ref) from the field's onFocus. The field is lifted on focus, again once the
+// call liftField(ref) from the field's onFocus; on a page with several fields, fieldProps(key,
+// { next }) / nextProps(ref) make the return key move to the next field (A-170). The field is lifted on focus, again once the
 // keyboard has opened, again once the spacer has laid out (a lift before that stopped short: the
 // page could not scroll that far yet — the protocol page's note on the Fold, A-152), and again
 // while a multiline field grows. Rule: lib/keyboardLift.
@@ -81,13 +82,27 @@ export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
 
   const liftField = (ref) => { if (!enabled) return; field.current = ref; lift(); };
 
+  // The return key moves on to the next field (A-170, Fold 2026-10-22: with the keyboard open on
+  // Your name, Birth year sat under it and the name keyboard said Done). target: a fieldProps key
+  // or a ref. submitBehavior 'submit' keeps the keyboard open, so the next field's focus lifts it
+  // at once. With the lift off (Edit profile on iPhone) it only moves the focus. The last field
+  // of a page gets none of this: it keeps its own key (Done / submit).
+  const focusField = (target) => {
+    const box = typeof target === 'string' ? nodes.current[target] : target;
+    const n = box && box.current;
+    if (n && typeof n.focus === 'function') n.focus();
+  };
+  const nextProps = (target) => ({ returnKeyType: 'next', submitBehavior: 'submit', onSubmitEditing: () => focusField(target) });
+
   // Props for one field: its ref (kept by key, so a field needs no ref of its own), the lift on
   // focus, and a lift while it grows (multiline). extra: the field's own onFocus /
-  // onContentSizeChange / ref, still called.
+  // onContentSizeChange / ref, still called; extra.next: the key of the field the return key
+  // moves to (A-170).
   const fieldProps = (key, extra = {}) => {
     if (!nodes.current[key]) nodes.current[key] = { current: null };
     const box = nodes.current[key];
     return {
+      ...(extra.next ? nextProps(extra.next) : null),
       ref: (n) => {
         box.current = n;
         if (typeof extra.ref === 'function') extra.ref(n); else if (extra.ref) extra.ref.current = n;
@@ -108,5 +123,6 @@ export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
     spacer: enabled && kbHeight > 0 ? <View style={{ height: kbHeight }} /> : null,
     liftField,
     fieldProps,
+    nextProps,
   };
 }

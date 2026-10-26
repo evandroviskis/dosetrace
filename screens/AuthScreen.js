@@ -414,7 +414,7 @@ export default function AuthScreen({ onBack, initialMode }) {
           onChangeText={setEmail}
           email
           placeholder={t('auth_email_ph')}
-          inputProps={kb.fieldProps('email')}
+          inputProps={kb.fieldProps('email', { next: 'password' })}
           autoComplete="email"
           textContentType="emailAddress"
         />

@@ -434,7 +434,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_name')}<Text style={s.req}> *</Text></Text>
                 <TextInput
-                  {...kb.fieldProps('name')}
+                  {...kb.fieldProps('name', { next: 'birthYear' })}
                   style={s.input}
                   placeholder={t('profile_name_placeholder')}
                   placeholderTextColor={colors.ink3}

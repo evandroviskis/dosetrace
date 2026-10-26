@@ -1361,17 +1361,17 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
-          <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} {...pageLift.fieldProps('weight', { onFocus: () => { weightFocusRef.current = weightField; } })} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
+          <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} {...pageLift.fieldProps('weight', { next: 'height', onFocus: () => { weightFocusRef.current = weightField; } })} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
-          <TextInput {...pageLift.fieldProps('height')} style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder={eg(ex.height)} placeholderTextColor={colors.ink3} />
+          <TextInput {...pageLift.fieldProps('height', { next: ageFromProfile ? 'bodyFat' : 'age' })} style={s.input} value={height} onChangeText={setHeight} keyboardType="decimal-pad" placeholder={eg(ex.height)} placeholderTextColor={colors.ink3} />
         </View>
       </View>
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_age')}</Text>
-          <TextInput {...pageLift.fieldProps('age')} style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder={eg('38')} placeholderTextColor={colors.ink3} />
+          <TextInput {...pageLift.fieldProps('age', { next: 'bodyFat' })} style={[s.input, ageFromProfile && s.inputLocked]} value={age} onChangeText={setAge} editable={!ageFromProfile} keyboardType="number-pad" placeholder={eg('38')} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_sex')}</Text>
@@ -1386,7 +1386,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       <View style={s.fieldRow}>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_bodyfat')} (%) · {t('cal_optional')}</Text>
-          <TextInput {...pageLift.fieldProps('bodyFat')} style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder={eg(ex.bodyFat)} placeholderTextColor={colors.ink3} />
+          <TextInput {...pageLift.fieldProps('bodyFat', { next: 'waist' })} style={s.input} value={bodyFat} onChangeText={setBodyFat} keyboardType="decimal-pad" placeholder={eg(ex.bodyFat)} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>

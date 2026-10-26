@@ -1517,6 +1517,7 @@ export default function SettingsScreen({ navigation }) {
               <TextInput
                 ref={profileNameRef}
                 onFocus={() => profileLift.liftField(profileNameRef)}
+                {...profileLift.nextProps(profileYearRef)}
                 style={s.editInput}
                 placeholder={t('profile_name_placeholder')}
                 placeholderTextColor={colors.ink3}
