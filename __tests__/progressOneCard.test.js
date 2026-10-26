@@ -244,7 +244,7 @@ test('PO-11: the Your numbers form asks everything: units, weight, height, age, 
   const form = src.match(/const numbersForm = \(([\s\S]*?)\n  \);\n/);
   assert.ok(form, 'numbersForm');
   const f = form[1];
-  const order = ["t('cal_metric')", "t('cal_numbers_prompt')", "t('cal_weight')", "t('cal_height')", "t('cal_age')", "t('cal_sex')", "t('cal_bodyfat')", "t('cal_waist')", "t('cal_waist_hint')", "t('cal_bf_source')", "t('cal_activity')"];
+  const order = ["t('cal_metric')", "t('cal_numbers_prompt')", "t('cal_weight')", "t('cal_height')", "t('cal_age')", "t('profile_sex')", "t('cal_bodyfat')", "t('cal_waist')", "t('cal_waist_hint')", "t('cal_bf_source')", "t('cal_activity')"];
   let at = -1;
   for (const k of order) { const i = f.indexOf(k); assert.ok(i > at, `${k} in order`); at = i; }
   assert.doesNotMatch(f, /isUnknown \?/, 'no field is hidden by the body-fat source any more');

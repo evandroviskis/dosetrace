@@ -45,6 +45,8 @@ import { DTSheet } from './components/ProtocolParts';
 import { BottomSheet } from './components/BodySheets';
 import Svg, { Path } from 'react-native-svg';
 import { MONO } from '../lib/fonts';
+import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
+import { isSex, sexChangeNoteShown } from '../lib/sexAtBirth';
 
 // One progress segment: fills (or empties) as you move through the steps.
 function ProgressDash({ on, s }) {
@@ -106,6 +108,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   const signedIn = !!session?.user;
   const meta = (session && session.user && session.user.user_metadata) || {};
+  // A-139 C: the account's saved Sex at birth (signed-in only); pre-account it is a first choice.
+  const savedGender = signedIn && isSex(meta.gender) ? meta.gender : null;
   const [saving, setSaving] = useState(false);
   const [sheet, setSheet] = useState(null);
   const signOutGuard = useMemo(() => createBusyGuard(), []); // one sign-out at a time (G1)
@@ -473,7 +477,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               <View style={s.field}>
                 <Text style={s.fieldLabel}>{t('profile_sex')}<Text style={s.req}> *</Text></Text>
                 <SegmentedBar accessibilityLabel={t('profile_sex')} items={SEXES} value={d.gender} onChange={(v) => set('gender', v)} />
+                {/* A-139 C: only a signed-in account with a saved value that is being changed. */}
+                {sexChangeNoteShown(savedGender, d.gender) ? <SexChangeNote style={s.sexNote} /> : null}
                 <Text style={s.help}>{t('profile_sex_help')}</Text>
+                {/* A-139 B: the link opens why the app asks. */}
+                <SexWhy style={s.sexWhy} />
               </View>
 
               <View style={s.field}>
@@ -770,6 +778,9 @@ function makeStyles(colors) {
     textCenter: { textAlign: 'center' },
     hint: { fontSize: 13, lineHeight: 18, color: c.ink2 },
     help: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
+    // A-139: the field's 10 pt gap already spaces them (picture: note 10 under the bar, link right under the help line).
+    sexNote: { marginTop: 0 },
+    sexWhy: { marginTop: -10 },
     note: { fontSize: 13, lineHeight: 18, color: c.ink, paddingHorizontal: 4 },
 
     // Features

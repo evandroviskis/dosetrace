@@ -69,6 +69,8 @@ import { hasAIConsent, grantAIConsent, revokeAIConsent, AI_PRIVACY_URL } from '.
 import { createAIUseSwitch } from '../lib/aiUseSwitch';
 import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages';
 import { useTeamMessages } from '../lib/useTeamMessages';
+import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
+import { sexChangeNoteShown } from '../lib/sexAtBirth';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
 // the report is made from the rows already on the phone (no scan from a half-synced phone). The
@@ -1576,7 +1578,11 @@ export default function SettingsScreen({ navigation }) {
                 value={gender}
                 onChange={setGender}
               />
+              {/* A-139 C: only while the saved value is changed; Save writes, Cancel undoes. */}
+              {sexChangeNoteShown(user?.user_metadata?.gender, gender) ? <SexChangeNote /> : null}
               <Text style={s.sexHelp}>{t('profile_sex_help')}</Text>
+              {/* A-139 B: the help line stays; the link opens why the app asks. */}
+              <SexWhy />
             </View>
 
             <View style={s.editField}>
