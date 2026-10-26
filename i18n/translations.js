@@ -21,6 +21,7 @@ export const translations = {
     upd_req_title: "Update DoseTrace to continue",
     upd_req_body: "This version can no longer be used.",
     upd_req_safe: "Your data stays saved — nothing is deleted when you update.",
+    upd_req_export: "Export my data", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "What's new in DoseTrace",
     settings_version_news_sub: "A notification when a new version is out, with what changed.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -2555,6 +2556,7 @@ export const translations = {
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
     dev_counting_title: "No se pudo comprobar este teléfono",
     dev_counting_body: "Tu cuenta se abrió en otro dispositivo. Antes de quitar la cuenta de este teléfono, la app tiene que contar lo que aún no tiene copia de seguridad aquí, y ahora no pudo. No se borró nada.",
+    upd_req_export: "Exportar mis datos", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_counting_retry: "Intentar de nuevo",
     dev_counting_auto: "La app también lo vuelve a intentar sola cada vez que se abre.",
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -5089,6 +5091,7 @@ export const translations = {
     // A-119 Gate B (screen 4 count; deletion while the takeover is unconfirmed) — founder 2026-10-20 (docs/design/a119-new-variants.html)
     dev_ask_unsent_one: "Este celular tem 1 alteração ainda sem backup: {what}. Ela não está na sua conta e, seja qual for a sua escolha, será apagada deste celular.",
     dev_ask_unsent_many: "Este celular tem {n} alterações ainda sem backup: {what}. Elas não estão na sua conta e, seja qual for a sua escolha, serão apagadas deste celular.",
+    upd_req_export: "Exportar meus dados", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_ask_unknown_removes: "Seja qual for a sua escolha, o que não teve backup será apagado daqui.",
     settings_delete_device_wait: "Este celular ainda não foi confirmado como o aparelho da sua conta, então nada foi excluído. Confira sua conexão e tente de novo daqui a pouco.",
     settings_delete_device_wait_title: "Não foi possível excluir a conta",
@@ -7622,6 +7625,7 @@ export const translations = {
     settings_delete_device_wait_title: "Impossible de supprimer le compte",
     // A-119 one active device (docs/specs/one-active-device.md; pictures docs/design/a119-*.html)
     dev_when: "{date} à {time}",
+    upd_req_export: "Exporter mes données", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_named_in: "sur votre {name}",
     dev_named_subj: "votre {name}",
     dev_brand_in: "sur votre {name}",
@@ -10155,6 +10159,7 @@ export const translations = {
     dev_brand_in: "auf deinem {name}",
     dev_brand_subj: "dein {name}",
     dev_android_in: "auf dem Android-Handy",
+    upd_req_export: "Meine Daten exportieren", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_android_subj: "das Android-Handy",
     dev_unknown_in: "auf deinem anderen Gerät",
     dev_unknown_subj: "dein anderes Gerät",
@@ -12689,6 +12694,7 @@ export const translations = {
     dev_unknown_subj: "il tuo altro dispositivo",
     dev_notice_title: "Il tuo account era su un altro dispositivo",
     dev_notice_dated: "Fino al {when}, tutto ciò che era {dev_in} aveva un backup. Ciò che è stato registrato lì dopo, senza internet, potrebbe non essere qui.",
+    upd_req_export: "Esporta i miei dati", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     dev_notice_never: "{dev} non ha mai fatto un backup. Ciò che è stato registrato lì potrebbe non essere qui.",
     dev_notice_now_here: "Ora il tuo account è solo su questo telefono. {dev} uscirà dall'account appena tornerà online.",
     dev_notice_own_one: "Ciò che non aveva ancora un backup è rimasto fuori: {what}. Non è nel tuo account: se ti serve, registralo di nuovo qui.",

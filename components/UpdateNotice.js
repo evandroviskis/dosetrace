@@ -6,7 +6,9 @@
 //                          A tap outside is "Agora não".
 //   UpdateRequiredScreen — screen 3: full screen that cannot be closed (no back, no close): title,
 //                          "Esta versão não pode mais ser usada.", the founder's reason line in a raised
-//                          box, the reassurance line, "Atualizar" at the bottom.
+//                          box, the reassurance line, "Atualizar" at the bottom; UN-8 (founder 2026-10-20):
+//                          "Exportar meus dados" under it (the DTSheet stacked secondary), signed in only —
+//                          the Settings export (App.js passes onExport); the screen still cannot be closed.
 //   UpdateReadyBar       — screen 2c (Android): the Today Undo-bar look (toast tokens) "A nova versão
 //                          foi baixada." · "Reiniciar", above the tab bar.
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -79,8 +81,9 @@ export function UpdateInviteSheet({ config, onUpdate, onLater }) {
   );
 }
 
-// reason: the founder's line (or null); busy: Play's immediate update is starting.
-export function UpdateRequiredScreen({ reason, onUpdate }) {
+// reason: the founder's line (or null). onExport: "Exportar meus dados" (null = not offered, e.g.
+// signed out); exporting: the export is being prepared (a second tap does nothing).
+export function UpdateRequiredScreen({ reason, onUpdate, onExport, exporting }) {
   const { colors: c } = useTheme();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
@@ -100,9 +103,16 @@ export function UpdateRequiredScreen({ reason, onUpdate }) {
         {reason ? <Text style={s.reason}>{reason}</Text> : null}
         <Text style={s.body}>{t('upd_req_safe')}</Text>
       </ScrollView>
-      <TouchableOpacity style={s.btn} onPress={onUpdate} accessibilityRole="button">
-        <Text style={s.btnText}>{t('upd_update')}</Text>
-      </TouchableOpacity>
+      <View style={s.btnStack}>
+        <TouchableOpacity style={s.btn} onPress={onUpdate} accessibilityRole="button">
+          <Text style={s.btnText}>{t('upd_update')}</Text>
+        </TouchableOpacity>
+        {onExport ? (
+          <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={onExport} disabled={!!exporting} accessibilityRole="button" accessibilityState={{ busy: !!exporting }}>
+            <Text style={[s.btnText, s.btnSecondaryText]}>{t('upd_req_export')}</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -155,8 +165,11 @@ const requiredStyles = (c) => StyleSheet.create({
   title: { fontSize: 30, lineHeight: 36, fontWeight: '700', letterSpacing: -0.6, color: c.ink },
   body: { fontSize: 17, lineHeight: 22, color: c.ink2 },
   reason: { fontSize: 17, lineHeight: 22, color: c.ink, backgroundColor: c.raised, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, overflow: 'hidden' },
-  btn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  btnStack: { gap: 8, marginTop: 16 }, // DTSheet btnStack: the primary first, the secondary under it
+  btn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+  btnSecondary: { backgroundColor: c.well }, // DTSheet btn_secondary
+  btnSecondaryText: { color: c.ink },
 });
 
 // Today's Undo bar (TodayScreen undoBar / undoBarText / undoBarAction): toast tokens.

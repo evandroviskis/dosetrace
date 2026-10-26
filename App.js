@@ -30,7 +30,8 @@ import { requestForcedInvite } from './lib/updateRuntime';
 import { runSignOut } from './lib/settingsSignOut';
 import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
 import { createBusyGuard } from './lib/busyGuard';
-import { signOutIntended } from './lib/accountActions';
+import { signOutIntended, exportMyData } from './lib/accountActions';
+import { createRequiredExport } from './lib/requiredExport';
 import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
 import { hasAnswers } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
@@ -355,12 +356,28 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // over everything, signed in or not; nothing is deleted. Below the latest — the invitation, at app
   // open, on the tabs only, never over another sheet (components/useUpdateNotice).
   const upd = useUpdateNotice({ session, onMain, language, navigationRef, blocked: !!(deviceSheet || linkSheet || accountSheet) });
+  // UN-8 (founder 2026-10-20): the required screen offers "Exportar meus dados" while signed in — the
+  // ONE export of Settings (lib/accountActions exportMyData), one at a time; its answer (no share
+  // sheet on the phone, or an error) in a DoseTrace sheet over the screen. Nothing is deleted.
+  const requiredExportRef = useRef(null);
+  if (!requiredExportRef.current) requiredExportRef.current = createRequiredExport();
+  const [requiredExporting, setRequiredExporting] = useState(false);
+  const [requiredExportSheet, setRequiredExportSheet] = useState(null);
+  const onRequiredExport = () => {
+    if (requiredExportRef.current.busy()) return;
+    setRequiredExporting(true);
+    requiredExportRef.current.run({ user: session && session.user, t, exportMyData })
+      .then((sheet) => { if (sheet) setRequiredExportSheet(sheet); })
+      .catch(() => {})
+      .finally(() => setRequiredExporting(false));
+  };
   const updateRequired = upd.required;
   if (updateRequired) {
     return (
       <>
         <StatusBar style={isDark ? 'light' : 'dark'} />
-        <UpdateRequiredScreen reason={updateRequired.reason} onUpdate={upd.onRequiredUpdate} />
+        <UpdateRequiredScreen reason={updateRequired.reason} onUpdate={upd.onRequiredUpdate} onExport={session && session.user ? onRequiredExport : null} exporting={requiredExporting} />
+        <DTSheet config={requiredExportSheet} onClose={() => setRequiredExportSheet(null)} />
       </>
     );
   }
