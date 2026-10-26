@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { lookupEntitlement, withScanBudget } from './quota.ts';
+import { lookupEntitlement, withScanBudget, scanUsageReply } from './quota.ts';
 import type { ScanStore } from './quota.ts';
 
 const corsHeaders = {
@@ -162,11 +162,28 @@ Deno.serve(async (req) => {
     // Parse and validate the request body. Accepts either a PDF (pdf_base64)
     // or a photo of a report (image_base64 + media_type) — the "snap a report"
     // path. Claude's vision handles both.
-    let body: { pdf_base64?: unknown; image_base64?: unknown; media_type?: unknown; kind?: unknown; lang?: unknown };
+    let body: { pdf_base64?: unknown; image_base64?: unknown; media_type?: unknown; kind?: unknown; lang?: unknown; mode?: unknown };
     try {
       body = await req.json();
     } catch {
       return jsonResponse({ error: 'Invalid JSON body', code: 'bad_request' }, 400);
+    }
+
+    // AD-99: { mode: 'usage' } → how many scans THIS account used this UTC month (every kind),
+    // for the line under the lab journal's title. No file, no AI call, never a reservation.
+    if (body?.mode === 'usage') {
+      let used: number | null = null;
+      if (adminClient) {
+        const { count, error } = await adminClient
+          .from('ai_scan_usage')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('created_at', monthStart);
+        if (error) console.error('[extract] usage count failed:', error.code, error.message);
+        else if (typeof count === 'number') used = count;
+      }
+      const reply = scanUsageReply({ count: used, now });
+      return jsonResponse(reply.body, reply.status);
     }
 
     const kind: 'bloodwork' | 'vaccines' | 'vial' =

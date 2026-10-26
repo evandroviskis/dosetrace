@@ -162,3 +162,17 @@ export async function withScanBudget<T>({ store, email, lookup, work }: {
   if (outcome.status === 'failed') await store.release(id).catch(() => {});
   return outcome;
 }
+
+// ── How many scans this account used this month (AD-99) ─────────────────────────────────────
+// The app shows "2 de 3 leituras usadas este mês" under the lab journal's title. It cannot read
+// ai_scan_usage itself (RLS, service role only), so it asks this function with { mode: 'usage' }:
+// the same count withScanBudget starts from (this user, this UTC month, every kind), plus the day
+// the budget renews (the next UTC month's first day). No count (infrastructure error) → 503 and no
+// number: the app then shows no line, never a guessed one. Reads only; never reserves a scan.
+export function scanUsageReply({ count, now }: { count: number | null; now: Date }): { status: number; body: Record<string, unknown> } {
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) {
+    return { status: 503, body: { error: 'Usage unavailable', code: 'usage_unavailable' } };
+  }
+  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return { status: 200, body: { used: count, renews_on: next.toISOString().slice(0, 10) } };
+}

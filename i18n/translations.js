@@ -1538,6 +1538,17 @@ export const translations = {
     blood_edit_delete: 'Delete this value',
     blood_report_delete: 'Delete this blood test',
     blood_report_delete_msg: 'This permanently deletes this uploaded blood test and cannot be undone. You can upload it again afterward.',
+    // AD-99 (picture ad99-ad100-labs.html B / P2): the scans used this month, under the lab journal's title.
+    blood_scans_used_of: "{n} of {limit} scans used this month",
+    blood_scans_used_of_one: "{n} of {limit} scans used this month", // singular (lib/plural.js)
+    blood_scans_used: "{n} scans used this month",
+    blood_scans_used_one: "{n} scan used this month", // singular (lib/plural.js)
+    blood_scans_kinds: "(labs, vaccines, and vials)",
+    blood_scans_renew: "they renew on {month} 1",
+    // AD-100: "Mudar a data deste exame" and its window.
+    blood_date_move: "Change this test's date",
+    blood_date_move_body: "All {n} values and the labels of this test move to the new date.",
+    blood_date_move_body_one: "{n} value and the labels of this test move to the new date.", // singular (lib/plural.js)
     blood_report_delete_confirm: 'Delete',
     blood_edit_invalid: 'Enter a marker name and a numeric value.',
     blood_upload_choose_title: 'Add a lab report',
@@ -2202,7 +2213,7 @@ export const translations = {
     blood_imported_body: '{count} markers saved · {date}',
     blood_imported_body_one: '{count} marker saved · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Tap any marker to edit it anytime.',
-    blood_imported_date_fallback: 'The report date couldn\'t be read, so today\'s date was used — open the report to set the correct date.',
+    blood_imported_date_fallback: "The report date couldn't be read, so today's date was used. To fix it, open the report and tap \"Change this test's date\".", // AD-100: names "Change this test's date"
     vax_imported_title: 'Vaccines imported',
     vax_imported_body: '{count} vaccines saved',
     vax_imported_body_one: '{count} vaccine saved', // singular (lib/plural.js)
@@ -4067,6 +4078,17 @@ export const translations = {
     blood_edit_delete: 'Eliminar este valor',
     blood_report_delete: 'Eliminar este análisis',
     blood_report_delete_msg: 'Este análisis subido se eliminará de forma permanente y no se puede deshacer. Puedes volver a subirlo después.',
+    // AD-99 (picture ad99-ad100-labs.html B / P2): the scans used this month, under the lab journal's title.
+    blood_scans_used_of: "{n} de {limit} escaneos usados este mes",
+    blood_scans_used_of_one: "{n} de {limit} escaneos usados este mes", // singular (lib/plural.js)
+    blood_scans_used: "{n} escaneos usados este mes",
+    blood_scans_used_one: "{n} escaneo usado este mes", // singular (lib/plural.js)
+    blood_scans_kinds: "(análisis, vacunas y viales)",
+    blood_scans_renew: "se renuevan el 1 de {month}",
+    // AD-100: "Mudar a data deste exame" and its window.
+    blood_date_move: "Cambiar la fecha de este análisis",
+    blood_date_move_body: "Los {n} valores y las etiquetas de este análisis pasan a la nueva fecha.",
+    blood_date_move_body_one: "{n} valor y las etiquetas de este análisis pasan a la nueva fecha.", // singular (lib/plural.js)
     blood_report_delete_confirm: 'Eliminar',
     blood_edit_invalid: 'Introduce un nombre de marcador y un valor numérico.',
     blood_upload_choose_title: 'Añadir un análisis',
@@ -4731,7 +4753,7 @@ export const translations = {
     blood_imported_body: '{count} marcadores guardados · {date}',
     blood_imported_body_one: '{count} marcador guardado · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Toca cualquier marcador para editarlo cuando quieras.',
-    blood_imported_date_fallback: 'No se pudo leer la fecha del informe, así que se usó la de hoy: abre el informe para poner la fecha correcta.',
+    blood_imported_date_fallback: "No se pudo leer la fecha del informe, así que se usó la de hoy. Para corregirla, abre el análisis y toca «Cambiar la fecha de este análisis».", // AD-100: names "Change this test's date"
     vax_imported_title: 'Vacunas importadas',
     vax_imported_body: '{count} vacunas guardadas',
     vax_imported_body_one: '{count} vacuna guardada', // singular (lib/plural.js)
@@ -6596,6 +6618,17 @@ export const translations = {
     blood_edit_delete: 'Excluir este valor',
     blood_report_delete: 'Excluir este exame',
     blood_report_delete_msg: 'Isto exclui permanentemente este exame enviado e não pode ser desfeito. Você pode enviá-lo novamente depois.',
+    // AD-99 (picture ad99-ad100-labs.html B / P2): the scans used this month, under the lab journal's title.
+    blood_scans_used_of: "{n} de {limit} leituras usadas este mês",
+    blood_scans_used_of_one: "{n} de {limit} leituras usadas este mês", // singular (lib/plural.js)
+    blood_scans_used: "{n} leituras usadas este mês",
+    blood_scans_used_one: "{n} leitura usada este mês", // singular (lib/plural.js)
+    blood_scans_kinds: "(exames, vacinas e frascos)",
+    blood_scans_renew: "renovam em 1º de {month}",
+    // AD-100: "Mudar a data deste exame" and its window.
+    blood_date_move: "Mudar a data deste exame",
+    blood_date_move_body: "Os {n} valores e as etiquetas deste exame passam para a nova data.",
+    blood_date_move_body_one: "{n} valor e as etiquetas deste exame passam para a nova data.", // singular (lib/plural.js)
     blood_report_delete_confirm: 'Excluir',
     blood_edit_invalid: 'Insira um nome de marcador e um valor numérico.',
     blood_upload_choose_title: 'Adicionar um exame',
@@ -7260,7 +7293,7 @@ export const translations = {
     blood_imported_body: '{count} marcadores salvos · {date}',
     blood_imported_body_one: '{count} marcador salvo · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Toque em qualquer marcador para editá-lo quando quiser.',
-    blood_imported_date_fallback: 'A data do exame não pôde ser lida, então usamos a de hoje — abra o exame para definir a data correta.',
+    blood_imported_date_fallback: "A data do exame não pôde ser lida, então usamos a de hoje. Para corrigi-la, abra o exame e toque em \"Mudar a data deste exame\".", // AD-100: names "Change this test's date"
     vax_imported_title: 'Vacinas importadas',
     vax_imported_body: '{count} vacinas salvas',
     vax_imported_body_one: '{count} vacina salva', // singular (lib/plural.js)
@@ -9124,6 +9157,17 @@ export const translations = {
     blood_edit_delete: 'Supprimer cette valeur',
     blood_report_delete: 'Supprimer cette analyse',
     blood_report_delete_msg: 'Cette analyse importée sera définitivement supprimée. Cette action est irréversible. Vous pourrez la réimporter ensuite.',
+    // AD-99 (picture ad99-ad100-labs.html B / P2): the scans used this month, under the lab journal's title.
+    blood_scans_used_of: "{n} scans sur {limit} utilisés ce mois-ci",
+    blood_scans_used_of_one: "{n} scan sur {limit} utilisé ce mois-ci", // singular (lib/plural.js)
+    blood_scans_used: "{n} scans utilisés ce mois-ci",
+    blood_scans_used_one: "{n} scan utilisé ce mois-ci", // singular (lib/plural.js)
+    blood_scans_kinds: "(analyses, vaccins et flacons)",
+    blood_scans_renew: "renouvelés le 1er {month}",
+    // AD-100: "Mudar a data deste exame" and its window.
+    blood_date_move: "Modifier la date de cette analyse",
+    blood_date_move_body: "Les {n} valeurs et les étiquettes de cette analyse passent à la nouvelle date.",
+    blood_date_move_body_one: "{n} valeur et les étiquettes de cette analyse passent à la nouvelle date.", // singular (lib/plural.js)
     blood_report_delete_confirm: 'Supprimer',
     blood_edit_invalid: 'Saisissez un nom de marqueur et une valeur numérique.',
     blood_upload_choose_title: 'Ajouter une analyse',
@@ -9788,7 +9832,7 @@ export const translations = {
     blood_imported_body: '{count} marqueurs enregistrés · {date}',
     blood_imported_body_one: '{count} marqueur enregistré · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Touchez n\'importe quel marqueur pour le modifier à tout moment.',
-    blood_imported_date_fallback: "La date du bilan n'a pas pu être lue, la date du jour a donc été utilisée — ouvrez le bilan pour indiquer la bonne date.",
+    blood_imported_date_fallback: "La date du bilan n'a pas pu être lue, la date du jour a donc été utilisée. Pour la corriger, ouvrez le bilan et touchez « Modifier la date de cette analyse ».", // AD-100: names "Change this test's date"
     vax_imported_title: 'Vaccins importés',
     vax_imported_body: '{count} vaccins enregistrés',
     vax_imported_body_one: '{count} vaccin enregistré', // singular (lib/plural.js)
@@ -11652,6 +11696,17 @@ export const translations = {
     blood_edit_delete: 'Diesen Wert löschen',
     blood_report_delete: 'Diesen Bluttest löschen',
     blood_report_delete_msg: 'Dieser hochgeladene Bluttest wird dauerhaft gelöscht. Das lässt sich nicht rückgängig machen. Du kannst ihn danach erneut hochladen.',
+    // AD-99 (picture ad99-ad100-labs.html B / P2): the scans used this month, under the lab journal's title.
+    blood_scans_used_of: "{n} von {limit} Scans diesen Monat genutzt",
+    blood_scans_used_of_one: "{n} von {limit} Scans diesen Monat genutzt", // singular (lib/plural.js)
+    blood_scans_used: "{n} Scans diesen Monat genutzt",
+    blood_scans_used_one: "{n} Scan diesen Monat genutzt", // singular (lib/plural.js)
+    blood_scans_kinds: "(Laborberichte, Impfungen und Fläschchen)",
+    blood_scans_renew: "neue Scans ab dem 1. {month}",
+    // AD-100: "Mudar a data deste exame" and its window.
+    blood_date_move: "Datum dieses Bluttests ändern",
+    blood_date_move_body: "Alle {n} Werte und die Labels dieses Bluttests werden auf das neue Datum verschoben.",
+    blood_date_move_body_one: "{n} Wert und die Labels dieses Bluttests werden auf das neue Datum verschoben.", // singular (lib/plural.js)
     blood_report_delete_confirm: 'Löschen',
     blood_edit_invalid: 'Gib einen Markernamen und einen Zahlenwert ein.',
     blood_upload_choose_title: 'Laborbericht hinzufügen',
@@ -12316,7 +12371,7 @@ export const translations = {
     blood_imported_body: '{count} Marker gespeichert · {date}',
     blood_imported_body_one: '{count} Marker gespeichert · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Tippe auf einen Marker, um ihn jederzeit zu bearbeiten.',
-    blood_imported_date_fallback: 'Das Berichtsdatum konnte nicht gelesen werden, daher wurde das heutige Datum verwendet – öffne den Bericht, um das richtige Datum einzutragen.',
+    blood_imported_date_fallback: "Das Berichtsdatum konnte nicht gelesen werden, daher wurde das heutige Datum verwendet. Zum Korrigieren öffne den Bericht und tippe auf „Datum dieses Bluttests ändern“.", // AD-100: names "Change this test's date"
     vax_imported_title: 'Impfungen importiert',
     vax_imported_body: '{count} Impfungen gespeichert',
     vax_imported_body_one: '{count} Impfung gespeichert', // singular (lib/plural.js)
@@ -14181,6 +14236,17 @@ export const translations = {
     blood_edit_delete: 'Elimina questo valore',
     blood_report_delete: 'Elimina questo esame',
     blood_report_delete_msg: "L'esame caricato verrà eliminato definitivamente e l'operazione non può essere annullata. Potrai ricaricarlo in seguito.",
+    // AD-99 (picture ad99-ad100-labs.html B / P2): the scans used this month, under the lab journal's title.
+    blood_scans_used_of: "{n} di {limit} scansioni usate questo mese",
+    blood_scans_used_of_one: "{n} di {limit} scansioni usate questo mese", // singular (lib/plural.js)
+    blood_scans_used: "{n} scansioni usate questo mese",
+    blood_scans_used_one: "{n} scansione usata questo mese", // singular (lib/plural.js)
+    blood_scans_kinds: "(analisi, vaccini e flaconi)",
+    blood_scans_renew: "si rinnovano il 1º {month}",
+    // AD-100: "Mudar a data deste exame" and its window.
+    blood_date_move: "Cambia la data di questo esame",
+    blood_date_move_body: "I {n} valori e le etichette di questo esame passano alla nuova data.",
+    blood_date_move_body_one: "{n} valore e le etichette di questo esame passano alla nuova data.", // singular (lib/plural.js)
     blood_report_delete_confirm: 'Elimina',
     blood_edit_invalid: 'Inserisci un nome di marcatore e un valore numerico.',
     blood_upload_choose_title: 'Aggiungi un referto',
@@ -14845,7 +14911,7 @@ export const translations = {
     blood_imported_body: '{count} marcatori salvati · {date}',
     blood_imported_body_one: '{count} marcatore salvato · {date}', // singular (lib/plural.js)
     blood_imported_hint: 'Tocca un marcatore per modificarlo quando vuoi.',
-    blood_imported_date_fallback: 'Non è stato possibile leggere la data del referto, quindi è stata usata quella di oggi: apri il referto per impostare la data corretta.',
+    blood_imported_date_fallback: "Non è stato possibile leggere la data del referto, quindi è stata usata quella di oggi. Per correggerla, apri l'esame e tocca «Cambia la data di questo esame».", // AD-100: names "Change this test's date"
     vax_imported_title: 'Vaccini importati',
     vax_imported_body: '{count} vaccini salvati',
     vax_imported_body_one: '{count} vaccino salvato', // singular (lib/plural.js)
