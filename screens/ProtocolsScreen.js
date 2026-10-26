@@ -65,9 +65,9 @@ import { supplyState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { frequencyLabelFor, courseState, endDateRange, toPastDateString } from '../lib/schedule';
+import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
 import { startNewVial, showsNewVialButton } from '../lib/newVial';
-import { applyVialEdit, showsEditVialButton } from '../lib/vialEdit';
+import { applyVialEdit, showsEditVialButton, editMixDate } from '../lib/vialEdit';
 import NewVialPrompt, { EditVialPrompt } from './components/NewVialPrompt';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark } from '../lib/doseActions';
@@ -2378,8 +2378,12 @@ export default function ProtocolsScreen() {
       if (p.type === 'rtu') {
         startNewVial(p, null, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction }, { oldVial: vialsByProtocol[p.id], expiresOn: boxExpiresOn(expMonth, expYear) });
       } else {
-        const mixDate = toPastDateString(month, day);
-        if (!mixDate) { setNewVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+        // The "Edit vial" rule (lib/vialEdit editMixDate, AD-80 EV-3): the nearer of this year's and
+        // last year's day; a day after today is refused in the window, never moved a year back.
+        const r = editMixDate(month, day, null, new Date());
+        if (r.error === 'future') { setNewVialSheet({ icon: 'warning', title: t('vial_edit_future_title'), body: t('vial_edit_future_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+        if (r.error) { setNewVialSheet({ icon: 'warning', title: t('error'), body: t('today_invalid_date'), buttons: [{ label: t('ok'), kind: 'primary' }] }); return; }
+        const mixDate = r.date;
         startNewVial(p, mixDate, user.id, { deactivateVialsByProtocol, insertVial, updateProtocol, withImmediateTransaction });
       }
       afterProtocolChange().catch(() => {}); // DV-051: doses, the vial alerts, the summary

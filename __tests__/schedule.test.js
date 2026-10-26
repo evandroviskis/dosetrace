@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, toPastDateString, nextDoseAt, elapsedDoseSlots,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, nextDoseAt, elapsedDoseSlots,
 } = require('../lib/schedule');
 
 // A protocol created well in the past so the creation-day grace never applies.
@@ -124,11 +124,8 @@ test('nextDoseAt: overdue morning slot sorts earliest', () => {
   assert.ok(nextDoseAt(overdue, 0, now) < nextDoseAt(laterToday, 0, now));
 });
 
-test('toPastDateString: rejects impossible dates, formats valid ones', () => {
-  assert.equal(toPastDateString(1, '31'), null);       // Feb 31 → impossible
-  assert.equal(toPastDateString(3, '31'), null);       // Apr 31 → impossible
-  assert.match(toPastDateString(0, '15'), /^\d{4}-01-15$/); // Jan 15 formats
-});
+// toPastDateString is gone: the new-vial windows use the Edit vial rule (lib/vialEdit editMixDate);
+// the impossible-day cases (Feb 31, Apr 31) are in __tests__/newVialMixDateFuture.test.js.
 
 // ── elapsedDoseSlots: backfill a protocol started before install ──
 test('elapsedDoseSlots: once-daily started 5 days ago → one slot per day incl today', () => {
