@@ -22,7 +22,7 @@ import { formatDate as localeDate, decimalText, inputNumber, MONTHS_SHORT } from
 import { parseMeasure } from '../lib/doseMath';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
 import { asList, asTags, isFavorite, setFavorite, setReportTag, dropReportDate, saveBodyPref } from '../lib/bodyPrefs';
 import { hasNativeModule } from '../lib/nativeModule';
@@ -53,6 +53,8 @@ import { pluralKey } from '../lib/plural';
 import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
+import { fetchScanUsage, scanUsageLine } from '../lib/scanUsage';
+import { movedCardKey, moveReportTags } from '../lib/labDateMove';
 
 // Small monoline controls of the Lab test journal (prototype CHEV / BI.star / BI.pen,
 // 24-grid, 1.8 stroke). Colors always come from the theme.
@@ -205,6 +207,10 @@ export default function BodyScreen({ navigation, route }) {
   const [mUnit, setMUnit] = useState('');
   const [mDate, setMDate] = useState('');
   const [mDateWheel, setMDateWheel] = useState(false);
+  // AD-99: the server's count of this month's AI scans ({ used, renewsOn }), or null (no line).
+  const [scanUsage, setScanUsage] = useState(null);
+  // AD-100: "Change this test's date" — { card, date } while its window is open.
+  const [dateMove, setDateMove] = useState(null);
 
   const q = search.trim().toLowerCase();
 
@@ -349,6 +355,7 @@ export default function BodyScreen({ navigation, route }) {
   );
 
   async function fetchReports() {
+    refreshScanUsage();
     const pro = await hasPremium();
     setPremium(pro);
     const user = await getCachedUser();
@@ -365,6 +372,16 @@ export default function BodyScreen({ navigation, route }) {
 
   // Distinct markers available to include in an export (canonical-merged).
   const exportMarkers = useMemo(() => buildMarkerSeries(rows), [rows]);
+
+  // AD-99 (picture ad99-ad100-labs.html B / P2): how many AI scans this account used this month,
+  // asked of the server (extract-bloodwork usage mode, the ai_scan_usage count it enforces). No
+  // answer (offline, an error) → no line. Asked on focus, when the lab journal opens and after a scan.
+  function refreshScanUsage() {
+    fetchScanUsage((name, opts) => supabase.functions.invoke(name, opts)).then(setScanUsage);
+  }
+
+  // The phone's lab journal opening (its tile, the Today alert's deep link) asks again.
+  useEffect(() => { if (section === 'labs') refreshScanUsage(); }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Favorite markers live in Supabase user_metadata (per-user, multi-device).
   // DV-006: optimistic on screen; the change itself is applied to the FRESH server value (never
@@ -584,6 +601,8 @@ export default function BodyScreen({ navigation, route }) {
     } catch (err) {
       setUploading(false);
       notice(scanErrorSheet('unread', t));
+    } finally {
+      refreshScanUsage();
     }
   }
 
@@ -697,6 +716,38 @@ export default function BodyScreen({ navigation, route }) {
         },
       ],
     });
+  }
+
+  // AD-100 (picture ad99-ad100-labs.html section 3, option B): "Mudar a data deste exame" opens the
+  // window on the test's own date; Save moves every value of the test (lib/database
+  // moveBiomarkerReport, in place, synced as edits) and its labels; the test stays open, now on its
+  // new date. Cancel or a tap outside writes nothing.
+  function openDateMove(card) {
+    setDateMove({ card, date: card.date });
+  }
+  async function moveReportDate(card, toDate) {
+    if (!toDate || toDate === card.date) return;
+    const user = await getCachedUser();
+    if (!user) return;
+    const from = card.date;
+    const beforeTags = reportTags;
+    try {
+      moveBiomarkerReport(user.id, from, card.batches, toDate); // one transaction: all values or none
+    } catch {
+      saveFailed();
+      return;
+    }
+    requestSync();
+    const fresh = getBiomarkers(user.id) || [];
+    const key = movedCardKey(fresh, toDate, card.batches[0]);
+    setRows(fresh);
+    if (key && detail?.type === 'report' && detail.key === card.key) setDetail({ type: 'report', key });
+    if (key && book && sel === card.key) select(key);
+    // The labels go with the test; the old day keeps them only while another test is still on it.
+    if ((reportTags[from] || []).length > 0) {
+      const keepFrom = fresh.some(r => r.report_date === from);
+      saveReportTagOp((tags) => moveReportTags(tags, from, toDate, keepFrom), () => beforeTags);
+    }
   }
 
   // Open the export picker with everything preselected — the user then chooses
@@ -975,6 +1026,10 @@ export default function BodyScreen({ navigation, route }) {
           ))}
         </View>
 
+        <TouchableOpacity style={s.moveBtn} onPress={() => openDateMove(reportDetail)} accessibilityRole="button">
+          <FeatureIcon name="calendar" size={18} color={colors.ink} />
+          <Text style={s.btnOText}>{t('blood_date_move')}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.dangerBtn} onPress={() => deleteReport(reportDetail)}>
           <Text style={s.dangerText}>{t('blood_report_delete')}</Text>
         </TouchableOpacity>
@@ -1037,6 +1092,20 @@ export default function BodyScreen({ navigation, route }) {
         </View>
         <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
       </ScrollView>
+    );
+  }
+
+  // AD-99: the line right under the "Diário de exames" title (phone journal and the Fold's right
+  // page). Free: "2 de 3 leituras usadas este mês (exames, vacinas e frascos) · renovam em 1º de
+  // nov.", the count in attention at 3 of 3; Premium: "5 leituras usadas este mês (exames, vacinas
+  // e frascos)". Nothing without the server's number.
+  function renderScanUsage() {
+    const line = scanUsageLine({ used: scanUsage?.used, renewsOn: scanUsage?.renewsOn, premium, language, t });
+    if (!line) return null;
+    return (
+      <Text style={[s.sec, s.tnum]}>
+        <Text style={line.full ? s.quotaFull : null}>{line.count}</Text>{' '}{line.rest}
+      </Text>
     );
   }
 
@@ -1264,6 +1333,7 @@ export default function BodyScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={[s.titleBlock, s.pageTop]}>
           <Text style={s.screenTitle} accessibilityRole="header">{t('body_card_labs_title')}</Text>
+          {renderScanUsage()}
         </View>
         <View style={s.bookActions}>
           <TouchableOpacity style={s.addBtn} onPress={handleUploadPress}>
@@ -1390,6 +1460,7 @@ export default function BodyScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
           <Text style={s.screenTitle}>{t('body_card_labs_title')}</Text>
+          {renderScanUsage()}
         </View>
 
         {renderJournalBody(false)}
@@ -1572,6 +1643,24 @@ export default function BodyScreen({ navigation, route }) {
       {/* The screen's DoseTrace sheets: permission, Add a lab report, results, errors, the
           delete-test question. Never the grey iOS alert (MB-25). */}
       <DTSheet config={sheet} onClose={() => setSheet(null)} />
+      {/* AD-100: Change this test's date (picture ad99-ad100-labs.html "A janela"): the calendar icon,
+          the title, what moves, the app's date wheel (30 years back, never a future day), Cancel | Save. */}
+      <DTSheet
+        config={dateMove ? {
+          icon: 'calendar',
+          title: t('blood_date_move'),
+          body: t(pluralKey('blood_date_move_body', dateMove.card.markers.length, language)).replace('{n}', String(dateMove.card.markers.length)),
+          wheel: {
+            columns: wheelColumns(dateMove.date, new Date(), monthLabels, TEST_DATE_RANGE),
+            onChange: (col, i) => setDateMove(m => (m ? { ...m, date: wheelAfter(m.date, new Date(), col, i, { ...TEST_DATE_RANGE, max: today }) } : m)),
+          },
+          buttons: [
+            { label: t('cancel'), kind: 'secondary' },
+            { label: t('save'), kind: 'primary', onPress: () => moveReportDate(dateMove.card, dateMove.date) },
+          ],
+        } : null}
+        onClose={() => setDateMove(null)}
+      />
       <DTActionSheet config={sourceChoice} onClose={() => setSourceChoice(null)} />
 
       {/* Part 18: the lab-journal explainer when the user first opens Lab results. */}
@@ -1699,6 +1788,10 @@ const labsGraduated = (c) => ({
   btnTall: { minHeight: 64, flexDirection: 'column', gap: 2, paddingVertical: 10 },
   btnBlocked: { opacity: 0.4 },
   dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
+  // AD-100: "Mudar a data deste exame" (picture obtn2): a well capsule with the calendar icon.
+  moveBtn: { minHeight: 50, borderRadius: 25, backgroundColor: c.well, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16 },
+  // AD-99: 3 of 3 scans used — the count in attention, semibold (picture b.attn).
+  quotaFull: { fontWeight: '600', color: c.attention },
   dangerText: { fontSize: 17, fontWeight: '600', color: c.risk, textAlign: 'center' },
   linkText: { fontSize: 13, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
   onActTag: { minHeight: 24, paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, borderColor: c.onAct, justifyContent: 'center' },

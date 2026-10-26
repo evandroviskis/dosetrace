@@ -59,6 +59,8 @@ function useLast(config) {
 // maxHeight (a prop, opt-in; council 2026-10-22): the sheet never grows past it — the icon, title,
 //   text, hint and link scroll and the buttons (and note) stay pinned below, always on screen. Only
 //   the team message sheet passes it (a long message in a locked sheet must never hide its button).
+// AD-100 (picture ad99-ad100-labs.html, "Mudar a data deste exame"):
+//   wheel          { columns, onChange }: the app's date wheel (DTWheel) under the text.
 // No buttons: no empty button row.
 export function DTSheet({ config, onClose, maxHeight }) {
   const { colors: c } = useTheme();
@@ -88,6 +90,7 @@ export function DTSheet({ config, onClose, maxHeight }) {
       ) : <Text style={s.title} accessibilityRole="header">{shown.title}</Text>}
       {shown.body ? <Text style={[s.body, shown.bodyInk && s.bodyInk]}>{shown.body}</Text> : null}
       {shown.body2 ? <Text style={[s.body, s.bodyMore]}>{shown.body2}</Text> : null}
+      {shown.wheel ? <DTWheel columns={shown.wheel.columns} onChange={shown.wheel.onChange} /> : null}
       {shown.hint ? <Text style={s.hint}>{shown.hint}</Text> : null}
       {shown.link ? (
         <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; if (!shown.link.keepOpen) onClose(); if (fn) fn(); }} accessibilityRole="link">
