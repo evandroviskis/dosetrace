@@ -18,11 +18,16 @@ import {
 } from 'react-native';
 import Modal from '../components/PresenceModal';
 import Svg, { Path } from 'react-native-svg';
+import Animated from 'react-native-reanimated';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
-import { supabase, getCachedUser } from '../lib/supabase';
+import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
+import { getPremiumSnapshot } from '../lib/premiumState';
+import { firstProfile, profileCardView } from '../lib/profileCardFirst';
+import { whenAllSettled } from '../lib/firstLoad';
+import { Bar, Dot, usePulse } from './components/TodaySkeleton';
 import { clearAnalyticsQueue, noteAnalyticsChoice } from '../lib/analytics';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText, storeKey } from '../lib/storeText';
@@ -201,7 +206,13 @@ export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
   const { colors, mode, setMode } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const [user, setUser] = useState(null);
+  // A-169: the profile card's first frame comes from the session the auth client already holds and
+  // the shared Premium state (lib/profileCardFirst) — never "??" / "—" while getCachedUser() answers;
+  // with either unknown, the A-135 skeleton until Settings' own reads settle.
+  const [first] = useState(() => firstProfile(peekCachedUser(), getPremiumSnapshot()));
+  const [user, setUser] = useState(first.user);
+  const [cardReady, setCardReady] = useState(() => profileCardView({ loaded: false, user: first.user, premiumKnown: first.premiumKnown }) === 'card');
+  const profilePulse = usePulse();
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [doseReminders, setDoseReminders] = useState(true);
   const [checkinReminders, setCheckinReminders] = useState(true);
@@ -214,7 +225,7 @@ export default function SettingsScreen({ navigation }) {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
-  const [premium, setPremium] = useState(false);
+  const [premium, setPremium] = useState(first.premium);
   // A-164: a grant/revoke made elsewhere updates the badge and the upgrade card while open.
   usePremiumUpdates(setPremium);
   // Which store bills the Premium (undefined = not answered yet), for the delete sheet (3 C).
@@ -230,13 +241,13 @@ export default function SettingsScreen({ navigation }) {
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   // Profile fields
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(first.displayName);
   const [gender, setGender] = useState('');
   const [birthMonth, setBirthMonth] = useState(null);
   const [birthYear, setBirthYear] = useState(null);
   const [birthYearText, setBirthYearText] = useState('');
   const [country, setCountry] = useState('');
-  const [primaryGoals, setPrimaryGoals] = useState([]);
+  const [primaryGoals, setPrimaryGoals] = useState(first.primaryGoals);
   const [activityLevel, setActivityLevel] = useState('');
   const [hasProvider, setHasProvider] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -384,7 +395,10 @@ export default function SettingsScreen({ navigation }) {
     setUser(user);
     aiUse.load(aiUseDeps()); // per account: signed out or another account → OFF
     // Real subscription status (non-throwing; defaults to false on failure)
-    hasPremium().then(setPremium).catch(() => setPremium(false));
+    const premiumRead = hasPremium().then(setPremium).catch(() => setPremium(false));
+    // A-169: the card is the real card once the user and its plan are read (the A-120 cap: a read
+    // that never ends does not keep the skeleton). The profile fields below are set in this same tick.
+    whenAllSettled([premiumRead]).then(() => setCardReady(true));
     if (user) {
       noteAnalyticsChoice(user.id, user.user_metadata?.analytics_opt_in !== false); // the background check (lib/analytics)
       setAnalyticsEnabled(user.user_metadata?.analytics_opt_in !== false);
@@ -821,7 +835,26 @@ export default function SettingsScreen({ navigation }) {
 
   // One render per Settings piece, used by BOTH layouts (the phone list and the book's
   // pages), so a group shows the same rows and actions wherever it is drawn (S-26 BK-7).
+  // A-169: the profile card before its user and plan are known — the A-135 placeholder (the real
+  // card in its real colour, quiet c.well bars where the avatar, name, email and plan will be, the
+  // same slow pulse; no text). Screen readers hear "loading" once.
+  function renderProfileSkeleton() {
+    return (
+      <View style={s.profileCard} accessible accessibilityRole="progressbar" accessibilityState={{ busy: true }} accessibilityLabel={t('loading')}>
+        <Animated.View style={[s.profileSkel, profilePulse]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Dot size={56} color={colors.well} />
+          <View style={s.profileInfo}>
+            <Bar w="62%" h={16} lh={27} color={colors.well} style={s.profileSkelName} />
+            <Bar w="78%" h={10} lh={18} color={colors.well} style={s.profileSkelEmail} />
+            <View style={[s.profileSkelBadge, { backgroundColor: colors.well }]} />
+          </View>
+        </Animated.View>
+      </View>
+    );
+  }
+
   function renderProfileCard() {
+    if (!cardReady) return renderProfileSkeleton();
     return (
       <TouchableOpacity style={s.profileCard} onPress={() => setShowEditProfile(true)} activeOpacity={0.7}>
         <View style={s.avatar}>
@@ -1795,6 +1828,11 @@ const settingsGraduated = (c) => ({
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 16, marginTop: 12, marginBottom: 8, padding: 16, backgroundColor: c.raised, borderRadius: 22 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: c.onInk, fontSize: 19, fontWeight: '700' },
+  // A-169: the card's placeholder, in the real card's geometry (avatar 56, name, email, plan badge).
+  profileSkel: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  profileSkelName: { marginBottom: 2 },
+  profileSkelEmail: { marginBottom: 6 },
+  profileSkelBadge: { width: 84, height: 22, borderRadius: 11 },
   profileEmail: { fontSize: 15, fontWeight: '400', color: c.ink2, marginBottom: 6 },
   planBadge: { borderWidth: 1, borderColor: c.line, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 13, alignSelf: 'flex-start' },
   planBadgeText: { fontSize: 12, color: c.ink2, fontWeight: '500' },

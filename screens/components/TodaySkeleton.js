@@ -41,8 +41,9 @@ function useReduceMotion() {
 }
 
 // The slow pulse, in step with the wall clock so every placeholder (the opening's, then Today's)
-// pulses together. Opacity only; none at all with Reduce Motion.
-function usePulse() {
+// pulses together. Opacity only; none at all with Reduce Motion. Bar, Dot and this pulse also draw
+// Settings' profile card while it is not known yet (A-169).
+export function usePulse() {
   const reduceMotion = useReduceMotion();
   const on = shouldPulse({ reduceMotion });
   const p = useSharedValue(0);
@@ -58,7 +59,7 @@ function usePulse() {
 
 // A bar in the box of the text line it stands for (lh), so it sits where the text will be.
 // ps: the bar pulses on its own (the ring block, where the tracks and week circles stay still).
-function Bar({ w, h = 12, lh, color, style, ps }) {
+export function Bar({ w, h = 12, lh, color, style, ps }) {
   const Box = ps ? Animated.View : View;
   return (
     <Box style={[{ height: lh || h, justifyContent: 'center' }, style, ps]}>
@@ -66,7 +67,7 @@ function Bar({ w, h = 12, lh, color, style, ps }) {
     </Box>
   );
 }
-const Dot = ({ size, color, style, ps }) => {
+export const Dot = ({ size, color, style, ps }) => {
   const Box = ps ? Animated.View : View;
   return <Box style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style, ps]} />;
 };
