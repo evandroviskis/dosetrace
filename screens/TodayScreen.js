@@ -29,7 +29,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { handledSlotIndexes, ymd } from '../lib/notificationPlan';
 import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener } from '../lib/notifications';
-import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery } from '../lib/reminderHealth';
+import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery, shouldWarnWindow, windowAlertTitle } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
@@ -205,12 +205,13 @@ export default function TodayScreen() {
   const [refreshStale, setRefreshStale] = useState(0); // A-110: days the background refresh is late
   const [remindersSilent, setRemindersSilent] = useState(false); // council 3 decision 2
   const [remindersBattery, setRemindersBattery] = useState(false); // A-112 SP-6: battery optimized (Android)
+  const [remindersWindow, setRemindersWindow] = useState(null); // AD-87 A: the iPhone window is short ({ days, atMs })
   // A-120: resolves once Today's first screen is shown (the content appeared after the first load).
   const firstShownRef = useRef(null);
   if (!firstShownRef.current) firstShownRef.current = deferred();
   const readReminders = useCallback(() => {
     readReminderHealth()
-      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h)); setRemindersBattery(shouldWarnBattery(h));
+      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h)); setRemindersBattery(shouldWarnBattery(h)); setRemindersWindow(shouldWarnWindow(h));
         // Decision 5: Android users who already have a reminder time see the setup step once.
         // A-120: never while Today is still loading its first screen.
         setTimeout(() => {
@@ -1882,7 +1883,7 @@ export default function TodayScreen() {
     }
     // Decision 3: two or more reminder warnings at once are ONE card. A-112 SP-6: every card opens
     // "Make sure your reminders arrive" (at its item); Battery optimized joins them.
-    const warnings = reminderWarnings({ blocked: remindersBlocked, late: remindersLate, stop: remindersStop, stale: refreshStale, battery: remindersBattery });
+    const warnings = reminderWarnings({ blocked: remindersBlocked, late: remindersLate, stop: remindersStop, stale: refreshStale, battery: remindersBattery, window: !!remindersWindow });
     if (warnings.length >= 2 && !(alertSnooze.reminders_combined && nowMs < alertSnooze.reminders_combined)) {
       list.push({
         id: 'reminders_combined', iconName: 'warning', due: true,
@@ -1946,9 +1947,21 @@ export default function TodayScreen() {
         snoozeId: 'reminders_stale',
       });
     }
+    // 9) AD-87 A (picture ad87a-reminder-window-end, founder 2026-10-20): iPhone keeps 64 reminders, so
+    // even the window this open renewed ends within 2 days ("Reminders set until Thursday"). Bell,
+    // alert dot, Remind me later; opens the Reminder check like the other reminder alerts.
+    if (remindersWindow && !(alertSnooze.reminders_window && nowMs < alertSnooze.reminders_window)) {
+      list.push({
+        id: 'reminders_window', iconName: 'bell', due: true,
+        title: windowAlertTitle(remindersWindow, t, language),
+        body: t('today_alert_window_body'),
+        onPress: () => navigation.navigate('ReminderCheck'),
+        snoozeId: 'reminders_window',
+      });
+    }
     }
     return list;
-  }, [rcStart, rcNow, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent, remindersBattery]);
+  }, [rcStart, rcNow, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent, remindersBattery, remindersWindow]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);
