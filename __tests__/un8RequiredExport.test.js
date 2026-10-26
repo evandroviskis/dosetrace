@@ -55,13 +55,13 @@ test('UN-8 a second tap while the export runs is ignored (one share sheet at a t
   assert.equal(exp.busy(), false);
 });
 
-test('UN-8 the required screen: "Exportar meus dados" as the secondary button under "Atualizar", only when an export is offered; still no close, Android back still stays', () => {
+test('UN-8 the required screen: the Settings row words (Baixar meus dados) as the secondary button under "Atualizar", only when an export is offered; still no close, Android back still stays', () => {
   const src = read('components/UpdateNotice.js');
   const body = sliceBlock(src, 'export function UpdateRequiredScreen(');
   assert.match(body, /^export function UpdateRequiredScreen\(\{ reason, onUpdate, onExport, exporting \}\)/);
-  assert.match(body, /t\('upd_req_export'\)/);
+  assert.match(body, /t\('settings_export_title'\)/);
   const upd = body.indexOf("t('upd_update')");
-  const exp = body.indexOf("t('upd_req_export')");
+  const exp = body.indexOf("t('settings_export_title')");
   assert.ok(upd > 0 && exp > upd, 'Atualizar first, the export below it (the stacked DTSheet order)');
   assert.match(body, /\{onExport \? \(/, 'the button exists only when an export is offered');
   assert.match(body, /disabled=\{!!exporting\}/);
@@ -103,9 +103,10 @@ function loadTranslations() {
   return mod.exports.translations;
 }
 
-test('UN-8 / UN-7 the button words: pt as approved ("Exportar meus dados"), written in each of the 6 languages', () => {
+test('UN-8 / UN-7 one term per concept: the button is the Settings row (settings_export_title, Baixar meus dados x6); no second key for it', () => {
   const tr = loadTranslations();
-  assert.equal(tr.pt.upd_req_export, 'Exportar meus dados');
-  assert.equal(tr.en.upd_req_export, 'Export my data');
-  for (const l of ['es', 'fr', 'de', 'it']) assert.ok(tr[l].upd_req_export && tr[l].upd_req_export !== tr.en.upd_req_export, l);
+  assert.equal(tr.pt.settings_export_title, 'Baixar meus dados');
+  assert.equal(tr.en.settings_export_title, 'Download my data');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.equal(tr[l].upd_req_export, undefined, l + ' has no upd_req_export');
+  assert.doesNotMatch(read('components/UpdateNotice.js'), /upd_req_export/);
 });

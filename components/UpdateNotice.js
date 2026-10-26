@@ -7,8 +7,9 @@
 //   UpdateRequiredScreen — screen 3: full screen that cannot be closed (no back, no close): title,
 //                          "Esta versão não pode mais ser usada.", the founder's reason line in a raised
 //                          box, the reassurance line, "Atualizar" at the bottom; UN-8 (founder 2026-10-20):
-//                          "Exportar meus dados" under it (the DTSheet stacked secondary), signed in only —
-//                          the Settings export (App.js passes onExport); the screen still cannot be closed.
+//                          the Settings row "Baixar meus dados" (same key, one term) under it, the DTSheet
+//                          stacked secondary, signed in only — the Settings export (App.js passes onExport);
+//                          the screen still cannot be closed.
 //   UpdateReadyBar       — screen 2c (Android): the Today Undo-bar look (toast tokens) "A nova versão
 //                          foi baixada." · "Reiniciar", above the tab bar.
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -81,7 +82,7 @@ export function UpdateInviteSheet({ config, onUpdate, onLater }) {
   );
 }
 
-// reason: the founder's line (or null). onExport: "Exportar meus dados" (null = not offered, e.g.
+// reason: the founder's line (or null). onExport: "Baixar meus dados" (null = not offered, e.g.
 // signed out); exporting: the export is being prepared (a second tap does nothing).
 export function UpdateRequiredScreen({ reason, onUpdate, onExport, exporting }) {
   const { colors: c } = useTheme();
@@ -109,7 +110,7 @@ export function UpdateRequiredScreen({ reason, onUpdate, onExport, exporting }) 
         </TouchableOpacity>
         {onExport ? (
           <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={onExport} disabled={!!exporting} accessibilityRole="button" accessibilityState={{ busy: !!exporting }}>
-            <Text style={[s.btnText, s.btnSecondaryText]}>{t('upd_req_export')}</Text>
+            <Text style={[s.btnText, s.btnSecondaryText]}>{t('settings_export_title')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

@@ -21,7 +21,6 @@ export const translations = {
     upd_req_title: "Update DoseTrace to continue",
     upd_req_body: "This version can no longer be used.",
     upd_req_safe: "Your data stays saved — nothing is deleted when you update.",
-    upd_req_export: "Export my data", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "What's new in DoseTrace",
     settings_version_news_sub: "A notification when a new version is out, with what changed.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -2556,7 +2555,6 @@ export const translations = {
     upd_req_title: "Actualiza DoseTrace para continuar",
     upd_req_body: "Esta versión ya no se puede usar.",
     upd_req_safe: "Tus datos siguen guardados: al actualizar no se borra nada.",
-    upd_req_export: "Exportar mis datos", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Novedades de DoseTrace",
     settings_version_news_sub: "Una notificación cuando sale una versión nueva, con lo que cambió.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -5091,7 +5089,6 @@ export const translations = {
     upd_req_title: "Atualize o DoseTrace para continuar",
     upd_req_body: "Esta versão não pode mais ser usada.",
     upd_req_safe: "Seus dados continuam guardados — nada é apagado ao atualizar.",
-    upd_req_export: "Exportar meus dados", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Novidades do DoseTrace",
     settings_version_news_sub: "Uma notificação quando sair uma versão nova, com o que mudou.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -7625,7 +7622,6 @@ export const translations = {
     upd_req_title: "Mettez à jour DoseTrace pour continuer",
     upd_req_body: "Cette version ne peut plus être utilisée.",
     upd_req_safe: "Vos données restent enregistrées — rien n'est effacé pendant la mise à jour.",
-    upd_req_export: "Exporter mes données", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Nouveautés de DoseTrace",
     settings_version_news_sub: "Une notification à chaque nouvelle version, avec ce qui a changé.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -10159,7 +10155,6 @@ export const translations = {
     upd_req_title: "Aktualisiere DoseTrace, um weiterzumachen",
     upd_req_body: "Diese Version kann nicht mehr verwendet werden.",
     upd_req_safe: "Deine Daten bleiben gespeichert – beim Aktualisieren wird nichts gelöscht.",
-    upd_req_export: "Meine Daten exportieren", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Neuigkeiten von DoseTrace",
     settings_version_news_sub: "Eine Benachrichtigung, wenn eine neue Version erscheint – mit dem, was sich geändert hat.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)
@@ -12694,7 +12689,6 @@ export const translations = {
     upd_req_title: "Aggiorna DoseTrace per continuare",
     upd_req_body: "Questa versione non si può più usare.",
     upd_req_safe: "I tuoi dati restano salvati — con l'aggiornamento non si cancella nulla.",
-    upd_req_export: "Esporta i miei dati", // UN-8: the required screen's "Exportar meus dados" (founder 2026-10-20)
     settings_version_news: "Novità di DoseTrace",
     settings_version_news_sub: "Una notifica quando esce una nuova versione, con cosa è cambiato.",
     // A-119 Gate B round 2 (replaced phone, count not readable yet) — founder 2026-10-20 (docs/design/a119-new-variants.html)

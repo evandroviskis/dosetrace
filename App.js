@@ -356,7 +356,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // over everything, signed in or not; nothing is deleted. Below the latest — the invitation, at app
   // open, on the tabs only, never over another sheet (components/useUpdateNotice).
   const upd = useUpdateNotice({ session, onMain, language, navigationRef, blocked: !!(deviceSheet || linkSheet || accountSheet) });
-  // UN-8 (founder 2026-10-20): the required screen offers "Exportar meus dados" while signed in — the
+  // UN-8 (founder 2026-10-20): the required screen offers the Settings row "Baixar meus dados" while signed in — the
   // ONE export of Settings (lib/accountActions exportMyData), one at a time; its answer (no share
   // sheet on the phone, or an error) in a DoseTrace sheet over the screen. Nothing is deleted.
   const requiredExportRef = useRef(null);
