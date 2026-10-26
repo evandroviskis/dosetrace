@@ -390,3 +390,18 @@ test('LT-13: every label change goes through ONE write, tags(apply): a move to a
   assert.equal(srv.meta.name, 'Sam');
   assert.equal(labRows(dbm).length, 0);
 });
+
+// Review 2026-10-26 (risk 2): a rebuild with the cloud table missing keeps this phone's lab rows (the
+// table is not rebuilt), so they must not be counted as "discarded" in the takeover summary.
+test('LT-4 (review): a rebuild with lab_prefs missing never reports the kept lab rows as discarded', async () => {
+  const db = H.makeDb();
+  const base = H.makeCloud();
+  await core.pullChanges(db, base, U);
+  db.runSync(`INSERT INTO lab_prefs (user_id, kind, test_key, item_key, value, updated_at, sync_status) VALUES (?, 'star', '', 'Ferritin', '1', 'L1', 'pending')`, [U]);
+  const rb = await core.rebuildFromCloud(db, withoutLabTable(base), U);
+  assert.equal(rb.ok, true);
+  assert.equal(labRows(db).length, 1, 'the lab row is kept');
+  const d = rb.discarded || { count: 0, byKind: {} };
+  assert.equal(d.count, 0, 'nothing discarded: the kept row is not counted');
+  assert.equal((d.byKind || {}).lab, undefined);
+});
