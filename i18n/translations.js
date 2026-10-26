@@ -1561,6 +1561,8 @@ export const translations = {
     blood_date_move: "Change this test's date",
     blood_date_move_body: "All {n} values and the labels of this test move to the new date.",
     blood_date_move_body_one: "{n} value and the labels of this test move to the new date.", // singular (lib/plural.js)
+    blood_date_move_labels_title: "Labels not saved yet",
+    blood_date_move_labels_body: "The values are now on the new date. The labels stay with this test, and we’ll try to save them again the next time you open My Body.",
     blood_report_delete_confirm: 'Delete',
     blood_edit_invalid: 'Enter a marker name and a numeric value.',
     blood_upload_choose_title: 'Add a lab report',
@@ -4113,6 +4115,8 @@ export const translations = {
     blood_date_move: "Cambiar la fecha de este análisis",
     blood_date_move_body: "Los {n} valores y las etiquetas de este análisis pasan a la nueva fecha.",
     blood_date_move_body_one: "{n} valor y las etiquetas de este análisis pasan a la nueva fecha.", // singular (lib/plural.js)
+    blood_date_move_labels_title: "Etiquetas aún sin guardar",
+    blood_date_move_labels_body: "Los valores ya están en la nueva fecha. Las etiquetas siguen con este análisis e intentaremos guardarlas de nuevo la próxima vez que abras Mi cuerpo.",
     blood_report_delete_confirm: 'Eliminar',
     blood_edit_invalid: 'Introduce un nombre de marcador y un valor numérico.',
     blood_upload_choose_title: 'Añadir un análisis',
@@ -6665,6 +6669,8 @@ export const translations = {
     blood_date_move: "Mudar a data deste exame",
     blood_date_move_body: "Os {n} valores e as etiquetas deste exame passam para a nova data.",
     blood_date_move_body_one: "{n} valor e as etiquetas deste exame passam para a nova data.", // singular (lib/plural.js)
+    blood_date_move_labels_title: "Etiquetas ainda não salvas",
+    blood_date_move_labels_body: "Os valores já estão na nova data. As etiquetas continuam com este exame e tentaremos salvá-las novamente na próxima vez que você abrir Meu corpo.",
     blood_report_delete_confirm: 'Excluir',
     blood_edit_invalid: 'Insira um nome de marcador e um valor numérico.',
     blood_upload_choose_title: 'Adicionar um exame',
@@ -9216,6 +9222,8 @@ export const translations = {
     blood_date_move: "Modifier la date de cette analyse",
     blood_date_move_body: "Les {n} valeurs et les étiquettes de cette analyse passent à la nouvelle date.",
     blood_date_move_body_one: "{n} valeur et les étiquettes de cette analyse passent à la nouvelle date.", // singular (lib/plural.js)
+    blood_date_move_labels_title: "Étiquettes pas encore enregistrées",
+    blood_date_move_labels_body: "Les valeurs sont passées à la nouvelle date. Les étiquettes restent avec cette analyse et nous réessaierons de les enregistrer la prochaine fois que vous ouvrirez Mon corps.",
     blood_report_delete_confirm: 'Supprimer',
     blood_edit_invalid: 'Saisissez un nom de marqueur et une valeur numérique.',
     blood_upload_choose_title: 'Ajouter une analyse',
@@ -11767,6 +11775,8 @@ export const translations = {
     blood_date_move: "Datum dieses Bluttests ändern",
     blood_date_move_body: "Alle {n} Werte und die Labels dieses Bluttests werden auf das neue Datum verschoben.",
     blood_date_move_body_one: "{n} Wert und die Labels dieses Bluttests werden auf das neue Datum verschoben.", // singular (lib/plural.js)
+    blood_date_move_labels_title: "Labels noch nicht gespeichert",
+    blood_date_move_labels_body: "Die Werte sind jetzt auf dem neuen Datum. Die Labels bleiben bei diesem Bluttest, und wir versuchen erneut, sie zu speichern, wenn du Mein Körper das nächste Mal öffnest.",
     blood_report_delete_confirm: 'Löschen',
     blood_edit_invalid: 'Gib einen Markernamen und einen Zahlenwert ein.',
     blood_upload_choose_title: 'Laborbericht hinzufügen',
@@ -14319,6 +14329,8 @@ export const translations = {
     blood_date_move: "Cambia la data di questo esame",
     blood_date_move_body: "I {n} valori e le etichette di questo esame passano alla nuova data.",
     blood_date_move_body_one: "{n} valore e le etichette di questo esame passano alla nuova data.", // singular (lib/plural.js)
+    blood_date_move_labels_title: "Etichette non ancora salvate",
+    blood_date_move_labels_body: "I valori sono ora sulla nuova data. Le etichette restano con questo esame e proveremo a salvarle di nuovo la prossima volta che apri Il mio corpo.",
     blood_report_delete_confirm: 'Elimina',
     blood_edit_invalid: 'Inserisci un nome di marcatore e un valore numerico.',
     blood_upload_choose_title: 'Aggiungi un referto',

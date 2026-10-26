@@ -284,7 +284,9 @@ test('LB-12: the labels move to the new date (joined with any there); the old da
   assert.deepEqual(moveReportTags(tags, '2026-10-20', '2026-10-10', false), tags, 'no labels on the old date: unchanged');
   assert.deepEqual(tags, { '2026-10-19': ['Check-up'], '2026-08-02': ['baseline'] }, 'never mutates');
   const mv = sliceBlock(BODY, 'async function moveReportDate(');
-  assert.match(mv, /saveReportTagOp\(\(tags\) => moveReportTags\(tags, from, toDate, keepFrom\), \(\) => beforeTags\)/, 'merged on the fresh server value (DV-006 path); a failed save says so');
+  // AD-100 review: through moveLabels (one retry; a failure keeps the labels with the moved test —
+  // behaviour in __tests__/ad100LabelMoveFail.test.js).
+  assert.match(mv, /await moveLabels\(\{ from, to: toDate, keepFrom, labels: labels\.slice\(\) \}\);/, 'merged on the fresh server value (DV-006 path)');
 });
 
 // ── LB-13 / LB-14: the screen after Save ──────────────────────────────────────────────────────
