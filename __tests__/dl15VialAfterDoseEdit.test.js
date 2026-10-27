@@ -60,3 +60,15 @@ test('wired: the protocol edit writes the recomputed total for recon and ready-t
   assert.match(src, /fixed: /);
   assert.doesNotMatch(src, /vialPatch && vialPatch\.total_doses != null \? Number\(vialNow\.total_doses\) : vialNow\.total_doses/, 'no dead ternary; the patched vial is read back');
 });
+
+// Council 2026-10-27: "Estava errada" (and any dose edit) writes the protocol, its corrected doses and the
+// vial in ONE step — a crash between them never leaves the vial counted at one dose and the protocol at the other.
+test('one step: the protocol edit and the vial recount run inside one transaction', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
+  const start = src.indexOf('const written = withImmediateTransaction(() => {');
+  assert.ok(start > -1, 'the edit opens one transaction');
+  const body = src.slice(start, src.indexOf('\n      });', start));
+  assert.match(body, /updateProtocol\(editingId/);
+  assert.match(body, /vialTotalAfterDoseEdit\(/);
+  assert.match(body, /updateVial\(vialNow\.id, \{ total_doses: total \}\)/);
+});

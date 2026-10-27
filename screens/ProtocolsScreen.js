@@ -2093,37 +2093,41 @@ export default function ProtocolsScreen() {
       // DL-15: no question and nothing marked, no estimated past = a typo nothing used (the vial at the new dose).
       const doseTypo = realChange && !doseChoice && ctx.rows.length === 0 && !ctx.estimated;
       const fromAt = doseChoice && doseChoice.mode === 'from' ? ((ctx.rows.find((r) => r.id === doseChoice.fromId) || {}).logged_at || null) : null;
-      const written = Object.keys(patch).length ? updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: { mode: doseChoice.mode, from: fromAt } } : patch) : null;
+      // Council 2026-10-27: the protocol, its corrected doses and the vial are written in ONE step.
+      const written = withImmediateTransaction(() => {
+        const w = Object.keys(patch).length ? updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: { mode: doseChoice.mode, from: fromAt } } : patch) : null;
 
-      // RTU vial: only the vial fields the edit changed; a vial is created only when the
-      // user's change describes one and there is none yet.
-      const vialPatch = editStartRef.current ? rtuVialPatch(editStartRef.current, currentForm(), language) : null;
-      if (vialPatch) {
-        const existing = vialsByProtocol[editingId];
-        if (existing) updateVial(existing.id, vialPatch);
-        // A-185: with the protocol's cloud id, or the vial would wait for it forever
-        else insertVial({ user_id: user.id, protocol_id: editingId, protocol_remote_id: (getProtocolById(editingId) || {}).remote_id || null, doses_taken: 0, ...rtuVialFields(currentForm(), language) });
-      }
-      // DL-15 (DV-015 / DV-223): a new dose recomputes the active vial's capacity from the mass left —
-      // the doses taken used the old dose, or the new one when it was a correction (AD-95).
-      // Council 2026-10-27: the vial as it is NOW (after this save's own vial edit), never the copy read before.
-      const vialBefore = doseEdited && before ? vialsByProtocol[editingId] : null;
-      const vialNow = vialBefore ? (getVialById(vialBefore.id) || vialBefore) : null;
-      if (vialNow && vialNow.active !== 0) {
-        const after = getProtocolById(editingId) || {};
-        const rtuMass = after.type === 'rtu' && Number(vialNow.water_ml) > 0 && parseDecimal(after.concentration) > 0
-          ? { mass: Number(vialNow.water_ml) * parseDecimal(after.concentration), massUnit: after.concentration_unit || 'mg' } : null;
-        const reconMass = after.type === 'recon' && parseDecimal(after.amount) > 0 ? { mass: parseDecimal(after.amount), massUnit: after.unit || 'mg' } : null;
-        const total = vialTotalAfterDoseEdit({
-          // the doses left at the old dose: the total as it stood before this save's own recount
-          total: vialBefore.total_doses, taken: vialNow.doses_taken || 0,
-          ...(rtuMass || reconMass || {}),
-          oldDose: before.dose, oldUnit: before.dose_unit, newDose: after.dose, newUnit: after.dose_unit,
-          // the corrected doses that came from this vial (marked since it was started)
-          fixed: doseTypo ? (vialNow.doses_taken || 0) : ((written && written.fixed) || []).filter((r) => !vialNow.created_at || Date.parse(r.logged_at) >= Date.parse(vialNow.created_at)).length,
-        });
-        if (total != null && total !== Number(vialNow.total_doses)) updateVial(vialNow.id, { total_doses: total });
-      }
+        // RTU vial: only the vial fields the edit changed; a vial is created only when the
+        // user's change describes one and there is none yet.
+        const vialPatch = editStartRef.current ? rtuVialPatch(editStartRef.current, currentForm(), language) : null;
+        if (vialPatch) {
+          const existing = vialsByProtocol[editingId];
+          if (existing) updateVial(existing.id, vialPatch);
+          // A-185: with the protocol's cloud id, or the vial would wait for it forever
+          else insertVial({ user_id: user.id, protocol_id: editingId, protocol_remote_id: (getProtocolById(editingId) || {}).remote_id || null, doses_taken: 0, ...rtuVialFields(currentForm(), language) });
+        }
+        // DL-15 (DV-015 / DV-223): a new dose recomputes the active vial's capacity from the mass left —
+        // the doses taken used the old dose, or the new one when it was a correction (AD-95).
+        // Council 2026-10-27: the vial as it is NOW (after this save's own vial edit), never the copy read before.
+        const vialBefore = doseEdited && before ? vialsByProtocol[editingId] : null;
+        const vialNow = vialBefore ? (getVialById(vialBefore.id) || vialBefore) : null;
+        if (vialNow && vialNow.active !== 0) {
+          const after = getProtocolById(editingId) || {};
+          const rtuMass = after.type === 'rtu' && Number(vialNow.water_ml) > 0 && parseDecimal(after.concentration) > 0
+            ? { mass: Number(vialNow.water_ml) * parseDecimal(after.concentration), massUnit: after.concentration_unit || 'mg' } : null;
+          const reconMass = after.type === 'recon' && parseDecimal(after.amount) > 0 ? { mass: parseDecimal(after.amount), massUnit: after.unit || 'mg' } : null;
+          const total = vialTotalAfterDoseEdit({
+            // the doses left at the old dose: the total as it stood before this save's own recount
+            total: vialBefore.total_doses, taken: vialNow.doses_taken || 0,
+            ...(rtuMass || reconMass || {}),
+            oldDose: before.dose, oldUnit: before.dose_unit, newDose: after.dose, newUnit: after.dose_unit,
+            // the corrected doses that came from this vial (marked since it was started)
+            fixed: doseTypo ? (vialNow.doses_taken || 0) : ((w && w.fixed) || []).filter((r) => !vialNow.created_at || Date.parse(r.logged_at) >= Date.parse(vialNow.created_at)).length,
+          });
+          if (total != null && total !== Number(vialNow.total_doses)) updateVial(vialNow.id, { total_doses: total });
+        }
+        return w;
+      });
       setSaving(false);
       // Reschedule from the freshly-persisted row (real user_id/created_at) so
       // the reschedule uses the new time AND correctly skips slots already logged
