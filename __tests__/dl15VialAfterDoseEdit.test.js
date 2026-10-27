@@ -15,9 +15,30 @@ test('recon without a known mass: the mass is total × old dose', () => {
   assert.equal(vialTotalAfterDoseEdit({ total: 20, taken: 5, oldDose: '0.25', oldUnit: 'mg', newDose: '0.5', newUnit: 'mg' }), 5 + 7);
 });
 
-test('"Estava errada": the doses taken used the new dose', () => {
-  // 2000 mg vial; marked at 100 but it was 90 → 2 taken × 90 used; 1820 left → 20 more
-  assert.equal(vialTotalAfterDoseEdit({ total: 20, taken: 2, mass: 2000, massUnit: 'mg', oldDose: '100', oldUnit: 'mg', newDose: '90', newUnit: 'mg', fix: true }), 2 + 20);
+test('"Estava errada": the corrected doses used the new dose (fixed = how many of this vial were corrected)', () => {
+  // 2000 mg vial; both doses taken were really 90, not 100 → 1820 left → 20 more
+  assert.equal(vialTotalAfterDoseEdit({ total: 20, taken: 2, mass: 2000, massUnit: 'mg', oldDose: '100', oldUnit: 'mg', newDose: '90', newUnit: 'mg', fixed: 2 }), 2 + 20);
+  // a typo before any dose: the whole vial at the new dose
+  assert.equal(vialTotalAfterDoseEdit({ total: 0, taken: 0, mass: 2000, massUnit: 'mg', oldDose: '2500', oldUnit: 'mg', newDose: '250', newUnit: 'mg', fixed: 0 }), 8);
+  // only 2 of 3 doses from this vial corrected: 19 left at 90 + 2 × 10 back = 1730 → 21 at 80
+  assert.equal(vialTotalAfterDoseEdit({ total: 22, taken: 3, mass: 2000, massUnit: 'mg', oldDose: '90', oldUnit: 'mg', newDose: '80', newUnit: 'mg', fixed: 2 }), 3 + 21);
+});
+
+test('council block 2026-10-27: a second dose change of the same vial counts from the doses left, never invents doses', () => {
+  const a = vialTotalAfterDoseEdit({ total: 10, taken: 4, mass: 10, massUnit: 'mg', oldDose: '1', oldUnit: 'mg', newDose: '0.5', newUnit: 'mg' });
+  assert.equal(a, 16);
+  // 4 more at 0.5 (8 taken, 4 mg really left), then 0.25 → 8 + 16 = 24 (was 32)
+  assert.equal(vialTotalAfterDoseEdit({ total: a, taken: 8, mass: 10, massUnit: 'mg', oldDose: '0.5', oldUnit: 'mg', newDose: '0.25', newUnit: 'mg' }), 24);
+  // same state changed to 2 mg → 8 + 2 = 10 (was 11)
+  assert.equal(vialTotalAfterDoseEdit({ total: a, taken: 8, mass: 10, massUnit: 'mg', oldDose: '0.5', oldUnit: 'mg', newDose: '2', newUnit: 'mg' }), 10);
+});
+
+test('one corrected dose (Alterar dose) moves the vial by the difference', () => {
+  const { vialTotalAfterOneDoseEdit } = require('../lib/protocolForm');
+  // 22 at 90 mg, 2 taken; one of them was really 180 → 20×90 − 90 = 1710 → 19 left → 21
+  assert.equal(vialTotalAfterOneDoseEdit({ total: 22, taken: 2, dose: '90', doseUnit: 'mg', oldAmount: 90, oldUnit: 'mg', newAmount: 180, newUnit: 'mg' }), 21);
+  assert.equal(vialTotalAfterOneDoseEdit({ total: 22, taken: 2, dose: '90', doseUnit: 'mg', oldAmount: 90, oldUnit: 'mg', newAmount: 45, newUnit: 'mg' }), 22, '45 mg back is half a dose: floor');
+  assert.equal(vialTotalAfterOneDoseEdit({ total: 22, taken: 2, dose: '90', doseUnit: 'mg', oldAmount: 90, oldUnit: 'mg', newAmount: 0, newUnit: 'mg' }), null);
 });
 
 test('units: mcg vs mg converted; IU only against IU; nothing known → null (vial untouched)', () => {
@@ -36,5 +57,6 @@ test('never below the doses already taken; a 0,5 typed in Portuguese reads as a 
 test('wired: the protocol edit writes the recomputed total for recon and ready-to-use vials', () => {
   const src = require('./helpers/extractFn').read('screens/ProtocolsScreen.js');
   assert.match(src, /vialTotalAfterDoseEdit\(/);
-  assert.match(src, /fix: doseChoice === 'fix' \|\| doseTypo/);
+  assert.match(src, /fixed: /);
+  assert.doesNotMatch(src, /vialPatch && vialPatch\.total_doses != null \? Number\(vialNow\.total_doses\) : vialNow\.total_doses/, 'no dead ternary; the patched vial is read back');
 });

@@ -234,7 +234,7 @@ test('SG-14: Save stops before anything is written; the notice (warning, both da
   const save = sliceBlock(PROT, 'async function saveProtocol(');
   const check = save.indexOf('const clash = stored ? startAfterEnd(stored, patch.start_date) : null;');
   // AD-95 Save question (founder 2026-10-27): the write carries the answer when there was one.
-  const write = save.indexOf('if (Object.keys(patch).length) updateProtocol(editingId, doseChoice ?');
+  const write = save.indexOf('const written = Object.keys(patch).length ? updateProtocol(editingId, doseChoice ?');
   assert.ok(check > 0 && write > check, 'checked before the write');
   assert.match(save, /if \(clash\) \{ setSaving\(false\); showStartAfterEnd\(stored, patch\.start_date, clash\.endKey\); return; \}/);
   const notice = sliceBlock(PROT, 'function showStartAfterEnd(');

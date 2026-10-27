@@ -2063,7 +2063,7 @@ export default function ProtocolsScreen() {
       const doseEdited = 'dose' in patch || 'dose_unit' in patch;
       const before = doseEdited ? getProtocolById(editingId) : null;
       const doseTypo = doseEdited && !doseChoice && countTakenAtCurrentDose(editingId) === 0;
-      if (Object.keys(patch).length) updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: doseChoice === 'fix' } : patch);
+      const written = Object.keys(patch).length ? updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: doseChoice === 'fix' } : patch) : null;
 
       // RTU vial: only the vial fields the edit changed; a vial is created only when the
       // user's change describes one and there is none yet.
@@ -2076,17 +2076,21 @@ export default function ProtocolsScreen() {
       }
       // DL-15 (DV-015 / DV-223): a new dose recomputes the active vial's capacity from the mass left —
       // the doses taken used the old dose, or the new one when it was a correction (AD-95).
-      const vialNow = doseEdited && before ? vialsByProtocol[editingId] : null;
+      // Council 2026-10-27: the vial as it is NOW (after this save's own vial edit), never the copy read before.
+      const vialBefore = doseEdited && before ? vialsByProtocol[editingId] : null;
+      const vialNow = vialBefore ? (getVialById(vialBefore.id) || vialBefore) : null;
       if (vialNow && vialNow.active !== 0) {
         const after = getProtocolById(editingId) || {};
         const rtuMass = after.type === 'rtu' && Number(vialNow.water_ml) > 0 && parseDecimal(after.concentration) > 0
           ? { mass: Number(vialNow.water_ml) * parseDecimal(after.concentration), massUnit: after.concentration_unit || 'mg' } : null;
         const reconMass = after.type === 'recon' && parseDecimal(after.amount) > 0 ? { mass: parseDecimal(after.amount), massUnit: after.unit || 'mg' } : null;
         const total = vialTotalAfterDoseEdit({
-          total: vialPatch && vialPatch.total_doses != null ? Number(vialNow.total_doses) : vialNow.total_doses, taken: vialNow.doses_taken || 0,
+          // the doses left at the old dose: the total as it stood before this save's own recount
+          total: vialBefore.total_doses, taken: vialNow.doses_taken || 0,
           ...(rtuMass || reconMass || {}),
           oldDose: before.dose, oldUnit: before.dose_unit, newDose: after.dose, newUnit: after.dose_unit,
-          fix: doseChoice === 'fix' || doseTypo,
+          // the corrected doses that came from this vial (marked since it was started)
+          fixed: doseTypo ? (vialNow.doses_taken || 0) : ((written && written.fixed) || []).filter((r) => !vialNow.created_at || Date.parse(r.logged_at) >= Date.parse(vialNow.created_at)).length,
         });
         if (total != null && total !== Number(vialNow.total_doses)) updateVial(vialNow.id, { total_doses: total });
       }
