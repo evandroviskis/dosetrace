@@ -87,6 +87,7 @@ import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler
 import { dateColumns, dateAfter, timeColumns, timeAfter } from '../lib/wheelPick';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
+import CollapsibleSection from '../components/CollapsibleSection';
 import CheckMark from '../components/CheckMark';
 import { lastCompleteLog, lastLogWhen } from '../lib/protocolsHero';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
@@ -2570,13 +2571,17 @@ export default function ProtocolsScreen() {
       </TouchableOpacity>
     </View>
   );
+  // Founder 2026-10-27 (app-wide collapse rule): arrives closed (title + "N protocolos"), a tap opens it.
   // A-83: "Ended" ("Yes, it's finished" on Today) — above Recently deleted, only when something
   // was ended; the same row as Recently deleted: color dot, name, "Ended {date}", a Restart pill and the trash (Delete protocol → Recently deleted).
   // Its doses stay in the Dose log and the reports; nothing here deletes.
   const endedSection = endedProtocols.length > 0 ? (
-    <View style={s.blk}>
-      <Text style={s.secth}>{t('protocols_ended_title')}</Text>
-      <View style={s.delList}>
+    <CollapsibleSection
+      style={s.blk}
+      title={t('protocols_ended_title')}
+      summary={t(pluralKey('protocols_count_n', endedProtocols.length, language)).replace('{n}', String(endedProtocols.length))}
+    >
+      <View style={s.delListIn}>
         {endedProtocols.map((p, idx) => (
           <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
             <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
@@ -2600,7 +2605,7 @@ export default function ProtocolsScreen() {
           </View>
         ))}
       </View>
-    </View>
+    </CollapsibleSection>
   ) : null;
 
   // Prototype list(): "Recently deleted" at the bottom of the list, only when something was
@@ -2613,25 +2618,31 @@ export default function ProtocolsScreen() {
   // (only with items); while selecting each row is a checkbox (the prototype's round check), the
   // header offers Select all / Deselect all and Cancel, and the bottom bar replaces the tab bar.
   const deletedSection = deletedProtocols.length > 0 ? (
-    <View style={s.blk}>
-      <View style={s.delHead}>
-        <Text style={[s.secth, s.grow]}>{t('protocols_recently_deleted')}</Text>
-        {!trashSel ? (
-          <TouchableOpacity onPress={() => setTrashSel(T.start())} style={s.delHeadBtn} accessibilityRole="button">
-            <Text style={s.delHeadLink}>{t('protocols_select')}</Text>
-          </TouchableOpacity>
-        ) : (
-          <>
-            <TouchableOpacity onPress={() => setTrashSel(T.toggleAll(trashSel, deletedIds))} style={s.delHeadBtn} accessibilityRole="button">
-              <Text style={s.delHeadLink}>{t(T.allLabelKey(trashSel, deletedIds))}</Text>
+    <CollapsibleSection
+      style={s.blk}
+      title={t('protocols_recently_deleted')}
+      summary={t(pluralKey('protocols_count_n', deletedProtocols.length, language)).replace('{n}', String(deletedProtocols.length))}
+      onToggle={(open) => { if (!open) setTrashSel(null); }}
+      headerExtra={(
+        <>
+          {!trashSel ? (
+            <TouchableOpacity onPress={() => setTrashSel(T.start())} style={s.delHeadBtn} accessibilityRole="button">
+              <Text style={s.delHeadLink}>{t('protocols_select')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setTrashSel(null)} style={s.delHeadBtn} accessibilityRole="button">
-              <Text style={s.delHeadLink}>{t('cancel')}</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-      <View style={s.delList}>
+          ) : (
+            <>
+              <TouchableOpacity onPress={() => setTrashSel(T.toggleAll(trashSel, deletedIds))} style={s.delHeadBtn} accessibilityRole="button">
+                <Text style={s.delHeadLink}>{t(T.allLabelKey(trashSel, deletedIds))}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setTrashSel(null)} style={s.delHeadBtn} accessibilityRole="button">
+                <Text style={s.delHeadLink}>{t('cancel')}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </>
+      )}
+    >
+      <View style={s.delListIn}>
         {deletedProtocols.map((p, idx) => {
           if (trashSel) {
             const on = trashSel.includes(p.id);
@@ -2677,7 +2688,7 @@ export default function ProtocolsScreen() {
           );
         })}
       </View>
-    </View>
+    </CollapsibleSection>
   ) : null;
   // The selection's bottom bar (in place of the tab bar): Restore (N) and risk Delete forever (N),
   // both off with nothing chosen.
@@ -3808,6 +3819,7 @@ const protocolsGraduated = (c) => ({
   // Recently deleted (prototype .list / .li): one raised list, rows split by a hairline, the
   // protocol color only as a 9 pt dot, Restore an outline pill, delete forever the risk trash.
   delList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  delListIn: { paddingHorizontal: 16 },
   delRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
   delRowLine: { borderTopWidth: 1, borderTopColor: c.line },
   delDot: { width: 10, height: 10, borderRadius: 5 },
