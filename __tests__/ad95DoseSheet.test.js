@@ -68,7 +68,7 @@ test('wired: the dose sheet opens both editors and saves through updateDoseLog',
   assert.match(src, /t\('log_change_dose'\)/);
   assert.match(src, /t\('log_sheet_dose'\)/);
   assert.match(src, /<DoseEditSheet/);
-  assert.match(src, /writeOutcome\(log\.id, \{ logged_at: value \}\)/, 'writeOutcome = updateDoseLog + sync + reminders + refresh');
+  assert.match(src, /writeOutcome\(log\.id, timeEditFields\(log, value\)\)/, 'writeOutcome = updateDoseLog + sync + reminders + refresh (the time + its slot, slot_at)');
   assert.match(src, /writeOutcome\(log\.id, \{ dose_amount: value\.amount/);
   assert.match(src, /function writeOutcome[\s\S]*?updateDoseLog\(logId, fields\)[\s\S]*?syncAllNotifications[\s\S]*?requestSync/);
   const sheet = read('screens/components/DoseEditSheet.js');

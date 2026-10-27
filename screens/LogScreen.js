@@ -37,7 +37,7 @@ import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import RowChevron from '../components/RowChevron';
 import DoseEditSheet from './components/DoseEditSheet';
-import { canEditTime, canEditDose, unitForDoseEdit, vialAfterOneDoseEdit } from '../lib/doseEdit';
+import { canEditTime, canEditDose, unitForDoseEdit, vialAfterOneDoseEdit, timeEditFields } from '../lib/doseEdit';
 import { formatNumber } from '../lib/localeFormat';
 import { DTSheet } from './components/ProtocolParts';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -340,7 +340,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     closeDoseEdit();
     // Only this row changes: its time (the curve follows it) or its own amount (the curve changes from
     // it on). Reminders are re-planned (a time moved to another day).
-    if (mode === 'time') { writeOutcome(log.id, { logged_at: value }); return; }
+    if (mode === 'time') { writeOutcome(log.id, timeEditFields(log, value)); return; }
     const unit = value.unit || unitForDoseEdit(log);
     // DL-15 / AD-95 F3: a dose of the active vial corrected to another amount moves that vial by the
     // difference — read before the row changes (the plan finds the vial from the rows as they are).
