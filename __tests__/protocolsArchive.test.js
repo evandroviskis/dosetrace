@@ -19,7 +19,7 @@ test('one archive zone holds Ended and Recently deleted, on the phone and in the
   const src = read('screens/ProtocolsScreen.js');
   const zone = src.slice(src.indexOf('const archiveZone ='), src.indexOf('const bar = T.bar(trashSel)'));
   assert.ok(zone.length > 0, 'archiveZone exists');
-  assert.match(zone, /t\('protocols_archive'\)/);
+  assert.match(zone, /accessibilityRole="header">\{t\('protocols_archive'\)\}/); // council delta 3: a header for screen readers
   assert.match(zone, /s\.archiveBlock/);
   assert.match(zone, /\{endedSection\}/);
   assert.match(zone, /\{deletedSection\}/);

@@ -45,7 +45,7 @@ test('texts ×6 (one / many), and the screen asks it after saving a new protocol
   }
   const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
   assert.match(src, /pastStartAsk\(\{ protocol: protocolData, vial: newVial, nowMs: Date\.now\(\), curveAsk: !!hq \}\)/);
-  assert.match(src, /updateVial\(newVial\.id, ask\.finished \? \{ doses_taken: ask\.vialUsed, active: 0 \} : \{ doses_taken: ask\.vialUsed \}\)/);
+  assert.match(src, /updateVial\(newVial\.id, w\.vialUpdate\)/); // what it writes: pastStartWrites (behaviour test below)
   assert.match(src, /openEditVialRef\.current\(newId\)/);
 });
 
@@ -97,7 +97,7 @@ test('the sheet must be answered; one dose reads "Sim"; the date shows the year 
   assert.match(block, /'dayMonthAuto'/);
   assert.match(block, /protocols_past_yes_one/);
   assert.match(block, /openNewVialWindow\(/, 'a finished vial opens the new-vial window');
-  assert.match(block, /units_taken: ask\.unitsUsed/);
+  assert.match(block, /units_taken: w\.unitsTaken/);
 });
 
 // Founder 2026-10-27 ("3 b", picture docs/design/protocols-archive-and-almost-all.html section 2): a third
@@ -112,15 +112,56 @@ test('"Quase todas": only with more than one dose; curve like Sim; Editar frasco
     }
     assert.match(translations[l].protocols_past_body_bottle_many, /\{u\}/, l);
   }
-  assert.equal(translations.pt.protocols_past_body_vial_many, 'Todas ou quase todas: a curva estima esse período. Se quase todas, você informa em seguida quantas doses do frasco usou. Se não, a curva começa hoje.');
+  // Council delta 3 (pharmacometrician + UX): the text says the estimate counts every scheduled dose, keeps what Sim
+  // does to the vial and says Não opens the vial count; formal, natural Portuguese.
+  assert.equal(translations.pt.protocols_past_body_vial_many, 'Todas ou quase todas: a curva estima esse período contando todas as doses previstas, e o frasco começa com {v} de {total} doses usadas. Se foram quase todas, em seguida você corrige esse número. Se não, a curva começa hoje e você informa quantas doses do frasco usou.');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.match(translations[l].protocols_past_body_vial_many, /\{v\}[\s\S]*\{total\}|\{total\}[\s\S]*\{v\}/, l);
   const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
   const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('return true; // saved'));
   assert.match(block, /const many = ask\.n > 1;/);
   assert.match(block, /many \? '_many' : ''/);
-  const almost = block.slice(block.indexOf("label: t('protocols_past_almost')"));
-  assert.ok(block.includes("label: t('protocols_past_almost')"));
-  const onPress = almost.slice(0, almost.indexOf('setScreenSheet('));
-  assert.match(onPress, /openEditVialRef\.current\(newId\)/);
-  assert.doesNotMatch(onPress, /history_from|updateVial|units_taken|insertDoseLog/);
+  assert.match(block, /label: t\('protocols_past_almost'\), kind: 'secondary', onPress: answer\('almost'\)/); // writes: pastStartWrites test
   assert.match(block, /buttons: many \? \[yesBtn, almostBtn, noBtn\] : \[noBtn, yesBtn\]/);
+});
+
+// Council delta 3 (senior engineer + QA): the three answers as behaviour, not source text.
+test('what each answer writes: Sim / Quase todas / Não, for a mixed vial, a finished vial, a pen, a bottle, nothing', () => {
+  const { pastStartWrites } = require('../lib/pastDoses');
+  const opt = { hasVial: true, recon: true, today: '2026-10-27' };
+  const part = { n: 20, vialUsed: 8, total: 10, finished: false, unitsUsed: 0 };
+  // Sim: the vial takes the 8; the curve keeps the period.
+  assert.deepEqual(pastStartWrites('yes', part, opt), { historyFrom: null, vialUpdate: { doses_taken: 8 }, unitsTaken: null, openEditVial: false, openNewVialWindow: false });
+  // Quase todas: the curve like Sim; the vial holds Sim's 8 (Cancelar keeps it, never 0), then Editar frasco opens.
+  assert.deepEqual(pastStartWrites('almost', part, opt), { historyFrom: null, vialUpdate: { doses_taken: 8 }, unitsTaken: null, openEditVial: true, openNewVialWindow: false });
+  // Não: the curve starts today; the vial count is the person's.
+  assert.deepEqual(pastStartWrites('no', part, opt), { historyFrom: '2026-10-27', vialUpdate: null, unitsTaken: null, openEditVial: true, openNewVialWindow: false });
+  // Every dose of the vial used: Sim finishes it (new-vial window on a mixed vial); Quase todas never finishes it.
+  const full = { n: 20, vialUsed: 10, total: 10, finished: true, unitsUsed: 0 };
+  assert.deepEqual(pastStartWrites('yes', full, opt).vialUpdate, { doses_taken: 10, active: 0 });
+  assert.equal(pastStartWrites('yes', full, opt).openNewVialWindow, true);
+  assert.equal(pastStartWrites('yes', full, { ...opt, recon: false }).openNewVialWindow, false);
+  assert.deepEqual(pastStartWrites('almost', full, opt).vialUpdate, { doses_taken: 10 });
+  // A pen holding fewer doses than were due: never inferred, every answer opens Editar frasco.
+  const pen = { n: 40, vialUsed: 0, total: 28, finished: false, vialUnknown: true, unitsUsed: 0 };
+  for (const a of ['yes', 'almost', 'no']) {
+    const w = pastStartWrites(a, pen, opt);
+    assert.equal(w.openEditVial, true, a);
+    assert.equal(w.vialUpdate, null, a);
+  }
+  // An oral bottle: Sim and Quase todas take the estimate (no field to correct it); Não leaves it.
+  const bottle = { n: 14, vialUsed: 0, total: null, finished: false, unitsUsed: 28 };
+  const noVial = { hasVial: false, recon: false, today: '2026-10-27' };
+  assert.equal(pastStartWrites('yes', bottle, noVial).unitsTaken, 28);
+  assert.equal(pastStartWrites('almost', bottle, noVial).unitsTaken, 28);
+  assert.equal(pastStartWrites('no', bottle, noVial).unitsTaken, null);
+  // No supply: Sim and Quase todas write nothing (the curve keeps the period); Não writes only history_from.
+  const none = { n: 5, vialUsed: 0, total: null, finished: false, unitsUsed: 0 };
+  assert.deepEqual(pastStartWrites('almost', none, noVial), pastStartWrites('yes', none, noVial));
+  assert.deepEqual(pastStartWrites('no', none, noVial), { historyFrom: '2026-10-27', vialUpdate: null, unitsTaken: null, openEditVial: false, openNewVialWindow: false });
+  // The screen runs these and nothing else; never a dose row.
+  const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
+  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('return true; // saved'));
+  assert.match(block, /pastStartWrites\(kind, ask, \{ hasVial: !!newVial, recon: protocolData\.type === 'recon', today: todayStr \}\)/);
+  for (const k of ['no', 'yes', 'almost']) assert.match(block, new RegExp(`onPress: answer\\('${k}'\\)`));
+  assert.doesNotMatch(block, /insertDoseLog/);
 });

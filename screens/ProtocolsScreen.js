@@ -47,7 +47,7 @@ import {
 } from '../lib/database';
 import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
-import { pastStartAsk } from '../lib/pastDoses';
+import { pastStartAsk, pastStartWrites } from '../lib/pastDoses';
 import { tsMs } from '../lib/deleteDose';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -2244,44 +2244,24 @@ export default function ProtocolsScreen() {
         };
         // Shown once the add sheet is gone (screenSheet waits for it). Council 2026-10-27: it must be answered —
         // a backdrop tap or Android back would leave the curve as "Sim" and the vial as "Não".
-        const noBtn = {
-          label: t('protocols_past_no'),
-          kind: 'secondary',
-          onPress: () => {
-            try { updateProtocol(newId, { history_from: todayStr }); } catch { /* best-effort */ }
+        // The three answers (lib/pastDoses pastStartWrites): history_from, the vial, the bottle, then one window.
+        const answer = (kind) => () => {
+          const w = pastStartWrites(kind, ask, { hasVial: !!newVial, recon: protocolData.type === 'recon', today: todayStr });
+          if (w.historyFrom) {
+            try { updateProtocol(newId, { history_from: w.historyFrom }); } catch { /* best-effort */ }
             notifyDataChanged('protocol');
             requestSync();
-            if (newVial && (ask.vialUsed > 0 || ask.vialUnknown)) setTimeout(() => openEditVialRef.current(newId), 400);
-          },
+          }
+          if (w.vialUpdate) { try { updateVial(newVial.id, w.vialUpdate); } catch { /* best-effort */ } }
+          if (w.unitsTaken != null) { try { updateProtocol(newId, { units_taken: w.unitsTaken }); } catch { /* best-effort */ } }
+          if (w.vialUpdate || w.unitsTaken != null) supplyChanged();
+          if (w.openNewVialWindow) setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
+          else if (w.openEditVial) setTimeout(() => openEditVialRef.current(newId), 400);
         };
-        const yesBtn = {
-          label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'),
-          kind: 'primary',
-          onPress: () => {
-            if (newVial && ask.vialUsed > 0) {
-              // Every dose of the vial used = the state the last dose leaves (lib/markTaken, lib/vialEdit):
-              // finished, and the new-vial window opens.
-              try { updateVial(newVial.id, ask.finished ? { doses_taken: ask.vialUsed, active: 0 } : { doses_taken: ask.vialUsed }); } catch { /* best-effort */ }
-              supplyChanged();
-              if (ask.finished && protocolData.type === 'recon') setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
-            } else if (newVial && ask.vialUnknown) {
-              setTimeout(() => openEditVialRef.current(newId), 400); // earlier pens: this pen's count is the person's
-            } else if (ask.unitsUsed > 0) {
-              try { updateProtocol(newId, { units_taken: ask.unitsUsed }); } catch { /* best-effort */ }
-              supplyChanged();
-            }
-          },
-        };
-        // "Quase todas": the curve estimates the period like Sim (history_from untouched — one missed dose never
-        // zeroes it); the vial count is the person's, so "Editar frasco" opens when doses came from it. An oral
-        // bottle and no supply stay as they are. Nothing is written to the Dose log.
-        const almostBtn = {
-          label: t('protocols_past_almost'),
-          kind: 'secondary',
-          onPress: () => {
-            if (newVial && (ask.vialUsed > 0 || ask.vialUnknown)) setTimeout(() => openEditVialRef.current(newId), 400);
-          },
-        };
+        const noBtn = { label: t('protocols_past_no'), kind: 'secondary', onPress: answer('no') };
+        const yesBtn = { label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'), kind: 'primary', onPress: answer('yes') };
+        // "Quase todas" (founder "3 b"): only with more than one dose.
+        const almostBtn = { label: t('protocols_past_almost'), kind: 'secondary', onPress: answer('almost') };
         setScreenSheet({
           title,
           body,
@@ -2783,7 +2763,7 @@ export default function ProtocolsScreen() {
   const archiveZone = endedSection || deletedSection ? (
     <View style={s.archive}>
       <View style={s.archiveHead}>
-        <Text style={s.archiveLabel}>{t('protocols_archive')}</Text>
+        <Text style={s.archiveLabel} accessibilityRole="header">{t('protocols_archive')}</Text>
         <View style={s.archiveRule} />
       </View>
       <View style={s.archiveBlock}>

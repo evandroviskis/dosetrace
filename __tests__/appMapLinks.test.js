@@ -33,13 +33,15 @@ test('L-06: a past start date asks the history question; only "No" writes, and o
   const block = src.slice(i, src.indexOf('requestSync();\n    // Refresh every mounted screen', i));
   // Council 2026-10-27: "Sim" on an oral bottle also moves units_taken (the supply, never a dose row).
   assert.equal(block.split('updateProtocol(').length - 1, 2, 'Não: history_from; Sim: the bottle units');
-  assert.match(block, /updateProtocol\(newId, \{ units_taken: ask\.unitsUsed \}\)/);
+  assert.match(block, /updateProtocol\(newId, \{ units_taken: w\.unitsTaken \}\)/);
   // Founder 2026-10-27 ("Chegamos num acordo"): ONE question for the curve and the vial (lib/pastDoses).
   // "Não" writes only history_from (and opens Editar frasco); "Sim" moves only the new vial's count.
   // Never a dose row.
-  assert.match(block, /label: t\('protocols_past_no'\),\s*kind: 'secondary',\s*onPress: \(\) => \{\s*try \{ updateProtocol\(newId, \{ history_from: todayStr \}\); \}/);
-  assert.match(block, /label: t\(ask\.n === 1 \? 'protocols_past_yes_one' : 'protocols_past_yes'\),\s*kind: 'primary'/);
-  assert.match(block, /updateVial\(newVial\.id, ask\.finished \? \{ doses_taken: ask\.vialUsed, active: 0 \} : \{ doses_taken: ask\.vialUsed \}\)/);
+  // Council delta 3: the answers run lib/pastDoses pastStartWrites (behaviour-tested in pastStartAsk.test.js).
+  assert.match(block, /updateProtocol\(newId, \{ history_from: w\.historyFrom \}\)/);
+  assert.match(block, /label: t\('protocols_past_no'\), kind: 'secondary', onPress: answer\('no'\)/);
+  assert.match(block, /label: t\(ask\.n === 1 \? 'protocols_past_yes_one' : 'protocols_past_yes'\), kind: 'primary', onPress: answer\('yes'\)/);
+  assert.match(block, /updateVial\(newVial\.id, w\.vialUpdate\)/);
   assert.doesNotMatch(block, /insertDoseLog/);
 });
 

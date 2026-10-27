@@ -171,15 +171,18 @@ function Actions({ s, secondary, onSecondary, primary, onPrimary }) {
 // presented from inside the window (M1/M4: iOS shows one modal at a time).
 // The screen clears its protocol as the window starts to fade out: keep the last one shown until the window is
 // gone, so the closing frame never switches to the other vial kind's fields (simulator 2026-10-27).
-function useShownWhileClosing(value) {
+// Only while closing: an open window always shows its live values (a protocol with no old vial never borrows
+// the previous one's).
+function useShownWhileClosing(value, visible) {
   const last = useRef(value);
-  if (value) last.current = value;
-  return value || last.current;
+  if (visible) last.current = value;
+  return visible ? value : last.current;
 }
 
-export default function NewVialPrompt({ visible, mode = 'new', protocol: protocolProp, protocolName: protocolNameProp, oldVial = null, onSecondary, onPrimary, sheet = null, onSheetClose }) {
-  const protocol = useShownWhileClosing(protocolProp);
-  const protocolName = useShownWhileClosing(protocolNameProp);
+export default function NewVialPrompt({ visible, mode = 'new', protocol: protocolProp, protocolName: protocolNameProp, oldVial: oldVialProp = null, onSecondary, onPrimary, sheet = null, onSheetClose }) {
+  const protocol = useShownWhileClosing(protocolProp, !!visible);
+  const protocolName = useShownWhileClosing(protocolNameProp, !!visible);
+  const oldVial = useShownWhileClosing(oldVialProp, !!visible);
   const { colors } = useTheme();
   const { t, language } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -257,8 +260,8 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol: protoco
 // "Edit vial". onCancel closes; onSave({ month, day, validDays, dosesUsed, expMonth, expYear })
 // saves; a refused date comes back as `sheet` ("Date in the future", OK returns here).
 export function EditVialPrompt({ visible, protocol: protocolProp, protocolName: protocolNameProp, vial, onCancel, onSave, sheet = null, onSheetClose }) {
-  const protocol = useShownWhileClosing(protocolProp);
-  const protocolName = useShownWhileClosing(protocolNameProp);
+  const protocol = useShownWhileClosing(protocolProp, !!visible);
+  const protocolName = useShownWhileClosing(protocolNameProp, !!visible);
   const { colors } = useTheme();
   const { t } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
