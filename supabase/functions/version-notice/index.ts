@@ -6,7 +6,8 @@
 //
 // NOT DEPLOYED. Deploy only after the founder's "pode aplicar" for the migration:
 //   supabase functions deploy version-notice --no-verify-jwt
-//   supabase secrets set CRON_SECRET=<the same value as the Vault secret dosetrace_cron_secret>
+//   (the hourly secret is generated in the Vault and checked by version_notice_secret_ok — no
+//   CRON_SECRET needed; it still works when set)
 // --no-verify-jwt because the cron call carries no user JWT; the function itself refuses any call
 // without "Authorization: Bearer <CRON_SECRET or the service-role key>" (as send-reminders does), and
 // claim_version_notice() lets it run at most once per 50 minutes.
@@ -28,14 +29,23 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const cronSecret = Deno.env.get('CRON_SECRET') || '';
   const auth = req.headers.get('Authorization') || '';
-  if (!(auth === `Bearer ${serviceKey}` || (cronSecret && auth === `Bearer ${cronSecret}`))) {
+  // The hourly call's secret lives only in the Vault (generated in the database, migration
+  // 20261027010000_version_notice_cron.sql): checked by a service-role-only RPC, never seen here.
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  let vaultOk = false;
+  if (bearer && bearer !== serviceKey && !(cronSecret && bearer === cronSecret)) {
+    const checker = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey);
+    const { data, error } = await checker.rpc('version_notice_secret_ok', { p_secret: bearer });
+    if (error) console.error('[version-notice] secret check failed:', error.code);
+    vaultOk = data === true;
+  }
+  if (!(auth === `Bearer ${serviceKey}` || (cronSecret && auth === `Bearer ${cronSecret}`) || vaultOk)) {
     // Review round 2, item 6: the hourly call builds its header from the Vault secret; a missing
     // secret sends no usable header and every run would be refused in silence. Said loudly (never
     // the header or a secret).
     const bare = !auth || /^Bearer\s*(null|undefined)?\s*$/i.test(auth);
     if (bare) console.error('[version-notice] refused: no Authorization header — is the Vault secret dosetrace_cron_secret missing? (see the migration header)');
-    else if (!cronSecret) console.error('[version-notice] refused: the function secret CRON_SECRET is not set');
-    else console.error('[version-notice] refused: the Authorization header does not match CRON_SECRET (Vault dosetrace_cron_secret and CRON_SECRET differ?)');
+    else console.error('[version-notice] refused: the Authorization header matches neither the Vault secret dosetrace_cron_secret nor CRON_SECRET');
     return json({ error: 'unauthorized' }, 401);
   }
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, serviceKey);
