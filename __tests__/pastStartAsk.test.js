@@ -99,3 +99,28 @@ test('the sheet must be answered; one dose reads "Sim"; the date shows the year 
   assert.match(block, /openNewVialWindow\(/, 'a finished vial opens the new-vial window');
   assert.match(block, /units_taken: ask\.unitsUsed/);
 });
+
+// Founder 2026-10-27 ("3 b", picture docs/design/protocols-archive-and-almost-all.html section 2): a third
+// answer "Quase todas" — the curve estimates the period like Sim (one missed dose never zeroes it) and
+// "Editar frasco" opens for the real count; nothing written to the vial, the bottle or the Dose log.
+test('"Quase todas": only with more than one dose; curve like Sim; Editar frasco for the real count', () => {
+  const WANT = { en: 'Almost all', es: 'Casi todas', pt: 'Quase todas', fr: 'Presque toutes', de: 'Fast alle', it: 'Quasi tutte' };
+  for (const [l, v] of Object.entries(WANT)) {
+    assert.equal(translations[l].protocols_past_almost, v, l);
+    for (const k of ['protocols_past_body_many', 'protocols_past_body_vial_many', 'protocols_past_body_vial_unknown_many', 'protocols_past_body_bottle_many']) {
+      assert.equal(typeof translations[l][k], 'string', `${l}.${k}`);
+    }
+    assert.match(translations[l].protocols_past_body_bottle_many, /\{u\}/, l);
+  }
+  assert.equal(translations.pt.protocols_past_body_vial_many, 'Todas ou quase todas: a curva estima esse período. Se quase todas, você informa em seguida quantas doses do frasco usou. Se não, a curva começa hoje.');
+  const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
+  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('return true; // saved'));
+  assert.match(block, /const many = ask\.n > 1;/);
+  assert.match(block, /many \? '_many' : ''/);
+  const almost = block.slice(block.indexOf("label: t('protocols_past_almost')"));
+  assert.ok(block.includes("label: t('protocols_past_almost')"));
+  const onPress = almost.slice(0, almost.indexOf('setScreenSheet('));
+  assert.match(onPress, /openEditVialRef\.current\(newId\)/);
+  assert.doesNotMatch(onPress, /history_from|updateVial|units_taken|insertDoseLog/);
+  assert.match(block, /buttons: many \? \[yesBtn, almostBtn, noBtn\] : \[noBtn, yesBtn\]/);
+});

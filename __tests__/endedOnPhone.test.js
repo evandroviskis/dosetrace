@@ -10,10 +10,11 @@ const path = require('node:path');
 
 test('the phone list renders the Ended section before Recently deleted', () => {
   const s = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
-  const phone = s.slice(s.indexOf("{view === 'list' && protocols.length > 0 && listCards}"));
-  const ended = phone.indexOf("&& endedSection}");
-  const deleted = phone.indexOf("&& deletedSection}");
+  // Founder 2026-10-27 ("B aprovado"): both live in the archive zone, Ended first.
+  const zone = s.slice(s.indexOf('const archiveZone ='));
+  const ended = zone.indexOf('{endedSection}');
+  const deleted = zone.indexOf('{deletedSection}');
   assert.ok(ended > 0, 'phone: Ended section rendered');
   assert.ok(ended < deleted, 'above Recently deleted');
-  assert.match(s, /\{\(view === 'list' \|\| \(view === 'heroes' && protocols\.length === 0\)\) && endedSection\}/);
+  assert.match(s, /\{\(view === 'list' \|\| \(view === 'heroes' && protocols\.length === 0\)\) && archiveZone\}/);
 });

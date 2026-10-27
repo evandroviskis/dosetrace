@@ -143,7 +143,7 @@ const RENDER_SITES = {
   'screens/ProtocolsScreen.js': [
     'backgroundColor: displayColor(p.color) || c.data',           // list card dot
     's.ptitleDot, { backgroundColor: displayColor(p.color) || c.data }', // detail title dot
-    'backgroundColor: displayColor(p.color) || colors.ink3',      // recently deleted
+    'borderColor: displayColor(p.color) || colors.ink3',          // recently deleted (archive ring, 2026-10-27)
     's.heroDot, { backgroundColor: displayColor(p.color) || colors.data }', // hero
   ],
   'screens/TodayScreen.js': [

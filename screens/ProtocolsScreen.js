@@ -2222,16 +2222,19 @@ export default function ProtocolsScreen() {
         // Council 2026-10-27: the date carries its year when it is another year; one dose reads "Sim".
         const title = t(pluralKey('protocols_past_title', ask.n, language))
           .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonthAuto')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
-        let body = t('protocols_past_body');
-        if (ask.vialUnknown) body = t('protocols_past_body_vial_unknown');
-        else if (ask.vialUsed > 0) body = t('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total));
+        // Founder 2026-10-27 ("3 b"): with more than one dose a third answer, "Quase todas" — the texts name it.
+        const many = ask.n > 1;
+        const bk = (k) => t(`${k}${many ? '_many' : ''}`);
+        let body = bk('protocols_past_body');
+        if (ask.vialUnknown) body = bk('protocols_past_body_vial_unknown');
+        else if (ask.vialUsed > 0) body = bk('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total));
         else if (ask.unitsUsed > 0) {
           const sv = computeServings({
             targetDose: protocolData.dose, doseUnit: protocolData.dose_unit, servingStrength: protocolData.serving_strength,
             servingStrengthUnit: protocolData.serving_strength_unit, servingUnits: protocolData.serving_units, form: protocolData.notes,
           });
           const word = sv && sv.unitKey ? `\u00A0${t(pluralKey(sv.unitKey, ask.unitsUsed, language))}` : '';
-          body = t('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
+          body = bk('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
         }
         const supplyChanged = () => {
           notifyDataChanged('protocol');
@@ -2241,40 +2244,49 @@ export default function ProtocolsScreen() {
         };
         // Shown once the add sheet is gone (screenSheet waits for it). Council 2026-10-27: it must be answered —
         // a backdrop tap or Android back would leave the curve as "Sim" and the vial as "Não".
+        const noBtn = {
+          label: t('protocols_past_no'),
+          kind: 'secondary',
+          onPress: () => {
+            try { updateProtocol(newId, { history_from: todayStr }); } catch { /* best-effort */ }
+            notifyDataChanged('protocol');
+            requestSync();
+            if (newVial && (ask.vialUsed > 0 || ask.vialUnknown)) setTimeout(() => openEditVialRef.current(newId), 400);
+          },
+        };
+        const yesBtn = {
+          label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'),
+          kind: 'primary',
+          onPress: () => {
+            if (newVial && ask.vialUsed > 0) {
+              // Every dose of the vial used = the state the last dose leaves (lib/markTaken, lib/vialEdit):
+              // finished, and the new-vial window opens.
+              try { updateVial(newVial.id, ask.finished ? { doses_taken: ask.vialUsed, active: 0 } : { doses_taken: ask.vialUsed }); } catch { /* best-effort */ }
+              supplyChanged();
+              if (ask.finished && protocolData.type === 'recon') setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
+            } else if (newVial && ask.vialUnknown) {
+              setTimeout(() => openEditVialRef.current(newId), 400); // earlier pens: this pen's count is the person's
+            } else if (ask.unitsUsed > 0) {
+              try { updateProtocol(newId, { units_taken: ask.unitsUsed }); } catch { /* best-effort */ }
+              supplyChanged();
+            }
+          },
+        };
+        // "Quase todas": the curve estimates the period like Sim (history_from untouched — one missed dose never
+        // zeroes it); the vial count is the person's, so "Editar frasco" opens when doses came from it. An oral
+        // bottle and no supply stay as they are. Nothing is written to the Dose log.
+        const almostBtn = {
+          label: t('protocols_past_almost'),
+          kind: 'secondary',
+          onPress: () => {
+            if (newVial && (ask.vialUsed > 0 || ask.vialUnknown)) setTimeout(() => openEditVialRef.current(newId), 400);
+          },
+        };
         setScreenSheet({
           title,
           body,
           locked: true,
-          buttons: [
-            {
-              label: t('protocols_past_no'),
-              kind: 'secondary',
-              onPress: () => {
-                try { updateProtocol(newId, { history_from: todayStr }); } catch { /* best-effort */ }
-                notifyDataChanged('protocol');
-                requestSync();
-                if (newVial && (ask.vialUsed > 0 || ask.vialUnknown)) setTimeout(() => openEditVialRef.current(newId), 400);
-              },
-            },
-            {
-              label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'),
-              kind: 'primary',
-              onPress: () => {
-                if (newVial && ask.vialUsed > 0) {
-                  // Every dose of the vial used = the state the last dose leaves (lib/markTaken, lib/vialEdit):
-                  // finished, and the new-vial window opens.
-                  try { updateVial(newVial.id, ask.finished ? { doses_taken: ask.vialUsed, active: 0 } : { doses_taken: ask.vialUsed }); } catch { /* best-effort */ }
-                  supplyChanged();
-                  if (ask.finished && protocolData.type === 'recon') setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
-                } else if (newVial && ask.vialUnknown) {
-                  setTimeout(() => openEditVialRef.current(newId), 400); // earlier pens: this pen's count is the person's
-                } else if (ask.unitsUsed > 0) {
-                  try { updateProtocol(newId, { units_taken: ask.unitsUsed }); } catch { /* best-effort */ }
-                  supplyChanged();
-                }
-              },
-            },
-          ],
+          buttons: many ? [yesBtn, almostBtn, noBtn] : [noBtn, yesBtn],
         });
       }
     }
@@ -2650,14 +2662,14 @@ export default function ProtocolsScreen() {
   // Its doses stay in the Dose log and the reports; nothing here deletes.
   const endedSection = endedProtocols.length > 0 ? (
     <CollapsibleSection
-      style={s.blk}
+      muted
       title={t('protocols_ended_title')}
       summary={t(pluralKey('protocols_count_n', endedProtocols.length, language)).replace('{n}', String(endedProtocols.length))}
     >
       <View style={s.delListIn}>
         {endedProtocols.map((p, idx) => (
           <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
-            <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
+            <View style={[s.delRing, { borderColor: displayColor(p.color) || colors.ink3 }]} />
             <View style={s.delText}>
               <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
               <Text style={s.delAgo}>{t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}</Text>
@@ -2692,7 +2704,8 @@ export default function ProtocolsScreen() {
   // header offers Select all / Deselect all and Cancel, and the bottom bar replaces the tab bar.
   const deletedSection = deletedProtocols.length > 0 ? (
     <CollapsibleSection
-      style={s.blk}
+      muted
+      style={endedProtocols.length > 0 ? s.archiveSplit : null}
       title={t('protocols_recently_deleted')}
       summary={t(pluralKey('protocols_count_n', deletedProtocols.length, language)).replace('{n}', String(deletedProtocols.length))}
       onToggle={(open) => { if (!open) setTrashSel(null); }}
@@ -2731,7 +2744,7 @@ export default function ProtocolsScreen() {
                 accessibilityLabel={protocolName(p)}
               >
                 <View style={[s.delCheck, on && s.delCheckOn]}>{on ? <CheckMark size={16} color={colors.onInk} /> : null}</View>
-                <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
+                <View style={[s.delRing, { borderColor: displayColor(p.color) || colors.ink3 }]} />
                 <View style={s.delText}>
                   <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
                   <Text style={s.delAgo}>{deletedAgo(p)}</Text>
@@ -2741,7 +2754,7 @@ export default function ProtocolsScreen() {
           }
           return (
             <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
-              <View style={[s.delDot, { backgroundColor: displayColor(p.color) || colors.ink3 }]} />
+              <View style={[s.delRing, { borderColor: displayColor(p.color) || colors.ink3 }]} />
               <View style={s.delText}>
                 <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
                 <Text style={s.delAgo}>{deletedAgo(p)}</Text>
@@ -2763,6 +2776,21 @@ export default function ProtocolsScreen() {
         })}
       </View>
     </CollapsibleSection>
+  ) : null;
+  // Founder 2026-10-27 ("B aprovado", docs/design/protocols-archive-and-almost-all.html): Ended and Recently
+  // deleted read as an archive, not one more protocol — 40 pt below the list, an ARQUIVO label on a hairline,
+  // both in one sunk block (well + line border, no raised white). With no active protocol it sits at the foot.
+  const archiveZone = endedSection || deletedSection ? (
+    <View style={s.archive}>
+      <View style={s.archiveHead}>
+        <Text style={s.archiveLabel}>{t('protocols_archive')}</Text>
+        <View style={s.archiveRule} />
+      </View>
+      <View style={s.archiveBlock}>
+        {endedSection}
+        {deletedSection}
+      </View>
+    </View>
   ) : null;
   // The selection's bottom bar (in place of the tab bar): Restore (N) and risk Delete forever (N),
   // both off with nothing chosen.
@@ -2847,8 +2875,8 @@ export default function ProtocolsScreen() {
                 {protocols.length === 0 && !loading && emptyState}
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
-                {endedSection}
-                {deletedSection}
+                {protocols.length === 0 && !loading && <View style={s.archivePush} />}
+                {archiveZone}
                 <View style={s.bottomPad} />
               </ScrollView>
             </>
@@ -2966,10 +2994,10 @@ export default function ProtocolsScreen() {
 
         {view === 'list' && protocols.length > 0 && listCards}
 
-        {/* At the bottom of the list; with no protocol left it sits under the empty state,
-            so the last deleted protocol can still be restored. */}
-        {(view === 'list' || (view === 'heroes' && protocols.length === 0)) && endedSection}
-        {(view === 'list' || (view === 'heroes' && protocols.length === 0)) && deletedSection}
+        {/* At the bottom of the list; with no protocol left it sits at the foot of the screen, under
+            the empty state, so the last deleted protocol can still be restored. */}
+        {(view === 'list' || view === 'heroes') && protocols.length === 0 && !loading && <View style={s.archivePush} />}
+        {(view === 'list' || (view === 'heroes' && protocols.length === 0)) && archiveZone}
 
         {view === 'detail' && renderDetail(openProtocol, false)}
 
@@ -3835,7 +3863,7 @@ const makeStyles = (c) => StyleSheet.create(protocolsGraduated(c));
 // 2026-09-29): ground screen, raised cards (radius 20–26, no border / shadow / tint),
 // ink text in three steps, data blue only for the draw, outline tags, one ink action.
 const protocolsGraduated = (c) => ({
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', flexGrow: 1 }, // flexGrow: the archive's foot spacer
   container: { flex: 1, backgroundColor: c.ground },
   // My Protocols title row (prototype .scr top 6 + .hrow top 8; 14 to the first card)
   header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: c.ground, gap: 12 },
@@ -3896,9 +3924,16 @@ const protocolsGraduated = (c) => ({
   delListIn: { paddingHorizontal: 16 },
   delRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
   delRowLine: { borderTopWidth: 1, borderTopColor: c.line },
-  delDot: { width: 10, height: 10, borderRadius: 5 },
+  delRing: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, backgroundColor: 'transparent' }, // archive: a hollow color ring
+  archive: { marginTop: 40, marginBottom: 26, gap: 10 },
+  archiveHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
+  archiveLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: c.ink3 },
+  archiveRule: { flex: 1, height: 1, backgroundColor: c.line },
+  archiveBlock: { backgroundColor: c.well, borderWidth: 1, borderColor: c.line, borderRadius: 22, overflow: 'hidden' },
+  archiveSplit: { borderTopWidth: 1, borderTopColor: c.line },
+  archivePush: { flexGrow: 1, minHeight: 24 },
   delText: { flex: 1, gap: 2 },
-  delName: { fontSize: 17, color: c.ink },
+  delName: { fontSize: 17, color: c.ink2 },
   delAgo: { fontSize: 13, color: c.ink2 },
   restoreBtn: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: c.line },
   restoreBtnText: { fontSize: 13, fontWeight: '500', color: c.ink2 },

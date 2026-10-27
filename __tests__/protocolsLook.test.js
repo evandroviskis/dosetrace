@@ -94,9 +94,9 @@ test('part 3: card — 10 pt dot, drawn arrow; Low stays amber, days coloured (Q
   assert.match(SCREEN, /color: daysTone\(vialDaysLeft, c\)/);
 });
 
-test('part 4: Recently deleted — 1 pt lines, 10 pt dots', () => {
+test('part 4: Recently deleted — 1 pt lines, 10 pt rings (archive B, 2026-10-27)', () => {
   assert.match(style(SCREEN, 'delRowLine'), /borderTopWidth: 1,/);
-  assert.match(style(SCREEN, 'delDot'), /width: 10, height: 10/);
+  assert.match(style(SCREEN, 'delRing'), /width: 10, height: 10/);
 });
 
 test('part 5 / 11 / 12: the protocol screen rhythm (14 between, 26 block after block), 1 pt lines, 17 pt values', () => {

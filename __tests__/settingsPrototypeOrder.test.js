@@ -194,7 +194,7 @@ test('Protocols list: a "Recently deleted" section at the bottom, only when some
   inOrder(sec, [
     "{t('protocols_recently_deleted')}",
     'deletedProtocols.map(',
-    'backgroundColor: displayColor(p.color) || colors.ink3',
+    'borderColor: displayColor(p.color) || colors.ink3',
     'protocolName(p)',
     'deletedAgo(p)', // t('protocols_deleted_ago') (multi-select 2026-10-03: shared by both row kinds)
     'onPress={() => restoreProtocol(p.id)}',
@@ -205,12 +205,12 @@ test('Protocols list: a "Recently deleted" section at the bottom, only when some
   ], 'Recently deleted row');
   // Phone: after the cards in the list (and under the empty state when no protocol is left).
   const phone = PRO.slice(PRO.indexOf('{view === \'list\' && protocols.length > 0 && listCards}'));
-  assert.ok(phone.indexOf('deletedSection') > 0 && phone.indexOf('deletedSection') < phone.indexOf("{view === 'detail' && renderDetail(openProtocol, false)}"),
+  assert.ok(phone.indexOf('archiveZone') > 0 && phone.indexOf('archiveZone') < phone.indexOf("{view === 'detail' && renderDetail(openProtocol, false)}"),
     'phone: Recently deleted right after the list cards');
-  assert.match(PRO, /\{\(view === 'list' \|\| \(view === 'heroes' && protocols\.length === 0\)\) && deletedSection\}/);
+  assert.match(PRO, /\{\(view === 'list' \|\| \(view === 'heroes' && protocols\.length === 0\)\) && archiveZone\}/); // archive B 2026-10-27
   // Book: the left page ends with it.
   const left = region(PRO, 'left={', 'right={');
-  inOrder(left, ['{protocols.length > 0 && listCards}', '{deletedSection}'], 'book left page');
+  inOrder(left, ['{protocols.length > 0 && listCards}', '{archiveZone}'], 'book left page');
   // Loaded with the list (focus, after a delete, after a restore).
   assert.match(innerFn('fetchProtocols'), /fetchDeletedProtocols\(\)/);
   assert.match(innerFn('fetchDeletedProtocols'), /setDeletedProtocols\(getDeletedProtocols\(u\.id\) \|\| \[\]\)/);
