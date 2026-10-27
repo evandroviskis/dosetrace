@@ -169,7 +169,17 @@ function Actions({ s, secondary, onSecondary, primary, onPrimary }) {
 
 // onSecondary closes; onPrimary({ month, day, expMonth, expYear }) saves. `sheet` = an error
 // presented from inside the window (M1/M4: iOS shows one modal at a time).
-export default function NewVialPrompt({ visible, mode = 'new', protocol, protocolName, oldVial = null, onSecondary, onPrimary, sheet = null, onSheetClose }) {
+// The screen clears its protocol as the window starts to fade out: keep the last one shown until the window is
+// gone, so the closing frame never switches to the other vial kind's fields (simulator 2026-10-27).
+function useShownWhileClosing(value) {
+  const last = useRef(value);
+  if (value) last.current = value;
+  return value || last.current;
+}
+
+export default function NewVialPrompt({ visible, mode = 'new', protocol: protocolProp, protocolName: protocolNameProp, oldVial = null, onSecondary, onPrimary, sheet = null, onSheetClose }) {
+  const protocol = useShownWhileClosing(protocolProp);
+  const protocolName = useShownWhileClosing(protocolNameProp);
   const { colors } = useTheme();
   const { t, language } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -246,7 +256,9 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol, protoco
 
 // "Edit vial". onCancel closes; onSave({ month, day, validDays, dosesUsed, expMonth, expYear })
 // saves; a refused date comes back as `sheet` ("Date in the future", OK returns here).
-export function EditVialPrompt({ visible, protocol, protocolName, vial, onCancel, onSave, sheet = null, onSheetClose }) {
+export function EditVialPrompt({ visible, protocol: protocolProp, protocolName: protocolNameProp, vial, onCancel, onSave, sheet = null, onSheetClose }) {
+  const protocol = useShownWhileClosing(protocolProp);
+  const protocolName = useShownWhileClosing(protocolNameProp);
   const { colors } = useTheme();
   const { t } = useLanguage();
   const s = useMemo(() => makeStyles(colors), [colors]);
