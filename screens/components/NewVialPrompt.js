@@ -14,7 +14,7 @@
 // protocol's validity in days and the doses already used; a ready-to-use vial's box month/year
 // and the doses already used. Opens with the current values.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Platform, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Platform, StyleSheet, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback } from 'react-native';
 import Modal from '../../components/PresenceModal';
 import { useTheme } from '../../lib/theme';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -36,11 +36,25 @@ const MONTH_KEYS = [
 ];
 
 // The body (build 54): on Android a ScrollView, so the card, capped above the keyboard by
-// useSheetKeyboard, scrolls its day field into view while its actions stay under it; on iPhone a
-// plain View, exactly as before. Platform is fixed, so the type never switches.
+// useSheetKeyboard, scrolls its day field into view while its actions stay under it. On iPhone
+// (council 2026-10-26): the number pad has no Return key, so a tap anywhere on the card closes it.
+// Platform is fixed, so the type never switches.
 function PromptBody({ style, scrollProps, children }) {
-  if (Platform.OS !== 'android') return <View style={style}>{children}</View>;
+  if (Platform.OS !== 'android') {
+    return (
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={style}>{children}</View>
+      </TouchableWithoutFeedback>
+    );
+  }
   return <ScrollView {...scrollProps} contentContainerStyle={style} keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={false}>{children}</ScrollView>;
+}
+
+// iPhone (council 2026-10-26): the window rises above the keyboard so Cancel / Save stay reachable;
+// Android lifts it with useSheetKeyboard instead.
+function KeyboardFrame({ children }) {
+  if (Platform.OS === 'ios') return <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>{children}</KeyboardAvoidingView>;
+  return children;
 }
 
 // The mix date: Yesterday / Today, the month, the day (Today's vial window).
@@ -195,33 +209,35 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol, protoco
 
   return (
     <Modal visible={!!visible} transparent animationType="fade">
-      <View style={vialKb.lift ? [s.promptOverlay, { paddingBottom: vialKb.lift.bottom }] : s.promptOverlay} onLayout={vialKb.onLayout}>
-        <View style={[s.promptCard, vialKb.sheetStyle]}>
-          <PromptBody style={s.promptBody} scrollProps={vialKb.scrollProps}>
-            <Text style={s.promptTitle} accessibilityRole="header">{t(keys.title)}</Text>
-            {protocolName ? <Text style={s.promptProtocolName}>{protocolName}</Text> : null}
-            <Text style={s.promptSub}>{t(keys.sub)}{noteText ? `\n${noteText}` : ''}</Text>
+      <KeyboardFrame>
+  <View style={vialKb.lift ? [s.promptOverlay, { paddingBottom: vialKb.lift.bottom }] : s.promptOverlay} onLayout={vialKb.onLayout}>
+          <View style={[s.promptCard, vialKb.sheetStyle]}>
+            <PromptBody style={s.promptBody} scrollProps={vialKb.scrollProps}>
+              <Text style={s.promptTitle} accessibilityRole="header">{t(keys.title)}</Text>
+              {protocolName ? <Text style={s.promptProtocolName}>{protocolName}</Text> : null}
+              <Text style={s.promptSub}>{t(keys.sub)}{noteText ? `\n${noteText}` : ''}</Text>
 
-            {rtu ? (
-              <BoxExpiryField s={s} t={t} expMonth={expMonth} expYear={expYear} setExpMonth={setExpMonth} setExpYear={setExpYear} />
-            ) : (
-              <MixDateField s={s} t={t} colors={colors} month={newVialMonth} day={newVialDay} setMonth={setNewVialMonth} setDay={setNewVialDay} />
-            )}
+              {rtu ? (
+                <BoxExpiryField s={s} t={t} expMonth={expMonth} expYear={expYear} setExpMonth={setExpMonth} setExpYear={setExpYear} />
+              ) : (
+                <MixDateField s={s} t={t} colors={colors} month={newVialMonth} day={newVialDay} setMonth={setNewVialMonth} setDay={setNewVialDay} />
+              )}
 
-            {cap ? (
-              <Text style={s.promptLabel}>
-                {t(pluralKey('today_vial_new_capacity', cap, language)).replace('{n}', String(cap))}
-              </Text>
-            ) : null}
-          </PromptBody>
+              {cap ? (
+                <Text style={s.promptLabel}>
+                  {t(pluralKey('today_vial_new_capacity', cap, language)).replace('{n}', String(cap))}
+                </Text>
+              ) : null}
+            </PromptBody>
 
-          <Actions
-            s={s}
-            secondary={t(keys.secondary)} onSecondary={onSecondary}
-            primary={t(keys.primary)} onPrimary={() => { if (!latch.take()) return; onPrimary({ month: newVialMonth, day: newVialDay, expMonth, expYear }); }}
-          />
+            <Actions
+              s={s}
+              secondary={t(keys.secondary)} onSecondary={onSecondary}
+              primary={t(keys.primary)} onPrimary={() => { if (!latch.take()) return; onPrimary({ month: newVialMonth, day: newVialDay, expMonth, expYear }); }}
+            />
+          </View>
         </View>
-      </View>
+      </KeyboardFrame>
       {/* Errors from the window are presented from inside it (M1/M4). */}
       <DTSheet config={sheet} onClose={onSheetClose} />
     </Modal>
@@ -257,56 +273,58 @@ export function EditVialPrompt({ visible, protocol, protocolName, vial, onCancel
   const recon = protocol && protocol.type === 'recon';
   return (
     <Modal visible={!!visible} transparent animationType="fade">
-      <View style={kb.lift ? [s.promptOverlay, { paddingBottom: kb.lift.bottom }] : s.promptOverlay} onLayout={kb.onLayout}>
-        <View style={[s.promptCard, kb.sheetStyle]}>
-          <PromptBody style={s.promptBody} scrollProps={kb.scrollProps}>
-            <Text style={s.promptTitle} accessibilityRole="header">{t('vial_edit_title')}</Text>
-            {protocolName ? <Text style={s.promptProtocolName}>{protocolName}</Text> : null}
-            <Text style={s.promptSub}>{t('vial_edit_body')}</Text>
+      <KeyboardFrame>
+  <View style={kb.lift ? [s.promptOverlay, { paddingBottom: kb.lift.bottom }] : s.promptOverlay} onLayout={kb.onLayout}>
+          <View style={[s.promptCard, kb.sheetStyle]}>
+            <PromptBody style={s.promptBody} scrollProps={kb.scrollProps}>
+              <Text style={s.promptTitle} accessibilityRole="header">{t('vial_edit_title')}</Text>
+              {protocolName ? <Text style={s.promptProtocolName}>{protocolName}</Text> : null}
+              <Text style={s.promptSub}>{t('vial_edit_body')}</Text>
 
-            {recon ? (
-              <>
-                <MixDateField s={s} t={t} colors={colors} month={month} day={day} setMonth={setMonth} setDay={setDay} />
-                <Text style={s.promptLabel}>{t('protocols_vial_valid')}</Text>
-                <TextInput
-                  style={s.promptDayInput}
-                  placeholder={String(DEFAULT_VALID_DAYS)}
-                  placeholderTextColor={colors.ink3}
-                  keyboardType="numeric"
-                  maxLength={3}
-                  value={validDays}
-                  onChangeText={(val) => { if (acceptValidDaysText(val)) setValidDays(val); }}
-                />
-                <Text style={s.promptHint}>{t('protocols_vial_valid_hint')} {t('vial_edit_valid_next')}</Text>
-              </>
-            ) : (
-              <BoxExpiryField s={s} t={t} expMonth={expMonth} expYear={expYear} setExpMonth={setExpMonth} setExpYear={setExpYear} />
-            )}
-
-            {capacity != null && (
-              <>
-                <Text style={s.promptLabel}>{t('vial_edit_used')}</Text>
-                <View style={s.inRow}>
+              {recon ? (
+                <>
+                  <MixDateField s={s} t={t} colors={colors} month={month} day={day} setMonth={setMonth} setDay={setDay} />
+                  <Text style={s.promptLabel}>{t('protocols_vial_valid')}</Text>
                   <TextInput
                     style={s.promptDayInput}
+                    placeholder={String(DEFAULT_VALID_DAYS)}
+                    placeholderTextColor={colors.ink3}
                     keyboardType="numeric"
-                    maxLength={String(capacity).length}
-                    value={dosesUsed}
-                    onChangeText={(val) => { if (acceptDosesUsedText(val, capacity)) setDosesUsed(val); }}
+                    maxLength={3}
+                    value={validDays}
+                    onChangeText={(val) => { if (acceptValidDaysText(val)) setValidDays(val); }}
                   />
-                  <Text style={s.ofTotal}>{t('vial_edit_of').replace('{total}', String(capacity))}</Text>
-                </View>
-              </>
-            )}
-          </PromptBody>
+                  <Text style={s.promptHint}>{t('protocols_vial_valid_hint')} {t('vial_edit_valid_next')}</Text>
+                </>
+              ) : (
+                <BoxExpiryField s={s} t={t} expMonth={expMonth} expYear={expYear} setExpMonth={setExpMonth} setExpYear={setExpYear} />
+              )}
 
-          <Actions
-            s={s}
-            secondary={t('cancel')} onSecondary={onCancel}
-            primary={t('save')} onPrimary={() => { if (!latch.take()) return; onSave({ month, day, validDays, dosesUsed, expMonth, expYear }); }}
-          />
+              {capacity != null && (
+                <>
+                  <Text style={s.promptLabel}>{t('vial_edit_used')}</Text>
+                  <View style={s.inRow}>
+                    <TextInput
+                      style={s.promptDayInput}
+                      keyboardType="numeric"
+                      maxLength={String(capacity).length}
+                      value={dosesUsed}
+                      onChangeText={(val) => { if (acceptDosesUsedText(val, capacity)) setDosesUsed(val); }}
+                    />
+                    <Text style={s.ofTotal}>{t('vial_edit_of').replace('{total}', String(capacity))}</Text>
+                  </View>
+                </>
+              )}
+            </PromptBody>
+
+            <Actions
+              s={s}
+              secondary={t('cancel')} onSecondary={onCancel}
+              primary={t('save')} onPrimary={() => { if (!latch.take()) return; onSave({ month, day, validDays, dosesUsed, expMonth, expYear }); }}
+            />
+          </View>
         </View>
-      </View>
+      </KeyboardFrame>
       <DTSheet config={sheet} onClose={onSheetClose} />
     </Modal>
   );

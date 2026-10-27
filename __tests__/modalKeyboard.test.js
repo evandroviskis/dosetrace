@@ -148,7 +148,7 @@ test('modal keyboard guard: every Modal holding a text field keeps it above the 
 });
 
 // ── Today: the vial prompt ─────────────────────────────────────────────────────────────────
-test('modal keyboard: Today\'s vial prompt sits above the Android keyboard; iPhone unchanged', () => {
+test('modal keyboard: Today\'s vial prompt sits above the Android keyboard; iPhone: above the keyboard too (council 2026-10-26)', () => {
   // A-132: the window moved to screens/components/NewVialPrompt.js (Today + the protocol page).
   assert.match(read('screens/TodayScreen.js'), /<NewVialPrompt\s+visible=\{showVialPrompt\}/);
   const src = read('screens/components/NewVialPrompt.js');
@@ -162,7 +162,7 @@ test('modal keyboard: Today\'s vial prompt sits above the Android keyboard; iPho
   assert.match(src.slice(src.indexOf('function MixDateField('), src.indexOf('function BoxExpiryField(')), /<TextInput/);
   assert.match(src.slice(src.indexOf('function Actions('), src.indexOf('function Actions(') + 300), /<View style=\{s\.promptActions\}>/);
   const pb = src.slice(src.indexOf('function PromptBody('));
-  assert.match(pb, /if \(Platform\.OS !== 'android'\) return <View style=\{style\}>\{children\}<\/View>;/, 'iPhone: a plain View, as before');
+  assert.match(pb, /if \(Platform\.OS !== 'android'\) \{[\s\S]*?<TouchableWithoutFeedback onPress=\{Keyboard\.dismiss\}[\s\S]*?<View style=\{style\}>\{children\}<\/View>/, 'iPhone: a View that closes the number pad on a tap (__tests__/vialWindowIosKeyboard.test.js)');
   assert.match(pb, /<ScrollView \{\.\.\.scrollProps\} contentContainerStyle=\{style\} keyboardShouldPersistTaps="handled"/);
   assert.match(src, /promptBody: \{ gap: 14 \}/, 'the card\'s gap carries into its body');
 });
