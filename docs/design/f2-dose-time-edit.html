@@ -1,0 +1,103 @@
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><title>F2 + AD-95</title>
+<style>
+.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--data:#2350D8;--act:#111315;--onAct:#FFFFFF;--risk:#9E1F19;--overlay:rgba(0,0,0,.45)}
+.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--data:#8AA8FF;--act:#EEEFEB;--onAct:#121416;--risk:#F08A80;--overlay:rgba(0,0,0,.6)}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,Arial,sans-serif;background:#f4f4f2;color:#111}
+h1{font-size:22px;margin:18px 20px 4px}p.lead{margin:0 20px 14px;color:#444;font-size:14px;max-width:1100px}
+.band{padding:16px 20px 22px}.band h2{font-size:15px;margin:0 0 10px;color:#333}.dark.band{background:#0b0c0d}.dark.band h2{color:#ddd}.light.band{background:#f4f4f2}
+.row{display:flex;gap:18px;flex-wrap:wrap}
+.col{width:300px}.cap{font-size:13px;font-weight:700;margin:0 0 6px;color:#333}.dark .cap{color:#ddd}.cap small{font-weight:400;display:block;color:#666}.dark .cap small{color:#aaa}
+.phone{width:300px;height:560px;border-radius:30px;background:var(--ground);position:relative;overflow:hidden;border:1px solid #0003}
+.scrim{position:absolute;inset:0;background:var(--overlay)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--raised);border-radius:22px 22px 0 0;padding:18px 18px 26px;display:flex;flex-direction:column;gap:12px}
+.head{display:flex;justify-content:space-between;align-items:center}.title{font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px}.done{font-size:16px;font-weight:600;color:var(--ink)}
+.kv{display:flex;justify-content:space-between;min-height:42px;align-items:center;border-bottom:1px solid var(--line);font-size:14px}.kv .k{color:var(--ink2)}.kv .v{color:var(--ink);font-weight:500}.kv.new{background:linear-gradient(90deg,#f5c84233,transparent)}
+.btn{display:flex;justify-content:space-between;align-items:center;min-height:46px;border-radius:14px;background:var(--well);padding:0 14px;color:var(--ink);font-size:15px}.btn.new{outline:2px dashed #e0a800;outline-offset:2px}
+.chev{color:var(--ink3)}.danger{text-align:center;color:var(--risk);font-weight:600;font-size:16px;padding:12px 0}
+.pick{display:flex;gap:8px}.wheel{flex:1;background:var(--well);border-radius:12px;padding:6px 0;text-align:center;font-size:15px;color:var(--ink3);line-height:30px}.wheel b{display:block;color:var(--ink);background:var(--raised);margin:0 6px;border-radius:8px;font-weight:600}
+.hint{font-size:13px;color:var(--ink2);line-height:1.35}
+.actions{display:flex;gap:10px}.a{flex:1;min-height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px}.a.sec{background:var(--well);color:var(--ink)}.a.pri{background:var(--act);color:var(--onAct)}
+.curve{position:absolute;inset:0;padding:22px 18px;background:var(--ground);display:flex;flex-direction:column;gap:12px}
+.card{background:var(--raised);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.foot{font-size:12.5px;color:var(--ink2);line-height:1.4}.strike{text-decoration:line-through;opacity:.55}.tag{font-size:11px;font-weight:700;color:var(--data);text-transform:uppercase;letter-spacing:.6px}
+.svg{height:120px;border-radius:10px;background:var(--well)}
+</style></head><body>
+<h1>F2 (alterar o horário de uma dose) + AD-95 (a dose de cada aplicação)</h1>
+<p class="lead">Aprovado 2026-10-26: Alterar horário e as notas da curva. Novo (pedido "altero essa dose para 180 mg"): o botão e a janela Alterar dose (colunas 2 e 4), só desta aplicação. Tracejado amarelo = o que muda.</p>
+<div class="light band"><h2>Tema claro</h2><div class="row">
+<div class="col"><p class="cap">1. App hoje<small>folha de uma dose concluída</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Testosterone Cypionate</span><span class="done">OK</span></div>
+<div><div class="kv"><span class="k">Status</span><span class="v">Dose concluída</span></div>
+
+<div class="kv"><span class="k">Quando</span><span class="v">Ontem, 08:00</span></div>
+<div class="kv"><span class="k">Local</span><span class="v">Glúteo esquerdo</span></div></div>
+<div class="btn"><span>Trocar local</span><span class="chev">›</span></div>
+
+<div class="danger">Excluir esta dose</div></div></div></div>
+<div class="col"><p class="cap">2. Proposta<small>dose da aplicação + Alterar horário + Alterar dose</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Testosterone Cypionate</span><span class="done">OK</span></div>
+<div><div class="kv"><span class="k">Status</span><span class="v">Dose concluída</span></div>
+<div class="kv new"><span class="k">Dose</span><span class="v">200 mg</span></div>
+<div class="kv"><span class="k">Quando</span><span class="v">Ontem, 08:00</span></div>
+<div class="kv"><span class="k">Local</span><span class="v">Glúteo esquerdo</span></div></div>
+<div class="btn"><span>Trocar local</span><span class="chev">›</span></div>
+<div class="btn new"><span>Alterar horário</span><span class="chev">›</span></div><div class="btn new"><span>Alterar dose</span><span class="chev">›</span></div>
+<div class="danger">Excluir esta dose</div></div></div></div>
+<div class="col"><p class="cap">3. Alterar horário<small>aprovado</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Alterar horário</span></div>
+<div class="hint">Testosterone Cypionate · 200 mg</div>
+<div class="pick"><div class="wheel">sáb., 24 out.<b>dom., 25 out.</b>seg., 26 out.</div><div class="wheel" style="flex:.6">21:30<b>22:00</b>22:30</div></div>
+<div class="hint">Use a hora em que a dose foi realmente aplicada. A curva passa a usar este horário. Não pode ser depois de agora.</div>
+<div class="actions"><div class="a sec">Cancelar</div><div class="a pri">Salvar</div></div></div></div></div>
+<div class="col"><p class="cap">4. Alterar dose<small>novo: só esta aplicação</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Alterar dose</span></div>
+<div class="hint">Testosterone Cypionate · Ontem, 08:00</div>
+<div style="display:flex;align-items:center;gap:10px;background:var(--well);border-radius:14px;padding:0 14px;min-height:52px;outline:2px dashed #e0a800;outline-offset:2px"><span style="flex:1;font-size:20px;font-weight:600;color:var(--ink)">180</span><span style="color:var(--ink2);font-size:16px">mg</span></div>
+<div class="hint">Só esta aplicação muda. A curva muda a partir dela; as outras doses e a dose do protocolo continuam como estão.</div>
+<div class="actions"><div class="a sec">Cancelar</div><div class="a pri">Salvar</div></div></div></div></div>
+<div class="col"><p class="cap">5. Curva<small>notas abaixo do gráfico</small></p><div class="phone"><div class="curve"><div class="card"><div class="svg"></div>
+<div class="tag">Hoje</div>
+<div class="foot">Cada dose entra na curva no horário em que você a marcou.</div>
+<div class="foot">A curva usa a dose atual para todas as doses anteriores, mesmo que você a tenha alterado.</div>
+<div class="tag" style="margin-top:6px">Proposta</div>
+<div class="foot">Cada dose entra na curva no horário e na dose em que você a marcou. Para corrigir, toque na dose no Registro de doses.</div>
+<div class="foot strike">A curva usa a dose atual para todas as doses anteriores, mesmo que você a tenha alterado.</div>
+<div class="foot">(nota removida: deixa de ser verdade)</div></div></div></div></div></div></div><div class="dark band"><h2>Tema escuro</h2><div class="row">
+<div class="col"><p class="cap">1. App hoje<small>folha de uma dose concluída</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Testosterone Cypionate</span><span class="done">OK</span></div>
+<div><div class="kv"><span class="k">Status</span><span class="v">Dose concluída</span></div>
+
+<div class="kv"><span class="k">Quando</span><span class="v">Ontem, 08:00</span></div>
+<div class="kv"><span class="k">Local</span><span class="v">Glúteo esquerdo</span></div></div>
+<div class="btn"><span>Trocar local</span><span class="chev">›</span></div>
+
+<div class="danger">Excluir esta dose</div></div></div></div>
+<div class="col"><p class="cap">2. Proposta<small>dose da aplicação + Alterar horário + Alterar dose</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Testosterone Cypionate</span><span class="done">OK</span></div>
+<div><div class="kv"><span class="k">Status</span><span class="v">Dose concluída</span></div>
+<div class="kv new"><span class="k">Dose</span><span class="v">200 mg</span></div>
+<div class="kv"><span class="k">Quando</span><span class="v">Ontem, 08:00</span></div>
+<div class="kv"><span class="k">Local</span><span class="v">Glúteo esquerdo</span></div></div>
+<div class="btn"><span>Trocar local</span><span class="chev">›</span></div>
+<div class="btn new"><span>Alterar horário</span><span class="chev">›</span></div><div class="btn new"><span>Alterar dose</span><span class="chev">›</span></div>
+<div class="danger">Excluir esta dose</div></div></div></div>
+<div class="col"><p class="cap">3. Alterar horário<small>aprovado</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Alterar horário</span></div>
+<div class="hint">Testosterone Cypionate · 200 mg</div>
+<div class="pick"><div class="wheel">sáb., 24 out.<b>dom., 25 out.</b>seg., 26 out.</div><div class="wheel" style="flex:.6">21:30<b>22:00</b>22:30</div></div>
+<div class="hint">Use a hora em que a dose foi realmente aplicada. A curva passa a usar este horário. Não pode ser depois de agora.</div>
+<div class="actions"><div class="a sec">Cancelar</div><div class="a pri">Salvar</div></div></div></div></div>
+<div class="col"><p class="cap">4. Alterar dose<small>novo: só esta aplicação</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="head"><span class="title">Alterar dose</span></div>
+<div class="hint">Testosterone Cypionate · Ontem, 08:00</div>
+<div style="display:flex;align-items:center;gap:10px;background:var(--well);border-radius:14px;padding:0 14px;min-height:52px;outline:2px dashed #e0a800;outline-offset:2px"><span style="flex:1;font-size:20px;font-weight:600;color:var(--ink)">180</span><span style="color:var(--ink2);font-size:16px">mg</span></div>
+<div class="hint">Só esta aplicação muda. A curva muda a partir dela; as outras doses e a dose do protocolo continuam como estão.</div>
+<div class="actions"><div class="a sec">Cancelar</div><div class="a pri">Salvar</div></div></div></div></div>
+<div class="col"><p class="cap">5. Curva<small>notas abaixo do gráfico</small></p><div class="phone"><div class="curve"><div class="card"><div class="svg"></div>
+<div class="tag">Hoje</div>
+<div class="foot">Cada dose entra na curva no horário em que você a marcou.</div>
+<div class="foot">A curva usa a dose atual para todas as doses anteriores, mesmo que você a tenha alterado.</div>
+<div class="tag" style="margin-top:6px">Proposta</div>
+<div class="foot">Cada dose entra na curva no horário e na dose em que você a marcou. Para corrigir, toque na dose no Registro de doses.</div>
+<div class="foot strike">A curva usa a dose atual para todas as doses anteriores, mesmo que você a tenha alterado.</div>
+<div class="foot">(nota removida: deixa de ser verdade)</div></div></div></div></div></div></div></body></html>

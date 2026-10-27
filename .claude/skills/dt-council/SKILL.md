@@ -29,6 +29,7 @@ Write one short shared brief the whole panel receives:
 - **Change set / release notes**: `git log` + `git diff` since the last build (or the
   branch's committed state). Summarize what actually changed, factually.
 - **Open decisions**: anything the founder is weighing this build.
+- **Standing principle — precision of the blood estimate (founder 2026-10-26)**: every brief carries it verbatim when the build touches the curve, the dose log or anything that feeds them: "refletir com o máximo de precisão possível com base nos estudos quantos miligramas do composto a pessoa tem no sangue… a nossa linha de raciocínio tem que ir sempre em relação à precisão." The pharmacometrician, senior-engineer, QA and spec-auditor judge against it; a precision loss is a finding.
 
 ## Step 2 — Convene the panel (parallel)
 Dispatch all ten role agents in ONE message (parallel, background), each with the shared
