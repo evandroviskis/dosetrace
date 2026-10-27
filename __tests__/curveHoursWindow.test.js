@@ -83,7 +83,7 @@ test('short-compound note ×6 (approved text) and no date readout in hours mode'
   }
   assert.match(translations.en.curve_fast_note, /does not measure effects/);
   const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /\{!hourMode && \(\s*<View style=\{s\.card\}>\s*<Text style=\{s\.cardHead\}>\{t\('curve_readout_title'\)\}/, 'the card only in days');
+  assert.match(src, /\{!hourMode && \(\s*<CollapsibleSection title=\{t\('curve_readout_title'\)\}/, 'the card only in days (collapsed, founder 2026-10-27)');
   assert.match(src, /useEffect\(\(\) => \{ if \(hourMode && readoutDate\) setReadoutDate\(null\); \}, \[hourMode, readoutDate\]\)/, 'a date picked in days never steers the hours curve');
 });
 

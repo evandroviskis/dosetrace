@@ -36,3 +36,28 @@ test('Ended (Encerrados) uses it too, with the same count line', () => {
   assert.match(block, /title=\{t\('protocols_ended_title'\)\}/);
   assert.match(block, /pluralKey\('protocols_count_n', endedProtocols\.length, language\)/);
 });
+
+// Founder 2026-10-27: "encontre mais partes do aplicativo que precisem fazer essa opção de colapsar, não
+// precisa me mostrar desenho". Each place arrives closed with a short summary; disclaimers stay visible.
+test('the other places: protocol dose details and an empty note, the curve date estimate and model notes, the measurements history, lab tips, empty labels, marker readings', () => {
+  const P = read('screens/ProtocolsScreen.js');
+  assert.match(P, /<CollapsibleSection style=\{s\.blkNext\} title=\{t\('protocols_step_dose'\)\}/);
+  assert.match(P, /<NoteFrame saved=\{!!p\.note\}/);
+  const C = read('screens/SerumCurveScreen.js');
+  assert.match(C, /<CollapsibleSection title=\{t\('curve_readout_title'\)\}/);
+  assert.match(C, /<CollapsibleSection title=\{t\('curve_model_title'\)\}/);
+  assert.doesNotMatch(C, /'▴' : '▾'/, 'the source toggle draws the fold arrow, never a text glyph');
+  assert.match(C, /<Text style=\{s\.disclaimer\}>\{t\('curve_disclaimer'\)\}<\/Text>/, 'the disclaimer stays open');
+  const K = read('screens/components/CalculatorSection.js');
+  assert.match(K, /foldRow\('rcLog', t\('cal_rc_log_title'\)/);
+  assert.match(K, /useState\(false\); \/\/ founder 2026-10-27: the history arrives closed/);
+  const B = read('screens/BodyScreen.js');
+  assert.match(B, /<CollapsibleSection title=\{t\('blood_what_we_read'\)\}>/);
+  assert.match(B, /<TagsFrame hasTags=/);
+  assert.match(B, /<CollapsibleSection title=\{t\('blood_readings_title'\)\}/);
+  for (const k of ['protocols_notes_empty', 'curve_readout_pick', 'curve_model_title', 'cal_rc_log_n', 'cal_rc_log_n_one', 'blood_tags_none', 'blood_readings_title']) {
+    for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.equal(typeof translations[l][k], 'string', `${l}.${k}`);
+  }
+  assert.equal(translations.pt.protocols_notes_empty, 'Nenhuma nota');
+  assert.equal(translations.pt.cal_rc_log_n, '{n} medições');
+});

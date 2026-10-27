@@ -323,6 +323,25 @@ function ReadValue({ s, text, mark }) {
   );
 }
 
+// The protocol note's frame (founder 2026-10-27, collapse rule): a saved note shows open under its title;
+// with none saved the field waits closed ("Nenhuma nota"), a tap opens it. The branch follows the SAVED
+// note only, so typing never remounts the field (the keyboard stays).
+function NoteFrame({ saved, s, title, empty, children }) {
+  if (saved) {
+    return (
+      <View style={[s.blkD, s.blkNext]}>
+        <Text style={s.secth}>{title}</Text>
+        {children}
+      </View>
+    );
+  }
+  return (
+    <CollapsibleSection style={s.blkNext} title={title} summary={empty}>
+      <View style={s.noteIn}>{children}</View>
+    </CollapsibleSection>
+  );
+}
+
 function RowsBlock({ s, title, rows, style }) {
   const { colors: c } = useTheme();
   const shown = rows.filter(Boolean);
@@ -889,10 +908,16 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
         <Text style={s.obtn2Text}>{t('protocols_add_reminder')}</Text>
       </TouchableOpacity>
 
-      <RowsBlock s={s} title={t('protocols_step_dose')} rows={doseRows} style={s.blkD} />
+      {/* Founder 2026-10-27 (collapse rule): the dose details arrive closed (the header and the syringe
+          above already show the dose); the note arrives closed while none is saved. */}
+      {doseRows.filter(Boolean).length ? (
+        <CollapsibleSection style={s.blkNext} title={t('protocols_step_dose')}
+          summary={`${decimalText(p.dose, language)} ${unitText(p.dose_unit, language)}`}>
+          <RowsBlock s={s} rows={doseRows} />
+        </CollapsibleSection>
+      ) : null}
 
-      <View style={[s.blkD, s.blkNext]}>
-        <Text style={s.secth}>{t('protocols_notes')}</Text>
+      <NoteFrame saved={!!p.note} s={s} title={t('protocols_notes')} empty={t('protocols_notes_empty')}>
         <TextInput
           style={[s.noteWell, noteFocus && s.noteWellOn]}
           value={noteDraft}
@@ -914,7 +939,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
             </TouchableOpacity>
           </View>
         )}
-      </View>
+      </NoteFrame>
 
       {deleteProtocol ? (
         <TouchableOpacity style={s.dangerBtn} onPress={() => deleteProtocol(p.id)} accessibilityRole="button">
@@ -3930,6 +3955,7 @@ const protocolsGraduated = (c) => ({
   rwTap: { alignItems: 'center' },
   rwTapEnd: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0, maxWidth: '60%' },
   rwValMuted: { fontWeight: '400', color: c.ink2 },
+  noteIn: { padding: 12, gap: 10 },
   noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
   noteWellOn: { borderColor: c.ink },
   acts2: { flexDirection: 'row', gap: 10 },

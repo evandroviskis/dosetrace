@@ -181,7 +181,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [rcStart, setRcStart] = useState(null);     // { date, weightKg } — open check-in
   const [rcStartOpen, setRcStartOpen] = useState(false); // the start sheet (part 9)
   const [rcExplain, setRcExplain] = useState(false);     // free plan: "See how it works" (part 11)
-  const [soFarOpen, setSoFarOpen] = useState(false);     // "Your reality check so far" (part 8)
+  const [soFarOpen, setSoFarOpen] = useState(false);
+  const [rcLogOpen, setRcLogOpen] = useState(false); // founder 2026-10-27: the history arrives closed     // "Your reality check so far" (part 8)
   const [realityLog, setRealityLog] = useState([]); // saved reality checks over time
   const [foodRows, setFoodRows] = useState([]); // food_logs rows, for the check's run and day list
   // Calories typed by hand (founder 2026-10-02) and the sources of finished results, from
@@ -1571,8 +1572,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           {latestSource ? (
             <Text style={s.foot2}>{t(latestSource === 'typed' ? 'cal_rc_src_typed' : 'cal_rc_src_food')}</Text>
           ) : null}
+          {/* Founder 2026-10-27 (collapse rule): the history arrives closed; the result above stays. */}
+          {foldRow('rcLog', t('cal_rc_log_title'), t(pluralKey('cal_rc_log_n', realityLog.length, language)).replace('{n}', String(realityLog.length)), rcLogOpen, () => setRcLogOpen((o) => !o))}
+          {rcLogOpen ? (
           <View style={s.gap6}>
-            <Text style={s.cap2}>{t('cal_rc_log_title')}</Text>
             {[...realityLog].reverse().map((c) => (
               <View key={c.date} style={s.logRow}>
                 <Text style={[s.sec, s.tnum, s.grow]}>{fmtShort(c.date)}</Text>
@@ -1585,6 +1588,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
               </View>
             ))}
           </View>
+          ) : null}
           <TouchableOpacity style={s.btnO} onPress={openRcStart} activeOpacity={0.75} accessibilityRole="button">
             <Text style={s.btnOText}>{t('cal_rc_next').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
           </TouchableOpacity>

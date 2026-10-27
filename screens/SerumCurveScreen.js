@@ -40,6 +40,8 @@ import { localISO } from '../lib/localDate';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
 import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
+import FoldChevron from '../components/FoldChevron';
+import CollapsibleSection from '../components/CollapsibleSection';
 
 import { useTheme } from '../lib/theme';
 import { useSheetEdgePad } from '../components/useSheetInset';
@@ -1140,9 +1142,10 @@ export default function SerumCurveScreen({ embedded = false }) {
           )}
 
           {/* ── Estimate on a date (cross-reference a blood draw) ──  Founder 2026-10-27: days only — never on the hours curve. */}
+          {/* Founder 2026-10-27 (collapse rule): arrives closed; the summary names the chosen date. */}
           {!hourMode && (
-            <View style={s.card}>
-              <Text style={s.cardHead}>{t('curve_readout_title')}</Text>
+            <CollapsibleSection title={t('curve_readout_title')} summary={readoutDate ? dateLong(readoutDate) : t('curve_readout_pick')}>
+            <View style={s.cardIn}>
               {/* Part 19: the next three dose days, "Other date" (the wheel), then bloodwork dates. */}
               <View style={s.chips}>
                 {upcoming.slice(0, 3).map(d => {
@@ -1207,11 +1210,14 @@ export default function SerumCurveScreen({ embedded = false }) {
                 </>
               ) : null}
             </View>
+            </CollapsibleSection>
           )}
 
-          {/* Honesty: evidence tier, how the model draws it, and the source — one tap away */}
+          {/* Honesty: evidence tier, how the model draws it, and the source — one tap away. Founder
+              2026-10-27 (collapse rule): arrives closed; the tier stays on the level card above. */}
           {model && (
-            <View style={s.card}>
+            <CollapsibleSection title={t('curve_model_title')} summary={model.series.map((ser) => ser.name).join(' · ')}>
+            <View style={s.cardIn}>
               {model.series.map((ser, i) => {
                 const tier = tierCfg[ser.entry.tier];
                 const note = model.max > 0 ? noteFor(ser) : null;
@@ -1234,7 +1240,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                       hitSlop={{ top: 8, bottom: 8 }}
                       style={s.linkBtn}
                     >
-                      <Text style={s.link}>{t('curve_source_label')} {open ? '▴' : '▾'}</Text>
+                      <View style={s.linkRow}><Text style={s.link}>{t('curve_source_label')}</Text><FoldChevron open={open} color={colors.ink2} /></View>
                     </TouchableOpacity>
                   </View>
                 );
@@ -1243,6 +1249,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <Text style={[s.foot, s.noteSep]}>{t('blend_curve_caveat')}</Text>
               )}
             </View>
+            </CollapsibleSection>
           )}
 
           <Text style={s.disclaimer}>{t('curve_disclaimer')}</Text>
@@ -1318,6 +1325,8 @@ function makeStyles(c) {
     notCharted: { fontSize: 13, color: c.ink2, lineHeight: 18, paddingHorizontal: 4 },
 
     card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
+    cardIn: { padding: 18, gap: 12 }, // a CollapsibleSection's body (the section is the card)
+    linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     // part 17 hero: "Est. level · now" + the 56 pt number in data blue, the chip on the right
     heroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
     heroCol: { flex: 1, minWidth: 0, gap: 4 },

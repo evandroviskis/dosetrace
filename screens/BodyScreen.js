@@ -56,6 +56,7 @@ import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodySc
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
 import { fetchScanUsage, scanUsageLine, scanUsageShown } from '../lib/scanUsage';
 import { movedCardKey, applyLabelMoves } from '../lib/labDateMove';
+import CollapsibleSection from '../components/CollapsibleSection';
 
 // Small monoline controls of the Lab test journal (prototype CHEV / BI.star / BI.pen,
 // 24-grid, 1.8 stroke). Colors always come from the theme.
@@ -103,6 +104,24 @@ const TEST_DATE_RANGE = { back: 30, ahead: 0 };
 // What the right page shows. A chosen test or marker that no longer exists (deleted, renamed)
 // falls back to the lab journal, a deleted vaccine to the vaccine journal; Dose accumulation only
 // for Premium. Never blank. `vaxKeys`: the ids of the user's vaccines, as strings (BK-18).
+// A lab report's tags (founder 2026-10-27, collapse rule): with tags the card shows them open; with none
+// the block arrives closed ("Nenhuma etiqueta"), a tap opens the field.
+function TagsFrame({ hasTags, s, title, empty, children }) {
+  if (hasTags) {
+    return (
+      <View style={s.card}>
+        <Text style={s.head}>{title}</Text>
+        {children}
+      </View>
+    );
+  }
+  return (
+    <CollapsibleSection title={title} summary={empty}>
+      <View style={s.foldIn}>{children}</View>
+    </CollapsibleSection>
+  );
+}
+
 function bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium }) {
   const has = (keys, k) => (keys && typeof keys.has === 'function' ? keys.has(k) : Array.isArray(keys) && keys.includes(k));
   const labs = { type: 'labs', id: 'labs', group: 'labs' };
@@ -1033,8 +1052,8 @@ export default function BodyScreen({ navigation, route }) {
           <Text style={[s.sec, s.tnum]}>{markerCount(reportDetail.markers)} {t(pluralKey('blood_markers', markerCount(reportDetail.markers), language))}</Text>
         </View>
 
-        <View style={s.card}>
-          <Text style={s.head}>{t('blood_tags_title')}</Text>
+        {/* Founder 2026-10-27 (collapse rule): with no tags yet the block arrives closed. */}
+        <TagsFrame hasTags={(reportTags[reportDetail.date] || []).length > 0} s={s} title={t('blood_tags_title')} empty={t('blood_tags_none')}>
           {(reportTags[reportDetail.date] || []).length > 0 && (
             <View style={s.chips}>
               {(reportTags[reportDetail.date] || []).map((tg, k) => (
@@ -1060,7 +1079,7 @@ export default function BodyScreen({ navigation, route }) {
               <Text style={[s.btnOText, s.btnSmText]}>{t('blood_tag_add')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TagsFrame>
 
         <View style={s.list}>
           {reportDetail.markers.map((m, j) => (
@@ -1127,7 +1146,10 @@ export default function BodyScreen({ navigation, route }) {
           )}
         </View>
 
-        <View style={s.list}>
+        {/* Founder 2026-10-27 (collapse rule): every reading of this marker arrives closed; the latest
+            number and the chart above stay. */}
+        <CollapsibleSection title={t('blood_readings_title')} summary={`${markerDetail.points.length} ${markerDetail.points.length === 1 ? t('blood_reading') : t('blood_readings')}`}>
+        <View style={s.foldList}>
           {markerDetail.points.slice().reverse().map((p, j) => (
             <TouchableOpacity key={p.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(p)}>
               <Text style={[s.body, s.grow, s.tnum]}>{formatDate(p.date)}</Text>
@@ -1136,6 +1158,7 @@ export default function BodyScreen({ navigation, route }) {
             </TouchableOpacity>
           ))}
         </View>
+        </CollapsibleSection>
         <Text style={[s.foot, s.padX]}>{t('blood_hub_disclaimer')}</Text>
       </ScrollView>
     );
@@ -1306,11 +1329,11 @@ export default function BodyScreen({ navigation, route }) {
     );
   }
 
+  // Founder 2026-10-27 (collapse rule): help text — arrives closed, a tap opens it.
   function renderTips() {
     return (
-      <View style={s.card}>
-        <Text style={s.head}>{t('blood_what_we_read')}</Text>
-        <View style={s.names}>
+      <CollapsibleSection title={t('blood_what_we_read')}>
+        <View style={[s.names, s.foldIn]}>
           {[t('blood_tip_1'), t('blood_tip_2'), t('blood_tip_3'), t('blood_tip_4'), t('blood_tip_5')].map((tip, i) => (
             <View key={i} style={s.tipRow}>
               <View style={s.tipDot} />
@@ -1318,7 +1341,7 @@ export default function BodyScreen({ navigation, route }) {
             </View>
           ))}
         </View>
-      </View>
+      </CollapsibleSection>
     );
   }
 
@@ -1795,6 +1818,7 @@ const labsGraduated = (c) => ({
 
   // cards, lists, tags
   card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
+  foldIn: { padding: 18, gap: 12 }, // a CollapsibleSection's body (the section is the card)
   rowCard: { flexDirection: 'row', alignItems: 'center' },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyCard: { alignItems: 'center', paddingTop: 28 },
@@ -1805,6 +1829,7 @@ const labsGraduated = (c) => ({
   otag: { minHeight: 24, paddingHorizontal: 9, borderRadius: 12, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
   otagText: { fontSize: 12, fontWeight: '600', color: c.ink2 },
   list: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  foldList: { paddingHorizontal: 16 },
   li: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
   liLine: { borderTopWidth: 1, borderTopColor: c.line },
   starBtn: { width: 36, minHeight: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -6, marginRight: -4 },

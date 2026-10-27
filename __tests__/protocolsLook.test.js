@@ -104,8 +104,10 @@ test('part 5 / 11 / 12: the protocol screen rhythm (14 between, 26 block after b
   assert.match(style(SCREEN, 'blkD'), /gap: 10 \}/);
   assert.match(style(SCREEN, 'blkNext'), /marginTop: 12/);
   assert.match(SCREEN, /<RowsBlock s=\{s\} title=\{t\('protocols_step_schedule'\)\} rows=\{scheduleRows\} style=\{vialShown \? \[s\.blkD, s\.blkNext\] : s\.blkD\} \/>/);
-  assert.match(SCREEN, /<RowsBlock s=\{s\} title=\{t\('protocols_step_dose'\)\} rows=\{doseRows\} style=\{s\.blkD\} \/>/);
-  assert.match(SCREEN, /<View style=\{\[s\.blkD, s\.blkNext\]\}>\s*<Text style=\{s\.secth\}>\{t\('protocols_notes'\)\}/);
+  // Founder 2026-10-27 (collapse rule): the dose details and an empty note arrive closed (CollapsibleSection);
+  // a saved note keeps the open block under its title.
+  assert.match(SCREEN, /<CollapsibleSection style=\{s\.blkNext\} title=\{t\('protocols_step_dose'\)\}[\s\S]*?<RowsBlock s=\{s\} rows=\{doseRows\} \/>/);
+  assert.match(SCREEN, /<View style=\{\[s\.blkD, s\.blkNext\]\}>\s*<Text style=\{s\.secth\}>\{title\}<\/Text>/);
   assert.match(style(SCREEN, 'rwSep'), /borderTopWidth: 1,/);
   assert.match(style(SCREEN, 'rwValMono'), /fontSize: 17/);
   assert.match(style(SCREEN, 'btnSmText'), /fontSize: 15/);
