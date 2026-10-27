@@ -11,6 +11,7 @@
 
 - R1 Boundary: cutoff C = created_at − 1 h (lib/declared.js grace). Before C the past comes from the schedule (the A-30 estimated part), or nothing when history_from is set. From C to now: Taken rows only, at their exact logged_at. After now: the plan.
 - R2 Declared rows: Taken rows dated before C add nothing (the schedule covers that time; they stay in the log and export). On the creation day, scheduled slots before C plus Taken rows never exceed that day's expected count.
+  - R1/R2 amendment 2026-10-27 (with option A and the slot_at migration approved by the founder; awaiting his signature): a Taken or Skipped row whose time was corrected ("Alterar horário") is judged by the slot it was first marked for (dose_logs.slot_at) — that slot decides whether it is in the logged era or before C (and the A-30 declared rule of the counts); its corrected logged_at decides where the dose is drawn. A row without slot_at keeps R1/R2 as written. Test: __tests__/slotAtEditedTime.test.js "an edited time before the protocol was added stays in the curve and the counts".
 - R3 Skipped, Missed, "There was no dose" and deleted rows add nothing.
 - R4 Time: a dose counts at its exact logged_at, no grid snap; drawing samples the exact instants; Est. level, date estimate and Journey tile use exact times.
 - R5 Plan: after now, the protocol's own slot times (expectedSlotTimesOn, DL-31); fixed 08:00 only without times (DL-77); days stepped by calendar day (A-101b).
