@@ -150,7 +150,11 @@ const PROTOCOLS = [
 test('the charted list (what the curve can open on) is unchanged, blends expanded', () => {
   const old = oldActive(PROTOCOLS, t);
   const now = serum.splitCurveProtocols(PROTOCOLS, t);
-  assert.deepEqual(now.active, old.active);
+  // AD-95 (2026-10-26): a blend component also carries its parent's total dose (__parentDose), so a
+  // dose given at another amount weighs against the total; otherwise the list is unchanged.
+  const strip = ({ __parentDose, ...rest }) => rest;
+  assert.deepEqual(now.active.map(strip), old.active);
+  for (const c of now.active.filter((p) => p.__blend)) assert.equal(c.__parentDose, PROTOCOLS.find((p) => p.id === String(c.id).split('__')[0]).dose);
   assert.deepEqual(now.iu, old.iu);
   assert.deepEqual(now.noData, old.noData);
   assert.deepEqual(now.noDose, old.noDose);

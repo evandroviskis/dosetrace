@@ -106,13 +106,15 @@ test('council fix 6: a founder deferral line without a matching dated ledger ent
   assert.equal(isDeferred('# Z — A-500\n- related: A-119\n- committed-to: ' + DEFER + '\n', '1.3.0', { ledger: LEDGER, file: 'z.md' }), false);
 });
 
-test('council fix 6: the real deferred specs still read as deferred against the real ledger', () => {
+test('council fix 6: the real specs read as the ledger says (decision B, 2026-10-26: A-119 / A-121 committed, not deferred)', () => {
   const ROOT = path.join(__dirname, '..');
   const ledger = fs.readFileSync(path.join(ROOT, 'docs/decisions.md'), 'utf8');
   const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8')).expo.version;
   for (const file of ['one-active-device.md', 'still-going-end-date.md']) {
     const text = fs.readFileSync(path.join(ROOT, 'docs/specs', file), 'utf8');
-    assert.equal(isDeferred(text, version, { ledger, file }), true, file);
+    // Decision B (founder 2026-10-26, one release): redesign/graduated ships as 1.3.1 with A-119 and
+    // A-121 inside — the dt-council found them silently reading as deferred; they block now.
+    assert.equal(isDeferred(text, version, { ledger, file }), false, file);
   }
   // A-127 review item 10 (2026-10-20): update-notice.md is committed to 1.3.2 now (ledger "1.3.1 =
   // option B"), so spec-audit blocks on it instead of reading it as deferred.
