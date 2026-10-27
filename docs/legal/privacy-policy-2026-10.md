@@ -1,6 +1,6 @@
 # DoseTrace — Privacy Policy
 
-Last updated: October 25, 2026
+Last updated: October 27, 2026
 
 Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. This policy explains what information the app handles, where it goes, and what you can do about it. DoseTrace is a personal journal and a calculator. It does not give medical advice.
 
@@ -10,11 +10,11 @@ Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. Th
 
 **Profile (needed to use the app).** Name, birth month and year, country, sex assigned at birth, your goals, activity level, what you track (peptides, hormones / TRT, GLP-1 / weight loss, oral supplements), and whether you work with a healthcare provider. The app asks for all of these before you can use it, and uses them to personalize the screens and to run its calculators. In the calculators you can also enter your height, weight, body-fat percentage, and body measurements.
 
-**Health and journal data.** The protocols you create (compounds, doses, schedules, reminder times), the doses you log (taken, skipped, injection sites), vials and bottles, lab results, vaccination records, food-log entries with their estimated nutrition values, weigh-ins, "Reality check" results, and the notes you write.
+**Health and journal data.** The protocols you create (compounds, doses, schedules, reminder times), the doses you log (taken or skipped, the amount of each dose, the time it was scheduled and the time you took it, injection sites, and whether you changed an amount by hand; when you correct past doses, the corrected values replace the old ones), the dates of each protocol's dose changes, your vials, bottles, lab results, vaccination records, food-log entries with their estimated nutrition values, weigh-ins, "Reality check" results, and the notes you write.
 
 ## 2. Where your information is kept
 
-Your data is saved in a database on your phone. When you have an account, it is also synced to our cloud database hosted by **Supabase** (United States), so it is backed up and available on your other devices. Data is encrypted in transit (TLS) and encrypted at rest by our hosting provider. Sign-in tokens are kept in your phone's secure storage.
+Your data is saved in a database on your phone. When you have an account, it is also synced to our cloud database hosted by **Supabase** (United States), so it is backed up and comes back when you sign in on a new phone. Your account is active on one phone at a time: signing in on another phone moves it there. Data is encrypted in transit (TLS) and encrypted at rest by our hosting provider. Sign-in tokens are kept in your phone's secure storage.
 
 Signing out removes your DoseTrace records from the app on that phone; they stay in your account and come back when you sign in again. Files you exported stay where they were saved.
 
@@ -44,7 +44,7 @@ To improve the app we record usage events (for example, that a screen was opened
 
 ## 8. How long we keep it
 
-As long as your account exists. A protocol you delete goes to "Recently deleted" and stays there, so you can restore it, until you choose "Delete forever". Delete forever erases its content (name, doses, schedule, notes) and its dose logs and vials; only a small marker remains (an ID, its type, its colour and its dates) so that your other phones know it was deleted. Deleting your account in Settings permanently removes your synced data and your sign-in from our servers; data on your phone is removed when you uninstall the app or sign out.
+As long as your account exists. A protocol you delete goes to "Recently deleted" and stays there, so you can restore it, until you choose "Delete forever". Delete forever erases its content (name, doses, schedule, notes) and its dose logs and vials; only a small marker remains (an ID, its type, its colour and its dates) so that a phone you sign in on later knows it was deleted. Deleting your account in Settings permanently removes your synced data and your sign-in from our servers; data on your phone is removed when you uninstall the app or sign out.
 
 ## 9. Your choices and rights
 

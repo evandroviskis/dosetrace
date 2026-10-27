@@ -15,7 +15,7 @@ Pontos que o texto abaixo deixa como estão, porque só um advogado pode decidir
 
 # DoseTrace — Política de Privacidade
 
-Última atualização: 25 de outubro de 2026
+Última atualização: 27 de outubro de 2026
 
 A Outcom (“nós”) opera o aplicativo DoseTrace para iPhone e Android. Esta política explica quais informações o app trata, para onde elas vão e o que você pode fazer a respeito. O DoseTrace é um diário pessoal e uma calculadora. Ele não dá orientação médica.
 
@@ -25,11 +25,11 @@ A Outcom (“nós”) opera o aplicativo DoseTrace para iPhone e Android. Esta p
 
 **Perfil (necessário para usar o app).** Nome, mês e ano de nascimento, país, sexo atribuído no nascimento, seus objetivos, nível de atividade, o que você acompanha (peptídeos, hormônios / TRT, GLP-1 / emagrecimento, suplementos orais) e se você é acompanhado por um profissional de saúde. O app pede todos esses dados antes que você possa usá-lo e os usa para personalizar as telas e fazer as contas das calculadoras. Nas calculadoras, você também pode informar sua altura, seu peso, seu percentual de gordura corporal e suas medidas.
 
-**Dados de saúde e do diário.** Os protocolos que você cria (compostos, doses, frequências, horários dos lembretes), as doses que você registra (tomadas, puladas, locais de aplicação), frascos, resultados de exames, registros de vacinação, as refeições do registro de comida com os valores nutricionais estimados, as pesagens, os resultados de “Seus números reais” e as anotações que você escreve.
+**Dados de saúde e do diário.** Os protocolos que você cria (compostos, doses, frequências, horários dos lembretes), as doses que você registra (tomadas ou puladas, a quantidade de cada dose, o horário programado e o horário em que você a tomou, locais de aplicação e se você alterou uma quantidade manualmente; quando você corrige doses passadas, os valores corrigidos substituem os anteriores), as mudanças de dose de cada protocolo com as datas, frascos, resultados de exames, registros de vacinação, as refeições do registro de comida com os valores nutricionais estimados, as pesagens, os resultados de “Seus números reais” e as anotações que você escreve.
 
 ## 2. Onde suas informações ficam
 
-Seus dados ficam salvos em um banco de dados no seu celular. Quando você tem uma conta, eles também são sincronizados com o nosso banco de dados na nuvem, hospedado pela **Supabase** (Estados Unidos), para ter backup e ficar disponíveis nos seus outros aparelhos. Os dados são criptografados em trânsito (TLS) e também criptografados em repouso pelo nosso provedor de hospedagem. Os tokens de acesso ficam no armazenamento seguro do seu celular.
+Seus dados ficam salvos em um banco de dados no seu celular. Quando você tem uma conta, eles também são sincronizados com o nosso banco de dados na nuvem, hospedado pela **Supabase** (Estados Unidos), para ter backup e voltar quando você entra em um celular novo. A sua conta fica ativa em um celular por vez: ao entrar em outro, ela passa para ele. Os dados são criptografados em trânsito (TLS) e também criptografados em repouso pelo nosso provedor de hospedagem. Os tokens de acesso ficam no armazenamento seguro do seu celular.
 
 Sair da conta remove os seus registros do DoseTrace do app naquele celular; eles continuam na sua conta e voltam quando você entra de novo. Os arquivos que você exportou continuam onde foram salvos.
 
@@ -59,7 +59,7 @@ Para melhorar o app, registramos eventos de uso (por exemplo, que uma tela foi a
 
 ## 8. Por quanto tempo guardamos
 
-Enquanto a sua conta existir. Um protocolo que você exclui vai para “Excluídos recentemente” e fica lá, para você poder restaurá-lo, até você escolher “Excluir para sempre”. Excluir para sempre apaga o conteúdo dele (nome, doses, frequência, anotações) e também os registros de dose e os frascos; fica só uma marca mínima (um ID, o tipo, a cor e as datas) para que os seus outros celulares saibam que ele foi excluído. Excluir a sua conta em Ajustes apaga de forma definitiva dos nossos servidores os seus dados sincronizados e o seu login; os dados no seu celular são apagados quando você desinstala o app ou sai da conta.
+Enquanto a sua conta existir. Um protocolo que você exclui vai para “Excluídos recentemente” e fica lá, para você poder restaurá-lo, até você escolher “Excluir para sempre”. Excluir para sempre apaga o conteúdo dele (nome, doses, frequência, anotações) e também os registros de dose e os frascos; fica só uma marca mínima (um ID, o tipo, a cor e as datas) para que um celular em que você entrar depois saiba que ele foi excluído. Excluir a sua conta em Ajustes apaga de forma definitiva dos nossos servidores os seus dados sincronizados e o seu login; os dados no seu celular são apagados quando você desinstala o app ou sai da conta.
 
 ## 9. Suas escolhas e seus direitos
 

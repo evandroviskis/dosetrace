@@ -123,8 +123,8 @@ const PARA = {
   it: 'Messaggi dal team di DoseTrace. Possiamo inviare al tuo account un breve messaggio sull\'account o sull\'assistenza (per esempio, che il tuo accesso Premium è stato attivato o che un problema che ci hai segnalato è stato risolto). Arriva come notifica, a meno che le notifiche siano disattivate o la Modalità silenziosa sia attiva, e compare anche nell\'app, in Impostazioni › Supporto › Messaggi del team. Non usiamo mai questi messaggi per dare indicazioni su salute, dosi o trattamenti. I messaggi vengono conservati con il tuo account e cancellati quando elimini l\'account; registriamo anche quando è stato inviato ciascun messaggio, a quanti dispositivi e quando l\'hai letto. Per scrivere il titolo della notifica nella tua lingua, l\'app salva con il tuo account la lingua scelta.',
 };
 const DATE = {
-  en: 'Last updated: October 25, 2026', es: 'Última actualización: 25 de octubre de 2026', pt: 'Última atualização: 25 de outubro de 2026',
-  fr: 'Dernière mise à jour : 25 octobre 2026', de: 'Zuletzt aktualisiert: 25. Oktober 2026', it: 'Ultimo aggiornamento: 25 ottobre 2026',
+  en: 'Last updated: October 27, 2026', es: 'Última actualización: 27 de octubre de 2026', pt: 'Última atualização: 27 de outubro de 2026',
+  fr: 'Dernière mise à jour : 27 octobre 2026', de: 'Zuletzt aktualisiert: 27. Oktober 2026', it: 'Ultimo aggiornamento: 27 ottobre 2026',
 };
 const section = (body, n) => {
   const parts = body.split('\n\n');
@@ -151,11 +151,11 @@ test('council 4: section 4 of the in-app policy ends with the approved team-mess
   }
 });
 
-test('council 4: "Last updated" moves with each change, now October 25, 2026 (A-183), in each language\'s own format (app and the website copies)', () => {
+test('council 4: "Last updated" moves with each change, now October 27, 2026 (A-183), in each language\'s own format (app and the website copies)', () => {
   const { translations: tr } = require('../i18n/translations');
   for (const l of LANGS) assert.equal(tr[l].settings_privacy_body.split('\n\n')[1], DATE[l], l);
-  assert.match(read('docs/legal/privacy-policy-2026-10.md'), /^Last updated: October 25, 2026$/m);
-  assert.match(read('docs/legal/privacy-policy-2026-10.pt.md'), /^Última atualização: 25 de outubro de 2026$/m);
+  assert.match(read('docs/legal/privacy-policy-2026-10.md'), /^Last updated: October 27, 2026$/m);
+  assert.match(read('docs/legal/privacy-policy-2026-10.pt.md'), /^Última atualização: 27 de outubro de 2026$/m);
 });
 
 test('council 4: the paragraph names the app\'s real Settings › Support › Team messages path and Silent mode label', () => {
@@ -257,4 +257,17 @@ test('council 7: the Today gate has no foreground throttle of its own; a return 
   const gate = code('components/TeamMessageGate.js');
   assert.doesNotMatch(gate, /lastFgRef|FOREGROUND_GAP_MS/);
   assert.match(gate, /if \(s !== 'active' \|\| !focusedRef\.current\) return;\s*refreshThenTry\(\);/);
+});
+
+// Council 2026-10-27 (regulatory): the policy names the per-dose data this build stores and follows the
+// one-device rule (AD-77) — never "your other devices / phones".
+test('policy 2026-10-27: per-dose amount, scheduled time, hand edits and corrections named; one phone at a time', () => {
+  const { translations: tr } = require('../i18n/translations');
+  const WANT = { en: 'the amount of each dose', es: 'la cantidad de cada dosis', pt: 'a quantidade de cada dose', fr: 'la quantité de chaque dose', de: 'die Menge jeder Dosis', it: 'la quantità di ogni dose' };
+  for (const l of LANGS) {
+    const b = tr[l].settings_privacy_body;
+    assert.ok(b.includes(WANT[l]), l);
+    assert.doesNotMatch(b, /other devices|otros dispositivos|outros aparelhos|autres appareils|anderen Geräten|altri dispositivi|other phones know|otros teléfonos sepan|outros celulares saibam|autres téléphones sachent|altri telefoni sappiano/, l);
+  }
+  for (const f of ['docs/legal/privacy-policy-2026-10.md', 'docs/legal/privacy-policy-2026-10.pt.md']) assert.doesNotMatch(read(f), /other devices|outros aparelhos/, f);
 });
