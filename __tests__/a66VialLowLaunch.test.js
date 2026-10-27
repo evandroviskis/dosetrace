@@ -104,8 +104,10 @@ test('A-66 / DV-199: a vial started again on the same row announces its next cro
 });
 
 test('A-66: a vial that is low from its first dose (3-dose vial) is not re-armed by being full', async () => {
+  // Council 2026-10-27: never low before its first dose; low (2 of 3 left = 4 days) after it, announced once.
   const AS = storage();
   const small = (taken) => vial(7, 'r-bpc', taken, { total_doses: 3 });
-  assert.deepEqual(await launch(AS, [small(0)]), [7], '3 of 3 left is low');
-  assert.deepEqual(await launch(AS, [small(0)]), [], 'never every launch');
+  assert.deepEqual(await launch(AS, [small(0)]), [], '3 of 3 left, nothing taken: not low');
+  assert.deepEqual(await launch(AS, [small(1)]), [7], '2 of 3 left is low');
+  assert.deepEqual(await launch(AS, [small(1)]), [], 'never every launch');
 });

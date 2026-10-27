@@ -326,7 +326,7 @@ function ReadValue({ s, text, mark }) {
 // The protocol note's frame (founder 2026-10-27, collapse rule): a saved note shows open under its title;
 // with none saved the field waits closed ("Nenhuma nota"), a tap opens it. The branch follows the SAVED
 // note only, so typing never remounts the field (the keyboard stays).
-function NoteFrame({ saved, s, title, empty, children }) {
+function NoteFrame({ saved, dirty, s, title, empty, children }) {
   if (saved) {
     return (
       <View style={[s.blkD, s.blkNext]}>
@@ -336,7 +336,7 @@ function NoteFrame({ saved, s, title, empty, children }) {
     );
   }
   return (
-    <CollapsibleSection style={s.blkNext} title={title} summary={empty}>
+    <CollapsibleSection style={s.blkNext} title={title} summary={empty} forceOpen={dirty}>
       <View style={s.noteIn}>{children}</View>
     </CollapsibleSection>
   );
@@ -917,7 +917,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
         </CollapsibleSection>
       ) : null}
 
-      <NoteFrame saved={!!p.note} s={s} title={t('protocols_notes')} empty={t('protocols_notes_empty')}>
+      <NoteFrame saved={!!p.note} dirty={noteDirty} s={s} title={t('protocols_notes')} empty={t('protocols_notes_empty')}>
         <TextInput
           style={[s.noteWell, noteFocus && s.noteWellOn]}
           value={noteDraft}
@@ -2651,6 +2651,7 @@ export default function ProtocolsScreen() {
       title={t('protocols_recently_deleted')}
       summary={t(pluralKey('protocols_count_n', deletedProtocols.length, language)).replace('{n}', String(deletedProtocols.length))}
       onToggle={(open) => { if (!open) setTrashSel(null); }}
+      forceOpen={!!trashSel}
       headerExtra={(
         <>
           {!trashSel ? (

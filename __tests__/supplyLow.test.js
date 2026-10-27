@@ -55,3 +55,13 @@ test('S-05: the push, the Today alert and the Protocols badge all use supplyStat
   assert.match(prot, /supplyState\(/, 'Protocols badge');
   assert.doesNotMatch(prot, /dosesRemaining <= 3/);
 });
+
+// Council 2026-10-27 (senior): a vial whose whole supply lasts 7 days or less was "low" the day it was mixed —
+// the same complaint as the tirzepatide vial. A vial is low only once a dose has been taken from it.
+test('a vial with no dose taken yet is never low (not on the day it is mixed)', () => {
+  const { supplyState } = sl();
+  const daily = { ...protocol, interval_days: 1, doses_per_day: 1 };
+  assert.equal(supplyState({ total_doses: 6, doses_taken: 0 }, daily).low, false);
+  assert.equal(supplyState({ total_doses: 1, doses_taken: 0 }, daily).low, false, 'a single-dose vial');
+  assert.equal(supplyState({ total_doses: 6, doses_taken: 1 }, daily).low, true, '5 days left after the first dose');
+});

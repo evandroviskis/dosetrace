@@ -12,8 +12,8 @@ const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 test('the component: closed on mount, toggles, tells screen readers, theme tokens only', () => {
   const src = read('components/CollapsibleSection.js');
   assert.match(src, /useState\(false\)/, 'closed on every visit (never remembered)');
-  assert.match(src, /accessibilityState=\{\{ expanded: open \}\}/);
-  assert.match(src, /<FoldChevron open=\{open\}/);
+  assert.match(src, /accessibilityState=\{\{ expanded: shown \}\}/);
+  assert.match(src, /<FoldChevron open=\{shown\}/);
   assert.doesNotMatch(src, /#[0-9a-fA-F]{3,6}\b|'white'|'black'/);
 });
 
@@ -63,5 +63,16 @@ test('the other places: protocol dose details and an empty note, the curve date 
 });
 
 test('council: the fold arrow matches the app\'s other folds (ink3)', () => {
-  assert.match(read('components/CollapsibleSection.js'), /<FoldChevron open=\{open\} color=\{colors\.ink3\} \/>/);
+  assert.match(read('components/CollapsibleSection.js'), /<FoldChevron open=\{shown\} color=\{colors\.ink3\} \/>/);
+});
+
+// Council 2026-10-27 (senior): a section never hides work in progress — open while a selection or an unsaved
+// note exists (forceOpen); the header control is a sibling of the toggle (VoiceOver reaches it).
+test('council: forceOpen keeps a section open for work in progress; the header control is outside the toggle', () => {
+  const src = read('components/CollapsibleSection.js');
+  assert.match(src, /const shown = open \|\| !!forceOpen;/);
+  assert.match(src, /<\/TouchableOpacity>\s*\{shown && headerExtra \? <View style=\{s\.extra\}>\{headerExtra\}<\/View> : null\}/);
+  const P = read('screens/ProtocolsScreen.js');
+  assert.match(P, /forceOpen=\{!!trashSel\}/);
+  assert.match(P, /<NoteFrame saved=\{!!p\.note\} dirty=\{noteDirty\}/);
 });
