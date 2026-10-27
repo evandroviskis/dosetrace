@@ -22,7 +22,7 @@ const ph = (s) => (String(s).match(/\{[a-zA-Z0-9_]+\}/g) || []).sort().join(',')
 
 const KEYS = ['nutri_free_note', 'nutri_hero_today', 'notif_morning_due_private', 'today_more_later', 'today_vial_new_capacity',
   'blood_premium_markers', 'protocols_vial_days_left', 'protocols_doses_left', 'protocols_doses_capacity', 'protocols_low_supply',
-  'protocols_history_weeks', 'protocols_history_days', 'report_streak_line', 'report_vial_line', 'blood_imported_body',
+  'protocols_past_title', 'report_streak_line', 'report_vial_line', 'blood_imported_body',
   'vax_imported_body', 'vax_imported_dropped', 'bodymap_n_selected'];
 
 test('the plural rule: French singular for 0 and 1, the others for 1 only', () => {
@@ -69,7 +69,7 @@ test('the screens pick the singular with pluralKey', () => {
     // A-132: the vial window moved to its own component (shared by Today and the protocol page).
     'screens/components/NewVialPrompt.js': ['today_vial_new_capacity', 'today_new_vial_old'],
     'screens/BodyScreen.js': ['blood_premium_markers', 'blood_imported_body'],
-    'screens/ProtocolsScreen.js': ['protocols_vial_days_left', 'protocols_doses_left', 'protocols_doses_capacity', 'protocols_low_supply', 'protocols_history_weeks', 'protocols_history_days'],
+    'screens/ProtocolsScreen.js': ['protocols_vial_days_left', 'protocols_doses_left', 'protocols_doses_capacity', 'protocols_low_supply', 'protocols_past_title'],
     'screens/SettingsScreen.js': ['report_streak_line', 'report_vial_line'],
     'screens/components/VaccinesSection.js': ['vax_imported_body', 'vax_imported_dropped'],
     'screens/components/BodyMapModal.js': ['bodymap_n_selected'],

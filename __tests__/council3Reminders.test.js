@@ -99,7 +99,7 @@ test('RG-5: the screen opens at the item that needs attention (focus is read and
 // phone), so the start-date question carries no setup opening at all.
 test('journey F6: the start-date question opens nothing after it (Today offers the step once per phone)', () => {
   const p = read('screens/ProtocolsScreen.js');
-  const i = p.indexOf("label: t('protocols_history_no')");
+  const i = p.indexOf("label: t('protocols_past_no')"); // 2026-10-27: the start-date question's new keys
   assert.doesNotMatch(p.slice(i - 400, i + 900), /openSetup|onDismiss/);
 });
 

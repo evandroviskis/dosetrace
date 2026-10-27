@@ -32,10 +32,13 @@ test('L-06: a past start date asks the history question; only "No" writes, and o
   assert.ok(i > 0);
   const block = src.slice(i, src.indexOf('requestSync();\n    // Refresh every mounted screen', i));
   assert.equal(block.split('updateProtocol(').length - 1, 1, 'only one button writes');
-  // A-112 SP-5: no setup opening here any more; "Yes" writes nothing.
-  assert.match(block, /\{ label: t\('protocols_history_yes'\), kind: 'primary' \}/);
-  assert.match(block, /label: t\('protocols_history_no'\),\s*kind: 'secondary',\s*onPress: \(\) => \{\s*try \{ updateProtocol\(newId, \{ history_from: todayStr \}\); \}/);
-  assert.doesNotMatch(block, /insertDoseLog|updateVial|units_taken|doses_taken/);
+  // Founder 2026-10-27 ("Chegamos num acordo"): ONE question for the curve and the vial (lib/pastDoses).
+  // "Não" writes only history_from (and opens Editar frasco); "Sim" moves only the new vial's count.
+  // Never a dose row.
+  assert.match(block, /label: t\('protocols_past_no'\),\s*kind: 'secondary',\s*onPress: \(\) => \{\s*try \{ updateProtocol\(newId, \{ history_from: todayStr \}\); \}/);
+  assert.match(block, /label: t\('protocols_past_yes'\),\s*kind: 'primary'/);
+  assert.match(block, /updateVial\(newVial\.id, \{ doses_taken: ask\.vialUsed \}\)/);
+  assert.doesNotMatch(block, /insertDoseLog|units_taken/);
 });
 
 // ── L-10: a dose taken today cancels that slot's pending reminders ─────────────────────────

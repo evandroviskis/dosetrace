@@ -124,8 +124,11 @@ test('the strings exist in six languages (singular and plural), the old backfill
   new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
     const tr = mod.exports.translations[l];
-    for (const k of ['protocols_history_weeks', 'protocols_history_weeks_one', 'protocols_history_days', 'protocols_history_days_one', 'protocols_history_body', 'protocols_history_yes', 'protocols_history_no', 'curve_estimated_before']) assert.ok(tr[k], `${l} ${k}`);
-    assert.match(tr.protocols_history_weeks, /\{n\}/, l);
+    // Founder 2026-10-27: the start-date question is now "Desde {date}, seriam {n} doses… aplicou todas?"
+    // (lib/pastDoses, __tests__/pastStartAsk.test.js); the old "same dose for N weeks" strings are gone.
+    for (const k of ['protocols_past_title', 'protocols_past_title_one', 'protocols_past_body', 'protocols_past_yes', 'protocols_past_no', 'curve_estimated_before']) assert.ok(tr[k], `${l} ${k}`);
+    assert.match(tr.protocols_past_title, /\{n\}/, l);
+    assert.equal(tr.protocols_history_weeks, undefined, `${l} replaced string removed`);
     assert.match(tr.curve_estimated_before, /\{date\}/, l);
     assert.equal(tr.protocols_backfill_title, undefined, `${l} old string removed`);
   }

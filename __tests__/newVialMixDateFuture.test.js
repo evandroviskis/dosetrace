@@ -168,6 +168,7 @@ function formSave(now, form = {}) {
     parseDecimal: (x) => Number(String(x).replace(',', '.')), dosesPerVial: () => 4,
     rtuVialFields: () => null, getProtocolById: (id) => ({ id }), afterProtocolChange: async () => {},
     Analytics: { protocolCreated() {} }, historyQuestion: () => null, setScreenSheet() {},
+    getVialById: () => null, pastStartAsk: () => null, // founder 2026-10-27: the past-start question (lib/pastDoses)
     updateProtocol() {}, notifyDataChanged() {}, requestSync() {}, fetchProtocols() {}, pluralKey: (k) => k,
     friendlyError: (e) => `ERR:${e && e.message}`,
   });

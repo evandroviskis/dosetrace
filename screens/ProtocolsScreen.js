@@ -47,6 +47,7 @@ import {
 } from '../lib/database';
 import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
+import { pastStartAsk } from '../lib/pastDoses';
 import { tsMs } from '../lib/deleteDose';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -2184,8 +2185,9 @@ export default function ProtocolsScreen() {
       // stored in `amount` (lib/protocolForm protocolPayload) so the card shows "X mg vial".
       const newId = insertProtocol({ user_id: user.id, ...protocolPayload(currentForm(), frequencyLabel, language), start_date: safeStart });
 
+      let newVialId = null;
       if (type === 'recon' && !skipVial) {
-        insertVial({
+        newVialId = insertVial({
           user_id: user.id, protocol_id: newId,
           mixed_on: mix.date,
           water_ml: parseDecimal(water, language) || null,
@@ -2198,39 +2200,58 @@ export default function ProtocolsScreen() {
       // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
       // expiry from the box (month/year → last day of that month).
       const rtuVial = rtuVialFields(currentForm(), language);
-      if (rtuVial) insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
+      if (rtuVial) newVialId = insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
       setSaving(false);
       const protocolData = getProtocolById(newId);
       if (protocolData) afterProtocolChange({ saved: protocolData }).catch(() => {});
       Analytics.protocolCreated({ name, type, dose, dose_unit: doseUnit, frequency: frequencyLabel(intervalDays), goal: goals.join(',') });
 
-      // A-30 (option C): started before adding it to the app? The curve already estimates that
-      // time from the start date; ask whether the dose was the same for the span that still
-      // shapes today's curve (~5 half-lives). Nothing is written to the Dose log and no vial or
-      // oral count moves (declared history is never a logged dose). "No" → the curve starts today.
+      // Founder 2026-10-27 ("Chegamos num acordo"): started before adding it to the app? ONE question for the
+      // curve and the vial — "Desde {date}, seriam {n} doses de {dose}. Você aplicou todas?" (lib/pastDoses).
+      // Sim: the curve estimates that time (A-30) and the vial starts with the doses scheduled since it was
+      // mixed already used. Não: the curve starts today (history_from) and "Editar frasco" opens for the
+      // doses already used. Nothing is ever written to the Dose log (declared history is not a logged dose).
       const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
       const hq = historyQuestion(protocolData, Date.now());
+      const newVial = newVialId != null ? getVialById(newVialId) : null;
+      const ask = protocolData ? pastStartAsk({ protocol: protocolData, vial: newVial, nowMs: Date.now(), curveAsk: !!hq }) : null;
       // A-112 SP-5: no setup opening here any more — Today opens "Make sure your reminders arrive"
       // once per phone (lib/reminderSetup), and onboarding offers it first.
-      if (hq) {
-        const title = hq.unit === 'weeks'
-          ? t(pluralKey('protocols_history_weeks', hq.n, language))
-          : t(pluralKey('protocols_history_days', hq.n, language));
+      if (ask) {
+        const doseText = `${decimalText(protocolData.dose, language)}\u00A0${unitText(protocolData.dose_unit, language)}`;
+        const title = t(pluralKey('protocols_past_title', ask.n, language))
+          .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonth')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
+        const body = ask.vialUsed > 0
+          ? t('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total))
+          : t('protocols_past_body');
         // Shown once the add sheet is gone (screenSheet waits for it).
         setScreenSheet({
-          title: title.replace('{n}', String(hq.n)),
-          body: t('protocols_history_body'),
+          title,
+          body,
           buttons: [
             {
-              label: t('protocols_history_no'),
+              label: t('protocols_past_no'),
               kind: 'secondary',
               onPress: () => {
                 try { updateProtocol(newId, { history_from: todayStr }); } catch { /* best-effort */ }
                 notifyDataChanged('protocol');
                 requestSync();
+                if (newVial && ask.vialUsed > 0) setTimeout(() => openEditVialRef.current(newId), 400);
               },
             },
-            { label: t('protocols_history_yes'), kind: 'primary' },
+            {
+              label: t('protocols_past_yes'),
+              kind: 'primary',
+              onPress: () => {
+                if (newVial && ask.vialUsed > 0) {
+                  try { updateVial(newVial.id, { doses_taken: ask.vialUsed }); } catch { /* best-effort */ }
+                  notifyDataChanged('protocol');
+                  requestSync();
+                  afterProtocolChange({ saved: getProtocolById(newId) }).catch(() => {}); // the vial alerts follow the new count
+                  fetchProtocols();
+                }
+              },
+            },
           ],
         });
       }
@@ -2503,6 +2524,8 @@ export default function ProtocolsScreen() {
   // "Edit vial" (AD-80 screens 3 and 4): corrects the vial in use — only its row (mix date or box
   // month/year, doses already used) and the protocol's validity in days; never a dose. A mix date
   // after today is refused ("Date in the future"; OK returns to the window, nothing written).
+  const openEditVialRef = useRef(null);
+  openEditVialRef.current = (id) => openEditVial(id);
   function openEditVial(id) {
     const p = protocols.find(x => x.id === id);
     if (!p || !vialsByProtocol[p.id]) return;
