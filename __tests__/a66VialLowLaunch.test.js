@@ -17,7 +17,9 @@ const plan = require('../lib/notificationPlan');
 const { supplyState } = require('../lib/supplyLow');
 
 const USER = { id: 'u1', user_metadata: {} };
-const PROTOCOLS = [{ id: 1, name: 'BPC-157', type: 'recon' }, { id: 2, name: 'TB-500', type: 'recon' }];
+// Every other day (2026-10-27: low = 7 days of use or the last dose): 3 left = 6 days = low, 4 left = 8 days
+// = not — the same crossings these announcement tests were written around.
+const PROTOCOLS = [{ id: 1, name: 'BPC-157', type: 'recon', interval_days: 2 }, { id: 2, name: 'TB-500', type: 'recon', interval_days: 2 }];
 
 function storage() {
   const m = new Map();

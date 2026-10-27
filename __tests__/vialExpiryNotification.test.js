@@ -21,9 +21,9 @@ test('recon: 7 days before at 09:00, then the expiry day; only the next one is p
   // mixed 2026-09-20 + 30 days → expires 2026-10-20
   const v = { id: 7, protocol_id: 1, mixed_on: '2026-09-20' };
   const p1 = vialExpiryPlan({ vials: [v], protocolsById: { 1: recon }, nowMs: at(3, 12) });
-  assert.deepEqual(p1, [{ id: 'vial-exp-7-7', vialId: 7, protocolId: 1, fireAtMs: at(13), daysLeft: 7 }]);
+  assert.deepEqual(p1, [{ id: 'vial-exp-7-7', vialId: 7, protocolId: 1, fireAtMs: at(13), daysLeft: 7, validDays: 30 }]);
   const p2 = vialExpiryPlan({ vials: [v], protocolsById: { 1: recon }, nowMs: at(14, 8) });
-  assert.deepEqual(p2, [{ id: 'vial-exp-7-0', vialId: 7, protocolId: 1, fireAtMs: at(20), daysLeft: 0 }]);
+  assert.deepEqual(p2, [{ id: 'vial-exp-7-0', vialId: 7, protocolId: 1, fireAtMs: at(20), daysLeft: 0, validDays: 30 }]);
   assert.deepEqual(vialExpiryPlan({ vials: [v], protocolsById: { 1: recon }, nowMs: at(20, 10) }), [], 'both passed: nothing pending');
 });
 
@@ -46,8 +46,9 @@ test('scheduled behind the vial alerts switch with Today\'s words; the tap opens
   const fn = src.slice(src.indexOf('export async function syncVialAlerts'), src.indexOf('// ── CHECK-IN REMINDERS'));
   assert.match(fn, /vialExpiryPlan\(/);
   assert.match(fn, /type: 'vial_expiry'/);
-  assert.match(fn, /today_alert_vial_expired_one/);
-  assert.match(fn, /today_alert_vial_expiry_days/);
+  assert.match(fn, /expiryAlertBody\(e, name, t\)/, 'the text: lib/vialExpiryText (validity named, 2026-10-27)');
+  assert.match(read('lib/vialExpiryText.js'), /today_alert_vial_expired_one/);
+  assert.match(read('lib/vialExpiryText.js'), /today_alert_vial_expiry_days/);
   // A-109: switching it off also cancels the vial alerts already scheduled.
   // DV-225: and the vial alerts already snoozed (restoreSnoozes drops a switched-off kind).
   assert.match(fn, /if \(user\.user_metadata\?\.vial_alerts === false\) \{ await cancelByPrefix\(N, 'vial-'\); await restoreSnoozes\(\); return; \}/);

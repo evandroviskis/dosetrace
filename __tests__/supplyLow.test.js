@@ -2,7 +2,7 @@
 // S-05 / FX-11: ONE supply-low rule for the Today alert, the push and the Protocols
 // badge. The push used to say "low" at 2 doses and only for vials with a stored count;
 // Today and Protocols said 3 and derived the count for older vials. Now all three use
-// lib/supplyLow.js: capacity = stored count, else vial size ÷ dose; low = 1..3 left.
+// lib/supplyLow.js: capacity = stored count, else vial size ÷ dose; low = 7 days of use or the last dose.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -18,14 +18,28 @@ test('S-05: capacity is the stored count, else derived from vial size ÷ dose', 
   assert.equal(vialCapacity(null, protocol), null);
 });
 
-test('S-05: low = 1, 2 or 3 doses left; 0 (finished) and 4+ are not low — same answer everywhere', () => {
-  const { supplyState, SUPPLY_LOW_DOSES } = sl();
-  assert.equal(SUPPLY_LOW_DOSES, 3);
-  assert.deepEqual(supplyState({ total_doses: null, doses_taken: 7 }, protocol), { capacity: 10, remaining: 3, low: true });
-  assert.deepEqual(supplyState({ total_doses: 10, doses_taken: 6 }, protocol), { capacity: 10, remaining: 4, low: false });
-  assert.deepEqual(supplyState({ total_doses: 10, doses_taken: 10 }, protocol), { capacity: 10, remaining: 0, low: false });
-  assert.deepEqual(supplyState({ total_doses: 10, doses_taken: 9 }, protocol), { capacity: 10, remaining: 1, low: true });
-  assert.deepEqual(supplyState(null, protocol), { capacity: null, remaining: null, low: false });
+// Founder 2026-10-27 (option A, "Concordo com você em relação a avisar com 7 dias"): a 4-dose tirzepatide vial
+// said "Frasco acabando" right after its first dose (3 left = low whatever the vial). Now low = the doses left
+// last 7 days or less at the protocol's own pace (doses per day ÷ interval), or only the last dose is left.
+test('vial low = 7 days of use or less, or the last dose — never by a fixed number of doses', () => {
+  const { supplyState, SUPPLY_LOW_DAYS } = sl();
+  assert.equal(SUPPLY_LOW_DAYS, 7);
+  const weekly = { ...protocol, interval_days: 7, doses_per_day: 1 };
+  assert.equal(supplyState({ total_doses: 4, doses_taken: 1 }, weekly).low, false, 'tirzepatide: 3 weeks left after the first dose');
+  assert.equal(supplyState({ total_doses: 4, doses_taken: 2 }, weekly).low, false, '2 weeks left');
+  assert.equal(supplyState({ total_doses: 4, doses_taken: 3 }, weekly).low, true, 'the last dose: 7 days');
+  const daily = { ...protocol, interval_days: 1, doses_per_day: 1 };
+  assert.equal(supplyState({ total_doses: 50, doses_taken: 42 }, daily).low, false, 'GHK-Cu: 8 days left');
+  assert.equal(supplyState({ total_doses: 50, doses_taken: 43 }, daily).low, true, '7 days left');
+  const twice = { ...protocol, interval_days: 1, doses_per_day: 2 };
+  assert.equal(supplyState({ total_doses: 60, doses_taken: 45 }, twice).low, false, '15 doses = 7,5 days');
+  assert.equal(supplyState({ total_doses: 60, doses_taken: 46 }, twice).low, true, '14 doses = 7 days');
+  const biweekly = { ...protocol, interval_days: 14, doses_per_day: 1 };
+  assert.equal(supplyState({ total_doses: 2, doses_taken: 0 }, biweekly).low, false);
+  assert.equal(supplyState({ total_doses: 2, doses_taken: 1 }, biweekly).low, true, 'the last dose, even 14 days ahead');
+  assert.deepEqual(supplyState({ total_doses: 10, doses_taken: 10 }, daily), { capacity: 10, remaining: 0, low: false }, 'finished: not low');
+  assert.deepEqual(supplyState(null, daily), { capacity: null, remaining: null, low: false });
+  assert.equal(supplyState({ total_doses: null, doses_taken: 3 }, protocol).low, true, 'no schedule fields: daily, 7 left');
 });
 
 test('S-05: the push, the Today alert and the Protocols badge all use supplyState', () => {

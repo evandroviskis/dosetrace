@@ -115,7 +115,7 @@ test('the screens pick the new singulars with pluralKey', () => {
     'screens/FoodChatScreen.js': ['nutri_echo_more'],
     'screens/components/CalculatorSection.js': ['cal_tgt_eta', 'cal_rc_sofar_run'],
     'screens/TodayScreen.js': ['today_alert_vial_expiry_days'],
-    'lib/notifications.js': ['today_alert_vial_expiry_days'],
+    'lib/vialExpiryText.js': ['today_alert_vial_expiry_days', 'notif_vial_exp_valid'], // 2026-10-27: the one expiry text builder
     'lib/paywallPlans.js': ['paywall_start_trial_months'],
     'lib/todayFormat.js': ['today_doses_taken'],
     'components/ReminderSetupList.js': ['rc_setup_progress'],

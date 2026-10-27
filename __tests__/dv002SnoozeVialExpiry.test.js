@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
 const { loadFn, read } = require('./helpers/extractFn');
 const { androidChannelRequest, snoozeKindOff, withFireMs } = require('../lib/notificationPlan');
 const { pluralKey } = require('../lib/plural');
+const { expiryAlertBody } = require('../lib/vialExpiryText');
 const { translations } = require('../i18n/translations');
 
 const SRC = read('lib/notifications.js');
@@ -42,7 +43,7 @@ async function restoreWith({ lang = 'en', namesOff = true, rec }) {
     pruneSnoozes: (l) => l, doseSlotResolved: () => false, snoozeKindOff, // DV-225 (1.3.2)
     getT: async () => makeT(lang),
     fill: (s, vars) => Object.keys(vars).reduce((acc, k) => acc.split(`{${k}}`).join(String(vars[k])), s),
-    isOne: (n) => n === 1, pluralKey,
+    isOne: (n) => n === 1, pluralKey, expiryAlertBody,
     scheduleSnoozeCopy, saveSnoozes: async (l) => { saved = l; },
   });
   await fn();
