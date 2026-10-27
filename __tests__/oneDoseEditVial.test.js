@@ -93,3 +93,16 @@ test('wired: Alterar dose writes the row before any await', () => {
   assert.doesNotMatch(body, /await /);
   assert.match(body, /deleteContext\(log, log\.user_id\)/);
 });
+
+// Simulator 2026-10-27 (review #6, seen): a dose marked right after the vial was added (22:03) and moved to
+// 21:03 lost its vial — "which vial" read the new time. It belongs to the vial of its slot.
+test('a time-edited dose still belongs to the vial of its slot', () => {
+  const { vialForDose } = require('../lib/deleteDose');
+  const { vialUsedAmounts } = require('../lib/doseEdit');
+  const p = { id: 7, type: 'recon', amount: '50', unit: 'mg', dose: '1.5', dose_unit: 'mg' };
+  const v = { id: 'v', created_at: '2026-10-27T02:03:26Z', total_doses: 32, doses_taken: 1, active: 1 };
+  const row = { id: 1, protocol_id: 7, outcome: 'Taken', logged_at: '2026-10-27T01:03:00Z', slot_at: '2026-10-27T02:03:30Z', dose_amount: 3, dose_unit: 'mg' };
+  assert.equal(vialForDose(row, [v], [row]), v);
+  assert.equal(vialUsedAmounts([row], v, 7).length, 1);
+  assert.deepEqual(vialAfterOneDoseEdit(row, { amount: 1.5, unit: 'mg' }, { protocol: p, vials: [v], takenLogs: [row] }), { id: 'v', total_doses: 33 });
+});
