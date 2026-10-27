@@ -11,7 +11,9 @@ const path = require('path');
 const { translations } = require('../i18n/translations');
 
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
-const KEYS = ['curve_current_dose_note', 'curve_lg_not_taken'];
+// AD-95 B built 2026-10-26 (founder: "a curva tem que mudar só a partir da dose que ela mudou"): the
+// interim note is gone — it is no longer true; the hollow-tick legend stays.
+const KEYS = ['curve_lg_not_taken'];
 
 test('the interim note and the hollow-tick legend exist in all 6 languages, natively written', () => {
   for (const k of KEYS) {
@@ -22,12 +24,7 @@ test('the interim note and the hollow-tick legend exist in all 6 languages, nati
       if (l !== 'en') assert.notEqual(v, translations.en[k], `${l}.${k} is the English text`);
     }
   }
-  assert.match(translations.en.curve_current_dose_note, /current dose/);
-  assert.match(translations.pt.curve_current_dose_note, /dose/);
-  // Review: shown to everyone, so it must not claim the user changed anything ("if you changed").
-  assert.match(translations.en.curve_current_dose_note, /even if you changed/);
-  assert.doesNotMatch(translations.en.curve_current_dose_note, /before you changed/);
-  assert.match(translations.pt.curve_current_dose_note, /mesmo que você/);
+  for (const l of LANGS) assert.equal(translations[l].curve_current_dose_note, undefined, `${l}: the interim note left with AD-95`);
   // Re-review: the legend says the spec's sense, "Planned, not logged as taken" — never that the dose
   // was not done (fr "non effectuées" said that).
   // Re-review 2 (one term per concept, CLAUDE.md): in the app's own words — the neighbour key's word
@@ -56,7 +53,7 @@ test('descriptive only: no advice words in the new curve strings', () => {
 
 test('the curve screen shows the note in its notes card and a hollow tick in the legend (theme tokens only)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /t\('curve_current_dose_note'\)/);
+  assert.doesNotMatch(src, /curve_current_dose_note/, 'AD-95: the interim note is gone');
   assert.match(src, /<View style=\{s\.lgTickHollow\} \/><Text style=\{s\.legendKeyText\}>\{t\('curve_lg_not_taken'\)\}<\/Text>/);
   assert.match(src, /lgTickHollow: \{[^}]*borderColor: c\.data/);
   // Re-review: the legend marks are the chart marks scaled by one factor (TICK_LEGEND_SCALE), so the
@@ -65,7 +62,4 @@ test('the curve screen shows the note in its notes card and a hollow tick in the
   assert.match(src, /lgTick: \{ width: TICK\.w \* TICK_LEGEND_SCALE, height: TICK\.h \* TICK_LEGEND_SCALE, backgroundColor: c\.data \}/);
   assert.match(src, /lgTickHollow: \{ width: TICK\.hollowW \* TICK_LEGEND_SCALE, height: TICK\.h \* TICK_LEGEND_SCALE, borderWidth: TICK\.hollowStroke \* TICK_LEGEND_SCALE, borderColor: c\.data \}/);
   assert.match(src, /width=\{TICK\.hollowW\} height=\{TICK\.h\}/);
-  // the note sits after the per-compound notes, before the disclaimer
-  const note = src.indexOf("t('curve_current_dose_note')");
-  assert.ok(note > src.indexOf("t('blend_curve_caveat')") && note < src.indexOf("t('curve_disclaimer')"));
 });

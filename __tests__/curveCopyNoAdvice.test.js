@@ -40,7 +40,7 @@ test('PK-18: the reworded strings say what the curve counts (logged before Now, 
 // AD-96 B PK review 7: the disclaimer names the estimated part too (before a protocol was added, its
 // schedule from the start date), and the current-dose note says what is still true — every past dose
 // counts at the current dose (the past is no longer the schedule, so "and schedule" was wrong). ×6.
-test('PK review 7: the disclaimer names the estimated part; the current-dose note speaks of past doses, 6 languages', () => {
+test('PK review 7: the disclaimer names the estimated part, 6 languages (the interim current-dose note left with AD-95, 2026-10-26)', () => {
   const DISCLAIMER = {
     en: 'the doses you logged (before Now; before you added a protocol, its schedule from your start date), and your planned schedule (after Now).',
     es: 'en las dosis que registraste (antes de «Ahora»; antes de añadir un protocolo, su esquema desde tu fecha de inicio) y en tu esquema planificado (después de «Ahora»).',
@@ -49,17 +49,9 @@ test('PK review 7: the disclaimer names the estimated part; the current-dose not
     de: 'der von dir erfassten Dosen (vor „Jetzt“; vor dem Hinzufügen eines Protokolls: dessen Schema ab deinem Startdatum) und deines geplanten Schemas (nach „Jetzt“).',
     it: 'sulle dosi che hai registrato (prima di «Ora»; prima di aggiungere un protocollo, il suo schema dalla data di inizio) e sugli orari che hai pianificato (dopo «Ora»).',
   };
-  const NOTE = {
-    en: 'The curve uses your current dose for every past dose, even if you changed it.',
-    es: 'La curva usa tu dosis actual para todas las dosis pasadas, aunque la hayas cambiado.',
-    pt: 'A curva usa a dose atual para todas as doses anteriores, mesmo que você a tenha alterado.',
-    fr: 'La courbe applique votre dose actuelle à toutes les doses passées, même si vous l’avez modifiée.',
-    de: 'Die Kurve verwendet deine aktuelle Dosis für alle vergangenen Dosen – auch wenn du sie geändert hast.',
-    it: 'La curva usa la dose attuale per tutte le dosi passate, anche se l’hai modificata.',
-  };
   for (const l of LANGS) {
     assert.ok(translations[l].curve_disclaimer.includes(DISCLAIMER[l]), `${l}: ${translations[l].curve_disclaimer.slice(0, 200)}`);
-    assert.equal(translations[l].curve_current_dose_note, NOTE[l], l);
+    assert.equal(translations[l].curve_current_dose_note, undefined, `${l}: AD-95 built — every dose counts at its own amount`);
     // The estimated part uses the app's own word for the start date (curve_estimated_before).
     const startWord = { en: 'start date', es: 'fecha de inicio', pt: 'data de início', fr: 'date de début', de: 'Startdatum', it: 'data di inizio' }[l];
     assert.ok(translations[l].curve_estimated_before.includes(startWord), l);

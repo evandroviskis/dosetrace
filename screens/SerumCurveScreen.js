@@ -1226,9 +1226,6 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model.series.some(ser => ser.fromBlend) && (
                 <Text style={[s.foot, s.noteSep]}>{t('blend_curve_caveat')}</Text>
               )}
-              {/* DV-005 / AD-95 interim: past dates are drawn with the current dose and schedule
-                  (dated dose versions come in 1.3.2) */}
-              <Text style={[s.foot, s.noteSep]}>{t('curve_current_dose_note')}</Text>
             </View>
           )}
 

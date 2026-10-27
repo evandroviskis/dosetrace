@@ -56,12 +56,12 @@
     "it": "programmate, non contrassegnate come completate"
   },
   "curve_marked_time_note": {
-    "en": "Doses count at the time you marked them.",
-    "pt": "Cada dose entra na curva no horário em que você a marcou.",
-    "es": "Cada dosis entra en la curva a la hora en que la marcaste.",
-    "fr": "Chaque dose compte dans la courbe à l’heure où vous l’avez marquée.",
-    "de": "Jede Dosis zählt in der Kurve ab dem Zeitpunkt, zu dem du sie markiert hast.",
-    "it": "Ogni dose entra nella curva all’ora in cui l’hai segnata."
+    "en": "Each dose counts on the curve at the time and dose you marked. To correct one, tap it in the Dose log.",
+    "pt": "Cada dose entra na curva no horário e na dose em que você a marcou. Para corrigir, toque na dose no Registro de doses.",
+    "es": "Cada dosis entra en la curva con la hora y la dosis que marcaste. Para corregirla, tócala en el Registro de dosis.",
+    "fr": "Chaque dose compte dans la courbe à l’heure et à la dose que vous avez marquées. Pour corriger, touchez-la dans le Journal des doses.",
+    "de": "Jede Dosis zählt in der Kurve mit der Uhrzeit und der Menge, die du markiert hast. Zum Korrigieren tippe sie im Dosisprotokoll an.",
+    "it": "Ogni dose entra nella curva con l’orario e la dose che hai segnato. Per correggerla, toccala nel Registro delle dosi."
   },
   "curve_logged_notice_title": {
     "en": "The curve now uses your logged doses",

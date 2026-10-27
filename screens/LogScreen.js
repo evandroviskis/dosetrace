@@ -36,6 +36,9 @@ import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import RowChevron from '../components/RowChevron';
+import DoseEditSheet from './components/DoseEditSheet';
+import { canEditTime, canEditDose } from '../lib/doseEdit';
+import { formatNumber } from '../lib/localeFormat';
 import { DTSheet } from './components/ProtocolParts';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
@@ -88,6 +91,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // The dose sheet (founder 2026-10-02, option A): a tapped Taken / Skipped row. deleteAsk:
   // the "Delete this dose?" confirm (DTSheet config inputs) for that row.
   const [doseSheet, setDoseSheet] = useState(null);
+  const [doseEdit, setDoseEdit] = useState(null); // AD-95 / F2: { mode: 'time' | 'dose', log, name }
   const [deleteAsk, setDeleteAsk] = useState(null);
   // DoseTrace sheets instead of native alerts (M4): `logSheet` on the screen (the Missed
   // choice, errors); `siteSheet` presented from inside the site picker.
@@ -321,6 +325,25 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   }
   useEffect(() => () => { if (afterTimerRef.current) clearTimeout(afterTimerRef.current); }, []);
 
+  // AD-95 / F2 (founder 2026-10-26, picture docs/design/f2-dose-time-edit.html): "Alterar horário" and
+  // "Alterar dose" — the sheet leaves, the editor opens holding the same popup turn (BK-20), freed on close.
+  function openDoseEdit(log, mode) {
+    leaveSheetThen(() => setDoseEdit({ mode, log, name: logName(log) }));
+  }
+  function closeDoseEdit() {
+    setDoseEdit(null);
+    releasePopup();
+  }
+  function saveDoseEdit(mode, value) {
+    const log = doseEdit && doseEdit.log;
+    if (!log) return;
+    // Only this row changes: its time (the curve follows it) or its own amount (the curve changes from
+    // it on). The vial keeps counting doses; reminders are re-planned (a time moved to another day).
+    if (mode === 'time') writeOutcome(log.id, { logged_at: value });
+    else writeOutcome(log.id, { dose_amount: value.amount, dose_unit: value.unit || log.dose_unit || null });
+    closeDoseEdit();
+  }
+
   // Change site: the existing site editor, exactly as the row tap opened it before.
   function changeSiteFromSheet(log) {
     leaveSheetThen(() => openSiteEditor(log));
@@ -511,6 +534,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   if (doseSheet) lastSheetRef.current = doseSheet;
   const shownSheet = doseSheet || lastSheetRef.current;
   const sheetInjectable = !!shownSheet && INJECTABLE.includes(shownSheet.protocols?.type);
+  // AD-95: the dose this Taken dose was given at (an injectable: the curve's compounds).
+  const sheetDose = !!shownSheet && canEditDose(shownSheet) && shownSheet.dose_amount != null
+    ? `${formatNumber(shownSheet.dose_amount, language, { trim: true, grouping: false })}\u00A0${shownSheet.dose_unit || ''}`.trim() : null;
   const sheetSite = sheetInjectable && shownSheet.injection_site
     ? (describeStored(shownSheet.injection_site, t) || summarizeStored(shownSheet.injection_site, t))
     : null;
@@ -721,6 +747,12 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   <Text style={s.kvKey}>{t('log_sheet_status')}</Text>
                   <Text style={s.kvVal}>{statusWord(shownSheet.outcome)}</Text>
                 </View>
+                {sheetDose ? (
+                  <View style={s.kvRow}>
+                    <Text style={s.kvKey}>{t('log_sheet_dose')}</Text>
+                    <Text style={s.kvVal}>{sheetDose}</Text>
+                  </View>
+                ) : null}
                 <View style={[s.kvRow, !sheetSite && s.kvRowEnd]}>
                   <Text style={s.kvKey}>{t('log_sheet_when')}</Text>
                   <Text style={s.kvVal}>{doseWhen(shownSheet)}</Text>
@@ -738,6 +770,18 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   <RowChevron color={colors.ink3} />
                 </TouchableOpacity>
               )}
+              {canEditTime(shownSheet) && (
+                <TouchableOpacity style={s.changeSite} onPress={() => openDoseEdit(shownSheet, 'time')} accessibilityRole="button">
+                  <Text style={s.changeSiteText}>{t('log_change_time')}</Text>
+                  <RowChevron color={colors.ink3} />
+                </TouchableOpacity>
+              )}
+              {canEditDose(shownSheet) && (
+                <TouchableOpacity style={s.changeSite} onPress={() => openDoseEdit(shownSheet, 'dose')} accessibilityRole="button">
+                  <Text style={s.changeSiteText}>{t('log_change_dose')}</Text>
+                  <RowChevron color={colors.ink3} />
+                </TouchableOpacity>
+              )}
               {shownSheet.outcome === 'Skipped' && (
                 <TouchableOpacity style={s.takeBtn} onPress={() => takeFromSheet(shownSheet)} accessibilityRole="button">
                   <Text style={s.takeBtnText}>{t('log_mark_taken')}</Text>
@@ -751,6 +795,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         </Pressable>
       </Modal>
 
+      <DoseEditSheet edit={doseEdit} onClose={closeDoseEdit} onSave={saveDoseEdit} />
       <DTSheet config={deleteSheet} onClose={closeDeleteAsk} />
       <DTSheet config={logSheet} onClose={() => setLogSheet(null)} />
 
