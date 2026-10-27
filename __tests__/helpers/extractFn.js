@@ -42,20 +42,20 @@ function sliceBlock(src, header) {
 // Taken row was taken at, the dose history of a protocol edit) — in scope by default, so every test
 // that runs those writes runs the real stamping; a test may still pass its own.
 function databaseDefaults() {
-  const { stampForTaken, nextDoseHistory } = require('../../lib/doseStamp');
+  const { stampForTaken, nextDoseHistory, sameMass, historyOf } = require('../../lib/doseStamp');
   const src = fs.readFileSync(path.join(ROOT, 'lib/database.js'), 'utf8');
   // eslint-disable-next-line no-new-func
   const takenStamp = new Function('stampForTaken', `${sliceBlock(src, 'function takenStamp(')}\nreturn takenStamp;`)(stampForTaken);
   // eslint-disable-next-line no-new-func
-  const takenAtCurrentDose = new Function('stampForTaken', `${sliceBlock(src, 'function takenAtCurrentDose(')}\nreturn takenAtCurrentDose;`)(stampForTaken);
-  return { stampForTaken, nextDoseHistory, takenStamp, takenAtCurrentDose };
+  const doseCtx = new Function('sameMass', 'historyOf', `${sliceBlock(src, 'function doseCtx(')}\nreturn doseCtx;`)(sameMass, historyOf);
+  return { stampForTaken, nextDoseHistory, takenStamp, doseCtx, sameMass, historyOf };
 }
 
 // Returns the named function, evaluated with `deps` in scope.
 function loadFn(file, header, name, deps = {}) {
   const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
   const body = sliceBlock(src, header).replace(/^export\s+/, '');
-  if (file === 'lib/database.js' && /takenStamp\(|nextDoseHistory\(|takenAtCurrentDose\(/.test(body)) deps = { ...databaseDefaults(), ...deps };
+  if (file === 'lib/database.js' && /takenStamp\(|nextDoseHistory\(|doseCtx\(/.test(body)) deps = { ...databaseDefaults(), ...deps };
   const names = Object.keys(deps);
   // eslint-disable-next-line no-new-func
   return new Function(...names, `${body}\nreturn ${name};`)(...names.map((n) => deps[n]));

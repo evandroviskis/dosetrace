@@ -32,7 +32,8 @@ test('nextDoseHistory: unchanged dose keeps the history; each change appends; co
   assert.deepEqual(JSON.parse(h1), [{ from: null, dose: 0.5, unit: 'mg' }, { from: '2026-10-26T00:00:00Z', dose: 0.25, unit: 'mg' }]);
   const h2 = nextDoseHistory({ dose: '0.25', dose_unit: 'mg', dose_history: h1 }, '0.3', 'mg', '2026-10-27T00:00:00Z');
   assert.equal(JSON.parse(h2).length, 3);
-  assert.equal(nextDoseHistory({ dose: '0.25', dose_unit: 'mg', dose_history: h1 }, '250', 'mcg', '2026-10-27T00:00:00Z') !== null, true, 'a unit change is a change');
+  assert.equal(nextDoseHistory({ dose: '0.25', dose_unit: 'mg', dose_history: h1 }, '300', 'mcg', '2026-10-27T00:00:00Z') !== null, true, 'a unit change with another quantity is a change');
+  assert.equal(nextDoseHistory({ dose: '0.25', dose_unit: 'mg', dose_history: h1 }, '250', 'mcg', '2026-10-27T00:00:00Z'), null, 'founder 2026-10-27: same quantity in another unit is no change');
   assert.equal(nextDoseHistory({ dose: '', dose_unit: 'mg' }, '5', 'mg', 'x'), null, 'no previous dose: nothing to remember');
 });
 
