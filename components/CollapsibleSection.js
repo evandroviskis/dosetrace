@@ -22,7 +22,7 @@ export default function CollapsibleSection({ title, summary, headerExtra, childr
           {summary ? <Text style={s.summary}>{summary}</Text> : null}
         </View>
         {open && headerExtra ? <View style={s.extra}>{headerExtra}</View> : null}
-        <FoldChevron open={open} color={colors.ink2} />
+        <FoldChevron open={open} color={colors.ink3} />
       </TouchableOpacity>
       {open ? <View style={s.body}>{children}</View> : null}
     </View>

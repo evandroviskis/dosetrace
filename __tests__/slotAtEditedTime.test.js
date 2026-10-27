@@ -97,3 +97,38 @@ test('slot_at counts for every outcome', () => {
   const m = computeMissedDoses([proto], [{ ...moved, outcome: 'Missed', slot_at: new Date('2024-06-19T08:00:00').toISOString() }], now, 0, { lookbackDays: 1 });
   assert.equal(yesterday(m).length, 0, 'its own slot is answered');
 });
+
+// Spec audit 2026-10-27 (DC-3): the Missed scan reads rows by time; a dose whose time was moved far back
+// (20 days) dropped out of the read and its slot looked missed. The read also takes rows by their slot.
+test('the scan\'s read takes a row by its slot too (a time moved far back still answers its slot)', () => {
+  const { loadFn } = require('./helpers/extractFn');
+  const db = makeDb();
+  const getLogsSince = loadFn('lib/database.js', 'export function getLogsSince(', 'getLogsSince', { getDB: () => db });
+  const pid = seedSyncedProtocol(db, 'u', { remote_id: 'p-1', updated_at: '1' });
+  db.runSync("INSERT INTO dose_logs (user_id, protocol_id, outcome, logged_at, slot_at, updated_at, sync_status) VALUES ('u', ?, 'Taken', '2026-10-01T08:00:00.000Z', '2026-10-25T08:00:00.000Z', '1', 'synced')", [pid]);
+  assert.equal(getLogsSince('u', '2026-10-20T00:00:00.000Z').length, 1);
+});
+
+// Council 2026-10-27 (pharmacometrician #1): with an estimated past, a logged dose moved to a day BEFORE the
+// protocol was added counted twice — the estimated dose of that day stayed. The moved dose answers that slot.
+test('a dose moved into the estimated past replaces that day\'s estimated dose (never counted twice)', () => {
+  const S = require('../lib/serumModel');
+  const { getHalfLifeEntry } = require('../lib/halfLives');
+  const e = getHalfLifeEntry('Testosterone Cypionate');
+  const created = new Date(2026, 9, 20, 12, 0).getTime();
+  const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const p = { id: 9, type: 'rtu', name: 'Testosterone Cypionate', compound_id: 'testosterone_cypionate', dose: '100', dose_unit: 'mg', interval_days: 1, doses_per_day: 1, reminder_time: '08:00', start_date: ymd(created - 10 * 864e5), created_at: new Date(created).toISOString() };
+  const movedTo = new Date(2026, 9, 18, 9, 0).getTime(); // two days before the protocol was added
+  const row = { id: 1, protocol_id: 9, outcome: 'Taken', logged_at: new Date(movedTo).toISOString(), slot_at: new Date(2026, 9, 21, 8, 0).toISOString(), dose_amount: 100, dose_unit: 'mg' };
+  const now = new Date(2026, 9, 22, 12).getTime();
+  const plan = S.curvePlan(p, e, now - 9 * 864e5, now + 864e5, now, { logs: [row] });
+  const onDay = plan.doses.filter((t) => ymd(t) === ymd(movedTo));
+  assert.equal(onDay.length, 1, 'one dose on 18/10 — the moved one, not the estimate as well');
+  assert.ok(plan.doses.includes(movedTo));
+});
+
+// Council 2026-10-27 (pharmacometrician #5): a "from" date written in SQLite form is stored as ISO.
+test('"A partir de uma dose": the history moment is stored as ISO whatever the row\'s format', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../lib/database.js'), 'utf8');
+  assert.match(src, /const at = mode === 'from' && fx\.from \? isoOf\(fx\.from\) : now;/);
+});

@@ -45,3 +45,21 @@ test('wired: the scheduled alert, its snoozed copy and the name-hidden copy use 
   assert.doesNotMatch(src, /pluralKey\('today_alert_vial_expiry_days'/, 'one text builder');
   assert.match(src, /validDays: e\.validDays/);
 });
+
+// Journey review 2026-10-27: (F2) the box's month means the vial is good through its LAST day — "expired" only
+// from the next day; the 7-day alert is 7 days before that. (note) An unset validity (the 30-day default) is
+// never quoted as "the validity you gave". (F3) A vial whose protocol is gone sends no low alert.
+test('journey: box date good through its last day; default validity not quoted; orphan vial silent', () => {
+  const now = new Date(2026, 10, 30, 12).getTime(); // 30 Nov, the box's last day
+  const rtu = vialExpiryPlan({ vials: [{ id: 'w', protocol_id: 2, expires_on: '2026-11-30' }], protocolsById: { 2: { id: 2, type: 'rtu' } }, nowMs: now });
+  assert.equal(rtu[0].daysLeft, 0);
+  assert.equal(new Date(rtu[0].fireAtMs).getDate(), 1, 'the "expired" alert comes on 1 Dec');
+  const early = vialExpiryPlan({ vials: [{ id: 'w', protocol_id: 2, expires_on: '2026-11-30' }], protocolsById: { 2: { id: 2, type: 'rtu' } }, nowMs: new Date(2026, 10, 1, 12).getTime() });
+  assert.equal(new Date(early[0].fireAtMs).getDate(), 24, '7 days before 1 Dec');
+  const unset = vialExpiryPlan({ vials: [{ id: 'v', protocol_id: 1, mixed_on: '2026-11-01' }], protocolsById: { 1: { id: 1, type: 'recon', vial_valid_days: null } }, nowMs: new Date(2026, 10, 2).getTime() });
+  assert.equal(unset[0].validDays, null, 'the default is not the person\'s');
+  const today = fs.readFileSync(path.join(__dirname, '../screens/TodayScreen.js'), 'utf8');
+  assert.match(today, /daysLeft = Math\.ceil\(\(new Date\(v\.expires_on \+ 'T00:00:00'\)\.getTime\(\) \+ 86400000 - nowMs\) \/ 86400000\);/);
+  const notif = fs.readFileSync(path.join(__dirname, '../lib/notifications.js'), 'utf8');
+  assert.match(notif, /states = vials\.filter\(\(v\) => protocolById\[v\.protocol_id\]\)\.map/);
+});

@@ -802,6 +802,9 @@ export default function SerumCurveScreen({ embedded = false }) {
     return null;
   };
   const dateLong = (iso) => formatDate(iso, language, 'weekdayDayMonthYear');
+  // The short-compound note (curve_fast_note) shows outside the collapsed model notes (council 2026-10-27).
+  const isFastNote = (ser) => !ser.entry.tmaxHours && !(ser.entry.substance && ser.entry.hours >= 24) && ser.entry.hours < STEP_HOURS;
+  const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote).map((ser) => ({ id: ser.id, text: noteFor(ser) })).filter((n) => n.text) : [];
 
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
 
@@ -1142,10 +1145,10 @@ export default function SerumCurveScreen({ embedded = false }) {
           )}
 
           {/* ── Estimate on a date (cross-reference a blood draw) ──  Founder 2026-10-27: days only — never on the hours curve. */}
-          {/* Founder 2026-10-27 (collapse rule): arrives closed; the summary names the chosen date. */}
+          {/* Council 2026-10-27: the date estimate is the paid curve's answer — it stays open (not collapsed). */}
           {!hourMode && (
-            <CollapsibleSection title={t('curve_readout_title')} summary={readoutDate ? dateLong(readoutDate) : t('curve_readout_pick')}>
-            <View style={s.cardIn}>
+            <View style={s.card}>
+              <Text style={s.cardHead}>{t('curve_readout_title')}</Text>
               {/* Part 19: the next three dose days, "Other date" (the wheel), then bloodwork dates. */}
               <View style={s.chips}>
                 {upcoming.slice(0, 3).map(d => {
@@ -1210,17 +1213,22 @@ export default function SerumCurveScreen({ embedded = false }) {
                 </>
               ) : null}
             </View>
-            </CollapsibleSection>
           )}
 
           {/* Honesty: evidence tier, how the model draws it, and the source — one tap away. Founder
               2026-10-27 (collapse rule): arrives closed; the tier stays on the level card above. */}
+          {/* Council 2026-10-27: the approved short-compound note ("… não mede efeitos") is never folded away. */}
+          {fastNotes.length ? (
+            <View style={s.card}>
+              {fastNotes.map((n) => <Text key={n.id} style={s.foot}>{n.text}</Text>)}
+            </View>
+          ) : null}
           {model && (
             <CollapsibleSection title={t('curve_model_title')} summary={model.series.map((ser) => ser.name).join(' · ')}>
             <View style={s.cardIn}>
               {model.series.map((ser, i) => {
                 const tier = tierCfg[ser.entry.tier];
-                const note = model.max > 0 ? noteFor(ser) : null;
+                const note = model.max > 0 && !isFastNote(ser) ? noteFor(ser) : null;
                 const open = !!sourceOpen[ser.id];
                 return (
                   <View key={`n-${ser.id}`} style={[s.noteBlock, i > 0 && s.noteSep]}>

@@ -102,3 +102,18 @@ test('no question needed: a typo before any dose with no estimated past replaces
   a.updateProtocol(pid, { dose: '250' });
   assert.equal(hist(db, pid), null);
 });
+
+// Council 2026-10-27 (delta): picture fidelity and the sheet's honesty.
+test('council: the lit rows use the picture\'s cobalt tint (hit) in both themes; grey rows readable; vial named for "now" too; times on the rows; the Dose log link saves first', () => {
+  const fs = require('node:fs'); const path = require('node:path');
+  const theme = fs.readFileSync(path.join(__dirname, '../lib/theme.js'), 'utf8');
+  assert.match(theme, /hit: '#E4ECFF'/);
+  assert.match(theme, /hit: '#25304A'/);
+  const sheet = fs.readFileSync(path.join(__dirname, '../screens/components/DoseFixSheet.js'), 'utf8');
+  assert.match(sheet, /rowLit: \{ backgroundColor: c\.hit \}/);
+  assert.match(sheet, /rowOff: \{ color: c\.ink3 \}/, 'no extra opacity (4.5:1)');
+  assert.match(sheet, /mode === 'now' \? \[fill\(t\('dosefix_sum_now'\), 0\), sum\.vialLeft != null \? tk\('dosefix_sum_vial', sum\.vialLeft\) : null\]/);
+  const scr = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
+  assert.match(scr, /date: `\$\{formatDate\(r\.logged_at, language, 'dayMonth'\)\} \$\{timeOfIso\(r\.logged_at\)\}`/);
+  assert.match(scr, /onLink=\{async \(\) => \{ setDoseAsk\(null\); const ok = await saveProtocol\(\{ mode: 'now' \}\); if \(ok\) setTimeout\(\(\) => navigation\.navigate\('Log'\), 350\); \}\}/);
+});

@@ -83,7 +83,7 @@ test('short-compound note ×6 (approved text) and no date readout in hours mode'
   }
   assert.match(translations.en.curve_fast_note, /does not measure effects/);
   const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /\{!hourMode && \(\s*<CollapsibleSection title=\{t\('curve_readout_title'\)\}/, 'the card only in days (collapsed, founder 2026-10-27)');
+  assert.match(src, /\{!hourMode && \(\s*<View style=\{s\.card\}>\s*<Text style=\{s\.cardHead\}>\{t\('curve_readout_title'\)\}/, 'the card only in days (open, council 2026-10-27)');
   assert.match(src, /useEffect\(\(\) => \{ if \(hourMode && readoutDate\) setReadoutDate\(null\); \}, \[hourMode, readoutDate\]\)/, 'a date picked in days never steers the hours curve');
 });
 
@@ -94,4 +94,12 @@ test('one hour format on the axis, the label and the bar', () => {
   assert.match(src, /`−\$\{hourWin\.past\}\\u00A0\$\{hu\}`/);
   assert.match(src, /`\+\$\{hourWin\.future\}\\u00A0\$\{hu\}`/);
   assert.doesNotMatch(src, /\$\{hourWin\.(past|future)\}\$\{hu\}/);
+});
+
+// Council 2026-10-27: the approved short-compound note ("… não mede efeitos") is never folded away, and the
+// date estimate (the paid curve's answer) is not collapsed.
+test('council: the short-compound note stays visible; the date estimate stays open', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /fastNotes\.map\(/);
+  assert.doesNotMatch(src, /<CollapsibleSection title=\{t\('curve_readout_title'\)\}/);
 });

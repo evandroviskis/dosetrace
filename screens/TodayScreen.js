@@ -1884,7 +1884,8 @@ export default function TodayScreen() {
         if (p.type === 'recon') {
           daysLeft = daysUntilExpiry(v.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
         } else if (v.expires_on) {
-          daysLeft = Math.ceil((new Date(v.expires_on + 'T00:00:00').getTime() - nowMs) / 86400000);
+          // Journey 2026-10-27 (F2): the box date is the last good day (expired from the next day).
+          daysLeft = Math.ceil((new Date(v.expires_on + 'T00:00:00').getTime() + 86400000 - nowMs) / 86400000);
         }
         if (daysLeft != null && daysLeft <= VIAL_EXPIRY_SOON_DAYS) {
           exp.push({ name: p.compound_id ? t(p.compound_id) : p.name, daysLeft, protocolId: p.id });

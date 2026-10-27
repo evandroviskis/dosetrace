@@ -84,7 +84,7 @@ export default function DoseFixSheet({ ask, onChoose, onClose, onLink }) {
             {sum ? (
               <View style={s.sum} accessibilityLiveRegion="polite">
                 <Text style={s.sumText}>
-                  {mode === 'now' ? fill(t('dosefix_sum_now'), 0)
+                  {mode === 'now' ? [fill(t('dosefix_sum_now'), 0), sum.vialLeft != null ? tk('dosefix_sum_vial', sum.vialLeft) : null].filter(Boolean).join(' ')
                     : [sum.n > 0 ? tk('dosefix_sum_fix', sum.n).replace('{from}', sum.from || '').replace('{to}', sum.to || '') : null,
                       mode === 'start' && ask.estimated ? fill(t('dosefix_sum_est'), 0) : null,
                       sum.vialLeft != null ? tk('dosefix_sum_vial', sum.vialLeft) : null].filter(Boolean).join(' ')}
@@ -125,10 +125,10 @@ const styles = (c) => StyleSheet.create({
   optSub: { fontSize: 14, color: c.ink2, marginTop: 3, lineHeight: 19 },
   list: { marginTop: 10, gap: 2 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, paddingVertical: 7, paddingHorizontal: 8, borderRadius: 8 },
-  rowLit: { backgroundColor: c.well },
+  rowLit: { backgroundColor: c.hit },
   rowText: { fontFamily: MONO, fontSize: 14, color: c.ink2 },
   rowTextLit: { color: c.ink, fontWeight: '600' },
-  rowOff: { color: c.ink3, opacity: 0.6 },
+  rowOff: { color: c.ink3 },
   strike: { textDecorationLine: 'line-through', color: c.ink3 },
   more: { fontSize: 14, fontWeight: '600', color: c.data, paddingVertical: 8, paddingHorizontal: 8 },
   sum: { backgroundColor: c.well, borderRadius: 12, padding: 12 },

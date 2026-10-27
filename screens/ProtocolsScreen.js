@@ -2037,6 +2037,8 @@ export default function ProtocolsScreen() {
 
   // The question's content (DoseFixSheet): the doses since the current value began, newest first, and a
   // summary of what each answer changes — doses, dates and the vial left (DL-15) — before saving.
+  // A dose's local time in the user's format (council 2026-10-27: two doses a day need their times).
+  const timeOfIso = (iso) => { const d = new Date(iso); return formatTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, language, timeFormat); };
   function doseQuestion(old, newDose, newUnit, ctx, patch, allLogs = []) {
     const show = (d, u) => `${decimalText(d, language)}\u00A0${unitText(u || 'mg', language)}`;
     const vial = vialsByProtocol[editingId] && vialsByProtocol[editingId].active !== 0 ? vialsByProtocol[editingId] : null;
@@ -2049,7 +2051,7 @@ export default function ProtocolsScreen() {
     return {
       name: protocolDisplayName(old, t), oldDose: show(old.dose, old.dose_unit), newDose: show(newDose, newUnit),
       atOld: ctx.atOld, estimated: ctx.estimated,
-      rows: ctx.rows.map((r) => ({ id: r.id, atOld: r.atOld, date: formatDate(r.logged_at, language, 'dayMonth'),
+      rows: ctx.rows.map((r) => ({ id: r.id, atOld: r.atOld, date: `${formatDate(r.logged_at, language, 'dayMonth')} ${timeOfIso(r.logged_at)}`,
         amount: show(r.dose_amount != null ? r.dose_amount : old.dose, r.dose_amount != null ? r.dose_unit : old.dose_unit) })),
       summary: (mode, fromId) => {
         const hit = affected(mode, fromId);
@@ -2239,6 +2241,7 @@ export default function ProtocolsScreen() {
     notifyDataChanged('protocol');
     closeWizard();
     fetchProtocols();
+    return true; // saved (the Dose log link continues only then)
     } catch (err) {
       setSaving(false);
       wizError(friendlyError(err, t, 'error_save_failed'));
@@ -3748,7 +3751,7 @@ export default function ProtocolsScreen() {
               iPhone wheels in a DoseTrace bottom sheet. */}
           <DTSheet config={wizSheet} onClose={() => setWizSheet(null)} />
           <DoseFixSheet ask={doseAsk} onClose={() => setDoseAsk(null)} onChoose={(c) => { setDoseAsk(null); saveProtocol(c); }}
-            onLink={() => { setDoseAsk(null); closeWizard(); setTimeout(() => navigation.navigate('Log'), 350); }} />
+            onLink={async () => { setDoseAsk(null); const ok = await saveProtocol({ mode: 'now' }); if (ok) setTimeout(() => navigation.navigate('Log'), 350); }} />
           {/* A-121 SG-14: the start-after-end notice's "Mudar a data de fim" (inside the edit sheet). */}
           <EndDateSheet visible={showModal && !!endSheet && endSheet.mode === 'startAfter'} onClose={backFromEndDate} {...endSheetProps} />
           <DTActionSheet config={scanChoice} onClose={() => setScanChoice(null)} />

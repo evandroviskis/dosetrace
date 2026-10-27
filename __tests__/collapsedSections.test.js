@@ -44,7 +44,7 @@ test('the other places: protocol dose details and an empty note, the curve date 
   assert.match(P, /<CollapsibleSection style=\{s\.blkNext\} title=\{t\('protocols_step_dose'\)\}/);
   assert.match(P, /<NoteFrame saved=\{!!p\.note\}/);
   const C = read('screens/SerumCurveScreen.js');
-  assert.match(C, /<CollapsibleSection title=\{t\('curve_readout_title'\)\}/);
+  assert.doesNotMatch(C, /<CollapsibleSection title=\{t\('curve_readout_title'\)\}/, 'council 2026-10-27: the date estimate stays open');
   assert.match(C, /<CollapsibleSection title=\{t\('curve_model_title'\)\}/);
   assert.doesNotMatch(C, /'▴' : '▾'/, 'the source toggle draws the fold arrow, never a text glyph');
   assert.match(C, /<Text style=\{s\.disclaimer\}>\{t\('curve_disclaimer'\)\}<\/Text>/, 'the disclaimer stays open');
@@ -60,4 +60,8 @@ test('the other places: protocol dose details and an empty note, the curve date 
   }
   assert.equal(translations.pt.protocols_notes_empty, 'Nenhuma nota');
   assert.equal(translations.pt.cal_rc_log_n, '{n} medições');
+});
+
+test('council: the fold arrow matches the app\'s other folds (ink3)', () => {
+  assert.match(read('components/CollapsibleSection.js'), /<FoldChevron open=\{open\} color=\{colors\.ink3\} \/>/);
 });

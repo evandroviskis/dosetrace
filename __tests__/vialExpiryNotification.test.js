@@ -30,7 +30,7 @@ test('recon: 7 days before at 09:00, then the expiry day; only the next one is p
 test('ready to use: the box date; no date or no protocol → nothing', () => {
   const v = { id: 8, protocol_id: 2, expires_on: '2026-10-31' };
   const p = vialExpiryPlan({ vials: [v], protocolsById: { 2: rtu }, nowMs: at(3) });
-  assert.equal(p[0].fireAtMs, at(24));
+  assert.equal(p[0].fireAtMs, at(25), 'the box date is the last good day: expiry 1 Nov, 7 days before = 25 Oct (journey 2026-10-27)');
   assert.deepEqual(vialExpiryPlan({ vials: [{ id: 9, protocol_id: 2 }], protocolsById: { 2: rtu }, nowMs: at(3) }), []);
   assert.deepEqual(vialExpiryPlan({ vials: [v], protocolsById: {}, nowMs: at(3) }), []);
 });
