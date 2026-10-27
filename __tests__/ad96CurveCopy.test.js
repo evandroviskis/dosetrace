@@ -26,10 +26,10 @@ test('every approved text, word for word, in six languages', () => {
   for (const l of LANGS) assert.equal(translations[l].curve_logged_notice_ok, translations[l].team_msg_got_it, l);
 });
 
-test('What\'s New 1.3.2 carries the approved curve line in the six store languages', () => {
-  const notes = JSON.parse(read('release-notes/1.3.2.json'));
-  const loc = { en: 'en-US', pt: 'pt-BR', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', it: 'it-IT' };
-  for (const l of LANGS) assert.ok(notes[loc[l]].includes(COPY.__whats_new[l]), l);
+// Decision B (one release): the approved curve line is in What's New 1.3.1 (release-notes/1.3.2.json removed).
+test('What\'s New 1.3.1 carries the approved curve line in the six store languages', () => {
+  const notes = JSON.parse(read('store/whats-new-1.3.1.json'));
+  for (const l of LANGS) assert.ok(notes[l].includes(COPY.__whats_new[l]) && notes.ios[l].includes(COPY.__whats_new[l]), l);
 });
 
 // ---- PK-11: the "No doses logged yet" rule ----

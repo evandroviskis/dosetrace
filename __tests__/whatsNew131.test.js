@@ -21,7 +21,8 @@ test('What\'s New 1.3.1: the iOS block equals the Play text and never names Andr
   }
 });
 
-test('What\'s New 1.3.1: leads with the missed-dose fix in every language', () => {
-  const first = { pt: /Doses perdidas/, en: /Missed doses/, es: /Dosis omitidas/, fr: /Doses manquées/, de: /Verpasste Dosen/, it: /Dosi saltate/ };
+// 2026-10-27 (decision B, the whole release): leads with what users meet first — correcting a dose.
+test('What\'s New 1.3.1: leads with correcting doses in every language', () => {
+  const first = { pt: /Corrigir doses/, en: /Correct doses/, es: /Corregir dosis/, fr: /Corriger les doses/, de: /Dosen korrigieren/, it: /Correggi le dosi/ };
   for (const k of LANGS) assert.match(j[k].split('\n')[0], first[k], k);
 });
