@@ -1,0 +1,41 @@
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><title>Dose corrigida ou mudada</title><style>
+.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--ink:#111315;--ink2:#454A4F;--act:#111315;--onAct:#FFFFFF;--overlay:rgba(0,0,0,.45)}
+.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--ink:#EEEFEB;--ink2:#B5B9B4;--act:#EEEFEB;--onAct:#121416;--overlay:rgba(0,0,0,.6)}
+body{margin:0;font-family:-apple-system,Helvetica,Arial,sans-serif;background:#f4f4f2}h1{font-size:22px;margin:18px 20px 4px}p.lead{margin:0 20px 14px;color:#444;font-size:14px;max-width:1100px;line-height:1.45}
+.band{padding:16px 20px 22px}.band h2{font-size:15px;margin:0 0 10px;color:#333}.dark.band{background:#0b0c0d}.dark.band h2{color:#ddd}.light.band{background:#f4f4f2}
+.row{display:flex;gap:18px;flex-wrap:wrap}.col{width:300px}.cap{font-size:13px;font-weight:700;margin:0 0 6px;color:#333}.dark .cap{color:#ddd}.cap small{font-weight:400;display:block;color:#666}.dark .cap small{color:#aaa}
+.phone{width:300px;height:560px;border-radius:30px;background:var(--ground);position:relative;overflow:hidden;border:1px solid #0003}.scrim{position:absolute;inset:0;background:var(--overlay)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--raised);border-radius:22px 22px 0 0;padding:20px 18px 24px;display:flex;flex-direction:column;gap:10px}
+.title{font-size:19px;font-weight:700;color:var(--ink);letter-spacing:-.3px}.body{font-size:14px;color:var(--ink2);line-height:1.4}.body b{color:var(--ink)}
+.opt{border:1.5px solid var(--line);border-radius:14px;padding:11px 13px}.opt.on{border:2px solid var(--ink)}.ot{font-size:15px;font-weight:700;color:var(--ink)}.os{font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.35}
+.btn{min-height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}.pri{background:var(--act);color:var(--onAct)}.sec{background:var(--well);color:var(--ink)}
+.note{margin:24px 16px;background:var(--raised);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:8px}
+</style></head><body><h1>Dose do protocolo: estava errada ou mudou?</h1>
+<p class="lead">Fiel ao que a pessoa diz que usou. Ao salvar uma dose nova no protocolo: se nenhuma dose foi marcada com o valor antigo, é correção e troca tudo, sem perguntar (coluna 3). Se já há doses marcadas com o valor antigo, o app pergunta uma vez (colunas 1 e 2). Uma dose só continua no "Alterar dose" do Registro de doses.</p>
+<div class="light band"><h2>Tema claro</h2><div class="row">
+<div class="col"><p class="cap">1. Ao salvar a edição do protocolo<small>só aparece se já houver doses marcadas com o valor antigo</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="title">A dose mudou ou estava errada?</div>
+<div class="body">Você já marcou <b>3 doses</b> de Testosterona Cipionato com <b>2.500 mg</b>. A nova dose é <b>250 mg</b>.</div>
+<div class="opt on"><div class="ot">Estava errada</div><div class="os">Corrigir as 3 doses marcadas para 250 mg. A curva muda desde o início.</div></div>
+<div class="opt"><div class="ot">Mudou a partir de agora</div><div class="os">As 3 doses continuam com 2.500 mg. As próximas usam 250 mg.</div></div>
+<div class="btn pri">Salvar</div><div class="btn sec">Cancelar</div></div></div></div>
+<div class="col"><p class="cap">2. Mesma janela, outra escolha<small>"Mudou a partir de agora"</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="title">A dose mudou ou estava errada?</div>
+<div class="body">Você já marcou <b>3 doses</b> de Testosterona Cipionato com <b>2.500 mg</b>. A nova dose é <b>250 mg</b>.</div>
+<div class="opt"><div class="ot">Estava errada</div><div class="os">Corrigir as 3 doses marcadas para 250 mg. A curva muda desde o início.</div></div>
+<div class="opt on"><div class="ot">Mudou a partir de agora</div><div class="os">As 3 doses continuam com 2.500 mg. As próximas usam 250 mg.</div></div>
+<div class="btn pri">Salvar</div><div class="btn sec">Cancelar</div></div></div></div>
+<div class="col"><p class="cap">3. Sem doses marcadas no valor antigo<small>nenhuma janela: vale como correção</small></p><div class="phone"><div class="note"><div class="title">Sem doses marcadas no valor antigo</div><div class="body">Salvar troca o valor direto, sem perguntar: é uma correção (nenhuma dose foi tomada com o valor anterior). A curva, inclusive a parte estimada antes do cadastro, usa 250 mg.</div></div></div></div></div></div><div class="dark band"><h2>Tema escuro</h2><div class="row">
+<div class="col"><p class="cap">1. Ao salvar a edição do protocolo<small>só aparece se já houver doses marcadas com o valor antigo</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="title">A dose mudou ou estava errada?</div>
+<div class="body">Você já marcou <b>3 doses</b> de Testosterona Cipionato com <b>2.500 mg</b>. A nova dose é <b>250 mg</b>.</div>
+<div class="opt on"><div class="ot">Estava errada</div><div class="os">Corrigir as 3 doses marcadas para 250 mg. A curva muda desde o início.</div></div>
+<div class="opt"><div class="ot">Mudou a partir de agora</div><div class="os">As 3 doses continuam com 2.500 mg. As próximas usam 250 mg.</div></div>
+<div class="btn pri">Salvar</div><div class="btn sec">Cancelar</div></div></div></div>
+<div class="col"><p class="cap">2. Mesma janela, outra escolha<small>"Mudou a partir de agora"</small></p><div class="phone"><div class="scrim"></div><div class="sheet">
+<div class="title">A dose mudou ou estava errada?</div>
+<div class="body">Você já marcou <b>3 doses</b> de Testosterona Cipionato com <b>2.500 mg</b>. A nova dose é <b>250 mg</b>.</div>
+<div class="opt"><div class="ot">Estava errada</div><div class="os">Corrigir as 3 doses marcadas para 250 mg. A curva muda desde o início.</div></div>
+<div class="opt on"><div class="ot">Mudou a partir de agora</div><div class="os">As 3 doses continuam com 2.500 mg. As próximas usam 250 mg.</div></div>
+<div class="btn pri">Salvar</div><div class="btn sec">Cancelar</div></div></div></div>
+<div class="col"><p class="cap">3. Sem doses marcadas no valor antigo<small>nenhuma janela: vale como correção</small></p><div class="phone"><div class="note"><div class="title">Sem doses marcadas no valor antigo</div><div class="body">Salvar troca o valor direto, sem perguntar: é uma correção (nenhuma dose foi tomada com o valor anterior). A curva, inclusive a parte estimada antes do cadastro, usa 250 mg.</div></div></div></div></div></div></body></html>

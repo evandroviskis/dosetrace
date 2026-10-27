@@ -43,9 +43,10 @@ test('a Missed / Skipped row has no dose; recovered as Taken it gets the dose in
   const slot = new Date(Date.now() - 3 * 86400000).toISOString();
   const id = a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Missed', logged_at: slot });
   assert.equal(rows(db)[0].dose_amount, null);
+  a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Taken', logged_at: new Date(Date.now() - 4 * 86400000).toISOString() }); // 200 was used
   a.updateProtocol(pid, { dose: '100' }); // changed after the missed slot
   a.updateDoseLog(id, { outcome: 'Taken' }); // Dose log > Mark taken
-  assert.equal(rows(db)[0].dose_amount, 200, 'the dose of its time, not today\'s 100');
+  assert.equal(rows(db).find((r) => r.id === id).dose_amount, 200, 'the dose of its time, not today\'s 100');
 });
 
 test('a dose Taken after the protocol change gets the new dose; earlier stamps never move', () => {
@@ -92,7 +93,9 @@ test('cloud: the stamp and the history go up; they come down; a cloud NULL never
   const db = makeDb(); const a = app(db); const pid = protocol(db);
   const cloud = makeCloud();
   cloud._store.protocols.set('p-1', { id: 'p-1', user_id: USER, name: 'X', updated_at: '000001' });
+  a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Taken', logged_at: new Date(Date.now() - 2 * 86400000).toISOString() }); // 200 was used
   a.updateProtocol(pid, { dose: '150' });
+  db.runSync('DELETE FROM dose_logs');
   a.recordDoseTaken(pid, { atNow: true });
   const p = toCloudPayload('dose_logs', rows(db)[0]);
   assert.equal(p.dose_amount, 150);
@@ -111,4 +114,63 @@ test('cloud: the stamp and the history go up; they come down; a cloud NULL never
   const fresh = makeDb(); seedSyncedProtocol(fresh, USER, { remote_id: 'p-1', updated_at: '000001' });
   await pullChanges(fresh, cloud, USER);
   assert.equal(fresh.getFirstSync('SELECT dose_amount FROM dose_logs').dose_amount, 140);
+});
+
+// Founder 2026-10-27: a typo fixed before any dose was marked at it is a correction — nothing used the
+// old value, so it is replaced (the estimated part too). Once a dose was marked at it, an edit only goes
+// forward; the person corrects past doses one by one (Alterar dose).
+test('a protocol dose edit with no dose marked at the old value replaces it; after a marked dose it goes forward', () => {
+  const db = makeDb(); const a = app(db); const pid = protocol(db, '2500');
+  const hist = () => { const h = db.getFirstSync('SELECT dose_history FROM protocols WHERE id = ?', [pid]).dose_history; return h ? JSON.parse(h) : null; };
+  a.updateProtocol(pid, { dose: '250' });
+  assert.equal(hist(), null, 'typo fixed before any dose: no history, 250 everywhere');
+  a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Taken', logged_at: new Date(Date.now() - 1000).toISOString() });
+  a.updateProtocol(pid, { dose: '200' });
+  assert.deepEqual(hist().map((e) => e.dose), [250, 200], 'a dose was marked at 250: the change goes forward');
+  a.updateProtocol(pid, { dose: '210' });
+  assert.deepEqual(hist().map((e) => e.dose), [250, 210], '200 was never used: replaced by 210');
+});
+
+// Founder 2026-10-27 ("aprovo sua sugestão", docs/design/dose-fix-or-change.html): with doses already
+// marked at the old value, Save asks — "Estava errada" corrects exactly those doses (a dose the person
+// already set to another amount keeps it); "Mudou a partir de agora" keeps them.
+test('Save question: the count, "Estava errada" corrects the doses at the old value, "Mudou" keeps them', () => {
+  const db = makeDb(); const a = app(db); const pid = protocol(db, '2500');
+  const count = loadFn('lib/database.js', 'export function countTakenAtCurrentDose(', 'countTakenAtCurrentDose', { getDB: () => db });
+  assert.equal(count(pid), 0);
+  const t = (d) => new Date(Date.now() - d * 86400000).toISOString();
+  const r1 = a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Taken', logged_at: t(14) });
+  const r2 = a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Taken', logged_at: t(7) });
+  const r3 = a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Taken', logged_at: t(1) });
+  a.updateDoseLog(r3, { dose_amount: 300 }); // the person already set this one herself
+  a.insertDoseLog({ user_id: USER, protocol_id: pid, outcome: 'Skipped', logged_at: t(3) });
+  assert.equal(count(pid), 2, 'two doses marked at 2500');
+  a.updateProtocol(pid, { dose: '250', __doseFix: true });
+  const amt = (id) => db.getFirstSync('SELECT dose_amount, sync_status FROM dose_logs WHERE id = ?', [id]);
+  assert.equal(amt(r1).dose_amount, 250);
+  assert.equal(amt(r2).dose_amount, 250);
+  assert.equal(amt(r1).sync_status, 'pending', 'the correction goes to the cloud');
+  assert.equal(amt(r3).dose_amount, 300, 'her own amount stays');
+  assert.equal(db.getFirstSync('SELECT dose_history FROM protocols WHERE id = ?', [pid]).dose_history, null, 'the wrong value is gone from the history too');
+
+  const db2 = makeDb(); const b = app(db2); const p2 = protocol(db2, '2500');
+  const k = b.insertDoseLog({ user_id: USER, protocol_id: p2, outcome: 'Taken', logged_at: t(7) });
+  b.updateProtocol(p2, { dose: '250', __doseFix: false });
+  assert.equal(db2.getFirstSync('SELECT dose_amount FROM dose_logs WHERE id = ?', [k]).dose_amount, 2500, 'Mudou: kept');
+  assert.equal(JSON.parse(db2.getFirstSync('SELECT dose_history FROM protocols WHERE id = ?', [p2]).dose_history).length, 2);
+});
+
+test('Save question is wired in the protocol editor with the approved text x6', () => {
+  const { read } = require('./helpers/extractFn');
+  const src = read('screens/ProtocolsScreen.js');
+  assert.match(src, /countTakenAtCurrentDose\(editingId\)/);
+  assert.match(src, /<DoseFixSheet/);
+  assert.match(src, /__doseFix: doseChoice === 'fix'/);
+  const { translations } = require('../i18n/translations');
+  assert.equal(translations.pt.dosefix_title, 'A dose mudou ou estava errada?');
+  assert.equal(translations.pt.dosefix_wrong, 'Estava errada');
+  assert.equal(translations.pt.dosefix_changed, 'Mudou a partir de agora');
+  assert.equal(translations.pt.dosefix_body_one, 'Você já marcou 1 dose de {name} com {old}. A nova dose é {new}.', 'one dose: singular (sim 2026-10-27 showed "1 doses")');
+  assert.match(read('screens/components/DoseFixSheet.js'), /pluralKey\(k, ask \? ask\.count : 0, language\)/);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['dosefix_title', 'dosefix_body', 'dosefix_body_one', 'dosefix_wrong', 'dosefix_wrong_sub', 'dosefix_wrong_sub_one', 'dosefix_changed', 'dosefix_changed_sub', 'dosefix_changed_sub_one']) assert.equal(typeof translations[l][k], 'string', `${l}.${k}`);
 });

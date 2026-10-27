@@ -46,14 +46,16 @@ function databaseDefaults() {
   const src = fs.readFileSync(path.join(ROOT, 'lib/database.js'), 'utf8');
   // eslint-disable-next-line no-new-func
   const takenStamp = new Function('stampForTaken', `${sliceBlock(src, 'function takenStamp(')}\nreturn takenStamp;`)(stampForTaken);
-  return { stampForTaken, nextDoseHistory, takenStamp };
+  // eslint-disable-next-line no-new-func
+  const takenAtCurrentDose = new Function('stampForTaken', `${sliceBlock(src, 'function takenAtCurrentDose(')}\nreturn takenAtCurrentDose;`)(stampForTaken);
+  return { stampForTaken, nextDoseHistory, takenStamp, takenAtCurrentDose };
 }
 
 // Returns the named function, evaluated with `deps` in scope.
 function loadFn(file, header, name, deps = {}) {
   const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
   const body = sliceBlock(src, header).replace(/^export\s+/, '');
-  if (file === 'lib/database.js' && /takenStamp\(|nextDoseHistory\(/.test(body)) deps = { ...databaseDefaults(), ...deps };
+  if (file === 'lib/database.js' && /takenStamp\(|nextDoseHistory\(|takenAtCurrentDose\(/.test(body)) deps = { ...databaseDefaults(), ...deps };
   const names = Object.keys(deps);
   // eslint-disable-next-line no-new-func
   return new Function(...names, `${body}\nreturn ${name};`)(...names.map((n) => deps[n]));

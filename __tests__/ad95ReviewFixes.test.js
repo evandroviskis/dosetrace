@@ -86,6 +86,7 @@ test('review 7: a row leaving Taken loses its stamp; taken again it gets the dos
   const id = insertDoseLog({ user_id: 'u', protocol_id: pid, outcome: 'Taken', logged_at: iso(Date.now() - DAY) });
   updateDoseLog(id, { outcome: 'Skipped' });
   assert.equal(db.getFirstSync('SELECT dose_amount FROM dose_logs WHERE id = ?', [id]).dose_amount, null);
+  insertDoseLog({ user_id: 'u', protocol_id: pid, outcome: 'Taken', logged_at: iso(Date.now() - 2 * DAY) }); // 200 was used (a real change follows)
   updateProtocol(pid, { dose: '100' });
   updateDoseLog(id, { outcome: 'Taken' });
   assert.equal(db.getFirstSync('SELECT dose_amount FROM dose_logs WHERE id = ?', [id]).dose_amount, 200, 'the dose of its time');

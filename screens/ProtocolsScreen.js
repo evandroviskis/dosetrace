@@ -43,7 +43,7 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol, getVialsForProtocol,
-  setProtocolPlannedEnd, withImmediateTransaction,
+  setProtocolPlannedEnd, withImmediateTransaction, countTakenAtCurrentDose,
 } from '../lib/database';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -69,6 +69,7 @@ import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
 import { startNewVial, showsNewVialButton } from '../lib/newVial';
 import { applyVialEdit, showsEditVialButton, editMixDate, mixDateError } from '../lib/vialEdit';
 import NewVialPrompt, { EditVialPrompt } from './components/NewVialPrompt';
+import DoseFixSheet from './components/DoseFixSheet';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
@@ -1014,6 +1015,8 @@ export default function ProtocolsScreen() {
   // only once the add/edit sheet is fully gone); wizSheet + scanChoice live inside it.
   const [screenSheet, setScreenSheet] = useState(null);
   const [wizSheet, setWizSheet] = useState(null);
+  // Founder 2026-10-27 (docs/design/dose-fix-or-change.html): the Save question of a dose edit.
+  const [doseAsk, setDoseAsk] = useState(null);
   // A-132 / AD-80: the protocol whose "New vial" / "Edit vial" window is open, and an error inside it.
   const [newVialFor, setNewVialFor] = useState(null);
   const [newVialMode, setNewVialMode] = useState('new');
@@ -2003,7 +2006,10 @@ export default function ProtocolsScreen() {
     setWizSheet({ title: t('protocols_missing_name'), body: t('protocols_missing_name_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] });
   }
 
-  async function saveProtocol() {
+  // arg: 'fix' | 'change' — the answer to the dose question (DoseFixSheet); anything else (a press
+  // event) = not asked yet.
+  async function saveProtocol(arg) {
+    const doseChoice = arg === 'fix' || arg === 'change' ? arg : null;
     if (!name) {
       showMissingName();
       return;
@@ -2042,7 +2048,18 @@ export default function ProtocolsScreen() {
       const stored = patch.start_date ? getProtocolById(editingId) : null;
       const clash = stored ? startAfterEnd(stored, patch.start_date) : null;
       if (clash) { setSaving(false); showStartAfterEnd(stored, patch.start_date, clash.endKey); return; }
-      if (Object.keys(patch).length) updateProtocol(editingId, patch);
+      // A new dose with doses already marked at the old one: the person says which it is (asked once).
+      if (('dose' in patch || 'dose_unit' in patch) && !doseChoice) {
+        const n = countTakenAtCurrentDose(editingId);
+        if (n > 0) {
+          const old = getProtocolById(editingId) || {};
+          const show = (d, u) => `${decimalText(d, language)}\u00A0${unitText(u || 'mg', language)}`;
+          setSaving(false);
+          setDoseAsk({ count: n, name: protocolDisplayName(old, t), oldDose: show(old.dose, old.dose_unit), newDose: show('dose' in patch ? patch.dose : old.dose, 'dose_unit' in patch ? patch.dose_unit : old.dose_unit) });
+          return;
+        }
+      }
+      if (Object.keys(patch).length) updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: doseChoice === 'fix' } : patch);
 
       // RTU vial: only the vial fields the edit changed; a vial is created only when the
       // user's change describes one and there is none yet.
@@ -3634,6 +3651,7 @@ export default function ProtocolsScreen() {
           {/* Popups inside the add/edit sheet: notices, the photo choice, and the
               iPhone wheels in a DoseTrace bottom sheet. */}
           <DTSheet config={wizSheet} onClose={() => setWizSheet(null)} />
+          <DoseFixSheet ask={doseAsk} onClose={() => setDoseAsk(null)} onChoose={(c) => { setDoseAsk(null); saveProtocol(c); }} />
           {/* A-121 SG-14: the start-after-end notice's "Mudar a data de fim" (inside the edit sheet). */}
           <EndDateSheet visible={showModal && !!endSheet && endSheet.mode === 'startAfter'} onClose={backFromEndDate} {...endSheetProps} />
           <DTActionSheet config={scanChoice} onClose={() => setScanChoice(null)} />
