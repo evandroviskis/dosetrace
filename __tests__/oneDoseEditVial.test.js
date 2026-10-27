@@ -40,3 +40,18 @@ test('wired: the Dose log writes the vial with the corrected dose', () => {
   assert.match(src, /vialAfterOneDoseEdit\(/);
   assert.match(src, /updateVial\(fix\.id, \{ total_doses: fix\.total_doses \}\)/);
 });
+
+test('the vial\'s taken doses: this protocol, since the vial started (SQLite or ISO time), newest first, as many as it counts', () => {
+  const { vialUsedAmounts } = require('../lib/doseEdit');
+  const v = { created_at: '2026-10-05 00:00:00', doses_taken: 2 };
+  const rows = [
+    { protocol_id: 7, outcome: 'Taken', logged_at: '2026-10-01T10:00:00Z', dose_amount: 50, dose_unit: 'mg' }, // before the vial
+    { protocol_id: 7, outcome: 'Taken', logged_at: '2026-10-06T10:00:00Z', dose_amount: 90, dose_unit: 'mg' },
+    { protocol_id: 7, outcome: 'Skipped', logged_at: '2026-10-07T10:00:00Z' },
+    { protocol_id: 8, outcome: 'Taken', logged_at: '2026-10-08T10:00:00Z', dose_amount: 5, dose_unit: 'mg' }, // another protocol
+    { protocol_id: 7, outcome: 'Taken', logged_at: '2026-10-09T10:00:00Z', dose_amount: null },
+    { protocol_id: 7, outcome: 'Taken', logged_at: '2026-10-10T10:00:00Z', dose_amount: 70, dose_unit: 'mg', sync_status: 'deleted' },
+  ];
+  assert.deepEqual(vialUsedAmounts(rows, v, 7), [{ amount: null, unit: null }, { amount: 90, unit: 'mg' }]);
+  assert.deepEqual(vialUsedAmounts(rows, null, 7), []);
+});

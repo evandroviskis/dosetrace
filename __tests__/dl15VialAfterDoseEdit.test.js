@@ -72,3 +72,18 @@ test('one step: the protocol edit and the vial recount run inside one transactio
   assert.match(body, /vialTotalAfterDoseEdit\(/);
   assert.match(body, /updateVial\(vialNow\.id, \{ total_doses: total \}\)/);
 });
+
+// Simulator 2026-10-27 (Testosterone 2000 mg vial, a dose taken at 90 mg, the protocol then 80, fixed to 70
+// before any dose at 80): the typo path counted the taken dose at 70. With the vial's mass known, the mass
+// used is each taken dose's own amount (its stamp) — never the new or the old protocol dose.
+test('mass known: the doses already taken from the vial count at their own amounts', () => {
+  // 10 doses taken at 90 from a 2000 mg vial, the dose set to 70: 2000 − 900 = 1100 → 15 left → 25
+  const used = Array.from({ length: 10 }, () => ({ amount: 90, unit: 'mg' }));
+  assert.equal(vialTotalAfterDoseEdit({ total: 22, taken: 10, mass: 2000, massUnit: 'mg', oldDose: '80', oldUnit: 'mg', newDose: '70', newUnit: 'mg', fixed: 10, used }), 25);
+  // fewer stamps than doses taken: the rest count at the old dose
+  assert.equal(vialTotalAfterDoseEdit({ total: 22, taken: 2, mass: 2000, massUnit: 'mg', oldDose: '80', oldUnit: 'mg', newDose: '70', newUnit: 'mg', used: [{ amount: 90, unit: 'mg' }] }), 2 + Math.floor((2000 - 90 - 80) / 70));
+  // mcg stamps against a mg vial
+  assert.equal(vialTotalAfterDoseEdit({ total: 10, taken: 1, mass: 5, massUnit: 'mg', oldDose: '0.5', oldUnit: 'mg', newDose: '0.25', newUnit: 'mg', used: [{ amount: 500, unit: 'mcg' }] }), 1 + 18);
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
+  assert.match(src, /used: vialUsedAmounts\(/, 'the screen passes the vial\'s taken doses');
+});

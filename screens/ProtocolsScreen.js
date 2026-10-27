@@ -46,6 +46,7 @@ import {
   setProtocolPlannedEnd, withImmediateTransaction, doseEditContext,
 } from '../lib/database';
 import { sameMass } from '../lib/doseStamp';
+import { vialUsedAmounts } from '../lib/doseEdit';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import T from '../lib/trashSelection';
@@ -2122,6 +2123,8 @@ export default function ProtocolsScreen() {
             ...(rtuMass || reconMass || {}),
             oldDose: before.dose, oldUnit: before.dose_unit, newDose: after.dose, newUnit: after.dose_unit,
             // the corrected doses that came from this vial (marked since it was started)
+            // the doses this vial really gave, at their own amounts (with its mass known)
+            used: vialUsedAmounts(getAllLogs(user.id) || [], vialNow, editingId),
             fixed: doseTypo ? (vialNow.doses_taken || 0) : ((w && w.fixed) || []).filter((r) => !vialNow.created_at || Date.parse(r.logged_at) >= Date.parse(vialNow.created_at)).length,
           });
           if (total != null && total !== Number(vialNow.total_doses)) updateVial(vialNow.id, { total_doses: total });

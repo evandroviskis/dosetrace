@@ -1,5 +1,7 @@
 # DoseTrace — Project State
 
+**2026-10-27 11:15 EDT — 1.3.1 pre-build (redesign/graduated 06f356f):** council fixes closed + option A, slot_at (production migration applied), curve note/hours readout, '< 0,1' everywhere; all proven on the iPhone simulator with the cloud checked; suite 3567/0, iOS export OK; new spec docs/specs/dose-corrections.md (DC-1..15 built) + curve R1/R2 amendment await the founder's signature. Next: independent diff review → ship-check → ask "pode fazer o build" (iOS + Android internal).
+
 **1.3.1 = OPTION B (founder 2026-10-20 "B, pode seguir"):** release branch release/1.3.1 (worktree ~/Desktop/dosetrace-1.3.1, base f8b633f + ledger) = 12 S1 defects + A-149/A-142/A-144/A-152/A-154/A-151 + curve DV-005(A)/068/069/072C. 4 agents running on it (curve; food/profile; sync; account/privacy). Everything else (A-119 in review round 3, A-121/A-148 merged on redesign/graduated, A-127, pictures…) = 1.3.2 on redesign/graduated. Migrations pending founder: protocol_ends_on (1.3.2), one_active_device (1.3.2). 1.3.0: Apple WAITING_FOR_REVIEW, Play production 100%.
 
 2026-10-23: standing rules (one device / check the record) + checar-decisoes + hook + porteiro installed; specialists proposed, awaiting founder.
