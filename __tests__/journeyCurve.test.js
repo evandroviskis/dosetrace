@@ -32,10 +32,10 @@ test('3-day window: picking an earlier date still works — the chart reaches ba
   const src = curve();
   assert.match(src, /const pastDays = curveWindowDays\(readoutDate, todayISO\(\)\);/);
   // Founder 2026-10-26 (hours window): the window comes from lib/curveWindow, days = curveGridStart(now, pastDays).
-  assert.match(src, /curveTimeWindow\(\{ hours: hourMode, now, pastDays, futureDays \}\)/);
+  assert.match(src, /curveTimeWindow\(\{ hours: hourMode \? hoursChoice : 0, now, pastDays, futureDays \}\)/);
   // 1.3.1 DV-072 C: the model also follows the Dose log (hollow ticks) and the plot width (the
   // dose instants are merged to its pixels past 30 days).
-  assert.match(src, /\[protocols, selectedIds, t, colors\.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight, readoutDate, hourMode, stepMs\]/, 'the model follows the window (and the date estimate, a sample since the re-review)');
+  assert.match(src, /\[protocols, selectedIds, t, colors\.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight, readoutDate, hourMode, hoursChoice, stepMs\]/, 'the model follows the window (and the date estimate, a sample since the re-review)');
   assert.match(src, /`\$\{t\('curve_last_days'\)\} \$\{pastDays\}\$\{du\}`/, 'the range line names the real window (day letter per language: curveDayUnit)');
   assert.match(src, /`−\$\{pastDays\}\$\{du\}`/, 'the axis names the real window');
 });

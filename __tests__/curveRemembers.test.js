@@ -42,7 +42,7 @@ test('Curve: Combined on/off and the projection horizon come back as the user le
   saved = curveViewPatch(saved, { showCombined: false });
   saved = curveViewPatch(saved, { futureDays: 30 });
   const v = restoreCurveView({ saved, active, unitOf });
-  assert.deepEqual(v, { selectedIds: ['tb', 'bpc'], showCombined: false, futureDays: 30 });
+  assert.deepEqual(v, { selectedIds: ['tb', 'bpc'], showCombined: false, futureDays: 30, hours: 36 }); // hours: the hour window (founder 2026-10-26), default 36
   assert.deepEqual(saved.selectedIds, ['tb', 'bpc'], 'a patch merges, never drops another key');
 });
 
@@ -51,8 +51,8 @@ test('Curve: a deleted / no longer chartable compound is dropped; mixed units ke
   assert.deepEqual(restoreCurveView({ saved: { selectedIds: ['gone', 'bpc'] }, active, unitOf }).selectedIds, ['bpc']);
   assert.deepEqual(restoreCurveView({ saved: { selectedIds: ['tb', 'hgh', 'bpc'] }, active, unitOf }).selectedIds, ['tb', 'bpc']);
   assert.deepEqual(restoreCurveView({ saved: { selectedIds: ['gone'] }, active, unitOf }).selectedIds, ['new'], 'the current default');
-  assert.deepEqual(restoreCurveView({ saved: null, active, unitOf }), { selectedIds: ['new'], showCombined: true, futureDays: 7 });
-  assert.deepEqual(restoreCurveView({ saved: { futureDays: 45, showCombined: 'yes' }, active, unitOf }), { selectedIds: ['new'], showCombined: true, futureDays: 7 }, 'unknown values fall back');
+  assert.deepEqual(restoreCurveView({ saved: null, active, unitOf }), { selectedIds: ['new'], showCombined: true, futureDays: 7, hours: 36 });
+  assert.deepEqual(restoreCurveView({ saved: { futureDays: 45, showCombined: 'yes' }, active, unitOf }), { selectedIds: ['new'], showCombined: true, futureDays: 7, hours: 36 }, 'unknown values fall back');
   assert.deepEqual(restoreCurveView({ saved: { selectedIds: ['tb'] }, active: [], unitOf }).selectedIds, []);
 });
 

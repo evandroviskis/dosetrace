@@ -53,7 +53,7 @@ import SegmentedBar from '../components/SegmentedBar';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import { restoreCurveView, FUTURE_PRESETS } from '../lib/curveView';
-import { useHoursWindow, curveTimeWindow, HOURS_PAST, HOURS_FUTURE } from '../lib/curveWindow';
+import { useHoursWindow, curveTimeWindow, hoursSplit, HOUR_PRESETS, DEFAULT_HOURS } from '../lib/curveWindow';
 import { loadCurveView, saveCurveView } from '../lib/curveViewStore';
 import { notifyDataChanged, addSyncListener } from '../lib/sync';
 import { curveReloadOnSync, curveReloadPatch, keepSelection } from '../lib/curveReload';
@@ -303,10 +303,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   // Founder 2026-10-02: the curve opens on the last 3 days (a new protocol fills the chart);
   // choosing an earlier date in "Estimate on a date" reaches the chart back to it.
   const pastDays = curveWindowDays(readoutDate, todayISO());
-  // Founder 2026-10-26 (option A, docs/design/curve-short-half-life.html): only short half-life compounds
-  // on the curve → drawn by the hour (last 24 h, next 12 h), lib/curveWindow. A day window the person
-  // picks holds until the selection changes.
-  const [dayPicked, setDayPicked] = useState(false);
+  // Founder 2026-10-26 (docs/design/curve-short-half-life.html A, curve-hours-choice.html): only short
+  // half-life compounds on the curve → ONLY hours (the bar "Horas"); any slower one → ONLY days.
+  const [hoursChoice, setHoursChoice] = useState(DEFAULT_HOURS);
   // The focused screen's read, for the sync listener below (null while blurred or not Premium).
   const readRef = useRef(null);
   // True once this focus's first read has applied the saved view; a reload before that (a sync at
@@ -382,6 +381,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     setSelectedIds(view.selectedIds);
     setShowCombined(view.showCombined);
     setFutureDays(view.futureDays);
+    setHoursChoice(view.hours);
     setLabDates(d.labDates);
     setDoseLogs(d.doseLogs);
     curveNoticeShown(getHistoryProtocols(user.id) || []).then(setNoticeOn).catch(() => setNoticeOn(false));
@@ -448,6 +448,10 @@ export default function SerumCurveScreen({ embedded = false }) {
     setShowCombined(v);
     rememberView({ showCombined: !!v });
   }
+  function changeHours(h) {
+    setHoursChoice(h);
+    rememberView({ hours: h });
+  }
   function changeHorizon(d) {
     setFutureDays(d);
     rememberView({ futureDays: d });
@@ -461,11 +465,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const plotLeft = AXIS_W;
   const plotRight = chartWidth;
   const selectedEntries = useMemo(() => protocols.filter(p => selectedIds.includes(p.id)).map(p => getHalfLifeEntry(matchName(p))), [protocols, selectedIds]);
-  const allShort = useHoursWindow({ entries: selectedEntries });
-  const hourMode = useHoursWindow({ entries: selectedEntries, dayPicked, readoutDate });
+  const hourMode = useHoursWindow({ entries: selectedEntries });
+  const hourWin = hourMode ? hoursSplit(hoursChoice) : null;
   const stepMs = hourMode ? 3600 * 1000 : STEP_HOURS * 3600 * 1000;
-  const selKey = selectedIds.join(',');
-  useEffect(() => { setDayPicked(false); }, [selKey]);
 
   // Shared plot mappers. Scale to a "nice" ceiling (plotMax) that sits ABOVE the
   // peak, so the highest spike never clips the top edge; set just after `model`.
@@ -486,7 +488,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     // The 6h sampling grid is aligned to 00/06/12/18 local time; DV-068: doses are not
     // snapped onto it — every dose instant and Now are samples too (curveSampleTimes), so a
     // fast compound (t½ ≲ 2h) draws its spike at its real time and the line ends on Now.
-    const { start, end } = curveTimeWindow({ hours: hourMode, now, pastDays, futureDays });
+    const { start, end } = curveTimeWindow({ hours: hourMode ? hoursChoice : 0, now, pastDays, futureDays });
     const nSteps = Math.round((end - start) / stepMs);
 
     // AD-96 B (docs/specs/curve-logged-doses.md): the past from the doses logged as Taken (at their
@@ -578,7 +580,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     // The Combined toggle shows whenever a same-substance group exists (also while it is off).
     const hasGroups = Object.values(bySubstance).some(members => members.length >= 2);
     return { series, combined, hasGroups, max, nowIdx, nowF, nSteps, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
-  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight, readoutDate, hourMode, stepMs]);
+  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight, readoutDate, hourMode, hoursChoice, stepMs]);
 
   // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
   // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
@@ -602,8 +604,8 @@ export default function SerumCurveScreen({ embedded = false }) {
   const now = Date.now();
   // Same aligned origin as the model's sample grid, so the readout marker sits
   // exactly where the curve's samples are.
-  const winStart = model ? model.start : curveTimeWindow({ hours: hourMode, now, pastDays, futureDays }).start;
-  const winEnd = curveTimeWindow({ hours: hourMode, now, pastDays, futureDays }).end;
+  const winStart = model ? model.start : curveTimeWindow({ hours: hourMode ? hoursChoice : 0, now, pastDays, futureDays }).start;
+  const winEnd = curveTimeWindow({ hours: hourMode ? hoursChoice : 0, now, pastDays, futureDays }).end;
   const readoutISO = readoutDate || todayISO();
   // DV-068: today reads at THIS moment (same as the Est. level stat); any other date at its own
   // local noon, exact (doses are no longer on the 6 h grid, so neither is the readout).
@@ -903,7 +905,7 @@ export default function SerumCurveScreen({ embedded = false }) {
               </>
             )}
             <Text style={s.rangeLabel}>
-              {hourMode ? `${t('curve_last_hours')} ${HOURS_PAST}\u00A0${hu}` : `${t('curve_last_days')} ${pastDays}${du}`}{single ? ` · ${single.dosesInWindow} ${t(isOne(single.dosesInWindow, language) ? 'log_dose' : 'log_doses')}` : ''} · {hourMode ? `+${HOURS_FUTURE}\u00A0${hu}` : `+${futureDays}${du}`} {t('curve_projection')}
+              {hourMode ? `${t('curve_last_hours')} ${hourWin.past}\u00A0${hu}` : `${t('curve_last_days')} ${pastDays}${du}`}{single ? ` · ${single.dosesInWindow} ${t(isOne(single.dosesInWindow, language) ? 'log_dose' : 'log_doses')}` : ''} · {hourMode ? `+${hourWin.future}\u00A0${hu}` : `+${futureDays}${du}`} {t('curve_projection')}
               {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)}\u00A0${unitLbl}` : ''}
             </Text>
             {/* A-30 (a): a fixed label — the part before the protocol was added is estimated from
@@ -1023,10 +1025,10 @@ export default function SerumCurveScreen({ embedded = false }) {
             <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]} onLayout={(e) => setAxisW(e.nativeEvent.layout.width)}>
               {/* A-101a: an end label that would touch "Now" is left out (lib/curveAxis). */}
               {axisShow.showLeft ? (
-                <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]} onLayout={(e) => setAxisLeftW(e.nativeEvent.layout.width)}>{hourMode ? `−${HOURS_PAST}\u00A0${hu}` : `−${pastDays}${du}`}</Text>
+                <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]} onLayout={(e) => setAxisLeftW(e.nativeEvent.layout.width)}>{hourMode ? `−${hourWin.past}${hu}` : `−${pastDays}${du}`}</Text>
               ) : null}
               {axisShow.showRight ? (
-                <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]} onLayout={(e) => setAxisRightW(e.nativeEvent.layout.width)}>{hourMode ? `+${HOURS_FUTURE}\u00A0${hu}` : `+${futureDays}${du}`}</Text>
+                <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]} onLayout={(e) => setAxisRightW(e.nativeEvent.layout.width)}>{hourMode ? `+${hourWin.future}${hu}` : `+${futureDays}${du}`}</Text>
               ) : null}
               {model && (
                 <Text style={[s.axisNow, { position: 'absolute', left: nowLabelLeft }]} onLayout={(e) => setAxisNowW(e.nativeEvent.layout.width)}>
@@ -1052,16 +1054,12 @@ export default function SerumCurveScreen({ embedded = false }) {
 
             {/* Projection horizon: the shared bar */}
             <View style={s.fld}>
-              <Text style={s.fldLabel}>{t('curve_project_ahead')}</Text>
+              <Text style={s.fldLabel}>{t(hourMode ? 'curve_hours_label' : 'curve_project_ahead')}</Text>
               <SegmentedBar
-                accessibilityLabel={t('curve_project_ahead')}
-                items={[...(allShort ? [{ key: 'h', label: `${HOURS_PAST + HOURS_FUTURE}\u00A0${hu}` }] : []), ...FUTURE_PRESETS.map(d => ({ key: d, label: `+${d}${du}` }))]}
-                value={hourMode ? 'h' : futureDays}
-                onChange={(k) => {
-                  if (k === 'h') { setDayPicked(false); setReadoutDate(null); return; }
-                  setDayPicked(true);
-                  changeHorizon(k);
-                }}
+                accessibilityLabel={t(hourMode ? 'curve_hours_label' : 'curve_project_ahead')}
+                items={hourMode ? HOUR_PRESETS.map(h => ({ key: h, label: `${h}\u00A0${hu}` })) : FUTURE_PRESETS.map(d => ({ key: d, label: `+${d}${du}` }))}
+                value={hourMode ? hoursChoice : futureDays}
+                onChange={hourMode ? changeHours : changeHorizon}
               />
             </View>
           </View>
