@@ -58,3 +58,18 @@ test('an empty answer without a verified session keeps the rewind for later', as
   await pullChanges(db, cloud, USER);
   assert.equal(meta(db), null);
 });
+
+// Review 2026-10-27 #8: an app killed between adding the column and noting the rewind never stamped its rows
+// nor pulled again. The note is written first, and while it is pending every start stamps what is left.
+test('a start cut after the column was added still stamps and still rewinds', () => {
+  const db = makeDb();
+  const pid = seedSyncedProtocol(db, USER, { remote_id: 'p-1', updated_at: '000001' });
+  db.runSync("UPDATE protocols SET dose = '100', dose_unit = 'mg', type = 'rtu' WHERE id = ?", [pid]);
+  db.runSync("INSERT INTO dose_logs (user_id, protocol_id, outcome, logged_at, updated_at, sync_status) VALUES (?, ?, 'Taken', '2026-10-20T10:00:00Z', '2026-10-20T10:00:00Z', 'synced')", [USER, pid]);
+  db.runSync("INSERT OR REPLACE INTO local_meta (key, value) VALUES (?, 'pending')", [KEY]); // noted, then killed before stamping
+  upgradeDoseAmounts(db); // the column is there: the next start
+  assert.equal(db.getFirstSync('SELECT dose_amount FROM dose_logs').dose_amount, 100);
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../lib/schema.js'), 'utf8');
+  const body = src.slice(src.indexOf('function upgradeDoseAmounts('));
+  assert.ok(body.indexOf("'pull_rewind:dose_logs'") < body.indexOf("ADD COLUMN dose_amount"), 'the note before the column');
+});

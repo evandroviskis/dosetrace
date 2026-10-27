@@ -46,7 +46,8 @@ import {
   setProtocolPlannedEnd, withImmediateTransaction, doseEditContext,
 } from '../lib/database';
 import { sameMass } from '../lib/doseStamp';
-import { vialUsedAmounts } from '../lib/doseEdit';
+import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
+import { tsMs } from '../lib/deleteDose';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import T from '../lib/trashSelection';
@@ -97,7 +98,7 @@ import { pluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import {
   isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
-  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit,
+  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass,
 } from '../lib/protocolForm';
 
 
@@ -2010,12 +2011,10 @@ export default function ProtocolsScreen() {
 
   // The question's content (DoseFixSheet): the doses since the current value began, newest first, and a
   // summary of what each answer changes — doses, dates and the vial left (DL-15) — before saving.
-  function doseQuestion(old, newDose, newUnit, ctx, patch) {
+  function doseQuestion(old, newDose, newUnit, ctx, patch, allLogs = []) {
     const show = (d, u) => `${decimalText(d, language)}\u00A0${unitText(u || 'mg', language)}`;
     const vial = vialsByProtocol[editingId] && vialsByProtocol[editingId].active !== 0 ? vialsByProtocol[editingId] : null;
-    const conc = parseDecimal('concentration' in patch ? patch.concentration : old.concentration);
-    const mass = old.type === 'rtu' && vial && Number(vial.water_ml) > 0 && conc > 0 ? { mass: Number(vial.water_ml) * conc, massUnit: old.concentration_unit || 'mg' }
-      : old.type === 'recon' && parseDecimal(old.amount) > 0 ? { mass: parseDecimal(old.amount), massUnit: old.unit || 'mg' } : {};
+    const mass = vialMass({ ...old, ...patch }, vial, language);
     const affected = (mode, fromId) => {
       if (mode === 'now') return [];
       const idx = mode === 'from' ? ctx.rows.findIndex((r) => r.id === fromId) : ctx.rows.length - 1;
@@ -2028,8 +2027,10 @@ export default function ProtocolsScreen() {
         amount: show(r.dose_amount != null ? r.dose_amount : old.dose, r.dose_amount != null ? r.dose_unit : old.dose_unit) })),
       summary: (mode, fromId) => {
         const hit = affected(mode, fromId);
-        const fromVial = vial ? hit.filter((r) => !vial.created_at || Date.parse(r.logged_at) >= Date.parse(vial.created_at)).length : 0;
-        const total = vial ? vialTotalAfterDoseEdit({ total: vial.total_doses, taken: vial.doses_taken || 0, ...mass, oldDose: old.dose, oldUnit: old.dose_unit, newDose, newUnit, fixed: fromVial }) : null;
+        const fromVial = vial ? hit.filter((r) => !vial.created_at || tsMs(r.logged_at) >= tsMs(vial.created_at)).length : 0;
+        // Review 2026-10-27 #3: the same taken doses the save counts (the corrected ones at the new dose).
+        const total = vial ? vialTotalAfterDoseEdit({ total: vial.total_doses, taken: vial.doses_taken || 0, ...mass, oldDose: old.dose, oldUnit: old.dose_unit, newDose, newUnit, fixed: fromVial,
+          used: previewUsedAmounts(allLogs, vial, editingId, hit.map((r) => r.id), newDose, newUnit) }) : null;
         return { n: hit.length, from: hit.length ? formatDate(hit[hit.length - 1].logged_at, language, 'dayMonth') : '', to: hit.length ? formatDate(hit[0].logged_at, language, 'dayMonth') : '',
           vialLeft: total != null ? Math.max(0, total - (vial.doses_taken || 0)) : null };
       },
@@ -2088,7 +2089,7 @@ export default function ProtocolsScreen() {
       const ctx = realChange ? doseEditContext(editingId) : null;
       if (realChange && !doseChoice && (ctx.atOld > 0 || ctx.estimated)) {
         setSaving(false);
-        setDoseAsk(doseQuestion(before, newDoseV, newUnitV, ctx, patch));
+        setDoseAsk(doseQuestion(before, newDoseV, newUnitV, ctx, patch, getAllLogs(user.id) || []));
         return;
       }
       // DL-15: no question and nothing marked, no estimated past = a typo nothing used (the vial at the new dose).
@@ -2114,18 +2115,16 @@ export default function ProtocolsScreen() {
         const vialNow = vialBefore ? (getVialById(vialBefore.id) || vialBefore) : null;
         if (vialNow && vialNow.active !== 0) {
           const after = getProtocolById(editingId) || {};
-          const rtuMass = after.type === 'rtu' && Number(vialNow.water_ml) > 0 && parseDecimal(after.concentration) > 0
-            ? { mass: Number(vialNow.water_ml) * parseDecimal(after.concentration), massUnit: after.concentration_unit || 'mg' } : null;
-          const reconMass = after.type === 'recon' && parseDecimal(after.amount) > 0 ? { mass: parseDecimal(after.amount), massUnit: after.unit || 'mg' } : null;
+          const vMass = vialMass(after, vialNow, language);
           const total = vialTotalAfterDoseEdit({
             // the doses left at the old dose: the total as it stood before this save's own recount
             total: vialBefore.total_doses, taken: vialNow.doses_taken || 0,
-            ...(rtuMass || reconMass || {}),
+            ...vMass,
             oldDose: before.dose, oldUnit: before.dose_unit, newDose: after.dose, newUnit: after.dose_unit,
             // the corrected doses that came from this vial (marked since it was started)
             // the doses this vial really gave, at their own amounts (with its mass known)
             used: vialUsedAmounts(getAllLogs(user.id) || [], vialNow, editingId),
-            fixed: doseTypo ? (vialNow.doses_taken || 0) : ((w && w.fixed) || []).filter((r) => !vialNow.created_at || Date.parse(r.logged_at) >= Date.parse(vialNow.created_at)).length,
+            fixed: doseTypo ? (vialNow.doses_taken || 0) : ((w && w.fixed) || []).filter((r) => !vialNow.created_at || tsMs(r.logged_at) >= tsMs(vialNow.created_at)).length,
           });
           if (total != null && total !== Number(vialNow.total_doses)) updateVial(vialNow.id, { total_doses: total });
         }

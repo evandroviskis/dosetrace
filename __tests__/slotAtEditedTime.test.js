@@ -87,3 +87,13 @@ test('an edited time before the protocol was added stays in the curve and the co
   assert.equal(outcomeCounts([old]).Taken, 0);
   assert.ok(!S.curvePlan(p, e, now - 5 * 864e5, now + 864e5, now, { logs: [old] }).doses.includes(at));
 });
+
+// Review 2026-10-27 #5: a time-edited row that later becomes Missed keeps being judged at its slot.
+test('slot_at counts for every outcome', () => {
+  const { isDeclared } = require('../lib/declared');
+  const created = '2026-10-26T22:03:30.000Z';
+  const missed = { outcome: 'Missed', logged_at: '2026-10-26T20:00:00.000Z', slot_at: '2026-10-26T22:04:00.000Z' };
+  assert.equal(isDeclared(missed, created), false);
+  const m = computeMissedDoses([proto], [{ ...moved, outcome: 'Missed', slot_at: new Date('2024-06-19T08:00:00').toISOString() }], now, 0, { lookbackDays: 1 });
+  assert.equal(yesterday(m).length, 0, 'its own slot is answered');
+});

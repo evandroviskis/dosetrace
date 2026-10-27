@@ -334,7 +334,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     setDoseEdit(null);
     releasePopup();
   }
-  async function saveDoseEdit(mode, value) {
+  function saveDoseEdit(mode, value) {
     const log = doseEdit && doseEdit.log;
     if (!log) return;
     closeDoseEdit();
@@ -343,12 +343,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     if (mode === 'time') { writeOutcome(log.id, timeEditFields(log, value)); return; }
     const unit = value.unit || unitForDoseEdit(log);
     // DL-15 / AD-95 F3: a dose of the active vial corrected to another amount moves that vial by the
-    // difference — read before the row changes (the plan finds the vial from the rows as they are).
+    // difference — read before the row changes (the plan finds the vial from the rows as they are). Review
+    // 2026-10-27 #1: nothing waits before the write (the row's own user_id, no session read).
     let fix = null;
-    try {
-      const user = await getCachedUser();
-      if (user) fix = vialAfterOneDoseEdit(log, { amount: value.amount, unit }, deleteContext(log, user.id));
-    } catch { fix = null; }
+    try { fix = vialAfterOneDoseEdit(log, { amount: value.amount, unit }, deleteContext(log, log.user_id)); } catch { fix = null; }
     writeOutcome(log.id, { dose_amount: value.amount, dose_unit: unit });
     if (fix) {
       try { updateVial(fix.id, { total_doses: fix.total_doses }); syncAllNotifications().catch(() => {}); requestSync(); } catch { /* the dose itself is saved */ }
