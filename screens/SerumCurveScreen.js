@@ -31,7 +31,7 @@ import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
-  hasLoggedDose, nowLabelLines,
+  hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
 import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
 import { isOne } from '../lib/plural';
@@ -578,12 +578,10 @@ export default function SerumCurveScreen({ embedded = false }) {
   const nowX = model ? xForIndex(model.nowF) : plotLeft;
   // A-101a: the x-axis labels never overlap (measured widths; lib/curveAxis).
   const nowLabelLeft = Math.max(0, (nowX - AXIS_W) - 14);
-  // E-A label geometry: two lines of 10 pt (≈5.6 px a character), ending 6 px before the Now line.
+  // E-A label geometry: two lines of 10 pt, left of the Now line as in the approved picture (lib/serumModel).
   const nowLabel = (() => {
     const lines = nowLabelLines(t('curve_lg_estimate'));
-    const w = Math.max(0, ...lines.map(l => l.length)) * 5.6;
-    const left = nowX - plotLeft >= w + 10;
-    return { lines, x: left ? nowX - 6 : nowX + 6, anchor: left ? 'end' : 'start', y0: PLOT_BOTTOM - (lines.length > 1 ? 25 : 13) };
+    return { lines, ...nowLabelPlacement(lines, nowX, plotLeft), y0: PLOT_BOTTOM - (lines.length > 1 ? 25 : 13) };
   })();
   const axisShow = axisLabels({ plotW: axisW, nowLeft: nowLabelLeft, nowW: axisNowW, leftW: axisLeftW, rightW: axisRightW });
   const single = model && model.series.length === 1 ? model.series[0] : null;

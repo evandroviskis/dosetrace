@@ -162,3 +162,18 @@ test('App start writes the 1.3.2 marker (fire and forget, never awaited in the a
   const cb = app.slice(app.indexOf('onAuthStateChange('), app.indexOf('onAuthStateChange(') + 1500);
   assert.doesNotMatch(cb, /markCurveNoticeSince/);
 });
+
+// Device check 2026-10-26 (iPhone 17 Pro Max simulator, pt): with the default window (3 days back,
+// Now at ~124 px of the 325 px chart) the label went to the RIGHT of Now, over the dashed plan; the
+// approved picture puts it LEFT of Now, right-aligned 6 px before the line. The text may use the
+// empty mg gutter (no tick label at that height); it goes right only when even that is too narrow.
+test('E-A label side: left of Now as in the picture; right only when it cannot fit', () => {
+  const pt = M.nowLabelLines('com base nas doses registradas');
+  assert.deepEqual(M.nowLabelPlacement(pt, 124, 38), { x: 118, anchor: 'end' });
+  const en = M.nowLabelLines('from your logged doses');
+  assert.deepEqual(M.nowLabelPlacement(en, 124, 38), { x: 118, anchor: 'end' });
+  // Now very close to the left edge (a 90-day projection): right of the line.
+  assert.deepEqual(M.nowLabelPlacement(pt, 50, 38), { x: 56, anchor: 'start' });
+  const src = read('screens/SerumCurveScreen.js');
+  assert.match(src, /nowLabelPlacement\(/);
+});
