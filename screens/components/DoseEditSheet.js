@@ -12,7 +12,7 @@ import Modal from '../../components/PresenceModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/theme';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { formatTime, hour12Pref } from '../../lib/timeFormat';
+import { formatTime, hour12Pref, LOCALES } from '../../lib/timeFormat';
 import { formatDate, formatNumber } from '../../lib/localeFormat';
 import { checkEditedTime, combineDateTime, parseDoseEdit } from '../../lib/doseEdit';
 
@@ -58,6 +58,9 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
   }
 
   const now = new Date();
+  // The wheels speak the app language, not the phone's (an English phone with the app in Portuguese
+  // showed "October … PM"); an English app set to 24 h reads en-GB.
+  const pickerLocale = language === 'en' && hour12Pref(timeFormat) === false ? 'en-GB' : (LOCALES[language] || 'en-US');
   const body = (
     <Pressable style={[s.sheet, { paddingBottom: 22 + insets.bottom }]} onPress={() => Keyboard.dismiss()} accessibilityViewIsModal>
       <Text style={s.title} accessibilityRole="header">{t(mode === 'time' ? 'log_change_time' : 'log_change_dose')}</Text>
@@ -66,10 +69,10 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
       {mode === 'time' ? (
         Platform.OS === 'ios' ? (
           <View style={s.pickRow}>
-            <DateTimePicker value={new Date(at)} mode="date" display="spinner" maximumDate={now} style={s.pickDate}
+            <DateTimePicker value={new Date(at)} mode="date" display="spinner" maximumDate={now} style={s.pickDate} locale={pickerLocale}
               themeVariant={isDark ? 'dark' : 'light'} textColor={colors.ink}
               onChange={(e, d) => { if (d) { setAt(combineDateTime(d.getTime(), at)); setError(null); } }} />
-            <DateTimePicker value={new Date(at)} mode="time" display="spinner" style={s.pickTime}
+            <DateTimePicker value={new Date(at)} mode="time" display="spinner" style={s.pickTime} locale={pickerLocale}
               themeVariant={isDark ? 'dark' : 'light'} textColor={colors.ink}
               onChange={(e, d) => { if (d) { setAt(combineDateTime(at, d.getTime())); setError(null); } }} />
           </View>
