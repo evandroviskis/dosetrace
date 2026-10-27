@@ -33,5 +33,5 @@ test('axis: above zero but under 0,05 reads "< 0,1"; zero stays 0,0', () => {
 // animated number follows the same rule.
 test('stat card: the animated level reads "< 0,1" too', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /const numFmt = \(v\) => \{ 'worklet'; return !isFinite\(v\) \|\| v <= 0 \? '0' : v < 0\.05 \? '< 0' \+ decSep \+ '1' : /);
+  assert.match(src, /const numFmt = \(v\) => \{ 'worklet'; const x = v \* dispF; return !isFinite\(x\) \|\| x <= 0 \? '0' : x < 0\.05 \? '< 0' \+ decSep \+ '1' : /);
 });

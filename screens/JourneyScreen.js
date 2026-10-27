@@ -241,7 +241,7 @@ export default function JourneyScreen() {
                 </View>
                 <View style={[s.num, s.numEnd]}>
                   <Text style={s.cap}>{t('curve_current_level')}</Text>
-                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value, language)}<Text style={s.unit}> {unitText(level.unit, language)}</Text></Text>
+                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value * level.display.factor, language)}<Text style={s.unit}> {unitText(level.display.unit, language)}</Text></Text>
                   {/* PK-11 (founder 2026-10-26): the same line as the curve while nothing is marked complete */}
                   {level.noLogs ? <Text style={s.foot}>{t('curve_no_logs')}</Text> : null}
                   <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>

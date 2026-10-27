@@ -59,7 +59,7 @@ test('A-134 (5): no screen prints a stored unit without unitText', () => {
     });
   }
   assert.deepEqual(offenders, []);
-  assert.match(read('screens/SerumCurveScreen.js'), /const unitLbl = unitText\(model \? model\.unit : 'mg', language\);/);
+  assert.match(read('screens/SerumCurveScreen.js'), /const unitLbl = unitText\(disp\.unit, language\);/);
   assert.match(read('screens/SerumCurveScreen.js'), /curveUnit\(entry\) === 'IU' \? ` · \$\{unitText\('IU', language\)\}` : ''/);
   assert.match(read('screens/ProtocolsScreen.js'), /\.replace\('\{sunit\}', unitText\(p\.dose_unit, language\)\)/);
 });

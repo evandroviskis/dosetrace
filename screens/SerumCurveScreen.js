@@ -30,7 +30,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
+  curveWindowDays, curveTicks, axisLabel, displayScale, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
 import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
@@ -277,7 +277,8 @@ export default function SerumCurveScreen({ embedded = false }) {
   const du = t('unit_day_short');
   const hu = t('unit_hour_short');
   // Levels and dates in the app language ("3,5 mg", "19 de out."; lib/localeFormat).
-  const mgLabel = (v) => levelLabel(v, language);
+  // Council 2026-10-27: under 1 mg the curve reads in mcg (lib/serumModel displayScale, dispF below).
+  const mgLabel = (v) => levelLabel(v * dispF, language);
   const decSep = numberSymbols(language).decimal; // for the UI-thread number below
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -592,7 +593,10 @@ export default function SerumCurveScreen({ embedded = false }) {
 
   // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
   // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
-  const ticksY = curveTicks(model ? model.max : 0);
+  const disp = displayScale(model ? model.unit : 'mg', model ? model.series.map((ser) => ser.doseMg) : []);
+  const dispF = disp.factor;
+  const ticksRaw = curveTicks(model ? model.max * dispF : 0);
+  const ticksY = { top: ticksRaw.top / dispF, ticks: ticksRaw.ticks.map((v) => v / dispF) };
   if (model && model.max > 0) plotMax = ticksY.top;
 
   const nowX = model ? xForIndex(model.nowF) : plotLeft;
@@ -766,8 +770,8 @@ export default function SerumCurveScreen({ embedded = false }) {
   }, [singleDoseIdx, singleLevelPre, mNow, mN]);
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
-  const unitLbl = unitText(model ? model.unit : 'mg', language); // A-134: UI / IE in the app language
-  const numFmt = (v) => { 'worklet'; return !isFinite(v) || v <= 0 ? '0' : v < 0.05 ? '< 0' + decSep + '1' : v < 10 ? v.toFixed(1).replace('.', decSep) : String(Math.round(v)); };
+  const unitLbl = unitText(disp.unit, language); // A-134: UI / IE in the app language; mcg under 1 mg
+  const numFmt = (v) => { 'worklet'; const x = v * dispF; return !isFinite(x) || x <= 0 ? '0' : x < 0.05 ? '< 0' + decSep + '1' : x < 10 ? x.toFixed(1).replace('.', decSep) : String(Math.round(x)); };
   const cntFmt = (v) => { 'worklet'; return String(Math.round(v)); };
 
   // Dropdown button label: the single compound's name, or "N compounds".
@@ -938,7 +942,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <React.Fragment key={i}>
                   <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.line} strokeWidth={1} strokeDasharray="2,3" />
                   <SvgText x={plotLeft - 4} y={yForLevel(v) + 3} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="end">
-                    {axisLabel(v, language)}
+                    {axisLabel(v * dispF, language)}
                   </SvgText>
                 </React.Fragment>
               ))}

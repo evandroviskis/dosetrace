@@ -74,7 +74,7 @@ test('Part 17: three grid lines (0, half the peak, the peak; top = peak × 1.12)
   assert.equal(axisLabel(0.25), '0.3');
   assert.equal(axisLabel(122.4), '122');
   const src = curve();
-  assert.match(src, /const ticksY = curveTicks\(model \? model\.max : 0\);/);
+  assert.match(src, /const ticksRaw = curveTicks\(model \? model\.max \* dispF : 0\);/);
   assert.doesNotMatch(src, /function yTicks\(\)/, 'no step-by-step grid any more');
 });
 
