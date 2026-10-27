@@ -2,7 +2,7 @@
 
 - source: founder 2026-10-26 / 27 — F2 "Pode permitir editar a hora. A curva tem que ser fiel ao que tem teoricamente no sangue da pessoa, nao ao relogio"; dose correction "sempre, sem exceções, ser fiel ao que o cliente disse que usou… o usuário deve ter o poder de corrigir isso no momento que ele quiser"; option A "Opção A, aceito, pode seguir com tudo" (2026-10-27 10:47 EDT) with the curve note, "Estimar em uma data" hidden in hours mode and the slot_at migration; DL-15 "Pode seguir com a DL-15 e o council"; hours curve "mostrar somente as horas… Não faz sentido deixar os dois". Pictures: docs/design/f2-dose-time-edit.html, docs/design/dose-fix-or-change.html (option A), docs/design/curve-short-half-life.html, docs/design/curve-hours-choice.html. Ledger: docs/decisions.md 2026-10-26 / 27.
 - code: lib/doseEdit.js, lib/doseStamp.js, lib/database.js (updateDoseLog, updateProtocol __doseFix, doseEditContext), lib/protocolForm.js (vialTotalAfterDoseEdit, vialTotalAfterOneDoseEdit), lib/missedDoses.js (coverMsOf), lib/declared.js, lib/serumModel.js (rowsOf slot, era), lib/curveWindow.js, lib/syncMappers.js, lib/syncCore.js, lib/schema.js, screens/LogScreen.js, screens/ProtocolsScreen.js, screens/SerumCurveScreen.js, screens/components/DoseEditSheet.js, screens/components/DoseFixSheet.js; production migrations 20261027020000_dose_amount_per_dose and 20261027150000_dose_logs_slot_at (applied).
-- checklist-signed: pending (founder)
+- checklist-signed: founder 2026-10-27 11:38 EDT ("Assino os dois, opção A")
 - committed-to: 1.3.1 (decision B: one release)
 
 ## Acceptance checklist

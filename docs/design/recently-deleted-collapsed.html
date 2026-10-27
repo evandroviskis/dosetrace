@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excluídos recentemente recolhido</title>
+<style>
+  :root { --page: #f4f4f1; --pageInk: #111315; }
+  body { margin: 0; background: var(--page); color: var(--pageInk); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p.lead { margin: 0 0 20px; max-width: 70ch; color: #454A4F; }
+  h2 { font-size: 17px; margin: 28px 0 12px; }
+  .row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  .col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .cap { font-weight: 700; font-size: 14px; }
+  .cap small { display: block; font-weight: 400; color: #53585D; max-width: 300px; }
+  /* phone: tokens from lib/theme.js */
+  .ph { width: 300px; max-width: 100%; border-radius: 34px; padding: 18px 14px 20px; box-sizing: border-box; background: var(--ground); color: var(--ink); border: 1px solid rgba(0,0,0,.08); }
+  .light { --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F; --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --risk: #9E1F19; --act: #111315; --onAct: #FFFFFF; }
+  .dark { --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F; --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --risk: #F08A80; --act: #EEEFEB; --onAct: #121416; }
+  .ttl { font-size: 26px; font-weight: 800; letter-spacing: -.5px; margin: 4px 2px 12px; }
+  .card { background: var(--raised); border-radius: 18px; padding: 12px 14px; margin-bottom: 8px; }
+  .pname { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .sub { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+  .btn { margin-top: 8px; background: var(--act); color: var(--onAct); border-radius: 14px; text-align: center; font-weight: 700; font-size: 13px; padding: 8px; }
+  .secth { font-size: 13px; font-weight: 600; color: var(--ink2); padding: 10px 4px 6px; display: flex; align-items: center; }
+  .secth .grow { flex: 1; }
+  .link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--tick); font-weight: 400; }
+  .list { background: var(--raised); border-radius: 18px; padding: 0 12px; }
+  .del { display: flex; align-items: center; gap: 9px; min-height: 46px; padding: 6px 0; }
+  .del + .del { border-top: 1px solid var(--line); }
+  .dn { flex: 1; min-width: 0; }
+  .dn b { display: block; font-weight: 400; font-size: 14px; }
+  .dn i { font-style: normal; font-size: 11px; color: var(--ink2); }
+  .pill { font-size: 11px; color: var(--ink2); border: 1px solid var(--line); border-radius: 14px; padding: 5px 9px; }
+  .trash { width: 18px; height: 18px; color: var(--risk); }
+  .fold { background: var(--raised); border-radius: 18px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+  .fold .t { flex: 1; }
+  .fold .t b { display: block; font-size: 15px; font-weight: 600; }
+  .fold .t i { font-style: normal; font-size: 12px; color: var(--ink2); }
+  .chev { width: 16px; height: 16px; color: var(--ink2); flex: none; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #2350D8; color: #fff; margin-left: 6px; vertical-align: 2px; }
+  ul { margin: 6px 0 0 18px; padding: 0; max-width: 72ch; }
+  li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<h1>"Excluídos recentemente" recolhido</h1>
+<p class="lead">Tela Protocolos, fim da lista. À esquerda, como está hoje (sempre aberto). No meio, a proposta: a seção chega fechada, numa linha só com o número de protocolos. À direita, a mesma seção depois de um toque: abre como hoje, com Restaurar, a lixeira e "Selecionar". Cores e tamanhos tirados do app (lib/theme.js), tema claro em cima e escuro embaixo.</p>
+
+<h2>Tema claro</h2>
+<div class="row" id="light"></div>
+<h2>Tema escuro</h2>
+<div class="row" id="dark"></div>
+
+<h2>Como funciona</h2>
+<ul>
+  <li>Toda vez que a tela Protocolos abre, a seção chega <b>fechada</b>. Não fica lembrando que foi aberta antes.</li>
+  <li>Um toque na linha abre; outro toque fecha. A setinha aponta para baixo (fechada) ou para cima (aberta).</li>
+  <li>"Selecionar" (escolher vários para restaurar ou excluir para sempre) só aparece com a seção aberta.</li>
+  <li>Logo depois de excluir um protocolo, a seção continua fechada; a mensagem da exclusão já diz onde ele está.</li>
+  <li>Nada muda em Restaurar, Excluir para sempre ou na seleção. Leitores de tela anunciam "recolhido" ou "expandido".</li>
+  <li>Texto da linha nos seis idiomas: "3 protocolos" / "1 protocolo" (e o equivalente natural em cada idioma).</li>
+</ul>
+
+<script>
+  const trash = '<svg class="trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
+  const chev = (up) => '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + (up ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6') + '"/></svg>';
+  const active = '<div class="ttl">Protocolos</div>'
+    + '<div class="card"><div class="pname"><span class="dot" style="background:#0F8A6A"></span>GHK-Cu</div><div class="sub">50 mg frasco · 1,5 mg dose · Diariamente</div><div class="btn">Concluir</div></div>'
+    + '<div class="card"><div class="pname"><span class="dot" style="background:#7A6BE0"></span>Testosterona Cipionato</div><div class="sub">2000 mg frasco · 70 mg dose · Diariamente</div></div>';
+  const items = [['#D2582A', 'BPC-157', 'Excluído hoje'], ['#3B7FD0', 'Ipamorelina', 'Excluído há 3 dias'], ['#B0892A', 'Semaglutida', 'Excluído há 12 dias']];
+  const openList = '<div class="list">' + items.map(([c, n, a]) => '<div class="del"><span class="dot" style="background:' + c + '"></span><div class="dn"><b>' + n + '</b><i>' + a + '</i></div><span class="pill">Restaurar</span>' + trash + '</div>').join('') + '</div>';
+  const today = active + '<div class="secth"><span class="grow">Excluídos recentemente</span><span class="link">Selecionar</span></div>' + openList;
+  const closed = active + '<div style="height:10px"></div><div class="fold"><div class="t"><b>Excluídos recentemente</b><i>3 protocolos</i></div>' + chev(false) + '</div>';
+  const opened = active + '<div style="height:10px"></div><div class="fold" style="border-bottom-left-radius:0;border-bottom-right-radius:0;padding-bottom:6px"><div class="t"><b>Excluídos recentemente</b><i>3 protocolos</i></div>' + chev(true) + '</div>'
+    + '<div class="secth" style="background:var(--raised);margin:0;padding:0 14px 6px;justify-content:flex-end"><span class="link">Selecionar</span></div>'
+    + openList.replace('class="list"', 'class="list" style="border-top-left-radius:0;border-top-right-radius:0;border-top:1px solid var(--line)"');
+  const cols = [['Hoje no app', 'Sempre aberto, mesmo sem você querer ver.', today], ['Proposta: fechado <span class="tag">ao abrir a tela</span>', 'Uma linha só, com o número de protocolos.', closed], ['Proposta: aberto', 'Depois de um toque: igual a hoje.', opened]];
+  for (const theme of ['light', 'dark']) {
+    document.getElementById(theme).innerHTML = cols.map(([t, s, body]) => '<div class="col"><div class="cap">' + t + '<small>' + s + '</small></div><div class="ph ' + theme + '">' + body + '</div></div>').join('');
+  }
+</script>
+</body>
+</html>
