@@ -8,7 +8,7 @@
 - picture: docs/design/a119-one-active-device.html (claude.ai/artifact/WxjwqHJR9iuYYn4dt3Ft72, version 4; captures in docs/design/a119-telas/) — founder 2026-10-15: "Aprovado" (screens 1, 1b, 2, 2b, 3, 3b, 4; "Sair deste celular" grey). Strings pt/en as drawn; the other 4 languages written natively from them and approved with the texts round.
 - code (expected): lib/ (active-device state + server check), App.js / auth flow (sign-in takeover, replaced handling — onAuthStateChange stays synchronous), lib/sync.js / lib/syncCore.js (refused-write handling), screens/SettingsScreen.js (sign-out), i18n ×6, a Supabase migration (active device + last send per device + write guard on every synced table).
 - checklist-signed: founder 2026-10-15 ("assino", after the Portuguese summary of OD-1..OD-18)
-- committed-to: 1.3.2 (founder 2026-10-20 "B, pode seguir": 1.3.1 = option B, docs/decisions.md; first deferred 2026-10-15)
+- committed-to: 1.3.1 (decision B 2026-10-26 20:12 EDT: the next store build is redesign/graduated, all of 1.3.2, as version 1.3.1; earlier: 1.3.2 by "B, pode seguir" 2026-10-20, first deferred 2026-10-15)
 
 ## Acceptance checklist
 

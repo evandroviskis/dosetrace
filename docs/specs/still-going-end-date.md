@@ -7,7 +7,7 @@
 - sync rule changed by the Gate B review (2026-10-20, differs from DL-115 "always sent, NULL included"; the chair records it in docs/decisions.md): `ends_on` is sent only when THIS phone changed it (local marker `ends_on_changed`, set by setPlannedEnd / continueCourse, cleared when the cloud accepts the push), on a first insert, or with a whole-row write (re-insert / revive). A clear still goes up (NULL is sent when the marker is set). Any other edit (a capsule dose, "Continua") never sends a stale value over another phone's date; the push reply and the pending-row merge take the cloud's value, except a date still waiting for the column (optional_pending).
 - code (expected): screens/TodayScreen.js (prompt, end-date step, course-end question), screens/ProtocolsScreen.js (ProtocolDetail row), screens/components/ProtocolParts.js (DTWheel range), lib/schedule.js (`courseState`, S-15, the only reader of `ends_on`), lib/protocolEnd.js (`setPlannedEnd`, `inactivityDue`, `endNow`, Restart allow-list), lib/wheelPick.js (range option), lib/schema.js + lib/database.js + lib/syncMappers.js + lib/syncCore.js / lib/sync.js (new regular synced column), a Supabase migration (column + `protocols_blank_purged` trigger), i18n ×6.
 - checklist-signed: founder 2026-10-15 ("assino os três", after the Portuguese summary)
-- committed-to: 1.3.2 (founder 2026-10-20 "B, pode seguir": 1.3.1 = option B, docs/decisions.md; first deferred 2026-10-15)
+- committed-to: 1.3.1 (decision B 2026-10-26 20:12 EDT: the next store build is redesign/graduated, all of 1.3.2, as version 1.3.1; earlier: 1.3.2 by "B, pode seguir" 2026-10-20, first deferred 2026-10-15)
 
 ## Acceptance checklist
 
