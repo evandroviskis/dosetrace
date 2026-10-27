@@ -2219,15 +2219,32 @@ export default function ProtocolsScreen() {
       // once per phone (lib/reminderSetup), and onboarding offers it first.
       if (ask) {
         const doseText = `${decimalText(protocolData.dose, language)}\u00A0${unitText(protocolData.dose_unit, language)}`;
+        // Council 2026-10-27: the date carries its year when it is another year; one dose reads "Sim".
         const title = t(pluralKey('protocols_past_title', ask.n, language))
-          .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonth')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
-        const body = ask.vialUsed > 0
-          ? t('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total))
-          : t('protocols_past_body');
-        // Shown once the add sheet is gone (screenSheet waits for it).
+          .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonthAuto')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
+        let body = t('protocols_past_body');
+        if (ask.vialUnknown) body = t('protocols_past_body_vial_unknown');
+        else if (ask.vialUsed > 0) body = t('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total));
+        else if (ask.unitsUsed > 0) {
+          const sv = computeServings({
+            targetDose: protocolData.dose, doseUnit: protocolData.dose_unit, servingStrength: protocolData.serving_strength,
+            servingStrengthUnit: protocolData.serving_strength_unit, servingUnits: protocolData.serving_units, form: protocolData.notes,
+          });
+          const word = sv && sv.unitKey ? `\u00A0${t(pluralKey(sv.unitKey, ask.unitsUsed, language))}` : '';
+          body = t('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
+        }
+        const supplyChanged = () => {
+          notifyDataChanged('protocol');
+          requestSync();
+          afterProtocolChange({ saved: getProtocolById(newId) }).catch(() => {}); // the vial alerts follow the new count
+          fetchProtocols();
+        };
+        // Shown once the add sheet is gone (screenSheet waits for it). Council 2026-10-27: it must be answered —
+        // a backdrop tap or Android back would leave the curve as "Sim" and the vial as "Não".
         setScreenSheet({
           title,
           body,
+          locked: true,
           buttons: [
             {
               label: t('protocols_past_no'),
@@ -2236,19 +2253,24 @@ export default function ProtocolsScreen() {
                 try { updateProtocol(newId, { history_from: todayStr }); } catch { /* best-effort */ }
                 notifyDataChanged('protocol');
                 requestSync();
-                if (newVial && ask.vialUsed > 0) setTimeout(() => openEditVialRef.current(newId), 400);
+                if (newVial && (ask.vialUsed > 0 || ask.vialUnknown)) setTimeout(() => openEditVialRef.current(newId), 400);
               },
             },
             {
-              label: t('protocols_past_yes'),
+              label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'),
               kind: 'primary',
               onPress: () => {
                 if (newVial && ask.vialUsed > 0) {
-                  try { updateVial(newVial.id, { doses_taken: ask.vialUsed }); } catch { /* best-effort */ }
-                  notifyDataChanged('protocol');
-                  requestSync();
-                  afterProtocolChange({ saved: getProtocolById(newId) }).catch(() => {}); // the vial alerts follow the new count
-                  fetchProtocols();
+                  // Every dose of the vial used = the state the last dose leaves (lib/markTaken, lib/vialEdit):
+                  // finished, and the new-vial window opens.
+                  try { updateVial(newVial.id, ask.finished ? { doses_taken: ask.vialUsed, active: 0 } : { doses_taken: ask.vialUsed }); } catch { /* best-effort */ }
+                  supplyChanged();
+                  if (ask.finished && protocolData.type === 'recon') setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
+                } else if (newVial && ask.vialUnknown) {
+                  setTimeout(() => openEditVialRef.current(newId), 400); // earlier pens: this pen's count is the person's
+                } else if (ask.unitsUsed > 0) {
+                  try { updateProtocol(newId, { units_taken: ask.unitsUsed }); } catch { /* best-effort */ }
+                  supplyChanged();
                 }
               },
             },

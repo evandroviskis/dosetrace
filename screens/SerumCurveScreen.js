@@ -227,7 +227,7 @@ function tmaxLabels(entry, du = 'd', language = 'en') {
   const [lo, hi] = entry.tmaxRange || [entry.tmaxHours, entry.tmaxHours];
   const inDays = hi >= 72;
   const hrs = (h) => {
-    if (h < 1) return `${Math.round(h * 60)}\u00A0min`;
+    if (h < 1) return `${Math.round(h * 60)}min`;
     return `${h < 10 ? formatNumber(h, language, { digits: 1, trim: true }) : String(Math.round(h))}h`;
   };
   const f = (h) => (inDays ? String(Math.round(h / 24)) + du : hrs(h));

@@ -10,7 +10,7 @@ const { getHalfLifeEntry, riseRate } = require('../lib/halfLives');
 const { isShortHalfLife } = require('../lib/curveWindow');
 const { translations } = require('../i18n/translations');
 
-const WANT = { Exenatide: [2.1, null], Lixisenatide: [2.0, [1, 3.5]], Octreotide: [0.4, [0.4, 0.7]], 'PT-141': [1.0, [0.5, 1.0]], Tesamorelin: [0.15, null], HGH: [4.0, [3, 8]] };
+const WANT = { Exenatide: [2.1, null], Lixisenatide: [2.0, [1, 3.5]], Octreotide: [0.4, null], 'PT-141': [1.0, [0.5, 1.0]], Tesamorelin: [0.15, null], HGH: [4.0, [3, 8]] };
 
 test('six label Tmax values, each solvable, each still drawn by the hour; sourced', () => {
   for (const [n, [tm, range]] of Object.entries(WANT)) {
@@ -30,7 +30,16 @@ test('the note: minutes under an hour, no range when the label gives none (×6);
     assert.ok(v && v.includes('{name}') && v.includes('{peak}') && !v.includes('{range}'), l);
   }
   const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /if \(h < 1\) return `\$\{Math\.round\(h \* 60\)\}\\u00A0min`;/);
+  assert.match(src, /if \(h < 1\) return `\$\{Math\.round\(h \* 60\)\}min`;/, 'one unit style: 24min like 2,1h (council UX)');
   assert.match(src, /entry\.tmaxRange \? /);
   assert.match(src, /const isFastNote = \(ser\) => !\(ser\.entry\.substance && ser\.entry\.hours >= 24\) && ser\.entry\.hours < STEP_HOURS;/);
+});
+
+// Council 2026-10-27 (pharmacometrician, regulatory): Octreotide's 0.4 h / 0.7 h are two groups (healthy
+// volunteers / acromegaly), not a spread between people, so no range; and no "median" the labels do not give.
+test('the no-range note names a published peak time, never a median (×6)', () => {
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
+    assert.doesNotMatch(translations[l].curve_absorption_note_norange, /median|mediana|médiane/i, l);
+  }
+  assert.match(translations.pt.curve_absorption_note_norange, /tempo de pico publicado/);
 });

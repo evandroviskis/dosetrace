@@ -20,7 +20,7 @@ Signing out removes your DoseTrace records from the app on that phone; they stay
 
 ## 3. How we use it
 
-Only to run DoseTrace for you: show your journal, calculate your numbers, schedule your reminders, sync your devices, and keep your account working. We do not sell your information, we do not show ads, and we do not share your health data with insurers, employers, advertisers, or data brokers.
+Only to run DoseTrace for you: show your journal, calculate your numbers, schedule your reminders, sync your account to our cloud, and keep your account working. We do not sell your information, we do not show ads, and we do not share your health data with insurers, employers, advertisers, or data brokers.
 
 ## 4. Reminders and notifications
 

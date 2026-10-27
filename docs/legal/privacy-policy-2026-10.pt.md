@@ -35,7 +35,7 @@ Sair da conta remove os seus registros do DoseTrace do app naquele celular; eles
 
 ## 3. Para que usamos
 
-Apenas para fazer o DoseTrace funcionar para você: mostrar o seu diário, calcular os seus números, agendar os seus lembretes, sincronizar os seus aparelhos e manter a sua conta funcionando. Não vendemos suas informações, não mostramos anúncios e não compartilhamos seus dados de saúde com seguradoras, empregadores, anunciantes ou corretores de dados.
+Apenas para fazer o DoseTrace funcionar para você: mostrar o seu diário, calcular os seus números, agendar os seus lembretes, sincronizar a sua conta com a nossa nuvem e manter a sua conta funcionando. Não vendemos suas informações, não mostramos anúncios e não compartilhamos seus dados de saúde com seguradoras, empregadores, anunciantes ou corretores de dados.
 
 ## 4. Lembretes e notificações
 

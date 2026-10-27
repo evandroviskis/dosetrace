@@ -113,9 +113,11 @@ test('(c)(d) the add flow writes no dose and never touches vials; the old backfi
   assert.doesNotMatch(prot, /backfillTakenDoses|protocols_backfill_/);
   const i = prot.indexOf('const hq = historyQuestion(');
   assert.ok(i > 0, 'the add flow asks the question');
-  const block = prot.slice(i, i + 1600);
+  const block = prot.slice(i, prot.indexOf('return true; // saved', i));
   assert.match(block, /updateProtocol\(newId, \{ history_from: /);
-  assert.doesNotMatch(block, /insertDoseLog|updateVial|units_taken/);
+  // Founder 2026-10-27 + council: the answer moves only the supply (the new vial's count, a bottle's units),
+  // never a dose row.
+  assert.doesNotMatch(block, /insertDoseLog/);
 });
 
 test('the strings exist in six languages (singular and plural), the old backfill strings are removed', () => {
