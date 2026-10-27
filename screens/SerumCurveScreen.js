@@ -761,7 +761,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
   const unitLbl = unitText(model ? model.unit : 'mg', language); // A-134: UI / IE in the app language
-  const numFmt = (v) => { 'worklet'; return !isFinite(v) || v <= 0 ? '0' : v < 10 ? v.toFixed(1).replace('.', decSep) : String(Math.round(v)); };
+  const numFmt = (v) => { 'worklet'; return !isFinite(v) || v <= 0 ? '0' : v < 0.05 ? '< 0' + decSep + '1' : v < 10 ? v.toFixed(1).replace('.', decSep) : String(Math.round(v)); };
   const cntFmt = (v) => { 'worklet'; return String(Math.round(v)); };
 
   // Dropdown button label: the single compound's name, or "N compounds".
