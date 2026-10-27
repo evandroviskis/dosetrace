@@ -63,3 +63,27 @@ test('wired: "Alterar horário" writes the slot with the new time', () => {
   const src = fs.readFileSync(path.join(__dirname, '../screens/LogScreen.js'), 'utf8');
   assert.match(src, /writeOutcome\(log\.id, timeEditFields\(log, value\)\)/);
 });
+
+// Simulator 2026-10-27 (GHK-Cu, start date before the day it was added): a dose marked right after adding
+// the protocol (22:03) and corrected to 21:03 fell before C = created − 1 h, so R2 dropped it from the
+// curve ("the schedule covers that time" — it did not) and from the Log counts. Its slot decides the era;
+// its time decides where it is drawn.
+test('an edited time before the protocol was added stays in the curve and the counts (its slot is after C)', () => {
+  const S = require('../lib/serumModel');
+  const { getHalfLifeEntry } = require('../lib/halfLives');
+  const { outcomeCounts } = require('../lib/declared');
+  const e = getHalfLifeEntry('Testosterone Cypionate');
+  const created = new Date(2026, 9, 26, 22, 3, 30).getTime();
+  const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const p = { id: 9, type: 'rtu', name: 'Testosterone Cypionate', compound_id: 'testosterone_cypionate', dose: '100', dose_unit: 'mg', interval_days: 1, doses_per_day: 1, reminder_time: '22:00', start_date: ymd(created - 10 * 864e5), created_at: new Date(created).toISOString() };
+  const at = new Date(2026, 9, 26, 21, 3).getTime();
+  const row = { id: 1, protocol_id: 9, outcome: 'Taken', logged_at: new Date(at).toISOString(), slot_at: new Date(created + 30000).toISOString(), dose_amount: 300, dose_unit: 'mg', protocol_created_at: p.created_at };
+  const now = created + 864e5 / 2;
+  const plan = S.curvePlan(p, e, now - 5 * 864e5, now + 864e5, now, { logs: [row] });
+  assert.ok(plan.doses.includes(at), 'the corrected 21:03 dose is in the curve');
+  assert.equal(outcomeCounts([row]).Taken, 1, 'and in the Dose log counts');
+  // without a slot (a row really from before the protocol existed) R2 stands: declared, not counted
+  const { slot_at, ...old } = row; // eslint-disable-line no-unused-vars
+  assert.equal(outcomeCounts([old]).Taken, 0);
+  assert.ok(!S.curvePlan(p, e, now - 5 * 864e5, now + 864e5, now, { logs: [old] }).doses.includes(at));
+});
