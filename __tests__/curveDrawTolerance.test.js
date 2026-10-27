@@ -74,6 +74,8 @@ function columnError(doses, entry, ctx) {
   const evalT = [...edges];
   if (entry.tmaxHours) for (let c = 0; c < PX; c++) for (let k = 1; k < 12; k++) evalT.push(edges[c] + (k / 12) * pxMs);
   for (const d of doses) if (d >= start && d <= end) evalT.push(d);
+  // 2026-10-27: a short label rise (Tmax of minutes or hours) peaks inside a column — its exact peak too.
+  if (entry.tmaxHours > 0 && entry.tmaxHours < 36) for (const d of doses) { const p = d + entry.tmaxHours * 3600e3; if (p >= start && p <= end) evalT.push(p); }
   const T = [...new Set(evalT)].sort((a, b) => a - b);
   const ex = exactAt(doses, entry, T);
   const exAt = new Map(T.map((t, i) => [t, i]));

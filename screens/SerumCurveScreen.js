@@ -221,13 +221,17 @@ function todayISO() {
 }
 
 
-// Peak time and its published range, in hours below 3 days, else days.
-function tmaxLabels(entry, du = 'd') {
-  const [lo, hi] = entry.tmaxRange;
+// Peak time and its published range, in hours below 3 days, else days; minutes under an hour and one
+// decimal under 10 h (council 2026-10-27: the short compounds' label Tmax). range null = the label gives none.
+function tmaxLabels(entry, du = 'd', language = 'en') {
+  const [lo, hi] = entry.tmaxRange || [entry.tmaxHours, entry.tmaxHours];
   const inDays = hi >= 72;
-  const f = (h) => (inDays ? String(Math.round(h / 24)) : String(Math.round(h)));
-  const u = inDays ? du : 'h';
-  return { peak: f(entry.tmaxHours) + u, range: f(lo) + '–' + f(hi) + u };
+  const hrs = (h) => {
+    if (h < 1) return `${Math.round(h * 60)}\u00A0min`;
+    return `${h < 10 ? formatNumber(h, language, { digits: 1, trim: true }) : String(Math.round(h))}h`;
+  };
+  const f = (h) => (inDays ? String(Math.round(h / 24)) + du : hrs(h));
+  return { peak: f(entry.tmaxHours), range: entry.tmaxRange ? `${f(lo)}–${f(hi)}` : null };
 }
 
 // du: the app language's short day unit (unit_day_short: d / j / T / g).
@@ -791,8 +795,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const noteFor = (ser) => {
     if (ser.entry.tmaxHours) {
       // Oil-depot / SC-depot compounds: modeled rise to a published median peak.
-      const lb = tmaxLabels(ser.entry, du);
-      return t('curve_absorption_note').replace('{name}', ser.name).replace('{peak}', lb.peak).replace('{range}', lb.range);
+      const lb = tmaxLabels(ser.entry, du, language);
+      return lb.range ? t('curve_absorption_note').replace('{name}', ser.name).replace('{peak}', lb.peak).replace('{range}', lb.range)
+        : t('curve_absorption_note_norange').replace('{name}', ser.name).replace('{peak}', lb.peak);
     }
     // Depot esters WITHOUT a published peak time are drawn as instant: say so, so
     // they aren't read against the modeled rise of e.g. Cypionate.
@@ -803,8 +808,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   };
   const dateLong = (iso) => formatDate(iso, language, 'weekdayDayMonthYear');
   // The short-compound note (curve_fast_note) shows outside the collapsed model notes (council 2026-10-27).
-  const isFastNote = (ser) => !ser.entry.tmaxHours && !(ser.entry.substance && ser.entry.hours >= 24) && ser.entry.hours < STEP_HOURS;
-  const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote).map((ser) => ({ id: ser.id, text: noteFor(ser) })).filter((n) => n.text) : [];
+  // A short compound with a label rise keeps the approved note visible; its rise note stays in the model notes.
+  const isFastNote = (ser) => !(ser.entry.substance && ser.entry.hours >= 24) && ser.entry.hours < STEP_HOURS;
+  const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote).map((ser) => ({ id: ser.id, text: t('curve_fast_note').replace('{names}', ser.name) })) : [];
 
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
 
@@ -1228,7 +1234,7 @@ export default function SerumCurveScreen({ embedded = false }) {
             <View style={s.cardIn}>
               {model.series.map((ser, i) => {
                 const tier = tierCfg[ser.entry.tier];
-                const note = model.max > 0 && !isFastNote(ser) ? noteFor(ser) : null;
+                const note = model.max > 0 && (ser.entry.tmaxHours || !isFastNote(ser)) ? noteFor(ser) : null;
                 const open = !!sourceOpen[ser.id];
                 return (
                   <View key={`n-${ser.id}`} style={[s.noteBlock, i > 0 && s.noteSep]}>

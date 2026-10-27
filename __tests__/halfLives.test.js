@@ -133,7 +133,9 @@ test('absorption: Bateman rise where a published Tmax exists, same area as insta
   assert.equal(amountFraction(bpc, -1), 0);
   // only ester/depot entries with a real published Tmax get the rise
   for (const [k, e] of Object.entries(HALF_LIVES)) if (e.tmaxHours) {
-    assert.ok(Array.isArray(e.tmaxRange) && e.tmaxRange[0] <= e.tmaxHours && e.tmaxHours <= e.tmaxRange[1], k + ' needs its published range');
+    // 2026-10-27: a label that gives only the median (Byetta, Egrifta) has tmaxRange null — never invented.
+    assert.ok(e.tmaxRange === null || (Array.isArray(e.tmaxRange) && e.tmaxRange[0] <= e.tmaxHours && e.tmaxHours <= e.tmaxRange[1]), k + ' needs its published range or null');
+    assert.match(e.source, /Tmax|peak/i, k + ' names its Tmax source');
     assert.ok(e.tmaxHours < e.hours / Math.LN2, k + ' Tmax must be reachable');
   }
 });
