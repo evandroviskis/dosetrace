@@ -95,7 +95,7 @@ import { pluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import {
   isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
-  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn,
+  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit,
 } from '../lib/protocolForm';
 
 
@@ -2059,6 +2059,10 @@ export default function ProtocolsScreen() {
           return;
         }
       }
+      // DL-15: the protocol as it was (its old dose) and whether the old dose was ever used, before the write.
+      const doseEdited = 'dose' in patch || 'dose_unit' in patch;
+      const before = doseEdited ? getProtocolById(editingId) : null;
+      const doseTypo = doseEdited && !doseChoice && countTakenAtCurrentDose(editingId) === 0;
       if (Object.keys(patch).length) updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: doseChoice === 'fix' } : patch);
 
       // RTU vial: only the vial fields the edit changed; a vial is created only when the
@@ -2069,6 +2073,22 @@ export default function ProtocolsScreen() {
         if (existing) updateVial(existing.id, vialPatch);
         // A-185: with the protocol's cloud id, or the vial would wait for it forever
         else insertVial({ user_id: user.id, protocol_id: editingId, protocol_remote_id: (getProtocolById(editingId) || {}).remote_id || null, doses_taken: 0, ...rtuVialFields(currentForm(), language) });
+      }
+      // DL-15 (DV-015 / DV-223): a new dose recomputes the active vial's capacity from the mass left —
+      // the doses taken used the old dose, or the new one when it was a correction (AD-95).
+      const vialNow = doseEdited && before ? vialsByProtocol[editingId] : null;
+      if (vialNow && vialNow.active !== 0) {
+        const after = getProtocolById(editingId) || {};
+        const rtuMass = after.type === 'rtu' && Number(vialNow.water_ml) > 0 && parseDecimal(after.concentration) > 0
+          ? { mass: Number(vialNow.water_ml) * parseDecimal(after.concentration), massUnit: after.concentration_unit || 'mg' } : null;
+        const reconMass = after.type === 'recon' && parseDecimal(after.amount) > 0 ? { mass: parseDecimal(after.amount), massUnit: after.unit || 'mg' } : null;
+        const total = vialTotalAfterDoseEdit({
+          total: vialPatch && vialPatch.total_doses != null ? Number(vialNow.total_doses) : vialNow.total_doses, taken: vialNow.doses_taken || 0,
+          ...(rtuMass || reconMass || {}),
+          oldDose: before.dose, oldUnit: before.dose_unit, newDose: after.dose, newUnit: after.dose_unit,
+          fix: doseChoice === 'fix' || doseTypo,
+        });
+        if (total != null && total !== Number(vialNow.total_doses)) updateVial(vialNow.id, { total_doses: total });
       }
       setSaving(false);
       // Reschedule from the freshly-persisted row (real user_id/created_at) so
