@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquivo e Quase todas</title>
+<style>
+  :root { --page: #f4f4f1; --pageInk: #111315; }
+  body { margin: 0; background: var(--page); color: var(--pageInk); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  h2 { font-size: 19px; margin: 36px 0 6px; }
+  h3 { font-size: 16px; margin: 22px 0 10px; color: #454A4F; }
+  p.lead { margin: 0 0 14px; max-width: 72ch; color: #454A4F; }
+  .row { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
+  .col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .cap { font-weight: 700; font-size: 14px; }
+  .cap small { display: block; font-weight: 400; color: #53585D; max-width: 280px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #2350D8; color: #fff; margin-left: 4px; vertical-align: 2px; }
+  ul { margin: 6px 0 0 18px; padding: 0; max-width: 74ch; }
+  li { margin: 3px 0; }
+  /* phone: tokens from lib/theme.js */
+  .ph { width: 290px; max-width: 100%; height: 600px; border-radius: 34px; padding: 18px 13px 0; box-sizing: border-box; background: var(--ground); color: var(--ink); border: 1px solid rgba(0,0,0,.08); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .light { --ground: #DDE0DB; --raised: #FFFFFF; --well: #EEF0EC; --line: #C3C7C0; --tick: #71766F; --ink: #111315; --ink2: #454A4F; --ink3: #53585D; --risk: #9E1F19; --act: #111315; --onAct: #FFFFFF; --scrim: rgba(17,19,21,.45); }
+  .dark { --ground: #121416; --raised: #282B30; --well: #1D2024; --line: #3C4147; --tick: #747A7F; --ink: #EEEFEB; --ink2: #B5B9B4; --ink3: #9A9F9A; --risk: #F08A80; --act: #EEEFEB; --onAct: #121416; --scrim: rgba(0,0,0,.6); }
+  .scroll { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .scroll > * { flex-shrink: 0; }
+  .scroll > .push { flex-shrink: 1; }
+  .ttl { font-size: 26px; font-weight: 700; letter-spacing: -.5px; margin: 4px 2px 10px; }
+  .card { background: var(--raised); border-radius: 18px; padding: 11px 13px; margin-bottom: 8px; }
+  .pname { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .ring { width: 8px; height: 8px; border-radius: 50%; flex: none; box-sizing: border-box; border: 2px solid; background: transparent; }
+  .sub { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+  .btn { margin-top: 8px; background: var(--act); color: var(--onAct); border-radius: 14px; text-align: center; font-weight: 700; font-size: 13px; padding: 7px; }
+  .tabbar { margin: auto -13px 0; height: 52px; border-top: 1px solid var(--line); background: var(--ground); display: flex; justify-content: space-around; align-items: center; font-size: 10px; color: var(--ink3); flex: none; }
+  .tabbar b { color: var(--ink); font-weight: 600; }
+  /* today's fold (raised, like a protocol card) */
+  .fold { background: var(--raised); border-radius: 18px; padding: 11px 13px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .fold .t { flex: 1; min-width: 0; }
+  .fold .t b { display: block; font-size: 15px; font-weight: 600; }
+  .fold .t i { font-style: normal; font-size: 12px; color: var(--ink2); }
+  .chev { width: 16px; height: 16px; color: var(--ink3); flex: none; }
+  .ico { width: 17px; height: 17px; color: var(--ink3); flex: none; }
+  .trash { width: 17px; height: 17px; color: var(--risk); flex: none; }
+  /* archive (proposals) */
+  .zone { margin-top: 40px; }
+  .zlabel { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink3); margin: 0 2px 8px; }
+  .zlabel::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .sunk { background: var(--well); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+  .sunk + .sunk { margin-top: 8px; }
+  .srow { display: flex; align-items: center; gap: 10px; padding: 11px 13px; }
+  .srow + .srow, .srow + .slist, .slist + .srow { border-top: 1px solid var(--line); }
+  .srow .t { flex: 1; min-width: 0; }
+  .srow .t b { display: block; font-size: 15px; font-weight: 600; color: var(--ink2); }
+  .srow .t i { font-style: normal; font-size: 12px; color: var(--ink3); }
+  .slist { padding: 0 13px; }
+  .del { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 5px 0; }
+  .del + .del { border-top: 1px solid var(--line); }
+  .dn { flex: 1; min-width: 0; }
+  .dn b { display: block; font-weight: 400; font-size: 14px; color: var(--ink2); }
+  .dn i { font-style: normal; font-size: 11px; color: var(--ink3); }
+  .pill { font-size: 11px; color: var(--ink2); border: 1px solid var(--line); border-radius: 14px; padding: 4px 9px; }
+  .sel { display: flex; justify-content: flex-end; padding: 0 13px 6px; font-size: 13px; color: var(--ink); text-decoration: underline; text-decoration-color: var(--tick); }
+  .empty { background: var(--raised); border-radius: 18px; padding: 18px 14px; text-align: center; }
+  .empty b { display: block; font-size: 16px; }
+  .empty i { display: block; font-style: normal; font-size: 12px; color: var(--ink2); margin: 4px 0 10px; }
+  .push { flex: 1; min-height: 24px; }
+  /* sheet */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); display: flex; align-items: flex-end; padding: 0 8px 10px; }
+  .sheet { background: var(--raised); border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 10px; width: 100%; box-sizing: border-box; }
+  .sheet .st { font-size: 17px; font-weight: 700; line-height: 1.25; }
+  .sheet .sb { font-size: 13px; color: var(--ink2); line-height: 1.35; }
+  .sbtn { min-height: 38px; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; padding: 0 12px; text-align: center; }
+  .sbtn.p { background: var(--act); color: var(--onAct); }
+  .sbtn.s { background: var(--well); color: var(--ink); }
+  .brow { display: flex; gap: 8px; } .brow .sbtn { flex: 1; }
+  .bstack { display: flex; flex-direction: column; gap: 7px; }
+  .field { display: flex; justify-content: space-between; align-items: center; background: var(--well); border-radius: 14px; padding: 10px 12px; font-size: 14px; }
+  .field b { font-size: 16px; }
+  .caret { display: inline-block; width: 2px; height: 16px; background: #2350D8; vertical-align: -3px; margin-left: 1px; }
+</style>
+</head>
+<body>
+<h1>Protocolos: arquivo e "Quase todas"</h1>
+<p class="lead">Dois desenhos para você escolher, nos dois temas. Cores e tamanhos tirados do app (lib/theme.js). Nada disso está no código ainda.</p>
+
+<h2>1. Concluídos e Excluídos recentemente com cara de arquivo</h2>
+<p class="lead">Hoje as duas linhas usam o mesmo cartão branco dos protocolos ativos e ficam a poucos pixels deles, por isso parecem mais um protocolo. As duas propostas afastam essa parte, tiram o branco (o fundo fica rebaixado, com borda, em vez de levantado) e deixam os nomes em cinza, com a bolinha de cor vazada. A diferença é o rótulo:</p>
+<ul>
+  <li><b>A</b>: só o espaço maior e o fundo rebaixado, com um ícone em cada linha. Nenhuma palavra nova.</li>
+  <li><b>B</b>: o mesmo, com o rótulo <b>ARQUIVO</b> e uma linha fina acima, e as duas linhas juntas num bloco só. Uma palavra nova nos 6 idiomas: Arquivo, Archive, Archivo, Archives, Archiv, Archivio.</li>
+  <li><b>Sem protocolo ativo</b>: o arquivo desce para o pé da tela, logo acima das abas; em cima fica só o "Adicione seu primeiro protocolo".</li>
+</ul>
+<p class="lead"><b>Minha recomendação: B.</b> O rótulo diz, numa palavra, que ali fica o que já terminou ou foi excluído, que é exatamente o que você pediu. Restaurar, Reiniciar, a lixeira e "Selecionar" continuam iguais.</p>
+<h3>Tema claro</h3>
+<div class="row" id="arch-light"></div>
+<h3>Tema escuro</h3>
+<div class="row" id="arch-dark"></div>
+
+<h2>2. Pergunta do início no passado com "Quase todas"</h2>
+<p class="lead">Exemplo: testosterona 70 mg, diária, começou há 20 dias, frasco misturado no mesmo dia. Hoje há dois botões. A proposta acrescenta <b>Quase todas</b> entre eles:</p>
+<ul>
+  <li><b>Sim, todas</b>: igual a hoje. A curva estima o período e o frasco começa com as 20 doses usadas.</li>
+  <li><b>Quase todas</b>: a curva estima o período igual ao "Sim", então ela não zera por causa de uma dose perdida. Em seguida, abre "Editar frasco" para você digitar quantas doses do frasco usou de verdade.</li>
+  <li><b>Não</b>: igual a hoje. A curva começa hoje e abre "Editar frasco".</li>
+  <li>Com uma dose só, não aparece "Quase todas" (fica "Sim" e "Não"). A janela continua precisando de resposta: tocar fora ou "voltar" no Android não fecha. Nada é adicionado ao registro de doses.</li>
+  <li>Sem frasco (comprimido ou sem estoque), "Quase todas" faz o mesmo que "Sim" na curva, e o estoque não muda.</li>
+</ul>
+<h3>Tema claro</h3>
+<div class="row" id="ask-light"></div>
+<h3>Tema escuro</h3>
+<div class="row" id="ask-dark"></div>
+
+<script>
+  const svg = (cls, d, w) => '<svg class="' + cls + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (w || 1.8) + '" stroke-linecap="round" stroke-linejoin="round"><path d="' + d + '"/></svg>';
+  const TRASH = 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6';
+  const CHECK = 'M5 12.5l4.5 4.5L19 7.5';
+  const chev = (up) => svg('chev', up ? 'M6 15l6-6 6 6' : 'M6 9l6 6 6-6', 2);
+  const tab = '<div class="tabbar"><span>Hoje</span><b>Protocolos</b><span>Meu corpo</span><span>Mais</span></div>';
+  const active = '<div class="ttl">Protocolos</div>'
+    + '<div class="card"><div class="pname"><span class="dot" style="background:#0F8A6A"></span>GHK-Cu</div><div class="sub">50 mg frasco · 1,5 mg dose · Diariamente</div><div class="btn">Concluir</div></div>'
+    + '<div class="card"><div class="pname"><span class="dot" style="background:#7A6BE0"></span>Testosterona Cipionato</div><div class="sub">2000 mg frasco · 70 mg dose · Diariamente</div></div>';
+  const items = [['#D2582A', 'BPC-157', 'Excluído hoje'], ['#3B7FD0', 'Ipamorelina', 'Excluído há 3 dias'], ['#B0892A', 'Semaglutida', 'Excluído há 12 dias']];
+  const list = (ring) => '<div class="slist">' + items.map(([c, n, a]) => '<div class="del">' + (ring ? '<span class="ring" style="border-color:' + c + '"></span>' : '<span class="dot" style="background:' + c + '"></span>') + '<div class="dn"><b>' + n + '</b><i>' + a + '</i></div><span class="pill">Restaurar</span>' + svg('trash', TRASH) + '</div>').join('') + '</div>';
+  // off: the page scrolled up by that many pixels (open sections reach below the fold).
+  const ph = (inner, extra, off) => '<div class="ph"><div class="scroll">' + (off ? '<div style="margin-top:-' + off + 'px"></div>' : '') + inner + '</div>' + tab + (extra || '') + '</div>';
+
+  // Today: the two folds are raised cards right under the protocols.
+  const today = ph(active + '<div style="height:18px"></div>'
+    + '<div class="fold"><div class="t"><b>Concluídos</b><i>1 protocolo</i></div>' + chev(false) + '</div>'
+    + '<div class="fold"><div class="t"><b>Excluídos recentemente</b><i>3 protocolos</i></div>' + chev(false) + '</div>');
+  // A: space + sunk folds with an icon, no new word.
+  const aRow = (ico, t, s, open) => '<div class="srow">' + ico + '<div class="t"><b>' + t + '</b><i>' + s + '</i></div>' + chev(open) + '</div>';
+  const aClosed = ph(active + '<div class="zone"><div class="sunk">' + aRow(svg('ico', CHECK, 2), 'Concluídos', '1 protocolo', false) + '</div><div class="sunk">' + aRow(svg('ico', TRASH), 'Excluídos recentemente', '3 protocolos', false) + '</div></div>');
+  const aOpen = ph(active + '<div class="zone"><div class="sunk">' + aRow(svg('ico', CHECK, 2), 'Concluídos', '1 protocolo', false) + '</div><div class="sunk">' + aRow(svg('ico', TRASH), 'Excluídos recentemente', '3 protocolos', true) + '<div class="sel">Selecionar</div>' + list(true) + '</div></div>', null, 150);
+  // B: "ARQUIVO" label + hairline, both rows in one sunk block.
+  const bRow = (t, s, open) => '<div class="srow"><div class="t"><b>' + t + '</b><i>' + s + '</i></div>' + chev(open) + '</div>';
+  const bBlock = (openDel) => '<div class="zone"><div class="zlabel">Arquivo</div><div class="sunk">' + bRow('Concluídos', '1 protocolo', false) + bRow('Excluídos recentemente', '3 protocolos', openDel) + (openDel ? '<div class="sel">Selecionar</div>' + list(true) : '') + '</div></div>';
+  const bClosed = ph(active + bBlock(false));
+  const bOpen = ph(active + bBlock(true), null, 150);
+  const emptyB = ph('<div class="ttl">Protocolos</div><div class="empty"><b>Adicione seu primeiro protocolo</b><i>Registre um composto e o app acompanha suas doses.</i><div class="btn">Adicionar protocolo</div></div><div class="push"></div>'
+    + bBlock(false).replace('class="zone"', 'class="zone" style="margin:0 0 14px"'));
+  const arch = [
+    ['Hoje no app', 'Cartão branco igual ao dos protocolos, logo abaixo deles.', today],
+    ['A fechado', 'Mais espaço, fundo rebaixado, ícone em cada linha.', aClosed],
+    ['A aberto', 'Nomes em cinza, bolinha vazada; ações iguais.', aOpen],
+    ['B fechado <span class="tag">recomendado</span>', 'Rótulo ARQUIVO e um bloco só.', bClosed],
+    ['B aberto', 'Excluídos aberto dentro do bloco.', bOpen],
+    ['B sem protocolo ativo', 'O arquivo desce para o pé da tela.', emptyB],
+  ];
+
+  // Past-start question.
+  const bg = active.replace('Testosterona Cipionato', 'Testosterona Cipionato');
+  const sheet = (inner) => '<div class="scrim"><div class="sheet">' + inner + '</div></div>';
+  const qTitle = '<div class="st">Desde 7 de out., seriam 20 doses de 70 mg. Você aplicou todas?</div>';
+  const askToday = ph(bg, sheet(qTitle + '<div class="sb">Se sim, a curva estima esse período e o frasco começa com 20 de 28 doses usadas. Se não, a curva começa hoje e você informa quantas doses do frasco já usou.</div><div class="brow"><div class="sbtn s">Não</div><div class="sbtn p">Sim, todas</div></div>'));
+  const askNew = ph(bg, sheet(qTitle + '<div class="sb">Todas ou quase todas: a curva estima esse período. Se quase todas, você informa em seguida quantas doses do frasco usou. Se não, a curva começa hoje.</div><div class="bstack"><div class="sbtn p">Sim, todas</div><div class="sbtn s">Quase todas</div><div class="sbtn s">Não</div></div>'));
+  const askVial = ph(bg, sheet('<div class="st">Editar frasco</div><div class="sb">Testosterona Cipionato · frasco de 28 doses</div><div class="field"><span>Doses usadas</span><b>18<span class="caret"></span></b></div><div class="brow"><div class="sbtn s">Cancelar</div><div class="sbtn p">Salvar</div></div>'));
+  const ask = [
+    ['Hoje no app', 'Dois botões: quem perdeu 1 de 20 só tem "Não".', askToday],
+    ['Proposta <span class="tag">opção B escolhida</span>', 'Três botões, um embaixo do outro.', askNew],
+    ['Depois de "Quase todas"', 'Abre Editar frasco; a curva já estimou o período.', askVial],
+  ];
+
+  const render = (id, theme, cols) => {
+    document.getElementById(id).innerHTML = cols.map(([cap, sm, html]) => '<div class="col"><div class="cap">' + cap + '<small>' + sm + '</small></div><div class="' + theme + '">' + html + '</div></div>').join('');
+  };
+  render('arch-light', 'light', arch); render('arch-dark', 'dark', arch);
+  render('ask-light', 'light', ask); render('ask-dark', 'dark', ask);
+</script>
+</body>
+</html>
