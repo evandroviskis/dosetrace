@@ -1,7 +1,7 @@
 // Founder 2026-10-27 (picture docs/design/recently-deleted-collapsed.html approved; "Tudo que não precisar
 // ficar visível o tempo todo… a gente fecha"): a secondary section arrives CLOSED on every visit — one line
 // with its title, a short summary and the fold arrow; a tap opens it, another closes it. Never remembered.
-// children: the section's content; headerExtra: a control shown in the open header (e.g. "Selecionar");
+// children: the section's content; headerExtra: a control on the header line while open (e.g. "Selecionar");
 // onToggle(open): told after each tap (closing ends a selection made inside).
 // Theme tokens only.
 import { useState } from 'react';
@@ -21,9 +21,9 @@ export default function CollapsibleSection({ title, summary, headerExtra, childr
           <Text style={s.title}>{title}</Text>
           {summary ? <Text style={s.summary}>{summary}</Text> : null}
         </View>
+        {open && headerExtra ? <View style={s.extra}>{headerExtra}</View> : null}
         <FoldChevron open={open} color={colors.ink2} />
       </TouchableOpacity>
-      {open && headerExtra ? <View style={s.extra}>{headerExtra}</View> : null}
       {open ? <View style={s.body}>{children}</View> : null}
     </View>
   );
@@ -35,6 +35,6 @@ const styles = (c) => StyleSheet.create({
   text: { flex: 1, gap: 2 },
   title: { fontSize: 17, fontWeight: '600', color: c.ink },
   summary: { fontSize: 14, color: c.ink2 },
-  extra: { flexDirection: 'row', justifyContent: 'flex-end', gap: 18, paddingHorizontal: 16, paddingBottom: 4, marginTop: -10 },
+  extra: { flexDirection: 'row', alignItems: 'center', gap: 18 },
   body: { borderTopWidth: 1, borderTopColor: c.line },
 });
