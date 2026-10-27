@@ -160,17 +160,23 @@ test('Save question: the count, "Estava errada" corrects the doses at the old va
   assert.equal(JSON.parse(db2.getFirstSync('SELECT dose_history FROM protocols WHERE id = ?', [p2]).dose_history).length, 2);
 });
 
-test('Save question is wired in the protocol editor with the approved text x6', () => {
+test('option A is wired: the question asks "Desde quando", nothing pre-selected, Save off until a choice; text x6', () => {
   const { read } = require('./helpers/extractFn');
   const src = read('screens/ProtocolsScreen.js');
-  assert.match(src, /countTakenAtCurrentDose\(editingId\)/);
-  assert.match(src, /<DoseFixSheet/);
-  assert.match(src, /__doseFix: doseChoice === 'fix'/);
+  assert.match(src, /doseEditContext\(editingId\)/);
+  assert.match(src, /!sameMass\(before\.dose, before\.dose_unit, newDoseV, newUnitV\)/, 'same quantity in another unit asks nothing');
+  assert.match(src, /ctx\.atOld > 0 \|\| ctx\.estimated/);
+  assert.match(src, /__doseFix: \{ mode: doseChoice\.mode, from: fromAt \}/);
+  const sheet = read('screens/components/DoseFixSheet.js');
+  assert.match(sheet, /useState\(null\)/, 'nothing pre-selected');
+  assert.match(sheet, /disabled=\{!ready\}/, 'Save off until a choice');
+  assert.match(sheet, /dosefix_link/);
+  assert.doesNotMatch(sheet, /#[0-9a-fA-F]{3,6}\b|'white'|'black'/);
   const { translations } = require('../i18n/translations');
-  assert.equal(translations.pt.dosefix_title, 'A dose mudou ou estava errada?');
-  assert.equal(translations.pt.dosefix_wrong, 'Estava errada');
-  assert.equal(translations.pt.dosefix_changed, 'Mudou a partir de agora');
-  assert.equal(translations.pt.dosefix_body_one, 'Você já marcou 1 dose de {name} com {old}. A nova dose é {new}.', 'one dose: singular (sim 2026-10-27 showed "1 doses")');
-  assert.match(read('screens/components/DoseFixSheet.js'), /pluralKey\(k, ask \? ask\.count : 0, language\)/);
-  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['dosefix_title', 'dosefix_body', 'dosefix_body_one', 'dosefix_wrong', 'dosefix_wrong_sub', 'dosefix_wrong_sub_one', 'dosefix_changed', 'dosefix_changed_sub', 'dosefix_changed_sub_one']) assert.equal(typeof translations[l][k], 'string', `${l}.${k}`);
+  assert.equal(translations.pt.dosefix_title, 'Desde quando você usa {new}?');
+  assert.equal(translations.pt.dosefix_now, 'A partir de agora');
+  assert.equal(translations.pt.dosefix_start, 'Desde o início');
+  assert.equal(translations.pt.dosefix_from, 'A partir de uma dose');
+  const KEYS = ['dosefix_title', 'dosefix_sub', 'dosefix_now', 'dosefix_now_sub', 'dosefix_start', 'dosefix_start_sub', 'dosefix_start_sub_one', 'dosefix_start_sub_est', 'dosefix_start_sub_est_one', 'dosefix_start_sub_only_est', 'dosefix_from', 'dosefix_from_sub', 'dosefix_see_all', 'dosefix_sum_now', 'dosefix_sum_fix', 'dosefix_sum_fix_one', 'dosefix_sum_est', 'dosefix_sum_vial', 'dosefix_sum_vial_one', 'dosefix_link'];
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of KEYS) assert.equal(typeof translations[l][k], 'string', `${l}.${k}`);
 });

@@ -43,8 +43,9 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol, getVialsForProtocol,
-  setProtocolPlannedEnd, withImmediateTransaction, countTakenAtCurrentDose,
+  setProtocolPlannedEnd, withImmediateTransaction, doseEditContext,
 } from '../lib/database';
+import { sameMass } from '../lib/doseStamp';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import T from '../lib/trashSelection';
@@ -2006,10 +2007,38 @@ export default function ProtocolsScreen() {
     setWizSheet({ title: t('protocols_missing_name'), body: t('protocols_missing_name_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] });
   }
 
-  // arg: 'fix' | 'change' — the answer to the dose question (DoseFixSheet); anything else (a press
-  // event) = not asked yet.
+  // The question's content (DoseFixSheet): the doses since the current value began, newest first, and a
+  // summary of what each answer changes — doses, dates and the vial left (DL-15) — before saving.
+  function doseQuestion(old, newDose, newUnit, ctx, patch) {
+    const show = (d, u) => `${decimalText(d, language)}\u00A0${unitText(u || 'mg', language)}`;
+    const vial = vialsByProtocol[editingId] && vialsByProtocol[editingId].active !== 0 ? vialsByProtocol[editingId] : null;
+    const conc = parseDecimal('concentration' in patch ? patch.concentration : old.concentration);
+    const mass = old.type === 'rtu' && vial && Number(vial.water_ml) > 0 && conc > 0 ? { mass: Number(vial.water_ml) * conc, massUnit: old.concentration_unit || 'mg' }
+      : old.type === 'recon' && parseDecimal(old.amount) > 0 ? { mass: parseDecimal(old.amount), massUnit: old.unit || 'mg' } : {};
+    const affected = (mode, fromId) => {
+      if (mode === 'now') return [];
+      const idx = mode === 'from' ? ctx.rows.findIndex((r) => r.id === fromId) : ctx.rows.length - 1;
+      return ctx.rows.filter((r, i) => r.atOld && i <= idx);
+    };
+    return {
+      name: protocolDisplayName(old, t), oldDose: show(old.dose, old.dose_unit), newDose: show(newDose, newUnit),
+      atOld: ctx.atOld, estimated: ctx.estimated,
+      rows: ctx.rows.map((r) => ({ id: r.id, atOld: r.atOld, date: formatDate(r.logged_at, language, 'dayMonth'),
+        amount: show(r.dose_amount != null ? r.dose_amount : old.dose, r.dose_amount != null ? r.dose_unit : old.dose_unit) })),
+      summary: (mode, fromId) => {
+        const hit = affected(mode, fromId);
+        const fromVial = vial ? hit.filter((r) => !vial.created_at || Date.parse(r.logged_at) >= Date.parse(vial.created_at)).length : 0;
+        const total = vial ? vialTotalAfterDoseEdit({ total: vial.total_doses, taken: vial.doses_taken || 0, ...mass, oldDose: old.dose, oldUnit: old.dose_unit, newDose, newUnit, fixed: fromVial }) : null;
+        return { n: hit.length, from: hit.length ? formatDate(hit[hit.length - 1].logged_at, language, 'dayMonth') : '', to: hit.length ? formatDate(hit[0].logged_at, language, 'dayMonth') : '',
+          vialLeft: total != null ? Math.max(0, total - (vial.doses_taken || 0)) : null };
+      },
+    };
+  }
+
+  // arg: { mode, fromId } — the answer to "Desde quando você usa…?" (DoseFixSheet, option A); anything else
+  // (a press event) = not asked yet.
   async function saveProtocol(arg) {
-    const doseChoice = arg === 'fix' || arg === 'change' ? arg : null;
+    const doseChoice = arg && typeof arg === 'object' && ['now', 'start', 'from'].includes(arg.mode) ? arg : null;
     if (!name) {
       showMissingName();
       return;
@@ -2048,22 +2077,23 @@ export default function ProtocolsScreen() {
       const stored = patch.start_date ? getProtocolById(editingId) : null;
       const clash = stored ? startAfterEnd(stored, patch.start_date) : null;
       if (clash) { setSaving(false); showStartAfterEnd(stored, patch.start_date, clash.endKey); return; }
-      // A new dose with doses already marked at the old one: the person says which it is (asked once).
-      if (('dose' in patch || 'dose_unit' in patch) && !doseChoice) {
-        const n = countTakenAtCurrentDose(editingId);
-        if (n > 0) {
-          const old = getProtocolById(editingId) || {};
-          const show = (d, u) => `${decimalText(d, language)}\u00A0${unitText(u || 'mg', language)}`;
-          setSaving(false);
-          setDoseAsk({ count: n, name: protocolDisplayName(old, t), oldDose: show(old.dose, old.dose_unit), newDose: show('dose' in patch ? patch.dose : old.dose, 'dose_unit' in patch ? patch.dose_unit : old.dose_unit) });
-          return;
-        }
-      }
-      // DL-15: the protocol as it was (its old dose) and whether the old dose was ever used, before the write.
+      // Founder 2026-10-27, option A: a new dose (not the same quantity in another unit) on a protocol with
+      // doses marked at the old value, or an estimated past, asks "Desde quando você usa {new}?" — never deduced.
       const doseEdited = 'dose' in patch || 'dose_unit' in patch;
       const before = doseEdited ? getProtocolById(editingId) : null;
-      const doseTypo = doseEdited && !doseChoice && countTakenAtCurrentDose(editingId) === 0;
-      const written = Object.keys(patch).length ? updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: doseChoice === 'fix' } : patch) : null;
+      const newDoseV = before && 'dose' in patch ? patch.dose : before && before.dose;
+      const newUnitV = before && 'dose_unit' in patch ? patch.dose_unit : before && before.dose_unit;
+      const realChange = !!before && !sameMass(before.dose, before.dose_unit, newDoseV, newUnitV);
+      const ctx = realChange ? doseEditContext(editingId) : null;
+      if (realChange && !doseChoice && (ctx.atOld > 0 || ctx.estimated)) {
+        setSaving(false);
+        setDoseAsk(doseQuestion(before, newDoseV, newUnitV, ctx, patch));
+        return;
+      }
+      // DL-15: no question and nothing marked, no estimated past = a typo nothing used (the vial at the new dose).
+      const doseTypo = realChange && !doseChoice && ctx.rows.length === 0 && !ctx.estimated;
+      const fromAt = doseChoice && doseChoice.mode === 'from' ? ((ctx.rows.find((r) => r.id === doseChoice.fromId) || {}).logged_at || null) : null;
+      const written = Object.keys(patch).length ? updateProtocol(editingId, doseChoice ? { ...patch, __doseFix: { mode: doseChoice.mode, from: fromAt } } : patch) : null;
 
       // RTU vial: only the vial fields the edit changed; a vial is created only when the
       // user's change describes one and there is none yet.
@@ -3675,7 +3705,8 @@ export default function ProtocolsScreen() {
           {/* Popups inside the add/edit sheet: notices, the photo choice, and the
               iPhone wheels in a DoseTrace bottom sheet. */}
           <DTSheet config={wizSheet} onClose={() => setWizSheet(null)} />
-          <DoseFixSheet ask={doseAsk} onClose={() => setDoseAsk(null)} onChoose={(c) => { setDoseAsk(null); saveProtocol(c); }} />
+          <DoseFixSheet ask={doseAsk} onClose={() => setDoseAsk(null)} onChoose={(c) => { setDoseAsk(null); saveProtocol(c); }}
+            onLink={() => { setDoseAsk(null); closeWizard(); setTimeout(() => navigation.navigate('Log'), 350); }} />
           {/* A-121 SG-14: the start-after-end notice's "Mudar a data de fim" (inside the edit sheet). */}
           <EndDateSheet visible={showModal && !!endSheet && endSheet.mode === 'startAfter'} onClose={backFromEndDate} {...endSheetProps} />
           <DTActionSheet config={scanChoice} onClose={() => setScanChoice(null)} />
