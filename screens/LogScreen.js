@@ -37,7 +37,7 @@ import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import RowChevron from '../components/RowChevron';
 import DoseEditSheet from './components/DoseEditSheet';
-import { canEditTime, canEditDose } from '../lib/doseEdit';
+import { canEditTime, canEditDose, unitForDoseEdit } from '../lib/doseEdit';
 import { formatNumber } from '../lib/localeFormat';
 import { DTSheet } from './components/ProtocolParts';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -340,7 +340,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     // Only this row changes: its time (the curve follows it) or its own amount (the curve changes from
     // it on). The vial keeps counting doses; reminders are re-planned (a time moved to another day).
     if (mode === 'time') writeOutcome(log.id, { logged_at: value });
-    else writeOutcome(log.id, { dose_amount: value.amount, dose_unit: value.unit || log.dose_unit || null });
+    else writeOutcome(log.id, { dose_amount: value.amount, dose_unit: value.unit || unitForDoseEdit(log) });
     closeDoseEdit();
   }
 

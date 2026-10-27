@@ -14,7 +14,7 @@ import { useTheme } from '../../lib/theme';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { formatTime, hour12Pref, LOCALES } from '../../lib/timeFormat';
 import { formatDate, formatNumber } from '../../lib/localeFormat';
-import { checkEditedTime, combineDateTime, parseDoseEdit } from '../../lib/doseEdit';
+import { checkEditedTime, combineDateTime, parseDoseEdit, unitForDoseEdit } from '../../lib/doseEdit';
 
 // The local "HH:MM" of a moment, for formatTime.
 const hhmm = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -41,20 +41,21 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
 
   if (!edit) return <Modal visible={false} transparent onRequestClose={onClose}><View /></Modal>;
   const { mode, log, name } = edit;
-  const unit = log.dose_unit || '';
+  const unit = unitForDoseEdit(log) || '';
   const amountLine = log.dose_amount != null ? `${formatNumber(log.dose_amount, language, { trim: true, grouping: false })}\u00A0${unit}`.trim() : '';
   const whenLine = `${formatDate(new Date(Date.parse(log.logged_at)), language, 'dayMonth')}, ${formatTime(hhmm(Date.parse(log.logged_at)), language, timeFormat)}`;
 
   function save() {
     if (mode === 'time') {
       const err = checkEditedTime(at, Date.now());
-      if (err) { setError(t('log_time_future')); return; }
+      if (err === 'future') { setError(t('log_time_future')); return; }
+      if (err) return; // an unreadable moment (never from the wheels): nothing saved
       onSave('time', new Date(at).toISOString());
       return;
     }
     const r = parseDoseEdit(text, language);
     if (r.error) { setError(t('log_dose_invalid')); return; }
-    onSave('dose', { amount: r.amount, unit: log.dose_unit || null });
+    onSave('dose', { amount: r.amount, unit: unitForDoseEdit(log) });
   }
 
   const now = new Date();
