@@ -328,7 +328,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // AD-95 / F2 (founder 2026-10-26, picture docs/design/f2-dose-time-edit.html): "Alterar horário" and
   // "Alterar dose" — the sheet leaves, the editor opens holding the same popup turn (BK-20), freed on close.
   function openDoseEdit(log, mode) {
-    leaveSheetThen(() => setDoseEdit({ mode, log, name: logName(log) }));
+    leaveSheetThen(() => setDoseEdit({ mode, log, name: logName(log), when: doseWhen(log) }));
   }
   function closeDoseEdit() {
     setDoseEdit(null);

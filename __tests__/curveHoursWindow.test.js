@@ -70,3 +70,28 @@ test('wired: the curve screen uses the window, the hour labels ×6 read natively
     assert.equal(translations[l].curve_hours_label, { en: 'Hours', es: 'Horas', pt: 'Horas', fr: 'Heures', de: 'Stunden', it: 'Ore' }[l], l);
   }
 });
+
+// Founder 2026-10-27 (decisions (2) and (3) with option A): the short-compound note says it leaves the
+// blood in hours and that the curve never measures effects (Apple 1.4.1); "Estimar em uma data" is hidden
+// while the curve is in hours (a date-level readout means nothing on a 36 h window).
+test('short-compound note ×6 (approved text) and no date readout in hours mode', () => {
+  assert.equal(translations.pt.curve_fast_note, 'Neste modelo, {names} sai do sangue em poucas horas após cada dose. A curva mostra apenas o nível estimado no sangue; ela não mede efeitos.');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
+    const v = translations[l].curve_fast_note;
+    assert.match(v, /\{names\}/, l);
+    assert.doesNotMatch(v, /\{nome\}|\{name\}/, l);
+  }
+  assert.match(translations.en.curve_fast_note, /does not measure effects/);
+  const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /\{!hourMode && \(\s*<View style=\{s\.card\}>\s*<Text style=\{s\.cardHead\}>\{t\('curve_readout_title'\)\}/, 'the card only in days');
+  assert.match(src, /useEffect\(\(\) => \{ if \(hourMode && readoutDate\) setReadoutDate\(null\); \}, \[hourMode, readoutDate\]\)/, 'a date picked in days never steers the hours curve');
+});
+
+// Council 2026-10-27 (picture deviation): one hour format everywhere — axis, window label and bar read
+// "24 h" / "24 Std." with a no-break space, never "24h" next to "24 h".
+test('one hour format on the axis, the label and the bar', () => {
+  const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
+  assert.match(src, /`−\$\{hourWin\.past\}\\u00A0\$\{hu\}`/);
+  assert.match(src, /`\+\$\{hourWin\.future\}\\u00A0\$\{hu\}`/);
+  assert.doesNotMatch(src, /\$\{hourWin\.(past|future)\}\$\{hu\}/);
+});

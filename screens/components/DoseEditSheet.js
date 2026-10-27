@@ -19,7 +19,7 @@ import { checkEditedTime, combineDateTime, parseDoseEdit, unitForDoseEdit } from
 // The local "HH:MM" of a moment, for formatTime.
 const hhmm = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
-// edit: { mode, log, name } or null. onSave(mode, value): value = an ISO time or { amount, unit }.
+// edit: { mode, log, name, when } or null (when: the Dose log's "Ontem, 08:00"). onSave(mode, value): value = an ISO time or { amount, unit }.
 export default function DoseEditSheet({ edit, onClose, onSave }) {
   const { colors, isDark } = useTheme();
   const { t, language, timeFormat } = useLanguage();
@@ -43,7 +43,8 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
   const { mode, log, name } = edit;
   const unit = unitForDoseEdit(log) || '';
   const amountLine = log.dose_amount != null ? `${formatNumber(log.dose_amount, language, { trim: true, grouping: false })}\u00A0${unit}`.trim() : '';
-  const whenLine = `${formatDate(new Date(Date.parse(log.logged_at)), language, 'dayMonth')}, ${formatTime(hhmm(Date.parse(log.logged_at)), language, timeFormat)}`;
+  // The Dose log's own way of naming the day ("Ontem, 08:00"), passed in; the plain date otherwise.
+  const whenLine = edit.when || `${formatDate(new Date(Date.parse(log.logged_at)), language, 'dayMonth')}, ${formatTime(hhmm(Date.parse(log.logged_at)), language, timeFormat)}`;
 
   function save() {
     if (mode === 'time') {
@@ -153,7 +154,7 @@ const styles = (c) => StyleSheet.create({
   pickTime: { flex: 1 },
   field: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, borderRadius: 14, backgroundColor: c.well, paddingHorizontal: 14 },
   fieldText: { fontSize: 18, fontWeight: '600', color: c.ink },
-  input: { paddingVertical: 10 },
+  input: { paddingVertical: 10, fontSize: 20 },
   unit: { fontSize: 16, color: c.ink2 },
   hint: { fontSize: 13, color: c.ink2, lineHeight: 18 },
   error: { fontSize: 14, fontWeight: '600', color: c.risk },

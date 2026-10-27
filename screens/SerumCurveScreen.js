@@ -467,6 +467,8 @@ export default function SerumCurveScreen({ embedded = false }) {
   const selectedEntries = useMemo(() => protocols.filter(p => selectedIds.includes(p.id)).map(p => getHalfLifeEntry(matchName(p))), [protocols, selectedIds]);
   const hourMode = useHoursWindow({ entries: selectedEntries });
   const hourWin = hourMode ? hoursSplit(hoursChoice) : null;
+  // Founder 2026-10-27: "Estimar em uma data" is days only — a date picked before never steers the hours curve.
+  useEffect(() => { if (hourMode && readoutDate) setReadoutDate(null); }, [hourMode, readoutDate]);
   const stepMs = hourMode ? 3600 * 1000 : STEP_HOURS * 3600 * 1000;
 
   // Shared plot mappers. Scale to a "nice" ceiling (plotMax) that sits ABOVE the
@@ -1025,10 +1027,10 @@ export default function SerumCurveScreen({ embedded = false }) {
             <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]} onLayout={(e) => setAxisW(e.nativeEvent.layout.width)}>
               {/* A-101a: an end label that would touch "Now" is left out (lib/curveAxis). */}
               {axisShow.showLeft ? (
-                <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]} onLayout={(e) => setAxisLeftW(e.nativeEvent.layout.width)}>{hourMode ? `−${hourWin.past}${hu}` : `−${pastDays}${du}`}</Text>
+                <Text style={[s.axisLabel, { position: 'absolute', left: 0 }]} onLayout={(e) => setAxisLeftW(e.nativeEvent.layout.width)}>{hourMode ? `−${hourWin.past}\u00A0${hu}` : `−${pastDays}${du}`}</Text>
               ) : null}
               {axisShow.showRight ? (
-                <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]} onLayout={(e) => setAxisRightW(e.nativeEvent.layout.width)}>{hourMode ? `+${hourWin.future}${hu}` : `+${futureDays}${du}`}</Text>
+                <Text style={[s.axisLabel, { position: 'absolute', right: 0 }]} onLayout={(e) => setAxisRightW(e.nativeEvent.layout.width)}>{hourMode ? `+${hourWin.future}\u00A0${hu}` : `+${futureDays}${du}`}</Text>
               ) : null}
               {model && (
                 <Text style={[s.axisNow, { position: 'absolute', left: nowLabelLeft }]} onLayout={(e) => setAxisNowW(e.nativeEvent.layout.width)}>
@@ -1137,73 +1139,75 @@ export default function SerumCurveScreen({ embedded = false }) {
             </View>
           )}
 
-          {/* ── Estimate on a date (cross-reference a blood draw) ── */}
-          <View style={s.card}>
-            <Text style={s.cardHead}>{t('curve_readout_title')}</Text>
-            {/* Part 19: the next three dose days, "Other date" (the wheel), then bloodwork dates. */}
-            <View style={s.chips}>
-              {upcoming.slice(0, 3).map(d => {
-                const on = readoutDate === d;
-                return (
-                  <TouchableOpacity key={d} style={[s.pill, on && s.pillOn]} onPress={() => pickDate(d)} accessibilityRole="button" accessibilityState={{ selected: on }}>
-                    <Text style={[s.pillText, on && s.pillTextOn]}>{chipDay(d)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-              <TouchableOpacity style={[s.pill, customDate && s.pillOn]} onPress={() => setShowReadoutPicker(true)} accessibilityRole="button" accessibilityState={{ selected: customDate }}>
-                <Text style={[s.pillText, customDate && s.pillTextOn]}>{customDate ? dateLong(readoutDate) : t('curve_other_date')}</Text>
-              </TouchableOpacity>
+          {/* ── Estimate on a date (cross-reference a blood draw) ──  Founder 2026-10-27: days only — never on the hours curve. */}
+          {!hourMode && (
+            <View style={s.card}>
+              <Text style={s.cardHead}>{t('curve_readout_title')}</Text>
+              {/* Part 19: the next three dose days, "Other date" (the wheel), then bloodwork dates. */}
+              <View style={s.chips}>
+                {upcoming.slice(0, 3).map(d => {
+                  const on = readoutDate === d;
+                  return (
+                    <TouchableOpacity key={d} style={[s.pill, on && s.pillOn]} onPress={() => pickDate(d)} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                      <Text style={[s.pillText, on && s.pillTextOn]}>{chipDay(d)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity style={[s.pill, customDate && s.pillOn]} onPress={() => setShowReadoutPicker(true)} accessibilityRole="button" accessibilityState={{ selected: customDate }}>
+                  <Text style={[s.pillText, customDate && s.pillTextOn]}>{customDate ? dateLong(readoutDate) : t('curve_other_date')}</Text>
+                </TouchableOpacity>
+              </View>
+  
+              {labDates.length > 0 && (
+                <>
+                  <Text style={s.foot}>{t('curve_readout_lab_hint')}</Text>
+                  <View style={s.chips}>
+                    {labDates.map(d => {
+                      const on = readoutDate === d;
+                      return (
+                        <TouchableOpacity
+                          key={d}
+                          style={[s.pill, on && s.pillOn]}
+                          onPress={() => pickDate(d)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                        >
+                          <Text style={[s.pillText, on && s.pillTextOn]}>
+                            {t('curve_bloodwork_chip').replace('{date}', formatDate(d, language, 'dayMonth'))}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+  
+              {/* the estimate on the chosen date, per line */}
+              {readoutDate ? (
+                <>
+                  <View style={s.sep} />
+                  {model && model.series.map(ser => (
+                    <View key={`ro-${ser.id}`} style={s.readoutRow}>
+                      <View style={[s.dot, { backgroundColor: ser.color }]} />
+                      <Text style={s.readoutName} numberOfLines={2}>{ser.name} · {readoutShort}</Text>
+                      <Text style={s.readoutVal}>{readoutT < model.start ? '—' : mgLabel(readoutLevel(ser, readoutT))}{'\u00A0'}{unitLbl}</Text>
+                    </View>
+                  ))}
+                  {showCombined && model && model.combined.map(c => (
+                    <View key={`ro-${c.id}`} style={s.readoutRow}>
+                      <View style={[s.combinedSwatch, { backgroundColor: colors.ink }]} />
+                      <Text style={[s.readoutName, { fontWeight: '700' }]} numberOfLines={2}>
+                        {t('curve_combined')} · {t(`substance_${c.substance}`)} · {readoutShort}
+                      </Text>
+                      <Text style={s.readoutVal}>
+                        {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))}{'\u00A0'}{unitLbl}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              ) : null}
             </View>
-
-            {labDates.length > 0 && (
-              <>
-                <Text style={s.foot}>{t('curve_readout_lab_hint')}</Text>
-                <View style={s.chips}>
-                  {labDates.map(d => {
-                    const on = readoutDate === d;
-                    return (
-                      <TouchableOpacity
-                        key={d}
-                        style={[s.pill, on && s.pillOn]}
-                        onPress={() => pickDate(d)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: on }}
-                      >
-                        <Text style={[s.pillText, on && s.pillTextOn]}>
-                          {t('curve_bloodwork_chip').replace('{date}', formatDate(d, language, 'dayMonth'))}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </>
-            )}
-
-            {/* the estimate on the chosen date, per line */}
-            {readoutDate ? (
-              <>
-                <View style={s.sep} />
-                {model && model.series.map(ser => (
-                  <View key={`ro-${ser.id}`} style={s.readoutRow}>
-                    <View style={[s.dot, { backgroundColor: ser.color }]} />
-                    <Text style={s.readoutName} numberOfLines={2}>{ser.name} · {readoutShort}</Text>
-                    <Text style={s.readoutVal}>{readoutT < model.start ? '—' : mgLabel(readoutLevel(ser, readoutT))}{'\u00A0'}{unitLbl}</Text>
-                  </View>
-                ))}
-                {showCombined && model && model.combined.map(c => (
-                  <View key={`ro-${c.id}`} style={s.readoutRow}>
-                    <View style={[s.combinedSwatch, { backgroundColor: colors.ink }]} />
-                    <Text style={[s.readoutName, { fontWeight: '700' }]} numberOfLines={2}>
-                      {t('curve_combined')} · {t(`substance_${c.substance}`)} · {readoutShort}
-                    </Text>
-                    <Text style={s.readoutVal}>
-                      {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))}{'\u00A0'}{unitLbl}
-                    </Text>
-                  </View>
-                ))}
-              </>
-            ) : null}
-          </View>
+          )}
 
           {/* Honesty: evidence tier, how the model draws it, and the source — one tap away */}
           {model && (

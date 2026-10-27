@@ -76,3 +76,12 @@ test('wired: the dose sheet opens both editors and saves through updateDoseLog',
   assert.match(sheet, /KeyboardAvoidingView/, 'the number pad never covers Save (the vial-window lesson)');
   assert.doesNotMatch(sheet, /#[0-9a-fA-F]{3,6}\b|'white'|'black'/, 'theme tokens only');
 });
+
+// Council 2026-10-27 (picture deviations, docs/design/f2-dose-time-edit.html): the amount is typed at 20 pt
+// and the subtitle names the day the way the Dose log does ("Ontem, 08:00").
+test('picture: 20 pt amount, the Dose log way of naming the day', () => {
+  const sheet = read('screens/components/DoseEditSheet.js');
+  assert.match(sheet, /input: \{ paddingVertical: 10, fontSize: 20 \}/);
+  assert.match(sheet, /edit\.when \|\| /);
+  assert.match(read('screens/LogScreen.js'), /setDoseEdit\(\{ mode, log, name: logName\(log\), when: doseWhen\(log\) \}\)/);
+});

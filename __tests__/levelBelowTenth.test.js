@@ -18,3 +18,13 @@ test('zero, 0.05 and up are unchanged', () => {
   assert.equal(levelLabel(0.3, 'pt'), '0,3');
   assert.equal(levelLabel(12.4, 'pt'), '12');
 });
+
+// Council 2026-10-27: the axis follows the same rule — a grid line above zero never reads "0,0".
+test('axis: above zero but under 0,05 reads "< 0,1"; zero stays 0,0', () => {
+  const { axisLabel } = require('../lib/serumModel');
+  assert.equal(axisLabel(0.03, 'pt'), '< 0,1');
+  assert.equal(axisLabel(0.03, 'en'), '< 0.1');
+  assert.equal(axisLabel(0, 'pt'), '0,0');
+  assert.equal(axisLabel(0.05, 'pt'), '0,1');
+  assert.equal(axisLabel(12.4, 'pt'), '12');
+});
