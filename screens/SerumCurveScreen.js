@@ -942,7 +942,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <React.Fragment key={i}>
                   <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.line} strokeWidth={1} strokeDasharray="2,3" />
                   <SvgText x={plotLeft - 4} y={yForLevel(v) + 3} fontSize={9} fontFamily={MONO['400']} fill={colors.ink3} textAnchor="end">
-                    {axisLabel(v * dispF, language)}
+                    {axisLabel(v * dispF, language, ticksY.ticks[1] * dispF)}
                   </SvgText>
                 </React.Fragment>
               ))}
