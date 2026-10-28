@@ -63,3 +63,14 @@ test('4. the "your history will appear here" line shows only when the Dose log i
   const src = read('screens/LogScreen.js');
   assert.match(src, /\{listState === 'empty' && filter === 'All' && <Text style=\{s\.emptySub\}>\{t\('log_empty_sub'\)\}<\/Text>\}/);
 });
+
+// Founder 2026-10-28 ("Aprovo, pode trocar para Concluir dose de 14:00"): the timed take button says
+// the same verb as the other take buttons, not "Tomar". One line, may shrink to 0.8 (SF Pro 17 bold:
+// the longest, "Completa dose delle 14:00", is 217 pt; the button text has ~198 pt on a 375 pt iPhone).
+const TIMED = { en: 'Complete {time} dose', es: 'Completar dosis de {time}', pt: 'Concluir dose de {time}', fr: 'Valider la dose de {time}', de: 'Dosis um {time} erledigen', it: 'Completa dose delle {time}' };
+test('5. the timed take button says the action with the same verb (6 languages), one line', () => {
+  for (const [l, v] of Object.entries(TIMED)) assert.equal(tr[l].today_take_time, v, l);
+  assert.equal(217.0 * 0.8 <= 198, true);
+  const src = read('screens/TodayScreen.js');
+  assert.match(src, /<Text style=\{\[s\.doseBtnPrimaryText, ok && \{ color: colors\.successSoftText \}\]\} numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.8\}>/);
+});

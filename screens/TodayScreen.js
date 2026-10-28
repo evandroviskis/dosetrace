@@ -140,7 +140,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
               <APath d="M3.5 8.5 L6.8 11.5 L12.5 5" fill="none" stroke={colors.successSoftText} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={16} animatedProps={chkProps} />
             </Svg>
           )}
-          <Text style={[s.doseBtnPrimaryText, ok && { color: colors.successSoftText }]}>{ok ? takenLabel : label}</Text>
+          <Text style={[s.doseBtnPrimaryText, ok && { color: colors.successSoftText }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{ok ? takenLabel : label}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
