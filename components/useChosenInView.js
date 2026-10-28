@@ -28,6 +28,7 @@ export default function useChosenInView(chosen) {
   useEffect(() => {
     if (seen.current === chosen) return;
     seen.current = chosen;
+    if (!scroll.current) return; // no row on screen: the next one opens on its own measures
     if (opening.current && chosenRef.current != null && layouts.current[chosen] == null) return; // not measured yet
     opening.current = false;
     place(false);
@@ -36,8 +37,12 @@ export default function useChosenInView(chosen) {
   const itemLayout = (i) => (e) => { layouts.current[i] = e.nativeEvent.layout; reopen(); };
 
   const rowProps = useMemo(() => ({
-    // A row that leaves the screen (a step or a sheet closing) opens again when it comes back.
-    ref: (n) => { scroll.current = n; if (!n) { opening.current = true; layouts.current = {}; offset.current = 0; } },
+    // A row that comes on screen (a step or a sheet opening) opens again: placed on its own measures
+    // (council 2026-10-27: the protocol sheet keeps this hook while its rows come and go).
+    ref: (n) => {
+      if (n !== scroll.current) { opening.current = true; layouts.current = {}; offset.current = 0; }
+      scroll.current = n;
+    },
     onLayout: (e) => { viewport.current = e.nativeEvent.layout.width; reopen(); },
     onContentSizeChange: () => reopen(),
     onScrollBeginDrag: () => { opening.current = false; },

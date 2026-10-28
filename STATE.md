@@ -1,5 +1,7 @@
 # DoseTrace — Project State
 
+**1.3.1 EAS UPDATE (A-188/A-189/A-190) 2026-10-27 23:39 EDT:** founder chose an EAS Update over build 8; council GO-WITH-CHANGES fixed (hook re-arm, floating keyboard measured); suite 3631/0, iOS + Android exports ok; channel production, runtimes match builds 81 / vc62. Publish result: the line written after it.
+
 **1.3.1 TEST BUILD 7 DELIVERED 2026-10-27 18:26 EDT (redesign/graduated d0ba0d7 + What to Test):** iOS build 81 VALID, in Early Birds, beta review APPROVED (asc-tf-status: LIVE on the Early Birds link), What to Test en-US + pt-BR set; Android vc62 on the Play internal track (play-track-status: internal 1.3.1 completed vc62; production still 1.3.0 vc54). EAS ids: ios 508ca431-e9a0-4c4e-a9b7-c4cdbf62426e, android e7859c1b-612f-41b6-8aff-f3d43862ecf2. Carries decision B (all of 1.3.2) + Protocols archive B + Quase todas + council #3 fixes. Stores HOLD: Gate S 114 rows (device evidence), privacy labels, lawyer flags.
 
 **2026-10-27 11:15 EDT — 1.3.1 pre-build (redesign/graduated 06f356f):** council fixes closed + option A, slot_at (production migration applied), curve note/hours readout, '< 0,1' everywhere; all proven on the iPhone simulator with the cloud checked; suite 3567/0, iOS export OK; new spec docs/specs/dose-corrections.md (DC-1..15 built) + curve R1/R2 amendment await the founder's signature. Next: independent diff review → ship-check → ask "pode fazer o build" (iOS + Android internal).
