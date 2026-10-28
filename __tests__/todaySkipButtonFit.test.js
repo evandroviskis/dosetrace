@@ -82,3 +82,18 @@ test('the German Skip sheet uses the same verb as the button', () => {
   assert.match(tr.de.today_skip_title, /auslassen/);
   assert.match(tr.de.today_skip_confirm, /auslassen/);
 });
+
+// Founder 2026-10-28 ("Aprovo as trocas sugeridas"): the pending card's right button says the action
+// too, next to "Pular dose": pt "Concluir dose" (es Completar dosis, fr Valider la dose, it Completa
+// dose, en Mark complete like Today's card; de "Erledigt" is already the natural button word). It may
+// shrink to 0.8 on a 375 pt iPhone like the skip button (SF Pro 17 bold widths, measured).
+const TAKE_WANT = { en: 'Mark complete', es: 'Completar dosis', pt: 'Concluir dose', fr: 'Valider la dose', de: 'Erledigt', it: 'Completa dose' };
+const TAKE_W = { 'Mark complete': 121.6, 'Completar dosis': 133.3, 'Concluir dose': 112.0, 'Valider la dose': 118.6, Erledigt: 63.7, 'Completa dose': 122.5 };
+test('the pending card\'s take button says the action and fits its half (0.8 shrink)', () => {
+  for (const [l, v] of Object.entries(TAKE_WANT)) {
+    assert.equal(tr[l].today_pending_take, v, l);
+    assert.ok(TAKE_W[v] * MIN_SCALE <= pendRoom(375), `${l}: ${TAKE_W[v]} × 0.8 over ${pendRoom(375)}`);
+  }
+  const src = fs.readFileSync(path.join(__dirname, '../screens/TodayScreen.js'), 'utf8');
+  assert.match(src, /<Text style=\{s\.btnActText\} numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.8\}>\{t\('today_pending_take'\)\}<\/Text>/);
+});

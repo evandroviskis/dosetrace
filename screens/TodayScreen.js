@@ -2538,7 +2538,7 @@ export default function TodayScreen() {
                       <Text style={s.btnSkipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_pending_skip')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={s.btnAct} onPress={() => takePending(item)} accessibilityRole="button">
-                      <Text style={s.btnActText}>{t('today_pending_take')}</Text>
+                      <Text style={s.btnActText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_pending_take')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
