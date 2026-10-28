@@ -34,10 +34,5 @@ class DtExactAlarmModule : Module() {
       true
     }
 
-    Function("cancelRefresh") {
-      val context = appContext.reactContext ?: return@Function false
-      HeadlessRefreshWorker.cancel(context)
-      true
-    }
   }
 }

@@ -17,4 +17,6 @@ android {
 dependencies {
   // A-111: RefreshOnUpdateReceiver enqueues expo-background-task's worker (same WorkManager version).
   implementation 'androidx.work:work-runtime-ktx:2.9.1'
+  // A-197: HeadlessRefreshWorker uses React Native's headless JS tasks (version set by the RN Gradle plugin).
+  implementation 'com.facebook.react:react-android'
 }

@@ -44,3 +44,40 @@ test('A-197: the worker runs a headless JS task (timers run) and the update rece
   assert.match(receiver, /HeadlessRefreshWorker\.runOnce/);
   assert.doesNotMatch(receiver, /BackgroundTaskWork/);
 });
+
+// Senior review of db739a2 (2026-10-28), each point pinned.
+const W = () => read('modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/HeadlessRefreshWorker.kt');
+
+test('A-197 review 1: the module depends on react-android (it imports com.facebook.react.*)', () => {
+  assert.match(read('modules/dt-exact-alarm/android/build.gradle'), /implementation 'com\.facebook\.react:react-android'/);
+});
+
+test('A-197 review 2: the headless refresh never runs in the foreground (takeover screens race)', () => {
+  assert.match(W(), /HeadlessJsTaskConfig\(TASK_KEY, Arguments\.createMap\(\), TASK_TIMEOUT_MS, false\)/);
+});
+
+test('A-197 review 3 + 4: only a React context with a live instance is used; getInstance runs on the UI thread', () => {
+  const w = W();
+  assert.match(w, /hasActiveReactInstance\(\)/);
+  const post = w.slice(w.indexOf('main.post {', w.indexOf('val finished')));
+  assert.match(post.slice(0, 400), /HeadlessJsTaskContext\.getInstance\(context\)/);
+});
+
+test('A-197 review 5: the expo task is unregistered only when our worker was really scheduled', () => {
+  assert.deepEqual(planRefreshRegistration({ android: true, hasHeadless: true, scheduled: false }), { headless: true, expo: true, unregisterExpo: false });
+  assert.deepEqual(planRefreshRegistration({ android: true, hasHeadless: true, scheduled: true }), { headless: true, expo: false, unregisterExpo: true });
+});
+
+test('A-197 review 6 + 7: after an update the periodic worker is (re)scheduled too, and UPDATE keeps it current', () => {
+  assert.match(read('modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/RefreshOnUpdateReceiver.kt'), /HeadlessRefreshWorker\.schedule\(context, 360\)/);
+  assert.match(W(), /ExistingPeriodicWorkPolicy\.UPDATE/);
+  assert.doesNotMatch(W(), /ExistingPeriodicWorkPolicy\.KEEP/);
+});
+
+test('A-197 review 2: the background device check runs in the same per-account queue as claims', () => {
+  assert.match(read('lib/deviceFlow.js'), /backgroundCheck\(userId\) \{\s*return serial\(userId, async \(\) => \{/);
+});
+
+test('A-197 review 15: no dead cancelRefresh in the native module', () => {
+  assert.doesNotMatch(read('modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/DtExactAlarmModule.kt'), /cancelRefresh/);
+});

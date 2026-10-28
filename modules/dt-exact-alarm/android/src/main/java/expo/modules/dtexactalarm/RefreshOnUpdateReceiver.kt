@@ -17,6 +17,8 @@ class RefreshOnUpdateReceiver : BroadcastReceiver() {
     try {
       // A-197 fix 2: the refresh runs as a React Native headless JS task (HeadlessRefreshWorker).
       HeadlessRefreshWorker.runOnce(context, "DOSETRACE_REFRESH_AFTER_UPDATE")
+      // The periodic run too: a phone nobody opens (a replaced one) must keep checking (review 6).
+      HeadlessRefreshWorker.schedule(context, 360)
     } catch (e: Throwable) {
       Log.w("DtExactAlarm", "reminder refresh after $action not started: ${e.message}")
     }
