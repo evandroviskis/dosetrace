@@ -1,4 +1,8 @@
 import { registerRootComponent } from 'expo';
+// A-197: on Android a background run's network answers must not wait on JS timers (paused while the
+// app is in the background); installed first, so every module that calls fetch gets it.
+import { installBgSafeFetch } from './lib/bgSafeFetch';
+installBgSafeFetch();
 // Notification action buttons (Mark as taken / snooze): registered at module
 // scope, before the app mounts, so a tap is handled even when the app was killed.
 import './lib/notificationActions';
