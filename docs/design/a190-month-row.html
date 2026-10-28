@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A-190 Fileira de meses</title>
+<style>
+  :root { --page: #F4F5F2; --text: #111315; --muted: #53585D; }
+  body { margin: 0; background: var(--page); color: var(--text); font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { color: var(--muted); max-width: 70ch; margin: 0 0 22px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; max-width: 1180px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .col h2 { font-size: 16px; margin: 0 0 4px; }
+  .col p { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; min-height: 3.6em; }
+  .theme { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 10px 0 6px; }
+  .scrim { border-radius: 18px; padding: 18px 14px; overflow: hidden; }
+  .light { --ground:#DDE0DB; --raised:#FFFFFF; --line:#C3C7C0; --ink:#111315; --ink2:#454A4F; --ink3:#53585D; background: rgba(0,0,0,.45); }
+  .dark  { --ground:#121416; --raised:#282B30; --line:#3C4147; --ink:#EEEFEB; --ink2:#B5B9B4; --ink3:#9A9F9A; background: #000; }
+  .light .bgshade { background: #DDE0DB; } .dark .bgshade { background: #121416; }
+  .card { background: var(--raised); border-radius: 26px; padding: 20px; display: flex; flex-direction: column; gap: 14px; max-width: 340px; margin: 0 auto; }
+  .title { font-size: 22px; font-weight: 700; color: var(--ink); }
+  .label { font-size: 17px; font-weight: 600; color: var(--ink); }
+  .row { display: flex; gap: 8px; }
+  .viewport { overflow: hidden; position: relative; }
+  .strip { display: flex; gap: 8px; width: max-content; }
+  .pill { min-height: 36px; border-radius: 18px; padding: 0 14px; display: flex; align-items: center; border: 1px solid var(--line); color: var(--ink2); font-size: 15px; white-space: nowrap; box-sizing: border-box; }
+  .pill.on { border: 1.5px solid var(--ink); color: var(--ink); font-weight: 600; background: var(--raised); }
+  .day { width: 90px; min-height: 50px; border-radius: 14px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 17px; color: var(--ink); }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: #111315; color: #fff; margin-left: 6px; vertical-align: 2px; }
+</style>
+</head>
+<body>
+<h1>A-190 — mês escolhido na janela do frasco</h1>
+<p class="lead">Janela "Editar frasco" (e "Novo frasco"), frasco preparado em 25 de outubro. Hoje a fileira de meses começa em janeiro e o mês escolhido fica escondido à direita. As duas propostas mudam só a posição da fileira ao abrir; cores, tamanhos e ordem dos outros campos ficam iguais.</p>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const CHOSEN = 9; // Out
+const variants = [
+  { key: 'today', h: 'Hoje no app', p: 'A fileira abre em janeiro. Outubro está escolhido, mas fica fora da vista; é preciso arrastar para ver.', order: MONTHS.map((m,i)=>i), shift: 0 },
+  { key: 'a', h: 'A — abre no mês escolhido', tag: 'recomendo', p: 'Mesma ordem do calendário. Ao abrir, a fileira já vem rolada até o mês escolhido, com o mês anterior aparecendo pela metade à esquerda.', order: MONTHS.map((m,i)=>i), shift: 'chosen' },
+  { key: 'b', h: 'B — do mês atual para trás', p: 'A fileira começa no mês atual e volta no tempo (Out, Set, Ago…), porque o preparo do frasco é sempre no passado. Muda a ordem a que a pessoa está acostumada.', order: [9,8,7,6,5,4,3,2,1,0,11,10], shift: 0 },
+];
+function card(v, theme) {
+  const pills = v.order.map(i => `<div class="pill${i===CHOSEN?' on':''}" data-i="${i}">${MONTHS[i]}</div>`).join('');
+  return `<div class="theme">${theme === 'light' ? 'Tema claro' : 'Tema escuro'}</div>
+  <div class="scrim ${theme}"><div class="card">
+    <div class="title">Editar frasco</div>
+    <div class="label">Data do preparo</div>
+    <div class="row"><div class="pill">Ontem</div><div class="pill">Hoje</div></div>
+    <div class="viewport"><div class="strip" data-shift="${v.shift}">${pills}</div></div>
+    <div class="day">25</div>
+  </div></div>`;
+}
+const grid = document.getElementById('grid');
+for (const v of variants) {
+  const col = document.createElement('div'); col.className = 'col';
+  col.innerHTML = `<h2>${v.h}${v.tag ? `<span class="tag">${v.tag}</span>` : ''}</h2><p>${v.p}</p>${card(v,'light')}${card(v,'dark')}`;
+  grid.appendChild(col);
+}
+// Place the strips: "chosen" = scroll so the chosen month sits second, the previous one half shown.
+requestAnimationFrame(() => {
+  document.querySelectorAll('.strip[data-shift="chosen"]').forEach(strip => {
+    const chosen = strip.querySelector(`.pill[data-i="${CHOSEN}"]`);
+    const prev = strip.querySelector(`.pill[data-i="${CHOSEN-1}"]`);
+    const x = prev.offsetLeft + prev.offsetWidth / 2;
+    strip.style.transform = `translateX(${-x}px)`;
+  });
+});
+</script>
+</body>
+</html>

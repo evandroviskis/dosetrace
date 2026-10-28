@@ -1352,6 +1352,12 @@ export default function ProtocolsScreen() {
     if (scrollRef.current) scrollRef.current.scrollTo({ y: 0, animated: false });
   }, [showList, openId]);
 
+  // A-189: each step of the protocol sheet opens at its top (the next step kept the previous step's
+  // scroll and hid "When did you start?").
+  useEffect(() => {
+    if (modalScrollRef.current) modalScrollRef.current.scrollTo({ y: 0, animated: false });
+  }, [step]);
+
   useEffect(() => {
     AsyncStorage.getItem(SORT_STORAGE_KEY)
       .then(v => { if (v && SORT_OPTIONS.some(o => o.key === v)) setSortBy(v); })
