@@ -18,9 +18,9 @@ function load() {
 }
 const tr = load();
 
-const WANT = { en: 'Mark complete', es: 'Completar', pt: 'Concluir', fr: "C'est fait", de: 'Erledigt', it: 'Completa' };
+const WANT = { en: 'Mark complete', es: 'Completar', pt: 'Concluir', fr: 'Valider', de: 'Erledigt', it: 'Completa' }; // fr: council UX 2026-10-28 (Valider la dose de {time})
 // SF Pro 17 pt bold widths (NSFont systemFont 17 bold).
-const MEASURED = { 'Mark complete': 121.6, 'Completar': 85.8, 'Concluir': 68.3, "C'est fait": 74.0, 'Erledigt': 63.7, 'Completa': 78.8 };
+const MEASURED = { Valider: 56.8, 'Mark complete': 121.6, 'Completar': 85.8, 'Concluir': 68.3, "C'est fait": 74.0, 'Erledigt': 63.7, 'Completa': 78.8 };
 const room = (screen) => ((screen - 2 * 16 - 2 * 18) - 10) * 2 / 3 - 2 * 16;
 
 test('the dose button label in six languages', () => {

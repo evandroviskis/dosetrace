@@ -19,13 +19,13 @@ function load() {
 }
 const tr = load();
 
-const WANT = { en: 'Skip', es: 'Omitir', pt: 'Pular', fr: 'Passer', de: 'Auslassen', it: 'Salta' };
+const WANT = { en: 'Skip', es: 'Omitir', pt: 'Pular', fr: 'Sauter', de: 'Auslassen', it: 'Salta' }; // fr: council UX 2026-10-28, one verb with the log's "sautée"
 // SF Pro 17 pt bold widths (NSFont systemFont 17 bold, same method as todayTakeButtonFit).
-const MEASURED = { Skip: 35.9, Omitir: 50.8, Pular: 42.4, Passer: 55.3, Auslassen: 83.4, Salta: 41.3,
+const MEASURED = { Sauter: 54.0, 'Sauter la dose': 115.8, Skip: 35.9, Omitir: 50.8, Pular: 42.4, Passer: 55.3, Auslassen: 83.4, Salta: 41.3,
   Skipped: 66.8, Omitida: 64.1, Pulada: 55.7, 'Sautée': 56.8, Ausgelassen: 103.7, Saltata: 57.4, // DE pending: Ausgelassen (one term, round 2)
   // Founder 2026-10-28 (picture docs/design/pending-skip-word.html, "B"): the pending button says the action.
   'Skip dose': 79.5, 'Omitir dosis': 98.3, 'Pular dose': 86.1, 'Passer la dose': 117.1, 'Dosis auslassen': 130.6, 'Salta dose': 84.9 };
-const PENDING_WANT = { en: 'Skip dose', es: 'Omitir dosis', pt: 'Pular dose', fr: 'Passer la dose', de: 'Dosis auslassen', it: 'Salta dose' };
+const PENDING_WANT = { en: 'Skip dose', es: 'Omitir dosis', pt: 'Pular dose', fr: 'Sauter la dose', de: 'Dosis auslassen', it: 'Salta dose' };
 const MIN_SCALE = 0.8;
 const skipRoom = (screen) => ((screen - 2 * 16 - 2 * 18) - 10) / 3 - 2 * 16;
 // "Pending from yesterday": two equal buttons in the pending card (margin 16, padding 16).
@@ -72,7 +72,7 @@ test('the Skip text keeps one line and may shrink to 0.8, never wraps inside a w
   const uses = src.match(/<Text style=\{s\.btnSkipText\}[^>]*>/g) || [];
   assert.ok(uses.length >= 2, 'dose card and pending card');
   for (const u of uses) {
-    assert.match(u, /numberOfLines=\{1\}/, u);
+    assert.match(u, /numberOfLines=\{[12]\}/, u); // the pending card may take a second line (council 2026-10-28), never a break inside a word
     assert.match(u, /adjustsFontSizeToFit/, u);
     assert.match(u, /minimumFontScale=\{0\.8\}/, u);
   }
@@ -95,5 +95,5 @@ test('the pending card\'s take button says the action and fits its half (0.8 shr
     assert.ok(TAKE_W[v] * MIN_SCALE <= pendRoom(375), `${l}: ${TAKE_W[v]} × 0.8 over ${pendRoom(375)}`);
   }
   const src = fs.readFileSync(path.join(__dirname, '../screens/TodayScreen.js'), 'utf8');
-  assert.match(src, /<Text style=\{s\.btnActText\} numberOfLines=\{1\} adjustsFontSizeToFit minimumFontScale=\{0\.8\}>\{t\('today_pending_take'\)\}<\/Text>/);
+  assert.match(src, /<Text style=\{s\.btnActText\} numberOfLines=\{2\} adjustsFontSizeToFit minimumFontScale=\{0\.8\}>\{t\('today_pending_take'\)\}<\/Text>/);
 });

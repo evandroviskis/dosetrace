@@ -155,7 +155,7 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
         <Text style={s.streakText} numberOfLines={2}>
           {streak > 0 ? `${streak} ${streak === 1 ? t('today_streak_day') : t('today_streak_days')}` : t('today_streak_none')}
         </Text>
-        {streak >= 7 && <Text style={s.fire}>{t('today_streak_fire')}</Text>}
+        {streak >= 7 && <Text style={s.fire} numberOfLines={1}>{t('today_streak_fire')}</Text>}
         <View style={s.history}>
           <Text style={s.historyText}>{t('today_view_log')}</Text>
           <RowChevron color={inv.tick} />

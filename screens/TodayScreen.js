@@ -140,7 +140,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
               <APath d="M3.5 8.5 L6.8 11.5 L12.5 5" fill="none" stroke={colors.successSoftText} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={16} animatedProps={chkProps} />
             </Svg>
           )}
-          <Text style={[s.doseBtnPrimaryText, ok && { color: colors.successSoftText }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{ok ? takenLabel : label}</Text>
+          <Text style={[s.doseBtnPrimaryText, s.doseBtnLabel, ok && { color: colors.successSoftText }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{ok ? takenLabel : label}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -2535,10 +2535,10 @@ export default function TodayScreen() {
                   )}
                   <View style={s.acts2}>
                     <TouchableOpacity style={s.btnSkip} onPress={() => skipPending(item)} accessibilityRole="button">
-                      <Text style={s.btnSkipText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_pending_skip')}</Text>
+                      <Text style={s.btnSkipText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_pending_skip')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={s.btnAct} onPress={() => takePending(item)} accessibilityRole="button">
-                      <Text style={s.btnActText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_pending_take')}</Text>
+                      <Text style={s.btnActText} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{t('today_pending_take')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -3037,7 +3037,8 @@ const todayV21Styles = (c) => ({
   doseBtnPrimary: { backgroundColor: c.act },
   doseBtnOk: { backgroundColor: c.well },
   doseBtnFill: { alignSelf: 'stretch' },
-  doseBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  doseBtnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', paddingHorizontal: 12, gap: 6 },
+  doseBtnLabel: { flexShrink: 1, textAlign: 'center' }, // council 2026-10-28: the row never limited the text, so it could not shrink or wrap
   doseBtnPrimaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
   doneCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16 },
   doneText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
