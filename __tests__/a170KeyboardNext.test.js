@@ -41,6 +41,8 @@ function loadHook({ os = 'ios' } = {}) {
       TextInput: { State: { currentlyFocusedInput: () => null } },
       View: 'View',
     },
+    // The measured window (lib/windowSize, A-129), read for an unusable keyboard report (A-188).
+    '../lib/windowSize': { useWindowSize: () => ({ width: 411, height: 860 }) },
   };
   const file = path.join(ROOT, 'components', 'useKeyboardLift.js');
   const { code } = babel.transformSync(fs.readFileSync(file, 'utf8'), {

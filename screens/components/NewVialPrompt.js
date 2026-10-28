@@ -19,6 +19,7 @@ import Modal from '../../components/PresenceModal';
 import { useTheme } from '../../lib/theme';
 import { useLanguage } from '../../i18n/LanguageContext';
 import useSheetKeyboard from '../../components/useSheetKeyboard';
+import useChosenInView from '../../components/useChosenInView';
 import { pluralKey } from '../../lib/plural';
 import { dosesPerVial } from '../../lib/doseMath';
 import { formatDate } from '../../lib/localeFormat';
@@ -59,6 +60,7 @@ function KeyboardFrame({ children }) {
 
 // The mix date: Yesterday / Today, the month, the day (Today's vial window).
 function MixDateField({ s, t, colors, month, day, setMonth, setDay }) {
+  const monthRow = useChosenInView(month); // A-190: the chosen month opens in view
   return (
     <>
       <Text style={s.promptLabel}>{t('today_vial_mix_date')}</Text>
@@ -85,11 +87,12 @@ function MixDateField({ s, t, colors, month, day, setMonth, setDay }) {
           <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} {...monthRow.rowProps}>
         <View style={s.promptMonthRow}>
           {MONTH_KEYS.map((mk, idx) => (
             <TouchableOpacity
               key={mk}
+              onLayout={monthRow.itemLayout(idx)}
               style={[s.promptMonthPill, month === idx && s.promptMonthPillOn]}
               onPress={() => setMonth(idx)}
             >
@@ -118,15 +121,17 @@ function MixDateField({ s, t, colors, month, day, setMonth, setDay }) {
 
 // The box's month and year (the protocol form's pills: a second tap clears; blank allowed).
 function BoxExpiryField({ s, t, expMonth, expYear, setExpMonth, setExpYear }) {
+  const monthRow = useChosenInView(expMonth); // A-190
   return (
     <>
       <Text style={s.promptLabel}>{t('protocols_vial_expiry')}</Text>
       <Text style={s.promptHint}>{t('protocols_vial_expiry_hint')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} {...monthRow.rowProps}>
         <View style={s.promptMonthRow}>
           {MONTH_KEYS.map((mk, idx) => (
             <TouchableOpacity
               key={mk}
+              onLayout={monthRow.itemLayout(idx)}
               style={[s.promptMonthPill, expMonth === idx && s.promptMonthPillOn]}
               onPress={() => setExpMonth(expMonth === idx ? null : idx)}
               accessibilityRole="button" accessibilityState={{ selected: expMonth === idx }}

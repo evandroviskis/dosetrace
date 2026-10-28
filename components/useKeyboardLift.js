@@ -20,6 +20,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Platform, TextInput, View } from 'react-native';
 import { liftScrollY, windowShift } from '../lib/keyboardLift';
+import { keyboardFrame } from '../lib/keyboardFrame';
+import { useWindowSize } from '../lib/windowSize';
 
 export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
   const auto = !!(opts && opts.auto);
@@ -28,6 +30,8 @@ export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
   const kbTop = useRef(null);
   const field = useRef(null);
   const nodes = useRef({});
+  const winHeight = useRef(0);
+  winHeight.current = useWindowSize().height; // the measured window (A-129), for keyboardFrame
   const [kbHeight, setKbHeight] = useState(0);
 
   function focusedNode() {
@@ -68,8 +72,10 @@ export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
     }
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
       const ec = e && e.endCoordinates;
-      kbTop.current = ec ? ec.screenY : null;
-      setKbHeight(ec ? ec.height : 0);
+      // A-188: a split-screen report with no usable height is estimated (lib/keyboardFrame).
+      const k = keyboardFrame(ec, winHeight.current, Platform.OS === 'android');
+      kbTop.current = k ? k.kbTop : null;
+      setKbHeight(k ? k.kbHeight : 0);
       setTimeout(lift, 60); // once the spacer has laid out (onContentSizeChange lifts again)
     });
     const hide = Keyboard.addListener('keyboardDidHide', () => {

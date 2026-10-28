@@ -34,6 +34,7 @@ import { protocolDisplayName } from '../lib/protocolName';
 import { readPieces, readScale, READ } from '../lib/readPieces';
 import useKeyboardLift from '../components/useKeyboardLift';
 import useSheetKeyboard from '../components/useSheetKeyboard';
+import useChosenInView from '../components/useChosenInView';
 import { doseUnitCheck } from '../lib/doseUnitCheck';
 import { friendlyError } from '../lib/friendlyError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -265,9 +266,9 @@ const WInput = forwardRef(function WInput({ s, c, style, onFocus, onBlur, ...pro
 });
 
 // Selection pill: 1 px line outline; chosen = 1.5 px ink outline on raised.
-function Pill({ s, label, on, onPress, short }) {
+function Pill({ s, label, on, onPress, short, onLayout }) {
   return (
-    <TouchableOpacity style={[s.pill, short && s.pillShort, on && s.pillOn]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: !!on }}>
+    <TouchableOpacity style={[s.pill, short && s.pillShort, on && s.pillOn]} onPress={onPress} onLayout={onLayout} accessibilityRole="button" accessibilityState={{ selected: !!on }}>
       <Text style={[s.pillText, on && s.pillTextOn]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -1222,6 +1223,9 @@ export default function ProtocolsScreen() {
   // RTU vial tracking: bottle volume (ml) + the box's printed expiry (month/year)
   const [vialMl, setVialMl] = useState('');
   const [vialExpMonth, setVialExpMonth] = useState(null); // 0-11 or null
+  // A-190: the sheet's month rows open with the chosen month in view.
+  const mixMonthRow = useChosenInView(vialMonth);
+  const expMonthRow = useChosenInView(vialExpMonth);
   const [vialExpYear, setVialExpYear] = useState(null);   // full year or null
 
   // The enlarged syringe ({ id, open }) lives here, outside the views, so a fold or unfold
@@ -3460,9 +3464,9 @@ export default function ProtocolsScreen() {
                       <WInput s={s} c={colors} placeholder={`${t('protocols_eg')} 10`} keyboardType="numeric" value={vialMl} onChangeText={setVialMl} />
                     </Fld>
                     <Fld s={s} label={t('protocols_vial_expiry')} hint={t('protocols_vial_expiry_hint')}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll} {...expMonthRow.rowProps}>
                         {MONTH_KEYS.map((mk, idx) => (
-                          <Pill key={mk} s={s} label={t(mk)} on={vialExpMonth === idx} onPress={() => setVialExpMonth(vialExpMonth === idx ? null : idx)} />
+                          <Pill key={mk} s={s} label={t(mk)} on={vialExpMonth === idx} onLayout={expMonthRow.itemLayout(idx)} onPress={() => setVialExpMonth(vialExpMonth === idx ? null : idx)} />
                         ))}
                       </ScrollView>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
@@ -3701,9 +3705,9 @@ export default function ProtocolsScreen() {
                 {!skipVial ? (
                   <>
                     <Fld s={s} label={t('protocols_date_mixed')}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll} {...mixMonthRow.rowProps}>
                         {MONTH_KEYS.map((mk, idx) => (
-                          <Pill key={mk} s={s} label={t(mk)} on={vialMonth === idx} onPress={() => { touch('mixed'); setVialMonth(idx); }} />
+                          <Pill key={mk} s={s} label={t(mk)} on={vialMonth === idx} onLayout={mixMonthRow.itemLayout(idx)} onPress={() => { touch('mixed'); setVialMonth(idx); }} />
                         ))}
                       </ScrollView>
                       <View style={s.inrow}>

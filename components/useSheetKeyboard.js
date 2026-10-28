@@ -14,6 +14,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Platform, TextInput } from 'react-native';
 import { sheetKeyboardLift, sheetFocusScrollY } from '../lib/sheetKeyboard';
 import { windowShift } from '../lib/keyboardLift';
+import { keyboardFrame } from '../lib/keyboardFrame';
+import { useWindowSize } from '../lib/windowSize';
 
 const NO_PROPS = Object.freeze({});
 
@@ -23,6 +25,8 @@ export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}
   const scroll = useRef(null);
   const scrollY = useRef(0);
   const kbRef = useRef(null); // the keyboard now, for the scroll view's own callbacks
+  const winHeight = useRef(0);
+  winHeight.current = useWindowSize().height; // the measured window (A-129), for keyboardFrame
 
   useEffect(() => {
     if (!enabled) {
@@ -30,7 +34,12 @@ export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}
       setKb(null);
       return undefined;
     }
-    const apply = (ec) => { const next = ec && ec.height > 0 ? { kbTop: ec.screenY, kbHeight: ec.height } : null; kbRef.current = next; setKb(next); };
+    // A-188: a split-screen report with no usable height is estimated (lib/keyboardFrame).
+    const apply = (ec) => {
+      const k = keyboardFrame(ec, winHeight.current, Platform.OS === 'android');
+      const next = k ? { kbTop: k.kbTop, kbHeight: k.kbHeight } : null;
+      kbRef.current = next; setKb(next);
+    };
     // A sheet opened while the keyboard is already up lifts at once.
     try { if (Keyboard.isVisible()) apply(Keyboard.metrics()); } catch (e) { /* older RN: wait for the event */ }
     const show = Keyboard.addListener('keyboardDidShow', (e) => apply(e && e.endCoordinates));
