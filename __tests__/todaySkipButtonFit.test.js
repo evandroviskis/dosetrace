@@ -50,6 +50,15 @@ test('the pending-from-yesterday button says the action: "Pular dose" (founder 2
   for (const [l, v] of Object.entries(PENDING_WANT)) assert.equal(tr[l].today_pending_skip, v, l);
 });
 
+// Founder 2026-10-28 ("Tiveram pulada em qualquer outro lugar do aplicativo, substitua também"): every
+// BUTTON that skips a dose says the same action. The Dose log's Missed-dose sheet had "Marcar como
+// pulada"; it now says "Pular dose" like the pending card (both act on a past dose). Status words
+// that describe what happened (log_status_skipped "Dose pulada", the "Puladas" filter and counts, the
+// report line) are not buttons and stay as they are.
+test('every skip-a-dose button says the same action (Dose log Missed sheet included)', () => {
+  for (const [l, v] of Object.entries(PENDING_WANT)) assert.equal(tr[l].log_mark_skipped, v, l);
+});
+
 test('the pending-from-yesterday skip label fits its half of the row (German may use the 0.8 shrink)', () => {
   for (const l of Object.keys(WANT)) {
     const w = MEASURED[tr[l].today_pending_skip];
