@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pendente de ontem: botão Pular</title>
+<style>
+  :root { --page:#F4F5F2; --text:#111315; --muted:#53585D; --rule:#D6D9D2; }
+  body { margin:0; background:var(--page); color:var(--text); font:15px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif; padding:24px 16px 48px; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  .lead { color:var(--muted); max-width:72ch; margin:0 0 20px; }
+  .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; max-width:1180px; }
+  @media (max-width:900px){ .grid{ grid-template-columns:1fr; } }
+  .col h2 { font-size:16px; margin:0 0 4px; } .col p { margin:0 0 10px; color:var(--muted); font-size:13.5px; min-height:3em; }
+  .tag { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; background:#111315; color:#fff; margin-left:6px; vertical-align:2px; }
+  .theme { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:10px 0 6px; }
+  .phone { border-radius:22px; padding:18px 16px; }
+  .light { --bg:#DDE0DB; --raised:#FFFFFF; --well:#EEF0EC; --ink:#111315; --ink2:#454A4F; --act:#111315; --onAct:#FFFFFF; background:var(--bg); }
+  .dark  { --bg:#121416; --raised:#282B30; --well:#1D2024; --ink:#EEEFEB; --ink2:#B5B9B4; --act:#EEEFEB; --onAct:#121416; background:var(--bg); }
+  .sec { color:var(--ink); font-weight:600; font-size:17px; margin:0 0 10px; }
+  .card { background:var(--raised); border-radius:22px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .row { display:flex; align-items:center; gap:10px; color:var(--ink); font-size:17px; }
+  .dot { width:8px; height:8px; border-radius:4px; background:#E3A54E; }
+  .acts { display:flex; gap:10px; }
+  .btn { flex:1; min-height:52px; border-radius:26px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:17px; white-space:nowrap; padding:0 12px; }
+  .skip { background:var(--well); color:var(--ink); } .take { background:var(--act); color:var(--onAct); }
+  table { border-collapse:collapse; margin-top:22px; font-size:14px; max-width:1180px; width:100%; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--rule); }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<h1>"Pendente de ontem" — o botão da esquerda</h1>
+<p class="lead">Hoje o botão diz o que aconteceu ("Pulada"). As duas propostas dizem a ação, como no cartão de dose de hoje. O botão da direita ("Concluída") não muda.</p>
+<div class="grid" id="grid"></div>
+<div class="wrap"><table>
+  <thead><tr><th>Idioma</th><th>Hoje no app</th><th>A — Pular</th><th>B — Pular dose</th></tr></thead>
+  <tbody>
+    <tr><td>Português</td><td>Pulada</td><td>Pular</td><td>Pular dose</td></tr>
+    <tr><td>English</td><td>Skipped</td><td>Skip</td><td>Skip dose</td></tr>
+    <tr><td>Español</td><td>Omitida</td><td>Omitir</td><td>Omitir dosis</td></tr>
+    <tr><td>Français</td><td>Sautée</td><td>Passer</td><td>Passer la dose</td></tr>
+    <tr><td>Deutsch</td><td>Ausgelassen</td><td>Auslassen</td><td>Dosis auslassen</td></tr>
+    <tr><td>Italiano</td><td>Saltata</td><td>Salta</td><td>Salta dose</td></tr>
+  </tbody>
+</table></div>
+<p class="lead" style="margin-top:14px">A usa a mesma palavra do botão de hoje (um termo por ação). B é mais explícito; no alemão "Dosis auslassen" fica justo e o texto encolhe um pouco num iPhone pequeno.</p>
+<script>
+const opts = [
+  { h:'Hoje no app', p:'Particípio: descreve o que aconteceu.', w:'Pulada' },
+  { h:'A — Pular', tag:'recomendo', p:'Verbo, igual ao botão "Pular" do cartão de hoje.', w:'Pular' },
+  { h:'B — Pular dose', p:'Verbo com o objeto; mais explícito.', w:'Pular dose' },
+];
+const card = (w, th) => `<div class="theme">${th==='light'?'Tema claro':'Tema escuro'}</div>
+<div class="phone ${th}"><div class="sec">Pendente de ontem</div><div class="card">
+<div class="row"><span class="dot"></span>Vitamin D · ontem, 14:00</div>
+<div class="acts"><div class="btn skip">${w}</div><div class="btn take">Concluída</div></div></div></div>`;
+document.getElementById('grid').innerHTML = opts.map(o => `<div class="col"><h2>${o.h}${o.tag?`<span class="tag">${o.tag}</span>`:''}</h2><p>${o.p}</p>${card(o.w,'light')}${card(o.w,'dark')}</div>`).join('');
+</script>
+</body>
+</html>

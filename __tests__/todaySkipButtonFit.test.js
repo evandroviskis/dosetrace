@@ -22,7 +22,10 @@ const tr = load();
 const WANT = { en: 'Skip', es: 'Omitir', pt: 'Pular', fr: 'Passer', de: 'Auslassen', it: 'Salta' };
 // SF Pro 17 pt bold widths (NSFont systemFont 17 bold, same method as todayTakeButtonFit).
 const MEASURED = { Skip: 35.9, Omitir: 50.8, Pular: 42.4, Passer: 55.3, Auslassen: 83.4, Salta: 41.3,
-  Skipped: 66.8, Omitida: 64.1, Pulada: 55.7, 'Sautée': 56.8, Ausgelassen: 103.7, Saltata: 57.4 }; // DE pending: Ausgelassen (one term, round 2)
+  Skipped: 66.8, Omitida: 64.1, Pulada: 55.7, 'Sautée': 56.8, Ausgelassen: 103.7, Saltata: 57.4, // DE pending: Ausgelassen (one term, round 2)
+  // Founder 2026-10-28 (picture docs/design/pending-skip-word.html, "B"): the pending button says the action.
+  'Skip dose': 79.5, 'Omitir dosis': 98.3, 'Pular dose': 86.1, 'Passer la dose': 117.1, 'Dosis auslassen': 130.6, 'Salta dose': 84.9 };
+const PENDING_WANT = { en: 'Skip dose', es: 'Omitir dosis', pt: 'Pular dose', fr: 'Passer la dose', de: 'Dosis auslassen', it: 'Salta dose' };
 const MIN_SCALE = 0.8;
 const skipRoom = (screen) => ((screen - 2 * 16 - 2 * 18) - 10) / 3 - 2 * 16;
 // "Pending from yesterday": two equal buttons in the pending card (margin 16, padding 16).
@@ -43,12 +46,17 @@ test('the Skip label fits one line on a 375 pt iPhone (at most the 0.8 shrink)',
   for (const l of ['en', 'es', 'pt', 'fr', 'it']) assert.ok(MEASURED[tr[l].today_skip] <= skipRoom(375), l);
 });
 
-test('the pending-from-yesterday skip label fits its half of the row at full size', () => {
+test('the pending-from-yesterday button says the action: "Pular dose" (founder 2026-10-28, B)', () => {
+  for (const [l, v] of Object.entries(PENDING_WANT)) assert.equal(tr[l].today_pending_skip, v, l);
+});
+
+test('the pending-from-yesterday skip label fits its half of the row (German may use the 0.8 shrink)', () => {
   for (const l of Object.keys(WANT)) {
     const w = MEASURED[tr[l].today_pending_skip];
     assert.ok(w != null, `${l}: measured ${tr[l].today_pending_skip}`);
-    assert.ok(w <= pendRoom(375), `${l}: ${w} over ${pendRoom(375)}`);
+    assert.ok(w * MIN_SCALE <= pendRoom(375), `${l}: ${w} × ${MIN_SCALE} over ${pendRoom(375)}`);
   }
+  for (const l of ['en', 'es', 'pt', 'fr', 'it']) assert.ok(MEASURED[tr[l].today_pending_skip] <= pendRoom(375), l);
 });
 
 test('the Skip text keeps one line and may shrink to 0.8, never wraps inside a word', () => {

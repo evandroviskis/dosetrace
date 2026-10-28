@@ -25,7 +25,7 @@ test('German names a skipped dose with one verb: auslassen / ausgelassen', () =>
   }
   assert.equal(de.log_skipped, 'Ausgelassen');
   assert.equal(de.log_status_skipped, 'Dosis ausgelassen');
-  assert.equal(de.today_pending_skip, 'Ausgelassen');
+  assert.equal(de.today_pending_skip, 'Dosis auslassen'); // founder 2026-10-28: the action, like Today's card
 });
 
 test('other kinds of skipping keep their own word', () => {
@@ -36,7 +36,7 @@ test('other kinds of skipping keep their own word', () => {
 // SF Pro widths (NSFont systemFont), measured: 15 pt bold / 15 pt medium, 17 pt bold.
 const W15_BOLD = { Alle: 27.9, Erledigt: 57.4, Ausgelassen: 93.1, Verpasst: 65.2 };
 const W15_MED = { Ausgelassen: 88.9 };
-const W17_BOLD = { Ausgelassen: 103.7 };
+const W17_BOLD = { Ausgelassen: 103.7, 'Dosis auslassen': 130.6 };
 
 test('the Dose log filter fits on a 375 pt iPhone, chosen segment included (0.8 shrink)', () => {
   const bar = fs.readFileSync(path.join(__dirname, '../components/SegmentedBar.js'), 'utf8');
@@ -51,7 +51,7 @@ test('the Dose log filter fits on a 375 pt iPhone, chosen segment included (0.8 
   assert.ok(W15_MED.Ausgelassen * 0.8 <= room);
 });
 
-test('the pending row\'s "Ausgelassen" button fits its half of the row at full size', () => {
+test('the pending row\'s "Dosis auslassen" button fits its half of the row (0.8 shrink)', () => {
   const pendRoom = ((375 - 2 * 16 - 2 * 16) - 10) / 2 - 2 * 16;
-  assert.ok(W17_BOLD[de.today_pending_skip] <= pendRoom);
+  assert.ok(W17_BOLD[de.today_pending_skip] * 0.8 <= pendRoom);
 });
