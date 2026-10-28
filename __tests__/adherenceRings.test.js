@@ -69,3 +69,27 @@ test('rings: percent is rounded and capped at 100', () => {
   assert.equal(ringPct({ taken: 2, due: 3 }), 67);
   assert.equal(ringPct({ taken: 0, due: 0 }), null);
 });
+
+// A-192 (Fold, Gate S pass 2026-10-28): Today's list said "2 of 4 complete" while the ring said
+// "0 of 4 today" — an evening daily dose (19:35) taken at 00:30 the same day, and a 14:00 dose
+// taken at 01:00, were more than 12 h from their slots, so the ring never matched them, although
+// the card counts them for today. Rule: a slot is matched first by the dose's own slot (slot_at),
+// then by the nearest dose within half the interval, then by an unmatched dose taken the same day.
+test('A-192: a dose taken early the same day counts for that day (ring = the dose list)', () => {
+  const evening = { id: 'E', start_date: '2026-09-01', interval_days: 1, doses_per_day: 1, reminder_time: '19:35', created_at: '2026-09-01T07:00:00Z' };
+  const nowMs = at(28, 1, 5);
+  const r = adherenceRings({ protocols: [evening], logs: [taken('E', at(28, 0, 30))], nowMs });
+  assert.deepEqual(r.today, { taken: 1, due: 1 });
+  const twice = { id: 'T', start_date: '2026-09-01', interval_days: 1, doses_per_day: 2, reminder_time: '14:00,22:40', created_at: '2026-09-01T07:00:00Z' };
+  const r2 = adherenceRings({ protocols: [twice], logs: [taken('T', at(28, 1, 0))], nowMs });
+  assert.deepEqual(r2.today, { taken: 1, due: 2 }, 'one of two, never both');
+});
+
+test('A-192: a dose with its own slot (slot_at) counts for that slot, and a late one never steals a later day', () => {
+  const nowMs = at(28, 23, 0);
+  const l = { ...taken('D', at(29, 0, 10)), slot_at: iso(at(28, 8, 0)) }; // corrected to after midnight, slot of the 28th
+  const r = adherenceRings({ protocols: [daily], logs: [l], nowMs: at(29, 9, 0) });
+  assert.deepEqual(r.week.taken >= 1, true);
+  const yesterdayLate = adherenceRings({ protocols: [daily], logs: [taken('D', at(27, 23, 0))], nowMs });
+  assert.deepEqual(yesterdayLate.today, { taken: 0, due: 1 }, 'a dose of the 27th never fills the 28th');
+});
