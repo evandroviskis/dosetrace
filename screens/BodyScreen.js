@@ -1210,7 +1210,7 @@ export default function BodyScreen({ navigation, route }) {
             <View style={[s.card, s.emptyCard]}>
               <FeatureIcon name="droplet" size={44} color={colors.ink3} />
               <Text style={[s.title, s.center]}>{t('blood_empty_title')}</Text>
-              <Text style={[s.sec, s.center]}>{t('blood_empty_sub')}</Text>
+              <Text style={[s.sec, s.center]}>{t(premium === false ? 'blood_empty_sub' : 'blood_empty_sub_premium')}</Text>
               <TouchableOpacity style={[s.btnP, s.selfStretch]} onPress={handleUploadPress}>
                 <Text style={s.btnPText}>{t('blood_upload_report')}</Text>
               </TouchableOpacity>
