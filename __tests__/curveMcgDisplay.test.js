@@ -24,7 +24,7 @@ test('wired: every number on the curve and the Journey tile goes through the sca
   assert.match(src, /const disp = displayScale\(/);
   assert.match(src, /const mgLabel = \(v\) => levelLabel\(v \* dispF, language\);/);
   assert.match(src, /const unitLbl = unitText\(disp\.unit, language\);/);
-  assert.match(src, /axisLabel\(v \* dispF, language\)/);
+  assert.match(src, /axisLabel\(v \* dispF, language, ticksY\.ticks\[1\] \* dispF\)/); // A-193: the middle line sets the decimals
   assert.match(src, /const x = v \* dispF;/, 'the animated number too');
   const j = fs.readFileSync(path.join(__dirname, '../screens/JourneyScreen.js'), 'utf8');
   assert.match(j, /levelLabel\(level\.value \* level\.display\.factor, language\)/);
