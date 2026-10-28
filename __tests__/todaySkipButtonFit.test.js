@@ -50,13 +50,12 @@ test('the pending-from-yesterday button says the action: "Pular dose" (founder 2
   for (const [l, v] of Object.entries(PENDING_WANT)) assert.equal(tr[l].today_pending_skip, v, l);
 });
 
-// Founder 2026-10-28 ("Tiveram pulada em qualquer outro lugar do aplicativo, substitua também"): every
-// BUTTON that skips a dose says the same action. The Dose log's Missed-dose sheet had "Marcar como
-// pulada"; it now says "Pular dose" like the pending card (both act on a past dose). Status words
-// that describe what happened (log_status_skipped "Dose pulada", the "Puladas" filter and counts, the
-// report line) are not buttons and stay as they are.
-test('every skip-a-dose button says the same action (Dose log Missed sheet included)', () => {
-  for (const [l, v] of Object.entries(PENDING_WANT)) assert.equal(tr[l].log_mark_skipped, v, l);
+// Founder 2026-10-28 (rule): only a button that said the bare participle ("Pulada") becomes the action
+// "Pular dose"; a phrase that is already correct stays. The Dose log's Missed sheet keeps the pair
+// "Marcar como concluída / Marcar como pulada" (×6), and status words (Dose pulada, Puladas) stay.
+const MARK_SKIPPED = { en: 'Mark as skipped', es: 'Marcar como omitida', pt: 'Marcar como pulada', fr: 'Marquer comme sautée', de: 'Als ausgelassen markieren', it: 'Segna come saltata' };
+test('the Dose log Missed sheet keeps "Marcar como pulada" next to "Marcar como concluída"', () => {
+  for (const [l, v] of Object.entries(MARK_SKIPPED)) assert.equal(tr[l].log_mark_skipped, v, l);
 });
 
 test('the pending-from-yesterday skip label fits its half of the row (German may use the 0.8 shrink)', () => {
