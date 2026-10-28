@@ -33,7 +33,8 @@ test('rows and the dose sheet use the singular words; the counts keep the plural
 // and Today's Taken fold / take button / dose-page state also stop saying "Taken".
 test('no "Taken" wording left in the counts, the filter and Today (6 languages)', () => {
   const counts = { en: 'Complete', es: 'Completadas', pt: 'Concluídas', fr: 'Effectuées', de: 'Erledigt', it: 'Completate' };
-  const today = { en: 'Complete', es: 'Completado', pt: 'Concluído', fr: 'Effectué', de: 'Erledigt', it: 'Completato' };
+  // Founder 2026-10-28: the tapped button says one dose (copyGrammar1028.test.js).
+  const today = { en: 'Dose complete', es: 'Dosis completada', pt: 'Dose concluída', fr: 'Dose effectuée', de: 'Dosis erledigt', it: 'Dose completata' };
   for (const l of Object.keys(counts)) {
     assert.equal(translations[l].log_taken, counts[l], l);
     assert.equal(translations[l].today_taken, today[l], l);

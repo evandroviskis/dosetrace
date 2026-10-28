@@ -2590,7 +2590,7 @@ export default function TodayScreen() {
               <View style={s.takenList}>
                 <TouchableOpacity style={s.takenHead} onPress={() => setTakenOpen(false)} accessibilityRole="button" accessibilityState={{ expanded: true }}>
                   <CheckMark size={20} color={colors.ok} />
-                  <Text style={[s.takenTitle, s.takenGrow]}>{takenLabel}</Text>
+                  <Text style={[s.takenTitle, s.takenGrow]}>{t('today_taken_list')}</Text>
                   <FoldChevron open={takenOpen} color={colors.ink3} />
                 </TouchableOpacity>
                 {todayTaken.map(l => {
@@ -2614,7 +2614,7 @@ export default function TodayScreen() {
               <TouchableOpacity style={s.takenLine} onPress={() => setTakenOpen(true)} accessibilityRole="button" accessibilityState={{ expanded: false }}>
                 <View style={s.takenMark}><CheckMark size={20} color={colors.ok} /></View>
                 <View style={s.takenMain}>
-                  <Text style={s.takenTitle}>{takenLabel}</Text>
+                  <Text style={s.takenTitle}>{t('today_taken_list')}</Text>
                   <Text style={s.takenItem} numberOfLines={2}>{takenNames.join(', ')}</Text>
                 </View>
                 <View style={s.takenFold}><FoldChevron open={takenOpen} color={colors.ink3} /></View>

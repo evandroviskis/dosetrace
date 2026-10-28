@@ -654,7 +654,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
             <Text style={s.emptyTitle}>
               {listState === 'empty' && filter === 'All'
                 ? t('log_empty_title')
-                : `${t('log_no_filter')} ${(filters.find(f => f.key === filter)?.label || filter).toLowerCase()}`}
+                : t({ Taken: 'log_none_taken', Skipped: 'log_none_skipped', Missed: 'log_none_missed' }[filter] || 'log_empty_title')}
             </Text>
             <Text style={s.emptySub}>{t('log_empty_sub')}</Text>
           </View>
