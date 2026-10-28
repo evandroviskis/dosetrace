@@ -26,5 +26,18 @@ class DtExactAlarmModule : Module() {
       val context = appContext.reactContext ?: return@Function true
       context.packageManager.isAutoRevokeWhitelisted()
     }
+
+    // A-197 fix 2: the reminder refresh as a React Native headless JS task (HeadlessRefreshWorker).
+    Function("scheduleRefresh") { intervalMinutes: Int ->
+      val context = appContext.reactContext ?: return@Function false
+      HeadlessRefreshWorker.schedule(context, intervalMinutes.toLong())
+      true
+    }
+
+    Function("cancelRefresh") {
+      val context = appContext.reactContext ?: return@Function false
+      HeadlessRefreshWorker.cancel(context)
+      true
+    }
   }
 }

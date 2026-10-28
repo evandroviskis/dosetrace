@@ -8,8 +8,10 @@ installBgSafeFetch();
 import './lib/notificationActions';
 // A-107: the Android reminder refresh task, defined before the app mounts (Android may start the
 // app headless just to run it).
-import { defineReminderRefreshTask } from './lib/backgroundTasks';
+import { defineReminderRefreshTask, registerHeadlessReminderRefresh } from './lib/backgroundTasks';
 defineReminderRefreshTask();
+// A-197 fix 2: the same refresh as a headless JS task (our WorkManager worker starts it).
+registerHeadlessReminderRefresh();
 
 import App from './App';
 

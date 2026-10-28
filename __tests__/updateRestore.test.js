@@ -18,15 +18,18 @@ test('A-111: the module declares a receiver for app updates and reboots', () => 
   assert.match(m, /android\.intent\.action\.BOOT_COMPLETED/);
 });
 
-test('A-111: the receiver runs the app\'s own refresh now through expo-background-task\'s worker', () => {
+// A-197 fix 2 (2026-10-28): the run goes through HeadlessRefreshWorker (a headless JS task) instead of
+// expo-background-task's worker; the A-111 rules stay (run now, replace, no network needed, never crash).
+test('A-111: the receiver runs the app\'s own refresh now through the headless refresh worker', () => {
   const k = read(`${MOD}/src/main/java/expo/modules/dtexactalarm/RefreshOnUpdateReceiver.kt`);
   assert.match(k, /Intent\.ACTION_MY_PACKAGE_REPLACED/);
   assert.match(k, /Intent\.ACTION_BOOT_COMPLETED/);
-  assert.match(k, /"expo\.modules\.backgroundtask\.BackgroundTaskWork"/);
-  assert.match(k, /putString\("appScopeKey", context\.packageName\)/);
-  assert.match(k, /enqueueUniqueWork\(/);
-  assert.match(k, /ExistingWorkPolicy\.REPLACE/);
-  assert.doesNotMatch(k, /setRequiredNetworkType/, 'the refresh needs no network (stored session, local data)');
+  assert.match(k, /HeadlessRefreshWorker\.runOnce\(context, "DOSETRACE_REFRESH_AFTER_UPDATE"\)/);
+  const w = read(`${MOD}/src/main/java/expo/modules/dtexactalarm/HeadlessRefreshWorker.kt`);
+  const runOnce = w.slice(w.indexOf('fun runOnce'), w.indexOf('private val main'));
+  assert.match(runOnce, /enqueueUniqueWork\(/);
+  assert.match(runOnce, /ExistingWorkPolicy\.REPLACE/);
+  assert.doesNotMatch(runOnce, /setConstraints/, 'the refresh needs no network (stored session, local data)');
   assert.match(k, /catch \(e: Throwable\)/, 'a missing worker never crashes the receiver');
   const g = read(`${MOD}/build.gradle`);
   assert.match(g, /androidx\.work:work-runtime-ktx:2\.9\.1/);

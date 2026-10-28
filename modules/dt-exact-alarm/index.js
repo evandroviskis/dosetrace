@@ -15,3 +15,13 @@ export function canScheduleExactAlarms() {
   if (!Native) return null;
   try { return !!Native.canScheduleExactAlarms(); } catch { return null; }
 }
+
+// A-197 fix 2: start the reminder refresh in the background (Android).
+export function scheduleHeadlessRefresh(minutes) {
+  if (!Native || !Native.scheduleRefresh) return false;
+  try { return !!Native.scheduleRefresh(minutes); } catch { return false; }
+}
+
+export function hasHeadlessRefresh() {
+  return !!(Native && Native.scheduleRefresh);
+}
