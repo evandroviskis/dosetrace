@@ -55,3 +55,11 @@ test('3. the 7-day streak line is formal in Portuguese', () => {
   assert.equal(tr.pt.today_streak_fire, 'Ótima sequência!');
   assert.equal(tr.en.today_streak_fire, 'On fire!');
 });
+
+// Founder 2026-10-28 ("Aprovo"): "Seu histórico de doses vai aparecer aqui assim que você começar a
+// registrar" belongs only to a truly empty Dose log; an empty filter over a full history shows the
+// title alone.
+test('4. the "your history will appear here" line shows only when the Dose log is truly empty', () => {
+  const src = read('screens/LogScreen.js');
+  assert.match(src, /\{listState === 'empty' && filter === 'All' && <Text style=\{s\.emptySub\}>\{t\('log_empty_sub'\)\}<\/Text>\}/);
+});

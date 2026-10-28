@@ -656,7 +656,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                 ? t('log_empty_title')
                 : t({ Taken: 'log_none_taken', Skipped: 'log_none_skipped', Missed: 'log_none_missed' }[filter] || 'log_empty_title')}
             </Text>
-            <Text style={s.emptySub}>{t('log_empty_sub')}</Text>
+            {listState === 'empty' && filter === 'All' && <Text style={s.emptySub}>{t('log_empty_sub')}</Text>}
           </View>
         }
         renderSectionHeader={({ section }) => (
