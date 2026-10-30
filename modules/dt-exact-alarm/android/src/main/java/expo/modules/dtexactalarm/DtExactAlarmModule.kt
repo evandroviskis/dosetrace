@@ -34,5 +34,10 @@ class DtExactAlarmModule : Module() {
       true
     }
 
+    // The headless refresh task ended (lib/backgroundTasks): the worker stops waiting.
+    Function("headlessRefreshDone") {
+      HeadlessRefreshWorker.notifyDone()
+    }
+
   }
 }

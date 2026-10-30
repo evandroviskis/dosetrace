@@ -41,6 +41,13 @@ class HeadlessRefreshWorker(context: Context, params: WorkerParameters) : Corout
     private const val TASK_TIMEOUT_MS = 120_000L
     private const val START_TIMEOUT_MS = 60_000L
 
+    // The running task, ended from JS (headlessRefreshDone): React Native's own "task finished" call
+    // never reaches native in this app (NativeHeadlessJsTaskSupport is null in JS; Fold 2026-10-30),
+    // so without it every run held the worker for the full timeout.
+    @Volatile private var pending: CompletableDeferred<Unit>? = null
+
+    fun notifyDone() { pending?.complete(Unit) }
+
     // Every intervalMinutes (Android's minimum is 15) with internet. UPDATE applies a changed spec to
     // installed phones without moving the next run.
     fun schedule(context: Context, intervalMinutes: Long) {
@@ -82,6 +89,7 @@ class HeadlessRefreshWorker(context: Context, params: WorkerParameters) : Corout
     if (context == null) { Log.w(TAG, "React did not start"); return Result.retry() }
 
     val finished = CompletableDeferred<Unit>()
+    pending = finished
     var taskId = -1
     var tasks: HeadlessJsTaskContext? = null
     val listener = object : HeadlessJsTaskEventListener {
@@ -104,7 +112,13 @@ class HeadlessRefreshWorker(context: Context, params: WorkerParameters) : Corout
       }
     }
     val done = withTimeoutOrNull(TASK_TIMEOUT_MS + 10_000L) { finished.await() } != null
-    main.post { tasks?.removeTaskEventListener(listener) }
+    if (pending === finished) pending = null
+    main.post {
+      tasks?.let { t ->
+        t.removeTaskEventListener(listener)
+        if (taskId >= 0 && t.isTaskRunning(taskId)) t.finishTask(taskId)
+      }
+    }
     Log.i(TAG, "headless task $taskId ${if (done) "finished" else "timed out"}")
     return Result.success()
   }

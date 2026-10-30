@@ -22,6 +22,12 @@ export function scheduleHeadlessRefresh(minutes) {
   try { return !!Native.scheduleRefresh(minutes); } catch { return false; }
 }
 
+// The headless refresh task ended: tells our worker (React Native's own finish call does not reach it).
+export function headlessRefreshDone() {
+  if (!Native || !Native.headlessRefreshDone) return;
+  try { Native.headlessRefreshDone(); } catch { /* the worker still ends at its cap */ }
+}
+
 export function hasHeadlessRefresh() {
   return !!(Native && Native.scheduleRefresh);
 }

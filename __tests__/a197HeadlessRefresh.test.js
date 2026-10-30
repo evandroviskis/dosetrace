@@ -81,3 +81,18 @@ test('A-197 review 2: the background device check runs in the same per-account q
 test('A-197 review 15: no dead cancelRefresh in the native module', () => {
   assert.doesNotMatch(read('modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/DtExactAlarmModule.kt'), /cancelRefresh/);
 });
+
+// Fold 2026-10-30 (local debug APK): the run finished in ~2 s but the worker waited its full 120 s,
+// because React Native's NativeHeadlessJsTaskSupport is null in this app's JS ("support module",
+// false), so AppRegistry never tells native the task ended. Our task tells the worker itself.
+test('A-197 2026-10-30: the headless task tells the worker it finished, also when the run fails', () => {
+  const bt = read('lib/backgroundTasks.js');
+  assert.match(bt, /registerHeadlessTask\('DoseTraceReminderRefresh', \(\) => async \(\) => \{\s*try \{ await refreshNow\(\); \} finally \{ headlessRefreshDone\(\); \}/);
+  const mod = read('modules/dt-exact-alarm/index.js');
+  assert.match(mod, /export function headlessRefreshDone\(\) \{\s*if \(!Native \|\| !Native\.headlessRefreshDone\) return;/);
+  assert.match(read('modules/dt-exact-alarm/android/src/main/java/expo/modules/dtexactalarm/DtExactAlarmModule.kt'), /Function\("headlessRefreshDone"\) \{\s*HeadlessRefreshWorker\.notifyDone\(\)/);
+  const w = W();
+  assert.match(w, /fun notifyDone\(\)/);
+  // The worker ends the RN task itself (timers pause again) once JS says it is done.
+  assert.match(w, /isTaskRunning\(taskId\)\) t\.finishTask\(taskId\)/);
+});
