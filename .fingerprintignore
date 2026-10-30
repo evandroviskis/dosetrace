@@ -1,0 +1,3 @@
+# eas.json (build/submit profiles, channels) is not part of the native runtime: editing it must not
+# orphan installed binaries from EAS Updates (2nd/3rd 1.3.1 updates had to swap it back by hand).
+eas.json

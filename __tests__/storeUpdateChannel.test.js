@@ -20,3 +20,10 @@ test('store builds listen to their own channel; test builds keep production', ()
 test('a store build can be submitted with its own profile (same targets as production)', () => {
   assert.equal(eas.submit.store.extends, 'production');
 });
+
+test('eas.json is outside the runtime fingerprint (.fingerprintignore), so editing build profiles never orphans installed binaries', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const lines = fs.readFileSync(path.join(__dirname, '..', '.fingerprintignore'), 'utf8').split('\n').map((l) => l.trim());
+  require('node:assert/strict').ok(lines.includes('eas.json'));
+});
