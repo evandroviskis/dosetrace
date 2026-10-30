@@ -93,3 +93,18 @@ test('A-192: a dose with its own slot (slot_at) counts for that slot, and a late
   const yesterdayLate = adherenceRings({ protocols: [daily], logs: [taken('D', at(27, 23, 0))], nowMs });
   assert.deepEqual(yesterdayLate.today, { taken: 0, due: 1 }, 'a dose of the 27th never fills the 28th');
 });
+
+// Council of the 3rd EAS Update (2026-10-30, QA + senior): "Alterar horário" keeps the dose's slot
+// in slot_at = the ORIGINAL logged_at (lib/doseEdit.js), which is the tap time when the dose was
+// marked away from the scheduled minute. Such a dose matched no slot in step 1 and steps 2 and 3
+// skipped every dose with a slot_at, so it counted nowhere (ring 0 of 1, list 1 of 1).
+test('A-192: a dose tapped away from its time and then re-timed still counts (slot_at = the tap time)', () => {
+  const nowMs = at(10, 20, 0);
+  const log = { ...taken('D', at(10, 7, 50)), slot_at: iso(at(10, 8, 20)) };
+  const r = adherenceRings({ protocols: [daily], logs: [log], nowMs });
+  assert.deepEqual(r.today, { taken: 1, due: 1 });
+  assert.deepEqual(r.week, { taken: 1, due: 7 });
+  // Re-timed to another day: it still belongs to the day it was taken for (its slot), not the new time.
+  const moved = { ...taken('D', at(9, 23, 30)), slot_at: iso(at(10, 8, 20)) };
+  assert.deepEqual(adherenceRings({ protocols: [daily], logs: [moved], nowMs }).today, { taken: 1, due: 1 });
+});
