@@ -39,6 +39,7 @@ import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { completeLocalSignOut } from './lib/signOutCore';
 import { tabBarStyle } from './lib/tabBarStyle';
+import { setWindowBackground } from './modules/dt-exact-alarm';
 import { setStrictRemoval } from './lib/secureStore';
 import { onSignedOutNow, afterSignedOut, checkAccountGone, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
 import { recoveryDecision, linkKey, isTransientLinkError, unsyncedCount } from './lib/recoveryFlow';
@@ -291,6 +292,8 @@ function MainStack() {
 // chrome (fixes white flashes during transitions in dark mode).
 function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onVerdictRetry, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose, accountHeld, accountAsk, onAccountSave, onAccountDiscard, onAccountRetry, onAccountAskClose }) {
   const { colors, isDark } = useTheme();
+  // A-194: the Fold's taskbar area under the tab bar shows the window background (Android).
+  useEffect(() => { setWindowBackground(colors.ground); }, [colors.ground]);
   const { t, language, timeFormat } = useLanguage();
 
   // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed

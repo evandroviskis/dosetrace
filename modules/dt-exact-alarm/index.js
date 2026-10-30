@@ -28,6 +28,12 @@ export function headlessRefreshDone() {
   try { Native.headlessRefreshDone(); } catch { /* the worker still ends at its cap */ }
 }
 
+// A-194: the window background (the Fold's taskbar area under the tab bar) follows the theme.
+export function setWindowBackground(color) {
+  if (!Native || !Native.setWindowBackground) return false;
+  try { return !!Native.setWindowBackground(color); } catch { return false; }
+}
+
 export function hasHeadlessRefresh() {
   return !!(Native && Native.scheduleRefresh);
 }

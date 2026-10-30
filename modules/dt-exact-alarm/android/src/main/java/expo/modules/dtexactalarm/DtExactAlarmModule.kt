@@ -2,6 +2,8 @@ package expo.modules.dtexactalarm
 
 import android.app.AlarmManager
 import android.content.Context
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -37,6 +39,14 @@ class DtExactAlarmModule : Module() {
     // The headless refresh task ended (lib/backgroundTasks): the worker stops waiting.
     Function("headlessRefreshDone") {
       HeadlessRefreshWorker.notifyDone()
+    }
+
+    // A-194: the Fold's taskbar area under the tab bar is painted with the window background, which
+    // never followed the app theme (a light strip in dark). The app passes its ground colour here.
+    Function("setWindowBackground") { color: String ->
+      val activity = appContext.currentActivity ?: return@Function false
+      activity.runOnUiThread { activity.window.setBackgroundDrawable(ColorDrawable(Color.parseColor(color))) }
+      true
     }
 
   }
