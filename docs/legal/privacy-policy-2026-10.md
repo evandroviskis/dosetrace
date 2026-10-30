@@ -1,6 +1,6 @@
 # DoseTrace — Privacy Policy
 
-Last updated: October 27, 2026
+Last updated: October 30, 2026
 
 Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. This policy explains what information the app handles, where it goes, and what you can do about it. DoseTrace is a personal journal and a calculator. It does not give medical advice.
 
@@ -16,6 +16,8 @@ Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. Th
 
 Your data is saved in a database on your phone. When you have an account, it is also synced to our cloud database hosted by **Supabase** (United States), so it is backed up and comes back when you sign in on a new phone. Your account is active on one phone at a time: signing in on another phone moves it there. Data is encrypted in transit (TLS) and encrypted at rest by our hosting provider. Sign-in tokens are kept in your phone's secure storage.
 
+To keep your account on one phone at a time, the app stores an identifier for the phone you sign in on: on Android, the identifier Android gives DoseTrace on that phone; on iPhone, a random identifier kept in the phone's keychain. With it we keep the kind of phone (iPhone, iPad, or the brand of your Android phone), the platform, the app version, and when the phone was last seen. The app sends this identifier and the app version with each request to our server. We use them only to keep your account on one phone, to tell you which phone your account is on when you sign in on another one, and to stop notifications to a phone that was replaced.
+
 Signing out removes your DoseTrace records from the app on that phone; they stay in your account and come back when you sign in again. Files you exported stay where they were saved.
 
 ## 3. How we use it
@@ -26,13 +28,15 @@ Only to run DoseTrace for you: show your journal, calculate your numbers, schedu
 
 Dose, vial, food-log, and check-in reminders are scheduled on your phone. To keep reminders arriving on Android even when you do not open the app (Android can pause apps that are not opened), our server sends your Android phone one silent message a day. It contains no text and no health data; it only asks the app to refresh the reminders already on your phone.
 
-To deliver notifications we store a device notification token with your account. Notifications pass through **Expo** (our push service), **Google Firebase Cloud Messaging** on Android and **Apple Push Notification service** on iPhone. You can turn reminders off, or use Silent mode, in Settings at any time. App updates that fix problems are delivered by **Expo**; to send them, the app shares the platform, the app version and a random installation ID, never your account or health data.
+To deliver notifications we store a device notification token with your account, together with the phone's platform, time zone (so that notifications from our server arrive at a sensible local time), app version, app language, and the phone identifier described in section 2. The app removes this token when you sign out or when notifications for DoseTrace are turned off on your phone, and it is also removed when your account moves to another phone. Notifications pass through **Expo** (our push service), **Google Firebase Cloud Messaging** on Android and **Apple Push Notification service** on iPhone. You can turn reminders off, or use Silent mode, in Settings at any time. App updates that fix problems are delivered by **Expo**; to send them, the app shares the platform, the app version and a random installation ID, never your account or health data. The app checks for an update each time it opens; with that check it also tells Expo which update it is running and whether a recent update failed to start, so that Expo can count how many installations run each update and how many could not start it.
+
+**New versions.** If you say yes to "What's new in DoseTrace" (when the app asks, or in Settings), we send you one notification for each new version, with what changed. Your answer is saved with your account, and our server records which version's notification was sent to your account so that it is never sent twice; these records are deleted when you delete your account.
 
 **Messages from the DoseTrace team.** We may send your account a short message about your account or support (for example, that your Premium access was unlocked or that a problem you reported was fixed). It arrives as a notification, unless notifications are off or Silent mode is on, and it is also shown inside the app, in Settings › Support › Team messages. We never use these messages for health, dose, or treatment advice. The messages are stored with your account and deleted when you delete it; we also record when each one was sent, to how many devices, and when you read it. To write the notification title in your language, the app saves your app language with your account. Messages we write to you may be translated by our AI provider.
 
 ## 5. AI features (optional, only with your permission)
 
-You may choose to use AI to save typing: scanning a lab report, a vaccination card, or a vial label, describing your meals in the AI food log, or answering the protocol assistant's questions. Only then, and only after you agree in the app (we ask again when a new kind of data would be sent), the photo, PDF, or text you chose is sent to **Anthropic PBC** (United States) to extract or estimate the values. Anthropic acts as our processor for this task only: it processes what you sent only for that request, does not use it to train its models, and deletes it within 30 days, keeping it longer only where needed to enforce its usage policy or the law. The AI never interprets your results and never gives medical, dosing, or dietary advice. You can always type the information yourself instead. We keep a count of how many AI requests you made (for the limits: scans per month, the AI food log per day, and the protocol assistant per week), not the content.
+You may choose to use AI to save typing: scanning a lab report, a vaccination card, or a vial label, describing your meals in the AI food log, or answering the protocol assistant's questions. Only then, and only after you agree in the app (we ask again when a new kind of data would be sent), the photo, PDF, or text you chose is sent to **Anthropic PBC** (United States) to extract or estimate the values. Anthropic acts as our processor for this task only: it processes what you sent only for that request, does not use it to train its models, and deletes it within 30 days, keeping it longer only where needed to enforce its usage policy or the law. The AI never interprets your results and never gives medical, dosing, or dietary advice. You can always type the information yourself instead. We keep a count of how many AI requests you made (for the limits: scans per month, the AI food log per day, and the protocol assistant per week), not the content. The protocol assistant's counts older than 30 days are deleted the next time you use it; the other counts stay with your account until you delete it.
 
 ## 6. Purchases
 
@@ -44,7 +48,7 @@ To improve the app we record usage events (for example, that a screen was opened
 
 ## 8. How long we keep it
 
-As long as your account exists. A protocol you delete goes to "Recently deleted" and stays there, so you can restore it, until you choose "Delete forever". Delete forever erases its content (name, doses, schedule, notes) and its dose logs and vials; only a small marker remains (an ID, its type, its colour and its dates) so that a phone you sign in on later knows it was deleted. Deleting your account in Settings permanently removes your synced data and your sign-in from our servers; data on your phone is removed when you uninstall the app or sign out.
+As long as your account exists. That includes the record of each phone you signed in on, even after another phone replaced it. A protocol you delete goes to "Recently deleted" and stays there, so you can restore it, until you choose "Delete forever". Delete forever erases its content (name, doses, schedule, notes) and its dose logs and vials; only a small marker remains (an ID, its type, its color, and its dates) so that a phone you sign in on later knows it was deleted. Deleting your account in Settings permanently removes your synced data and your sign-in from our servers; data on your phone is removed when you uninstall the app or sign out.
 
 ## 9. Your choices and rights
 

@@ -46,9 +46,9 @@ test('A-134 (7): §5 names each AI limit with its own period (scans month, food 
 // A-134 kept the 16 October date (same day); the A-163 team-messages paragraph (founder-approved
 // 2026-10-22, council 2026-10-22 fix 4) moved it to 22 October 2026 in the app and the website copies.
 test('A-134 (7) / A-163 / A-183: the date moves with each change (now 25 October 2026, Expo updates line), app and website copies alike', () => {
-  assert.match(WEB_EN, /^Last updated: October 27, 2026$/m);
-  assert.match(tr.pt.settings_privacy_body, /Última atualização: 27 de outubro de 2026/);
-  assert.match(WEB_PT, /27 de outubro de 2026/);
+  assert.match(WEB_EN, /^Last updated: October 30, 2026$/m);
+  assert.match(tr.pt.settings_privacy_body, /Última atualização: 30 de outubro de 2026/);
+  assert.match(WEB_PT, /30 de outubro de 2026/);
 });
 
 test('A-134 (7): Portuguese quotes are “ ” in the pt policy (app and website), never straight', () => {
