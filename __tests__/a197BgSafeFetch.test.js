@@ -95,3 +95,11 @@ test('A-197: index.js installs the background-safe fetch before the app mounts (
   const mod = fs.readFileSync(path.join(__dirname, '..', 'lib', 'bgSafeFetch.js'), 'utf8');
   assert.match(mod, /Platform\.OS !== 'android'/);
 });
+
+test('A-197 review 8: a status the Response refuses (0) rejects instead of hanging the run', async () => {
+  const log = [];
+  const p = xhrFetch('https://x/z', {}, { XMLHttpRequest: fakeXhrClass(log), ...env });
+  log[0].status = 0; log[0].responseText = '';
+  log[0].onload();
+  await assert.rejects(p, /Network request failed/);
+});
