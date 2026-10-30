@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A-85 Encerrar protocolo</title>
+<style>
+  :root { --page:#F4F5F2; --fg:#111315; --muted:#53585D; }
+  @media (prefers-color-scheme: dark) { :root { --page:#0B0C0D; --fg:#EEEFEB; --muted:#9A9F9A; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 16px 48px; background:var(--page); color:var(--fg); font:14px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  .lead { color:var(--muted); max-width:70ch; margin:0 0 20px; }
+  h2 { font-size:15px; margin:28px 0 10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .row { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .col { width:290px; min-width:0; }
+  .cap { font-weight:700; margin:0 0 4px; }
+  .note { color:var(--muted); font-size:12.5px; margin:0 0 8px; min-height:36px; }
+  /* phone surfaces use the app tokens */
+  .light { --ground:#DDE0DB; --raised:#FFFFFF; --well:#EEF0EC; --line:#C3C7C0; --ink:#111315; --ink2:#454A4F; --ink3:#53585D; --act:#111315; --onAct:#FFFFFF; --risk:#9E1F19; --scrim:rgba(17,19,21,.42); }
+  .dark  { --ground:#121416; --raised:#282B30; --well:#1D2024; --line:#3C4147; --ink:#EEEFEB; --ink2:#B5B9B4; --ink3:#9A9F9A; --act:#EEEFEB; --onAct:#121416; --risk:#F08A80; --scrim:rgba(0,0,0,.55); }
+  .phone { position:relative; width:290px; height:520px; border-radius:30px; overflow:hidden; background:var(--ground); color:var(--ink); border:1px solid var(--line); }
+  .bgcontent { padding:44px 18px 0; }
+  .bg-h { font-size:24px; font-weight:800; margin:0 0 12px; }
+  .bg-card { background:var(--raised); border-radius:20px; height:86px; margin-bottom:10px; }
+  .scrim { position:absolute; inset:0; background:var(--scrim); display:flex; align-items:center; justify-content:center; padding:18px; }
+  .sheet { background:var(--raised); border-radius:24px; padding:20px 18px 16px; width:100%; }
+  .s-title { font-size:18px; font-weight:800; margin:0 0 8px; }
+  .s-body { color:var(--ink2); font-size:13.5px; margin:0 0 16px; }
+  .btns { display:flex; gap:10px; }
+  .btn { flex:1; min-height:44px; border-radius:22px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; text-align:center; padding:0 10px; }
+  .primary { background:var(--act); color:var(--onAct); }
+  .secondary { background:var(--well); color:var(--ink); }
+  .full { width:100%; flex:none; }
+  .stack { display:flex; flex-direction:column; gap:10px; }
+  .textbtn { text-align:center; font-weight:700; font-size:14px; color:var(--ink); padding:8px 0 2px; }
+  .textbtn.risk { color:var(--risk); }
+  .page { padding:40px 18px 0; }
+  .back { color:var(--ink); font-size:14px; margin-bottom:10px; }
+  .meta { color:var(--ink3); font-size:12px; margin:0 0 2px; }
+  .title { font-size:22px; font-weight:800; margin:0 0 12px; }
+  .card { background:var(--raised); border-radius:20px; padding:14px; margin-bottom:12px; }
+  .card h4 { margin:0 0 6px; font-size:13px; color:var(--ink2); font-weight:600; }
+  .bar { height:8px; border-radius:4px; background:var(--well); margin:6px 0 8px; overflow:hidden; }
+  .bar i { display:block; width:0%; height:100%; background:var(--ink3); }
+  .small { font-size:13px; color:var(--ink2); }
+  .rowbtn { background:var(--raised); border-radius:20px; padding:14px; font-weight:700; color:var(--risk); text-align:center; }
+  .hl { outline:2px dashed #2350D8; outline-offset:3px; border-radius:22px; }
+  .rec { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; background:#2350D8; color:#fff; border-radius:8px; padding:2px 7px; margin-left:6px; vertical-align:2px; }
+</style>
+</head>
+<body>
+<h1>A-85 — Encerrar protocolo</h1>
+<p class="lead">Hoje, no aviso "Todas as doses registradas", o botão <b>"Protocolo concluído"</b> só fecha o aviso: o protocolo continua ativo, com lembretes e doses esperadas. E não existe um jeito de encerrar o protocolo pela página dele. A linha pontilhada azul marca o que muda. "Encerrar" usa a mesma função que já existe no "Ciclo concluído" (vai para Encerrados, histórico mantido, lembretes cancelados).</p>
+
+<h2>Tema claro</h2>
+<div class="row">
+  <div class="col"><p class="cap">1 · App hoje</p><p class="note">"Protocolo concluído" fecha o aviso e não encerra nada.</p>
+    <div class="phone light"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet"><p class="s-title">Todas as doses registradas</p><p class="s-body">Todas as doses deste frasco foram registradas. Deseja registrar um novo frasco?</p>
+        <div class="btns"><div class="btn secondary">Protocolo concluído</div><div class="btn primary">Registrar novo frasco</div></div></div></div></div></div>
+
+  <div class="col"><p class="cap">2 · Opção A: aviso<span class="rec">Recomendada</span></p><p class="note">"Depois" só fecha; "Encerrar protocolo" encerra, com confirmação (3).</p>
+    <div class="phone light"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet"><p class="s-title">Todas as doses registradas</p><p class="s-body">Todas as doses deste frasco foram registradas. Deseja registrar um novo frasco?</p>
+        <div class="stack"><div class="btns"><div class="btn secondary hl">Depois</div><div class="btn primary">Registrar novo frasco</div></div><div class="textbtn risk hl">Encerrar protocolo</div></div></div></div></div></div>
+
+  <div class="col"><p class="cap">3 · Confirmação (A e B)</p><p class="note">Mesmas palavras do "Ciclo concluído", sem a parte do "Continuar".</p>
+    <div class="phone light"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet hl"><p class="s-title">Encerrar Testosterone Cypionate?</p><p class="s-body">Encerrar leva o protocolo para Encerrados, com todas as doses no histórico. Os lembretes dele param.</p>
+        <div class="btns"><div class="btn secondary">Cancelar</div><div class="btn primary">Encerrar</div></div></div></div></div></div>
+
+  <div class="col"><p class="cap">4 · Página do protocolo (A e B)</p><p class="note">Novo botão no fim da página, abaixo do frasco; abre a confirmação (3).</p>
+    <div class="phone light"><div class="page"><div class="back">‹ Protocolos</div><p class="meta">2000 mg frasco · 70 mg dose</p><p class="title">Testosterone Cypionate</p>
+      <div class="card"><h4>Frasco</h4><div class="bar"><i></i></div><div class="small">0 de 28 doses restantes</div></div>
+      <div class="card"><h4>Calculadora da seringa</h4><div class="small">Puxar até 35,0 unidades</div></div>
+      <div class="rowbtn hl">Encerrar protocolo</div></div></div></div>
+
+  <div class="col"><p class="cap">5 · Opção B: aviso</p><p class="note">Aviso só com "Depois"; encerrar fica apenas na página do protocolo (4).</p>
+    <div class="phone light"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet"><p class="s-title">Todas as doses registradas</p><p class="s-body">Todas as doses deste frasco foram registradas. Deseja registrar um novo frasco?</p>
+        <div class="btns"><div class="btn secondary hl">Depois</div><div class="btn primary">Registrar novo frasco</div></div></div></div></div></div>
+</div>
+
+<h2>Tema escuro</h2>
+<div class="row">
+  <div class="col"><p class="cap">1 · App hoje</p>
+    <div class="phone dark"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet"><p class="s-title">Todas as doses registradas</p><p class="s-body">Todas as doses deste frasco foram registradas. Deseja registrar um novo frasco?</p>
+        <div class="btns"><div class="btn secondary">Protocolo concluído</div><div class="btn primary">Registrar novo frasco</div></div></div></div></div></div>
+  <div class="col"><p class="cap">2 · Opção A: aviso<span class="rec">Recomendada</span></p>
+    <div class="phone dark"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet"><p class="s-title">Todas as doses registradas</p><p class="s-body">Todas as doses deste frasco foram registradas. Deseja registrar um novo frasco?</p>
+        <div class="stack"><div class="btns"><div class="btn secondary hl">Depois</div><div class="btn primary">Registrar novo frasco</div></div><div class="textbtn risk hl">Encerrar protocolo</div></div></div></div></div></div>
+  <div class="col"><p class="cap">3 · Confirmação (A e B)</p>
+    <div class="phone dark"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet hl"><p class="s-title">Encerrar Testosterone Cypionate?</p><p class="s-body">Encerrar leva o protocolo para Encerrados, com todas as doses no histórico. Os lembretes dele param.</p>
+        <div class="btns"><div class="btn secondary">Cancelar</div><div class="btn primary">Encerrar</div></div></div></div></div></div>
+  <div class="col"><p class="cap">4 · Página do protocolo (A e B)</p>
+    <div class="phone dark"><div class="page"><div class="back">‹ Protocolos</div><p class="meta">2000 mg frasco · 70 mg dose</p><p class="title">Testosterone Cypionate</p>
+      <div class="card"><h4>Frasco</h4><div class="bar"><i></i></div><div class="small">0 de 28 doses restantes</div></div>
+      <div class="card"><h4>Calculadora da seringa</h4><div class="small">Puxar até 35,0 unidades</div></div>
+      <div class="rowbtn hl">Encerrar protocolo</div></div></div></div>
+  <div class="col"><p class="cap">5 · Opção B: aviso</p>
+    <div class="phone dark"><div class="bgcontent"><p class="bg-h">Hoje</p><div class="bg-card"></div><div class="bg-card"></div><div class="bg-card"></div></div>
+      <div class="scrim"><div class="sheet"><p class="s-title">Todas as doses registradas</p><p class="s-body">Todas as doses deste frasco foram registradas. Deseja registrar um novo frasco?</p>
+        <div class="btns"><div class="btn secondary hl">Depois</div><div class="btn primary">Registrar novo frasco</div></div></div></div></div></div>
+</div>
+</body>
+</html>
