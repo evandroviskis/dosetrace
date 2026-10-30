@@ -75,3 +75,4 @@ Claude outputs/
 
 # Agent worktrees (full repo copies): never in git, never in the EAS build archive
 .claude/worktrees/
+modules/*/android/build/
