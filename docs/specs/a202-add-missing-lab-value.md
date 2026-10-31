@@ -5,7 +5,7 @@
 - registry: A-202 (docs/review/features.md); A-203 (non-numeric results) stays separate.
 - code (planned): screens/BodyScreen.js (the test page, phone and the Fold's right page; the Edit value sheet reused), lib/database.js insertBiomarkers, i18n ×6, components/FeatureExplainers.js (copy only).
 - tests (planned): __tests__/a202AddLabValue.test.js
-- checklist-signed: (waiting for the founder)
+- checklist-signed:
 - committed-to: next build whose scope is open
 
 ## Acceptance checklist
