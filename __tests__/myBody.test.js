@@ -103,8 +103,10 @@ test('MB-5: the prototype icons — lab frame with a drop, the syringe tilted �
 });
 
 test('MB-6: the free Dose accumulation preview is the shared bottom sheet (Example curve, Unlock with Premium → Paywall)', () => {
-  assert.match(BODY, /<FeaturePreviewSheet\s+featureKey=\{showSerumPreview \? 'serum' : null\}/);
-  assert.match(BODY, /navigation\.navigate\('Paywall', \{ source: 'serum_preview_sheet' \}\)/);
+  // A-208: one preview sheet, keyed by the feature (serum here); Unlock → Paywall with the feature as source.
+  assert.match(BODY, /<FeaturePreviewSheet\s+featureKey=\{previewKey\}/);
+  assert.match(fnCode(BODY, 'openDoseAccumulation'), /setPreviewKey\('serum'\);/);
+  assert.match(BODY, /navigation\.navigate\('Paywall', \{ source: `\$\{k\}_preview_sheet` \}\)/);
   assert.doesNotMatch(BODY, /AccumulationHero|paywall_hero_example|serum_preview_title/, 'the old full-height page is gone');
   assert.match(read('components', 'FeaturePreviews.js'), /\{ key: 'serum', icon: 'curve', titleKey: 'serum_preview_title', bodyKey: 'serum_preview_body', hero: true \}/);
 });
@@ -139,7 +141,8 @@ test('MB-10 / MB-11: the S-24 copy — the free budget is 3 a month, the Premium
       assert.doesNotMatch(tr[k], /unlimited|ilimitad|illimit|unbegrenzt/i, `${l} ${k}`);
     }
   }
-  assert.match(BODY, /<BottomSheet visible=\{showUpgradeModal\} onClose=\{\(\) => setShowUpgradeModal\(false\)\}>\s*<CloseBar title=\{t\('blood_upload_modal_title'\)\}/);
+  // A-208: the text-only upgrade sheet is replaced by the animated labs preview.
+  assert.match(BODY, /onPress=\{\(\) => setPreviewKey\('labs'\)\}/);
 });
 
 test('MB-12: permission, source and result are DoseTrace sheets (one shared consent key)', () => {
@@ -229,11 +232,12 @@ test('MB-17: Edit value is a bottom sheet; Test date opens its own wheel sheet t
   assert.equal(due[due.length - 1], '2041', 'a ten-year booster can be set');
 });
 
-test('MB-19: the export sheet hugs its content, rows say only "N readings", and PDF on the free plan asks with Cancel first', () => {
+// A-208: PDF on the free plan opens the animated PDF preview (was a Cancel / Go Premium question).
+test('MB-19: the export sheet hugs its content, rows say only "N readings", and PDF on the free plan shows its preview', () => {
   assert.match(BODY, /<BottomSheet\s+visible=\{exportModalOpen\}/);
   assert.doesNotMatch(BODY, /m\.unit \? ` · \$\{m\.unit\}`/, 'no " · unit" on the export rows');
   const exp = fnCode(BODY, 'doExport');
-  assert.match(exp, /setExportSheet\(\{\s*title: t\('export_premium_title'\),\s*body: t\('export_premium_sub'\),\s*buttons: \[\s*\{ label: t\('cancel'\), kind: 'secondary' \},\s*\{ label: t\('vax_premium_cta'\), kind: 'primary'/);
+  assert.match(exp, /setTimeout\(\(\) => setPreviewKey\('pdf'\), 300\);/);
   assert.match(BODY, /<DTSheet config=\{exportModalOpen \? exportSheet : null\} onClose=\{\(\) => setExportSheet\(null\)\} \/>/);
   assert.match(exp, /notice\(\{ title: t\('error'\), body: t\('export_error'\) \}, true\)/);
 });

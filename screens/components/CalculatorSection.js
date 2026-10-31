@@ -1193,7 +1193,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           )
         ) : (
           // Free: no measured pace — teaser to Premium.
-          <TouchableOpacity onPress={() => navigation.navigate('Paywall')} activeOpacity={0.7} accessibilityRole="button">
+          <TouchableOpacity onPress={() => setRcExplain(true)} activeOpacity={0.7} accessibilityRole="button">
             <Text style={s.linkU}>{t('cal_tgt_locked_eta')}</Text>
           </TouchableOpacity>
         )}

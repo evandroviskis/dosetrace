@@ -20,6 +20,7 @@ import CheckMark, { CrossMark } from './CheckMark';
 import { clamp01, eOutQuad, eInOutCubic } from './motion';
 import { MONO } from '../lib/fonts';
 import { paletteHex } from '../lib/protocolColors';
+import { markerLabel } from '../lib/markerNames';
 import {
   FX_W, eBack, kf, groupNum, numGroup, demoDec, useFxClock, FxCanvas, Box, Anim, Bar, Rect, T, Count, Typed,
   OkMark, Corners, ScanBeam, fmtDate,
@@ -191,7 +192,7 @@ function ScanFx({ c, t: tr, width, label }) {
         const y = 20 + i * 24;
         return (
           <Box key={m[0]} t={t} at={900 + i * 300} dur={420} dx={-26}>
-            <T x={146} y={y + 10} size={11.5} color={c.ink} width={104}>{m[0]}</T>
+            <T x={146} y={y + 10} size={11.5} color={c.ink} width={104}>{markerLabel(m[0], language)}</T>
             <T x={322} y={y + 10} size={11.5} weight="500" color={c.ink} mono anchor="end" width={76}>{demoDec(m[1], language)}</T>
           </Box>
         );
@@ -220,7 +221,7 @@ function LabsFx({ c, t: tr, width, label, language }) {
         </Box>
       ))}
       <Box t={t} at={900} dur={300} ease="lin">
-        <T x={4} y={52} size={13} weight="700" color={c.ink} width={220}>Total Testosterone</T>
+        <T x={4} y={52} size={13} weight="700" color={c.ink} width={220}>{markerLabel('Total Testosterone', language)}</T>
         <T x={322} y={52} size={11} color={c.ink2} mono anchor="end" width={60}>ng/dL</T>
         <Rect x={4} y={206} w={318} h={StyleSheet.hairlineWidth * 2} fill={c.line} />
       </Box>

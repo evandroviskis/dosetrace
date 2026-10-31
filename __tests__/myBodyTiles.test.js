@@ -193,7 +193,8 @@ test('MB2-1: Evolução\'s tile is one shared component; Journey renders the sam
     (({ icon, iconColor, title, book, selected, tag }) => ({ icon, iconColor, title, book, selected, tag }))(tiles[1].props),
     { icon: 'curve_loose', iconColor: 'colors.data', title: "t('body_card_dosing_title')", book: 'book', selected: "page === 'curve'", tag: "!premium ? t('paywall_premium') : null" },
   );
-  assert.match(tiles[1].props.onPress, /if \(!premium\) \{ navigation\.navigate\('Paywall', \{ source: 'journey_serum' \}\); return; \}/);
+  // A-208: free → the animated preview first.
+  assert.match(tiles[1].props.onPress, /if \(!premium\) \{ setPreviewKey\('serum'\); return; \}/);
   assert.doesNotMatch(strip(JOURNEY), /style=\{s\.tile\}|tileTop: \{/, 'Journey keeps no copy of the tile');
   assert.match(JOURNEY, /\.\.\.dashTileStyles\(c\)/, 'Journey\'s tile content uses the shared styles');
 });
@@ -395,7 +396,7 @@ test('MB2-6: Premium gating unchanged — the tiles are not charts; theme tokens
   }
   const dose = fnCode(BODY, 'renderDoseCard');
   assert.match(dose, /\{premium \? \(\s*<Chevron color=\{colors\.tick\} \/>/, 'Dose accumulation keeps its Premium tag and lock');
-  assert.match(fnCode(BODY, 'openDoseAccumulation'), /setShowSerumPreview\(true\);/);
+  assert.match(fnCode(BODY, 'openDoseAccumulation'), /setPreviewKey\('serum'\);/); // A-208
   for (const [name, src] of [['BodyScreen', BODY], ['DashTile', TILE], ['JourneyScreen', JOURNEY], ['labReports', read('lib', 'labReports.js')]]) {
     const code = strip(src);
     assert.doesNotMatch(code, /#[0-9a-fA-F]{3,8}\b|'white'|'black'|rgba?\(/, `${name}: theme tokens only`);

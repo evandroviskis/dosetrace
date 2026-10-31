@@ -194,8 +194,7 @@ export default function BodyScreen({ navigation, route }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showSerumPreview, setShowSerumPreview] = useState(false);
+  const [previewKey, setPreviewKey] = useState(null); // A-208: the Premium feature whose animated preview shows
   // null until hasPremium answers (AD-99 review: no scan line is drawn while it is unknown).
   const [premium, setPremium] = useState(null);
   usePremiumUpdates(setPremium); // A-164: a Premium change made elsewhere applies while open
@@ -373,14 +372,6 @@ export default function BodyScreen({ navigation, route }) {
       if (next) select(next);
     }
   }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const UPGRADE_FEATURES = [
-    t('blood_upgrade_feat_1'),
-    t('blood_upgrade_feat_2'),
-    t('blood_upgrade_feat_3'),
-    t('blood_upgrade_feat_4'),
-    t('blood_upgrade_feat_5'),
-  ];
 
   useFocusEffect(
     useCallback(() => {
@@ -883,14 +874,9 @@ export default function BodyScreen({ navigation, route }) {
     // even if this is reached by dismissing a dialog. CSV stays free. The question shows
     // over the export sheet: Cancel first, Go Premium second (MB-19).
     if (kind === 'pdf' && !(await hasPremium())) {
-      setExportSheet({
-        title: t('export_premium_title'),
-        body: t('export_premium_sub'),
-        buttons: [
-          { label: t('cancel'), kind: 'secondary' },
-          { label: t('vax_premium_cta'), kind: 'primary', onPress: () => { setExportModalOpen(false); setTimeout(() => navigation.navigate('Paywall', { source: 'export_pdf' }), 300); } },
-        ],
-      });
+      setExportModalOpen(false);
+      // A-208: the PDF preview, then the Paywall from it
+      setTimeout(() => setPreviewKey('pdf'), 300);
       return;
     }
     setExportModalOpen(false);
@@ -979,7 +965,7 @@ export default function BodyScreen({ navigation, route }) {
     }
     // Free: show the value first (an Example curve) before the paywall.
     Analytics.previewSheetViewed('serum_curve');
-    setShowSerumPreview(true);
+    setPreviewKey('serum');
   }
 
   // A-125 (docs/specs/my-body-tiles.md, picture a125-mybody-closed.html option A): the hub in
@@ -1253,7 +1239,7 @@ export default function BodyScreen({ navigation, route }) {
                 ? t(pluralKey('blood_premium_markers', markerSeries.length, language)).replace('{n}', String(markerSeries.length))
                 : t('blood_first_free')}
             </Text>
-            <TouchableOpacity style={[s.btnP, s.btnSm, s.selfStart]} onPress={() => setShowUpgradeModal(true)}>
+            <TouchableOpacity style={[s.btnP, s.btnSm, s.selfStart]} onPress={() => setPreviewKey('labs')}>
               <Text style={[s.btnPText, s.btnSmText]}>{t('blood_upgrade')}</Text>
             </TouchableOpacity>
           </View>
@@ -1595,41 +1581,13 @@ export default function BodyScreen({ navigation, route }) {
       {/* Sheets render whatever section is showing (the Dose accumulation preview opens
           from the hub) and outside the book/phone branch, so a fold never drops one. */}
 
-      {/* UPLOAD BLOODWORK (prototype upgradeHTML, S-24 copy): a bottom sheet that hugs it. */}
-      <BottomSheet visible={showUpgradeModal} onClose={() => setShowUpgradeModal(false)}>
-        <CloseBar title={t('blood_upload_modal_title')} onClose={() => setShowUpgradeModal(false)} closeLabel={t('cancel')} />
-        <View style={s.upgradeHero}>
-          <FeatureIcon name="droplet" size={44} color={colors.ink} />
-          <Text style={[s.title, s.center]}>{t('blood_upgrade_title')}</Text>
-          <Text style={[s.sec, s.center]}>{t('blood_upgrade_sub')}</Text>
-        </View>
-        <View style={s.names}>
-          {UPGRADE_FEATURES.map((f, i) => (
-            <View key={i} style={s.featRow}>
-              <CheckMark size={20} color={colors.ink} strokeWidth={1.8} />
-              <Text style={[s.body, s.grow]}>{f}</Text>
-            </View>
-          ))}
-        </View>
-        <TouchableOpacity
-          style={[s.btnP, s.btnTall]}
-          onPress={() => {
-            setShowUpgradeModal(false);
-            setTimeout(() => navigation.navigate('Paywall', { source: 'bloodwork_upload' }), 300);
-          }}
-        >
-          <Text style={s.btnPText}>{t('blood_start_trial')}</Text>
-          <Text style={s.btnPSub}>{t('blood_trial_sub')}</Text>
-        </TouchableOpacity>
-        <Text style={[s.foot, s.center]}>{t('blood_trial_badge')}</Text>
-      </BottomSheet>
-
       {/* SEE YOUR COMPOUND BUILD UP (prototype spreviewHTML, part 2): the shared preview sheet
           — the Example curve before the paywall. Illustrative data only. */}
+      {/* A-208: every Premium feature here opens its animated preview first (serum, labs, pdf). */}
       <FeaturePreviewSheet
-        featureKey={showSerumPreview ? 'serum' : null}
-        onClose={() => setShowSerumPreview(false)}
-        onUnlock={() => { setShowSerumPreview(false); setTimeout(() => navigation.navigate('Paywall', { source: 'serum_preview_sheet' }), 300); }}
+        featureKey={previewKey}
+        onClose={() => setPreviewKey(null)}
+        onUnlock={() => { const k = previewKey; setPreviewKey(null); setTimeout(() => navigation.navigate('Paywall', { source: `${k}_preview_sheet` }), 300); }}
       />
 
       {/* CHOOSE WHAT TO EXPORT (prototype exportSheet) */}

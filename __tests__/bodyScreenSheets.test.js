@@ -52,7 +52,8 @@ function modalByVisible(src, stateName) {
 }
 
 test('the Dose accumulation preview sheet renders on the hub too (not only inside the Labs branch)', () => {
-  const found = modalByVisible(read('screens', 'BodyScreen.js'), 'showSerumPreview');
+  // A-208: one preview sheet for every Premium feature here (previewKey: serum, labs, pdf).
+  const found = modalByVisible(read('screens', 'BodyScreen.js'), 'previewKey');
   assert.equal(found.length, 1, 'exactly one serum preview Modal');
   const gatedBySection = found[0].anc.some((a) =>
     (a.type === 'ConditionalExpression' || a.type === 'LogicalExpression') && mentions(a.type === 'ConditionalExpression' ? a.test : a.left, 'section'));

@@ -120,7 +120,7 @@ test('BK-1/BK-2: BookPanes only under `book`; one column keeps today\'s hub → 
 function runDose({ premium, book }) {
   const code = findFn(BODY, 'openDoseAccumulation').code;
   const calls = [];
-  const fn = new Function('Analytics', 'premium', 'book', 'select', 'navigation', 'setShowSerumPreview', `${code}\nreturn openDoseAccumulation;`)(
+  const fn = new Function('Analytics', 'premium', 'book', 'select', 'navigation', 'setPreviewKey', `${code}\nreturn openDoseAccumulation;`)(
     { viewed: () => {}, previewSheetViewed: () => {} },
     premium,
     book,
@@ -148,11 +148,12 @@ test('BK-6: Dose accumulation stays reachable from the left page and opens the C
 });
 
 test('BK-11/BK-2: free users keep today\'s preview sheet → Paywall; a phone pushes the Curve as today', () => {
-  assert.deepEqual(runDose({ premium: false, book: true }), [['preview', true]], 'book, free: the preview sheet, not the right page');
-  assert.deepEqual(runDose({ premium: false, book: false }), [['preview', true]], 'phone, free: unchanged');
+  // A-208: the preview sheet is keyed by the feature ('serum').
+  assert.deepEqual(runDose({ premium: false, book: true }), [['preview', 'serum']], 'book, free: the preview sheet, not the right page');
+  assert.deepEqual(runDose({ premium: false, book: false }), [['preview', 'serum']], 'phone, free: unchanged');
   assert.deepEqual(runDose({ premium: true, book: false }), [['navigate', 'SerumCurve']], 'phone, Premium: pushed as today');
   // The preview sheet still leads to the full-screen Paywall.
-  assert.match(BODY, /navigation\.navigate\('Paywall', \{ source: 'serum_preview_sheet' \}\)/);
+  assert.match(BODY, /navigation\.navigate\('Paywall', \{ source: `\$\{k\}_preview_sheet` \}\)/);
 });
 
 test('BK-8: the open item on the left page has a 2 pt ink outline (theme token)', () => {

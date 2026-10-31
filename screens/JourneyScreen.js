@@ -25,6 +25,7 @@ import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components
 import { setSelection, clearSelection } from '../lib/bookSelection';
 import ProgressScreen from './ProgressScreen';
 import SerumCurveScreen from './SerumCurveScreen';
+import { FeaturePreviewSheet } from '../components/FeaturePreviews';
 import FoodChatScreen from './FoodChatScreen';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
@@ -80,6 +81,7 @@ export default function JourneyScreen() {
   const s = makeStyles(colors);
   // null = not known yet (reads as free on the dashboard, exactly as before).
   const [premium, setPremium] = useState(null);
+  const [previewKey, setPreviewKey] = useState(null); // A-208
   const book = useBook();
   const { sel, params: selParams } = useBookSelection('Journey', 'progress');
   useFoldPush('Journey');
@@ -226,8 +228,8 @@ export default function JourneyScreen() {
             title={t('body_card_dosing_title')}
             tag={!premium ? t('paywall_premium') : null}
             onPress={() => {
-              // Free users: the Paywall full screen, exactly as today, also on a book (BK-11).
-              if (!premium) { navigation.navigate('Paywall', { source: 'journey_serum' }); return; }
+              // A-208: free users see the animated preview first; its Unlock opens the Paywall.
+              if (!premium) { setPreviewKey('serum'); return; }
               if (book) open('curve'); else navigation.navigate('SerumCurve');
             }}
             book={book}
@@ -260,10 +262,16 @@ export default function JourneyScreen() {
       </ScrollView>
   );
 
+  // A-208: the Premium preview sheet, mounted on the phone path and on the book alike.
+  const previewSheet = (
+    <FeaturePreviewSheet featureKey={previewKey} onClose={() => setPreviewKey(null)} onUnlock={() => { const k = previewKey; setPreviewKey(null); setTimeout(() => navigation.navigate('Paywall', { source: `journey_${k}_preview` }), 300); }} />
+  );
+
   if (!book) {
     return (
       <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
         {dashboard}
+        {previewSheet}
       </SafeAreaView>
     );
   }
@@ -276,6 +284,7 @@ export default function JourneyScreen() {
   return (
     <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       <BookPanes left={dashboard} right={right} rightKey={page} />
+      {previewSheet}
     </SafeAreaView>
   );
 }

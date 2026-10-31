@@ -114,16 +114,16 @@ test('BK-5: the right page is Your progress by default', () => {
   assert.match(src, /page === 'curve' \? <SerumCurveScreen embedded \/>/);
 });
 
-test('BK-5 / BK-11: a free user tapping Dose accumulation still gets the Paywall full screen', () => {
+// A-208 (founder 2026-10-31): a free user sees the animated preview first; its Unlock opens the Paywall.
+test('BK-5 / BK-11: a free user tapping Dose accumulation gets the animated preview, then the Paywall from it', () => {
   const src = journey();
-  const press = src.match(/onPress=\{\(\) => \{\s*\/\/ Free users[^\n]*\n([\s\S]*?)\}\}/);
+  const press = src.match(/onPress=\{\(\) => \{\s*\/\/ A-208[^\n]*\n([\s\S]*?)\}\}/);
   assert.ok(press, 'the Curve tile press handler');
   const body = press[1];
-  const pay = body.indexOf("navigation.navigate('Paywall', { source: 'journey_serum' }); return;");
-  assert.ok(pay >= 0, 'free → Paywall with the same source as before');
-  assert.match(body, /if \(!premium\) \{ navigation\.navigate\('Paywall'/, 'gated on Premium first');
-  assert.ok(pay < body.indexOf("open('curve')"), 'the Paywall check runs before the book opens the Curve');
-  // The Curve page itself is never shown without Premium (lapsed Premium falls back).
+  const prev = body.indexOf("if (!premium) { setPreviewKey('serum'); return; }");
+  assert.ok(prev >= 0, 'free → the serum preview');
+  assert.ok(prev < body.indexOf("open('curve')"), 'the Premium check runs before the book opens the Curve');
+  assert.match(src, /navigation\.navigate\('Paywall', \{ source: `journey_\$\{k\}_preview` \}\)/);
   assert.match(src, /sel === 'curve' && premium !== true \? \(premium === null \? 'wait' : 'progress'\) : sel/);
   assert.match(src, /if \(premium === false && sel === 'curve'\) clearSelection\('Journey'\)/);
 });
@@ -237,7 +237,8 @@ test('BK-17: the embedded food chat never closes itself (every goBack is the Don
 
 test('BK-17: Journey keeps the chat on the right page until another item is picked (no timer, no automatic change)', () => {
   const src = journey();
-  assert.doesNotMatch(src, /setTimeout|setInterval/, 'nothing on a timer changes the page');
+  // A-208: the one setTimeout opens the Paywall after the preview sheet closes; it never changes the page.
+  assert.doesNotMatch(src.replace(/setTimeout\(\(\) => navigation\.navigate\('Paywall'[^\n]*/, ''), /setTimeout|setInterval/, 'nothing on a timer changes the page');
   const clears = src.match(/clearSelection\('Journey'\)/g) || [];
   assert.equal(clears.length, 1, 'the only automatic change is the lapsed-Premium Curve fallback');
   assert.match(src, /if \(premium === false && sel === 'curve'\) clearSelection\('Journey'\)/);
