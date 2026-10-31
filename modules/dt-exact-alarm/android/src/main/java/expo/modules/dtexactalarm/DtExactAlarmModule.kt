@@ -1,20 +1,44 @@
 package expo.modules.dtexactalarm
 
 import android.app.AlarmManager
+import android.content.ComponentCallbacks
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.view.View
 import android.view.WindowInsetsController
+import com.facebook.react.uimanager.DisplayMetricsHolder
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 // A-106: Android 12+ needs "Alarms & reminders" for exact alarms; without it expo-notifications
 // falls back to inexact alarms (up to ~1 h late). Below Android 12 exact alarms need no permission.
 class DtExactAlarmModule : Module() {
+  // A-199: React Native sizes a new Modal from DisplayMetricsHolder's screen metrics, filled at start.
+  // MainActivity handles fold changes itself (no restart), so after opening the Fold a Modal took the
+  // closed-Fold width and its sheet sat shifted left. Refresh the metrics on every configuration change.
+  private var foldCallbacks: ComponentCallbacks? = null
+
   override fun definition() = ModuleDefinition {
     Name("DtExactAlarm")
+
+    OnCreate {
+      val ctx = appContext.reactContext?.applicationContext ?: return@OnCreate
+      val cb = object : ComponentCallbacks {
+        override fun onConfigurationChanged(newConfig: Configuration) { DisplayMetricsHolder.initDisplayMetrics(ctx) }
+        @Deprecated("Deprecated in Java")
+        override fun onLowMemory() {}
+      }
+      ctx.registerComponentCallbacks(cb)
+      foldCallbacks = cb
+    }
+
+    OnDestroy {
+      foldCallbacks?.let { appContext.reactContext?.applicationContext?.unregisterComponentCallbacks(it) }
+      foldCallbacks = null
+    }
 
     Function("canScheduleExactAlarms") {
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return@Function true
