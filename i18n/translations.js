@@ -198,7 +198,7 @@ export const translations = {
     nutri_delete_entry: 'Remove entry',
     nutri_free_note: '{n} free days left, then Premium.',
     nutri_free_note_one: '{n} free day left, then Premium.', // singular (lib/plural.js)
-    nutri_intro: 'So, what have you eaten? Earlier days count too.',
+    nutri_intro: 'What did you eat today? Earlier days count too.',
     nutri_close_empty_title: "Nothing logged for this day",
     nutri_close_empty_msg: "Did you really eat nothing? Your reality check measures your real daily calories — and the plan for your goal — from what you log. A missed meal or a guessed amount (100 g of rice that was really 350 g) changes the result a lot. Only a day you confirm as \"nothing eaten\" counts toward your 7 days in a row.",
     nutri_close_ate_nothing: "I ate nothing",
@@ -2825,7 +2825,7 @@ export const translations = {
     nutri_delete_entry: 'Eliminar entrada',
     nutri_free_note: 'Te quedan {n} días gratis; después, Premium.',
     nutri_free_note_one: 'Te queda {n} día gratis; después, Premium.', // singular (lib/plural.js)
-    nutri_intro: '¿Y qué has comido? Los días anteriores también cuentan.',
+    nutri_intro: '¿Qué comiste hoy? Los días anteriores también cuentan.',
     nutri_close_empty_title: "No hay nada registrado este día",
     nutri_close_empty_msg: '¿De verdad no comiste nada? Tus cifras reales —cuánto gastas de verdad al día y el plan para tu objetivo— se calculan con lo que registras. Una comida olvidada o una cantidad a ojo (100 g de arroz que en realidad eran 350 g) cambia mucho el resultado. Solo cuenta para tus 7 días seguidos un día que confirmes como «no comí nada».',
     nutri_close_ate_nothing: "No comí nada",
@@ -5452,7 +5452,7 @@ export const translations = {
     nutri_delete_entry: 'Remover registro',
     nutri_free_note: 'Restam {n} dias grátis, depois é Premium.',
     nutri_free_note_one: 'Resta {n} dia grátis, depois é Premium.', // singular (lib/plural.js)
-    nutri_intro: 'E aí, o que você comeu? Dias anteriores também contam.',
+    nutri_intro: 'O que você comeu hoje? Dias anteriores também contam.',
     nutri_close_empty_title: "Nada registrado neste dia",
     nutri_close_empty_msg: 'Você realmente não comeu nada? Seus números reais — quanto você gasta de verdade por dia e o plano para o seu objetivo — saem do que você registra. Uma refeição esquecida ou uma quantidade no chute (100 g de arroz que na verdade eram 350 g) muda muito o resultado. Só conta para os seus 7 dias seguidos um dia que você confirmar como "não comi nada".',
     nutri_close_ate_nothing: "Não comi nada",
@@ -8078,7 +8078,7 @@ export const translations = {
     nutri_delete_entry: 'Supprimer l\'entrée',
     nutri_free_note: '{n} jours gratuits restants, puis Premium.',
     nutri_free_note_one: '{n} jour gratuit restant, puis Premium.', // singular (lib/plural.js)
-    nutri_intro: 'Alors, qu’avez-vous mangé ? Les jours précédents comptent aussi.',
+    nutri_intro: 'Qu’avez-vous mangé aujourd’hui ? Les jours précédents comptent aussi.',
     nutri_close_empty_title: "Rien d’enregistré ce jour-là",
     nutri_close_empty_msg: 'Vous n’avez vraiment rien mangé ? Vos vrais chiffres — ce que vous dépensez réellement par jour et le plan pour votre objectif — sont calculés à partir de ce que vous notez. Un repas oublié ou une quantité estimée au jugé (100 g de riz qui en faisaient en réalité 350) change beaucoup le résultat. Seul un jour confirmé « je n’ai rien mangé » compte dans vos 7 jours d’affilée.',
     nutri_close_ate_nothing: "Je n’ai rien mangé",
@@ -10704,7 +10704,7 @@ export const translations = {
     nutri_delete_entry: 'Eintrag entfernen',
     nutri_free_note: 'Noch {n} Gratistage, dann Premium.',
     nutri_free_note_one: 'Noch {n} Gratistag, dann Premium.', // singular (lib/plural.js)
-    nutri_intro: 'Und, was hast du gegessen? Frühere Tage zählen auch.',
+    nutri_intro: 'Was hast du heute gegessen? Frühere Tage zählen auch.',
     nutri_close_empty_title: "Für diesen Tag ist nichts eingetragen",
     nutri_close_empty_msg: 'Hast du wirklich nichts gegessen? Deine echten Zahlen – was dein Körper tatsächlich pro Tag verbraucht und der Plan für dein Ziel – entstehen aus dem, was du einträgst. Eine vergessene Mahlzeit oder eine geschätzte Menge (100 g Reis, die in Wirklichkeit 350 g waren) verändert das Ergebnis stark. Nur ein Tag, den du als „nichts gegessen“ bestätigst, zählt zu deinen 7 Tagen am Stück.',
     nutri_close_ate_nothing: "Ich habe nichts gegessen",
@@ -13331,7 +13331,7 @@ export const translations = {
     nutri_delete_entry: 'Rimuovi voce',
     nutri_free_note: '{n} giorni gratis rimasti, poi Premium.',
     nutri_free_note_one: '{n} giorno gratis rimasto, poi Premium.', // singular (lib/plural.js)
-    nutri_intro: 'Allora, cosa hai mangiato? Contano anche i giorni precedenti.',
+    nutri_intro: 'Cosa hai mangiato oggi? Contano anche i giorni precedenti.',
     nutri_close_empty_title: "Niente registrato per questo giorno",
     nutri_close_empty_msg: 'Non hai mangiato proprio niente? I tuoi numeri reali — quanto consumi davvero ogni giorno e il piano per il tuo obiettivo — si calcolano da ciò che registri. Un pasto dimenticato o una quantità stimata a occhio (100 g di riso che in realtà erano 350 g) cambia molto il risultato. Solo un giorno confermato come «non ho mangiato niente» conta per i tuoi 7 giorni di fila.',
     nutri_close_ate_nothing: "Non ho mangiato niente",

@@ -67,7 +67,7 @@ test('A-101e: Your numbers adopts the newest weigh-in unless the weight was type
   assert.equal(numbersWeight({ weightAt: '2026-10-07T10:00:00Z', snapshots: snaps }), null);
   assert.equal(numbersWeight({ weightAt: null, snapshots: [] }), null, 'no weigh-in: nothing to adopt');
   const c = read('screens/components/CalculatorSection.js');
-  assert.match(c, /numbersWeight\(\{ weightAt, snapshots \}\)/);
+  assert.match(c, /numbersWeight\(\{ weightAt, typedKg: weightKgNow, snapshots \}\)/);
   assert.match(c, /weightAt,/, 'the stamp is saved with the inputs');
   assert.match(c, /if \(saved\.weightAt\) setWeightAt\(saved\.weightAt\);/);
 });
@@ -85,4 +85,18 @@ test('A-101a: an end label that would overlap "Now" is hidden; Now always shows'
   assert.match(c, /axisLabels\(\{ plotW: /);
   assert.match(c, /\{axisShow\.showLeft \? \(/);
   assert.match(c, /\{axisShow\.showRight \? \(/);
+});
+
+// Fold + iPhone 2026-10-31 (fixed on the spot, founder rule 19:10 EDT): Your numbers kept "80 kg"
+// while that day's weigh-in was corrected to 79,4 (A-212 Update / a weigh-in edit). Typing the weight
+// always writes that day's weigh-in, so a same-day weigh-in with a DIFFERENT number was written
+// after the typing: it wins. Same number, or typed on a later day: kept.
+test('A-101e: a same-day weigh-in corrected after the typing becomes the Your numbers weight', () => {
+  const { numbersWeight } = require('../lib/numbersWeight');
+  const snaps = [{ date: '2026-10-31', weightKg: 79.4 }];
+  assert.deepEqual(numbersWeight({ weightAt: '2026-10-31', typedKg: 80, snapshots: snaps }), { date: '2026-10-31', weightKg: 79.4 });
+  assert.equal(numbersWeight({ weightAt: '2026-10-31', typedKg: 79.4, snapshots: snaps }), null, 'same number: nothing to change');
+  assert.equal(numbersWeight({ weightAt: '2026-11-01', typedKg: 80, snapshots: snaps }), null, 'typed on a later day: kept');
+  const c = read('screens/components/CalculatorSection.js');
+  assert.match(c, /numbersWeight\(\{ weightAt, typedKg: weightKgNow, snapshots \}\)/);
 });

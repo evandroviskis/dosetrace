@@ -414,7 +414,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // A-101e: a newer weigh-in (edited, backfilled or from another phone) becomes the Your numbers weight.
   useEffect(() => {
     if (!loaded) return;
-    const adopt = numbersWeight({ weightAt, snapshots });
+    const typedNum = num(weight);
+    const weightKgNow = typedNum == null ? null : (unit === 'imperial' ? lbToKg(typedNum) : typedNum);
+    const adopt = numbersWeight({ weightAt, typedKg: weightKgNow, snapshots });
     if (!adopt) return;
     const v = inputNumber(unit === 'imperial' ? kgToLb(adopt.weightKg) : adopt.weightKg, language);
     setWeight(v);

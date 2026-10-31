@@ -39,6 +39,17 @@ new fact, in one line.
   prints file:line + excerpt, marks Second Brain lines VIGENTE/SUBSTITUÍDA, or
   "NENHUMA DECISÃO REGISTRADA para: …". A UserPromptSubmit hook runs it on every founder message.
 
+## Standing rule: found it → fix it now (founder, 2026-10-31 19:10 EDT)
+
+"Encontrou o erro, corrige na hora." Any error found while working — a bug, an inconsistency, odd or
+wrong copy, a decided-but-never-built rule — is fixed in the same session, test first, as soon as it is
+found. Never "registro para ver depois": parking a found error is what let Q12 (decided 2026-10-15)
+ship unbuilt until 2026-10-31. Only a real decision (taste, money, risk, scope) goes to the founder,
+and then right away, in one round. Obvious errors are fixed without asking.
+Never wait for the next build either (founder, same evening): once there are users, a fix for an
+error found in a released version goes out as fast as possible — an EAS Update for JS, a hotfix build
+for native — never held for the next planned build, even when it takes a detour.
+
 ## Standing rule: approved → the NEXT build (2026-09-10, founder directive)
 
 Anything the founder says he wants AND approves ships in the **very next build** by
