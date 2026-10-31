@@ -71,6 +71,19 @@ function die(step, r) {
   process.exit(1);
 }
 
+// OD-11 (founder 2026-10-30): the App Review notes say the demo account is used on one device at a time.
+const ONE_DEVICE_NOTE = 'The demo account is meant for one device at a time: DoseTrace keeps an account active on one phone, so signing in on a second device moves the account there and the first device shows a notice. Please use it on a single device during the review.';
+function withOneDeviceNote(notes) {
+  const n = notes || '';
+  if (n.includes(ONE_DEVICE_NOTE)) return n;
+  const i = n.lastIndexOf('\n\nThank you,');
+  return i >= 0 ? n.slice(0, i) + '\n\n' + ONE_DEVICE_NOTE + n.slice(i) : (n ? n + '\n\n' : '') + ONE_DEVICE_NOTE;
+}
+async function reviewDetail(versionId) {
+  const d = await get(`/v1/appStoreVersions/${versionId}/appStoreReviewDetail`);
+  return d.s < 300 ? d.b.data : null;
+}
+
 const EDITABLE = new Set(['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY']);
 const blockers = [];
 
@@ -90,7 +103,9 @@ async function verify(versionId, build) {
   const b = await get(`/v1/appStoreVersions/${versionId}/relationships/build`);
   const locs = await get(`/v1/appStoreVersions/${versionId}/appStoreVersionLocalizations?limit=50&fields[appStoreVersionLocalizations]=locale,whatsNew`);
   const have = Object.fromEntries((locs.b.data || []).map((l) => [l.attributes.locale, l.attributes.whatsNew || '']));
+  const rd = await reviewDetail(versionId);
   const rows = [
+    ['review note (OD-11)', rd ? (rd.attributes.notes || '').includes(ONE_DEVICE_NOTE) ? 'one-device note present' : 'missing' : 'no review detail', 'one-device note present', !!rd && (rd.attributes.notes || '').includes(ONE_DEVICE_NOTE)],
     ['releaseType', a.releaseType, RELEASE_TYPE, a.releaseType === RELEASE_TYPE],
     ['earliestReleaseDate', a.earliestReleaseDate, null, a.earliestReleaseDate == null],
     ['phased release', phased ? `${phased.attributes.phasedReleaseState} (${phased.id})` : 'none', 'none', !phased],
@@ -232,6 +247,16 @@ async function screenshotReport(versionId, label) {
       if (cr.s >= 300) die('create whatsNew ' + locale, cr);
       console.log('whatsNew created', locale);
     }
+  }
+
+  // 5b. OD-11: the one-device sentence in the App Review notes (the detail is carried over from the last version)
+  const rd = await reviewDetail(versionId);
+  if (!rd) { console.error('\n✖ no App Review detail on this version: set the demo account and notes on the website first'); process.exit(1); }
+  const notes = withOneDeviceNote(rd.attributes.notes);
+  if (notes !== (rd.attributes.notes || '')) {
+    const up = await write('PATCH', `/v1/appStoreReviewDetails/${rd.id}`, { data: { type: 'appStoreReviewDetails', id: rd.id, attributes: { notes } } });
+    if (up.s >= 300) die('review notes (OD-11)', up);
+    console.log('review notes: one-device sentence added');
   }
 
   // 6. read everything back; never submit on a mismatch
