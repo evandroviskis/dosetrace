@@ -1358,7 +1358,7 @@ export default function SettingsScreen({ navigation }) {
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
         </View>
 
-        <ScrollView ref={phoneScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView ref={phoneScrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
 
@@ -1387,7 +1387,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.header}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
           <View style={s.bookNav}>
@@ -1422,7 +1422,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.header}>
           <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
         </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
           <View style={s.group}>{renderGroupBody(open)}</View>
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -1457,7 +1457,7 @@ export default function SettingsScreen({ navigation }) {
             <Text style={s.modalTitle} numberOfLines={1}>{t('settings_report_title')}</Text>
             <View style={{ minWidth: 60 }} />
           </View>
-          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={s.modalBody} showsVerticalScrollIndicator={false}>
             <Text style={s.sheetIntro}>{t('settings_report_preview_note')}</Text>
             {reportUnsync ? (
               <View style={s.reportUnsync}>
@@ -1502,7 +1502,7 @@ export default function SettingsScreen({ navigation }) {
               <Text style={s.modalClose} numberOfLines={1}>{t('done')}</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={s.modalBody} showsVerticalScrollIndicator={false}>
             <Text style={s.sheetIntro}>
               {t('settings_language_sub')}
             </Text>

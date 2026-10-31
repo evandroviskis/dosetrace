@@ -39,6 +39,7 @@ import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { completeLocalSignOut } from './lib/signOutCore';
 import { tabBarStyle } from './lib/tabBarStyle';
+import { tapAwayProps } from './components/tapAwayKeyboard';
 import { setWindowBackground } from './modules/dt-exact-alarm';
 import { setStrictRemoval } from './lib/secureStore';
 import { onSignedOutNow, afterSignedOut, checkAccountGone, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
@@ -388,6 +389,9 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
 
   const navTheme = navThemeFor(colors, isDark);
   return (
+    // A-204: one view for the whole app (every screen; each Modal has its own, PresenceModal): a tap
+    // away from the field being typed closes the keyboard (components/tapAwayKeyboard).
+    <View style={{ flex: 1 }} {...tapAwayProps}>
     <NavigationContainer ref={navigationRef} theme={navTheme} onReady={onNavReady} onStateChange={() => { if (onNavReady) onNavReady(); upd.poke(); }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -447,6 +451,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
       <UpdateInviteSheet config={deviceSheet || linkSheet ? null : upd.invite} onUpdate={upd.onUpdate} onLater={upd.onLater} />
       <UpdateReadyBar visible={upd.ready} onRestart={upd.onRestart} />
     </NavigationContainer>
+    </View>
   );
 }
 

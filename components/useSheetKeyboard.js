@@ -17,7 +17,8 @@ import { windowShift } from '../lib/keyboardLift';
 import { keyboardFrame } from '../lib/keyboardFrame';
 import { useWindowSize } from '../lib/windowSize';
 
-const NO_PROPS = Object.freeze({});
+// A-204: the first tap on an option works while the keyboard is open (the tap-away view closes it).
+const NO_PROPS = Object.freeze({ keyboardShouldPersistTaps: 'handled' });
 
 export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}) {
   const [kb, setKb] = useState(null); // { kbTop, kbHeight } while the keyboard is up
@@ -88,6 +89,7 @@ export default function useSheetKeyboard(enabled, { gap = 8, topRoom = 48 } = {}
     ref: (n) => { scroll.current = n; },
     onScroll: (e) => { scrollY.current = e.nativeEvent.contentOffset.y; },
     scrollEventThrottle: 32,
+    keyboardShouldPersistTaps: 'handled',
     // A multiline field that grows while typing (A-152, the protocol notes): follow it.
     onContentSizeChange: () => { if (kbRef.current) focusScroll(); },
   }), []); // eslint-disable-line react-hooks/exhaustive-deps

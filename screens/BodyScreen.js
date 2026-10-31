@@ -1160,7 +1160,7 @@ export default function BodyScreen({ navigation, route }) {
     return (
       /* ONE MARKER (prototype markerScreen): the latest value as the number, the
          user's readings charted (no ranges, no good/bad colors), every reading. */
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
         <View style={s.titleBlock}>
           {withStar ? (
             /* Book right page: no nav row, so the favorite star sits beside the title. */
@@ -1419,7 +1419,7 @@ export default function BodyScreen({ navigation, route }) {
   // "‹ back" to its journal, or the Curve. Each page scrolls on its own.
   function renderBookLeft() {
     return (
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
         <View style={s.bookHero}>
           <Text style={s.hubGreeting}>{t('tab_body')}</Text>
           <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
@@ -1524,7 +1524,7 @@ export default function BodyScreen({ navigation, route }) {
       {book ? (
         <BookPanes left={renderBookLeft()} right={renderBookRight()} rightKey={rightPage.group === 'vaccines' ? 'vaccines' : rightPage.id} />
       ) : section === null ? (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           <View style={s.hubHero}>
             <Text style={s.hubGreeting}>{t('tab_body')}</Text>
             <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>

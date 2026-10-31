@@ -123,6 +123,8 @@ export default function useKeyboardLift(extRef, enabled = true, opts = {}) {
       ref: (n) => { scroll.current = n; if (extRef) extRef.current = n; },
       onScroll: (e) => { scrollY.current = e.nativeEvent.contentOffset.y; },
       scrollEventThrottle: 32,
+      // A-204: the first tap on an option works while the keyboard is open (the tap-away view closes it).
+      keyboardShouldPersistTaps: 'handled',
       // The spacer (or anything else) changed the page's height while a field waits: lift again.
       onContentSizeChange: () => { if (enabled && kbTop.current != null) lift(); },
     },

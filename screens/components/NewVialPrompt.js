@@ -87,7 +87,7 @@ function MixDateField({ s, t, colors, month, day, setMonth, setDay }) {
           <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
         </TouchableOpacity>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} {...monthRow.rowProps}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} {...monthRow.rowProps}>
         <View style={s.promptMonthRow}>
           {MONTH_KEYS.map((mk, idx) => (
             <TouchableOpacity
@@ -126,7 +126,7 @@ function BoxExpiryField({ s, t, expMonth, expYear, setExpMonth, setExpYear }) {
     <>
       <Text style={s.promptLabel}>{t('protocols_vial_expiry')}</Text>
       <Text style={s.promptHint}>{t('protocols_vial_expiry_hint')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} {...monthRow.rowProps}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} {...monthRow.rowProps}>
         <View style={s.promptMonthRow}>
           {MONTH_KEYS.map((mk, idx) => (
             <TouchableOpacity
@@ -141,7 +141,7 @@ function BoxExpiryField({ s, t, expMonth, expYear, setExpMonth, setExpYear }) {
           ))}
         </View>
       </ScrollView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
         <View style={s.promptMonthRow}>
           {expiryYears(new Date()).map((y) => (
             <TouchableOpacity

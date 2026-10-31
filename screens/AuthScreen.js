@@ -342,7 +342,7 @@ export default function AuthScreen({ onBack, initialMode }) {
     const confirmParts = t('onboarding_confirm_msg').split('{email}');
     return (
       <SafeAreaView style={s.container}>
-        <ScrollView style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={s.scroll} contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
           {backRow(() => setSignupDone(false))}
           <View style={s.confirmHead}>
             <View style={s.okBadge}><CheckMark size={34} color={colors.onInk} strokeWidth={2.4} /></View>

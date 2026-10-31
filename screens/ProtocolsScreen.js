@@ -510,7 +510,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
                 : <><Text style={s.zoomReadoutVal}>{decimalText(draw.drawUnits, language)}u</Text> · {decimalText(trimZeros(draw.drawML), language)} ml</>}
               {note ? <Text style={s.calcMark}>*</Text> : null}
             </Text>
-            <ScrollView
+            <ScrollView keyboardShouldPersistTaps="handled"
               horizontal
               showsHorizontalScrollIndicator={false}
               contentOffset={{ x: Math.max(0, Math.min(RULER.W - zoomView, rulerX(units, syringeMax) - zoomView / 2)), y: 0 }}
@@ -2650,7 +2650,7 @@ export default function ProtocolsScreen() {
 
   // The list's sort pills and cards, shared by the phone list and the book's left page.
   const sortPills = (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.sortScroll} contentContainerStyle={s.sortRow}>
+    <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={s.sortScroll} contentContainerStyle={s.sortRow}>
       <Text style={s.sortLabel}>{t('protocols_sort_by')}</Text>
       {SORT_OPTIONS.map(o => (
         <Pill key={o.key} s={s} label={t(o.label)} on={sortBy === o.key} onPress={() => changeSort(o.key)} short />
@@ -2898,7 +2898,7 @@ export default function ProtocolsScreen() {
                 <Text style={s.headerTitle} accessibilityRole="header">{t('protocols_title')}</Text>
                 {addButton}
               </View>
-              <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
                 {protocols.length === 0 && !loading && emptyState}
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
@@ -3502,12 +3502,12 @@ export default function ProtocolsScreen() {
                       <WInput s={s} c={colors} placeholder={`${t('protocols_eg')} 10`} keyboardType="numeric" value={vialMl} onChangeText={setVialMl} />
                     </Fld>
                     <Fld s={s} label={t('protocols_vial_expiry')} hint={t('protocols_vial_expiry_hint')}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll} {...expMonthRow.rowProps}>
+                      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll} {...expMonthRow.rowProps}>
                         {MONTH_KEYS.map((mk, idx) => (
                           <Pill key={mk} s={s} label={t(mk)} on={vialExpMonth === idx} onLayout={expMonthRow.itemLayout(idx)} onPress={() => setVialExpMonth(vialExpMonth === idx ? null : idx)} />
                         ))}
                       </ScrollView>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
+                      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll}>
                         {[0, 1, 2, 3, 4, 5].map((o) => {
                           const y = new Date().getFullYear() + o;
                           return <Pill key={y} s={s} label={String(y)} on={vialExpYear === y} onPress={() => setVialExpYear(vialExpYear === y ? null : y)} />;
@@ -3743,7 +3743,7 @@ export default function ProtocolsScreen() {
                 {!skipVial ? (
                   <>
                     <Fld s={s} label={t('protocols_date_mixed')}>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll} {...mixMonthRow.rowProps}>
+                      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={s.hscrollWrap} contentContainerStyle={s.hscroll} {...mixMonthRow.rowProps}>
                         {MONTH_KEYS.map((mk, idx) => (
                           <Pill key={mk} s={s} label={t(mk)} on={vialMonth === idx} onLayout={mixMonthRow.itemLayout(idx)} onPress={() => { touch('mixed'); setVialMonth(idx); }} />
                         ))}
