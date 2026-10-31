@@ -5,6 +5,8 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
+import android.view.View
+import android.view.WindowInsetsController
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -41,11 +43,31 @@ class DtExactAlarmModule : Module() {
       HeadlessRefreshWorker.notifyDone()
     }
 
-    // A-194: the Fold's taskbar area under the tab bar is painted with the window background, which
-    // never followed the app theme (a light strip in dark). The app passes its ground colour here.
+    // A-194: the Fold's taskbar area under the tab bar never followed the app theme (a light strip in
+    // dark). The app passes its ground colour here: the window background takes it, the navigation bar
+    // (Samsung's taskbar is one) is drawn for that colour (light icons on a dark ground), and the
+    // system's contrast scrim, which lightened the bar, is off. Device check 2026-10-30: vsysui=0x10.
     Function("setWindowBackground") { color: String ->
       val activity = appContext.currentActivity ?: return@Function false
-      activity.runOnUiThread { activity.window.setBackgroundDrawable(ColorDrawable(Color.parseColor(color))) }
+      activity.runOnUiThread {
+        val window = activity.window
+        val c = Color.parseColor(color)
+        window.setBackgroundDrawable(ColorDrawable(c))
+        val lightBar = Color.luminance(c) > 0.5f
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          window.insetsController?.setSystemBarsAppearance(
+            if (lightBar) WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS else 0,
+            WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+          )
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          @Suppress("DEPRECATION")
+          val flags = window.decorView.systemUiVisibility
+          @Suppress("DEPRECATION")
+          window.decorView.systemUiVisibility =
+            if (lightBar) flags or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else flags and View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR.inv()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
+      }
       true
     }
 
