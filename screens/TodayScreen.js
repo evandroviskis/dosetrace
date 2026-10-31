@@ -711,6 +711,7 @@ export default function TodayScreen() {
     endProtocolAtLastDose(p.id);
     deactivateVialsByProtocol(p.id);
     cancelDoseReminder(p.id).catch(() => {});
+    syncAllNotifications().catch(() => {}); // re-plan the set, like every other End (review 2026-10-31)
     AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
     closeProtocolQuestion();
   }
