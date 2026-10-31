@@ -27,15 +27,6 @@
         "cd /Users/evandrosantos/Desktop/dosetrace/web && exec python3 -m http.server 4321"
       ],
       "port": 4321
-    },
-    {
-      "name": "sim-static",
-      "runtimeExecutable": "bash",
-      "runtimeArgs": [
-        "-lc",
-        "export PATH=\"$HOME/.nvm/versions/node/v24.20.0/bin:$PATH\" && exec node /private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/471f2548-5ba0-4cd3-9104-9a98d6108669/scratchpad/serve.cjs /private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/471f2548-5ba0-4cd3-9104-9a98d6108669/scratchpad 4410"
-      ],
-      "port": 4410
     }
   ]
 }
