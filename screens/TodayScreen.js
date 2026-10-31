@@ -490,6 +490,9 @@ export default function TodayScreen() {
   function onTodayForeground() {
     refreshIfNewDay();
     checkStillGoingWhenSynced();
+    // RC-6 / NB-2: notifications turned on or off in the phone's Settings → the alert card and the
+    // blocked sheet follow at once (the App.js resync is throttled to once a minute; sim pass 2026-10-31).
+    readReminders();
   }
   function refreshIfNewDay() {
     if (dayKeyAt(Date.now()) === shownDayRef.current) return;

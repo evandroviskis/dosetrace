@@ -299,9 +299,10 @@ test('SG-27: returning to Today from the background (and a new day while open) r
   const calls = [];
   const fg = loadFn('screens/TodayScreen.js', 'function onTodayForeground(', 'onTodayForeground', {
     refreshIfNewDay: () => calls.push('redate'), checkStillGoingWhenSynced: () => calls.push('ask'),
+    readReminders: () => calls.push('reminders'), // sim pass 2026-10-31: the reminder health is read again too
   });
   fg();
-  assert.deepEqual(calls, ['redate', 'ask']);
+  assert.deepEqual(calls, ['redate', 'ask', 'reminders']);
 });
 
 // ── SG-10: the course-end question waits for the session's first sync (A-122 gate) ────────────────
