@@ -1705,7 +1705,7 @@ export default function BodyScreen({ navigation, route }) {
         <SheetBar title={mAdding ? t('blood_add_value_title') : t('blood_edit_title')} cancelLabel={t('cancel')} onCancel={closeMarkerEdit} actionLabel={t('save')} onAction={saveMarkerEdit} />
         <View style={s.fld}>
           <Text style={s.fieldLabel}>{t('blood_edit_marker')}</Text>
-          <TextInput style={s.input} value={mName} onChangeText={setMName} placeholderTextColor={colors.ink3} />
+          <TextInput style={s.input} value={mName} onChangeText={setMName} autoCorrect={false} spellCheck={false} placeholderTextColor={colors.ink3} />
         </View>
         <View style={s.fieldGrid}>
           <View style={[s.fld, s.grow]}>
@@ -1716,7 +1716,7 @@ export default function BodyScreen({ navigation, route }) {
           </View>
           <View style={[s.fld, s.grow]}>
             <Text style={s.fieldLabel}>{t('blood_edit_unit')}</Text>
-            <TextInput style={s.input} value={mUnit} onChangeText={setMUnit} autoCapitalize="none" placeholderTextColor={colors.ink3} />
+            <TextInput style={s.input} value={mUnit} onChangeText={setMUnit} autoCapitalize="none" autoCorrect={false} spellCheck={false} placeholderTextColor={colors.ink3} />
           </View>
         </View>
         <View style={s.fld}>

@@ -414,3 +414,12 @@ test('NN-1/NN-2: the extract-bloodwork prompt returns qualifier and value_text; 
   // Backward compatible: the markers go back as the model wrote them (old apps skip rows without a number).
   assert.match(src, /payload = \{ report_date: parsed\.report_date \?\? null, markers: parsed\.markers \};/);
 });
+
+// iPhone simulator 2026-10-31: in "Adicionar valor" the keyboard's autocorrect turned "ng/mL" into
+// "my/mL". Lab names and units are codes, never words to correct: the marker and unit fields turn
+// autocorrect (and spell check) off.
+test('A-203: the marker and unit fields of the value window never autocorrect', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'screens/BodyScreen.js'), 'utf8');
+  assert.match(src, /<TextInput style=\{s\.input\} value=\{mName\} onChangeText=\{setMName\} autoCorrect=\{false\} spellCheck=\{false\}/);
+  assert.match(src, /<TextInput style=\{s\.input\} value=\{mUnit\} onChangeText=\{setMUnit\} autoCapitalize="none" autoCorrect=\{false\} spellCheck=\{false\}/);
+});
