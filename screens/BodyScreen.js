@@ -1197,8 +1197,18 @@ export default function BodyScreen({ navigation, route }) {
           </Text>
           {/* A-203 (NN-2/NN-3): only readings with a number are charted; a marker whose readings are
               all words shows no chart and no "need more" line — only its readings below. */}
-          {chartCount >= 2 ? (
+          {/* A-211 (DV-108 / AD-24 = B2): the chart is Premium; a free account gets a tile that opens
+              the animated labs preview first (A-208). Nothing while the plan is still unknown. */}
+          {chartCount >= 2 && premium === true ? (
             <MarkerChart points={markerDetail.points} unit={markerDetail.unit} language={language} width={chartWidth} />
+          ) : chartCount >= 2 && premium === false ? (
+            <TouchableOpacity style={s.chartLock} onPress={() => setPreviewKey('labs')} accessibilityRole="button">
+              <FeatureIcon name="calc_bars" size={28} color={colors.ink2} />
+              <View style={s.grow}>
+                <Text style={s.head}>{t('pw_prev_labs_title')}</Text>
+                <Text style={s.sec}>{t('cal_rc_sb_locked')}</Text>
+              </View>
+            </TouchableOpacity>
           ) : chartCount === 1 ? (
             <Text style={s.sec}>{t('blood_need_more')}</Text>
           ) : null}
@@ -1865,6 +1875,7 @@ const labsGraduated = (c) => ({
   card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
   foldIn: { padding: 18, gap: 12 }, // a CollapsibleSection's body (the section is the card)
   rowCard: { flexDirection: 'row', alignItems: 'center' },
+  chartLock: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, borderRadius: 16, borderWidth: 1, borderColor: c.line, padding: 14 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emptyCard: { alignItems: 'center', paddingTop: 28 },
   names: { gap: 8 },
