@@ -10,7 +10,7 @@ import { useTheme } from '../lib/theme';
 import FeatureIcon from './FeatureIcon';
 import { openReminderFix, markDeepSleepChecked } from '../lib/notifications';
 import { reminderChecks, setupSteps, rowTitleKey } from '../lib/reminderHealth';
-import { formatDate } from '../lib/localeFormat';
+import { formatDate, fillDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 
 export const ROW = {
@@ -46,7 +46,7 @@ export default function ReminderSetupList({ health, setup = true, withRefresh = 
       const when = t('rc_refresh_ok').replace('{when}', `${formatDate(d, language, 'weekdayDayMonth')}, ${formatTime(d.toTimeString().slice(0, 5), language, timeFormat)}`);
       return c.until ? `${when} · ${t('rc_refresh_until').replace('{date}', formatDate(new Date(c.until), language, 'dayMonth'))}` : when;
     }
-    if (c.id === 'deep_sleep' && c.state === 'ok' && c.at) return t('rc_deep_sleep_checked').replace('{date}', formatDate(new Date(c.at), language, 'dayMonth'));
+    if (c.id === 'deep_sleep' && c.state === 'ok' && c.at) return fillDate(t('rc_deep_sleep_checked'), formatDate(new Date(c.at), language, 'dayMonth'));
     if (c.state === 'open') return t(r.open);
     return t(r[c.state] || r.ok);
   }

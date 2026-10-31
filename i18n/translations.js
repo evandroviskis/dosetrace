@@ -354,7 +354,7 @@ export const translations = {
     notif_morning_due_private: '{n} scheduled today.',
     notif_morning_due_private_one: '{n} scheduled today.', // singular (lib/plural.js)
     settings_notif_names: 'Show names in notifications',
-    settings_notif_names_sub: 'Off: reminders on the lock screen say “Dose reminder” instead of the compound name.',
+    settings_notif_names_sub: 'When off, reminders on the lock screen say “Dose reminder” instead of the compound name.',
     alert_snooze: 'Remind me',
     alert_snooze_later: 'Later today',
     alert_snooze_tomorrow: 'Tomorrow',
@@ -2978,7 +2978,7 @@ export const translations = {
     notif_morning_due_private: '{n} programadas hoy.',
     notif_morning_due_private_one: '{n} programada hoy.', // singular (lib/plural.js)
     settings_notif_names: 'Mostrar nombres en las notificaciones',
-    settings_notif_names_sub: 'Desactivado: los recordatorios en la pantalla de bloqueo dirán «Recordatorio de dosis» en lugar del nombre del compuesto.',
+    settings_notif_names_sub: 'Si lo desactivas, los recordatorios en la pantalla de bloqueo dirán «Recordatorio de dosis» en lugar del nombre del compuesto.',
     alert_snooze: 'Recordarme',
     alert_snooze_later: 'Más tarde hoy',
     alert_snooze_tomorrow: 'Mañana',
@@ -5602,7 +5602,7 @@ export const translations = {
     notif_morning_due_private: '{n} programadas hoje.',
     notif_morning_due_private_one: '{n} programada hoje.', // singular (lib/plural.js)
     settings_notif_names: 'Mostrar nomes nas notificações',
-    settings_notif_names_sub: 'Desligado: na tela de bloqueio aparece “Lembrete de dose” em vez do nome do composto.',
+    settings_notif_names_sub: 'Se desligar, a tela de bloqueio mostra “Lembrete de dose” em vez do nome do composto.',
     alert_snooze: 'Lembrar depois',
     alert_snooze_later: 'Mais tarde hoje',
     alert_snooze_tomorrow: 'Amanhã',
@@ -8225,7 +8225,7 @@ export const translations = {
     notif_morning_due_private: '{n} doses prévues aujourd’hui.',
     notif_morning_due_private_one: '{n} dose prévue aujourd’hui.', // singular (lib/plural.js)
     settings_notif_names: 'Afficher les noms dans les notifications',
-    settings_notif_names_sub: 'Désactivé : l’écran verrouillé affiche « Rappel de dose » au lieu du nom du composé.',
+    settings_notif_names_sub: 'Si vous le désactivez, l’écran verrouillé affiche « Rappel de dose » au lieu du nom du composé.',
     alert_snooze: 'Me le rappeler',
     alert_snooze_later: 'Plus tard aujourd’hui',
     alert_snooze_tomorrow: 'Demain',
@@ -10848,7 +10848,7 @@ export const translations = {
     notif_morning_due_private: '{n} heute geplant.',
     notif_morning_due_private_one: '{n} heute geplant.', // singular (lib/plural.js)
     settings_notif_names: 'Namen in Mitteilungen zeigen',
-    settings_notif_names_sub: 'Aus: Auf dem Sperrbildschirm steht „Dosis-Erinnerung“ statt des Substanznamens.',
+    settings_notif_names_sub: 'Ist es aus, steht auf dem Sperrbildschirm „Dosis-Erinnerung“ statt des Substanznamens.',
     alert_snooze: 'Später erinnern',
     alert_snooze_later: 'Später heute',
     alert_snooze_tomorrow: 'Morgen',

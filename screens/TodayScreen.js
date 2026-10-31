@@ -67,7 +67,7 @@ import NewVialPrompt from './components/NewVialPrompt';
 import { supplyState } from '../lib/supplyLow';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
-import { formatDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
+import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
 import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
@@ -760,8 +760,8 @@ export default function TodayScreen() {
   function courseEndBody(p) {
     const cs = courseState(p, new Date());
     const date = cs.endKey ? formatDate(cs.endKey, language, 'dayMonthYear') : '';
-    if (cs.kind === 'total') return t('today_course_end_body_total').replace('{date}', date);
-    if (cs.after) return t('today_course_end_body_late').replace('{date}', date);
+    if (cs.kind === 'total') return fillDate(t('today_course_end_body_total'), date);
+    if (cs.after) return fillDate(t('today_course_end_body_late'), date);
     return t('today_course_end_body');
   }
 
