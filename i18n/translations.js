@@ -5842,7 +5842,7 @@ export const translations = {
     // LOG
     log_title: 'Registro de doses',
     today_view_log: 'Ver histórico',
-    today_due: 'Agora',
+    today_due: 'Pendente',
     today_doses_taken: "{x} de {y} concluídas",
     today_doses_taken_one: '{x} de {y} concluída',
     today_dose_one: "dose",
