@@ -42,3 +42,13 @@ test('A-211: the locked tile takes its colours from theme tokens only', () => {
   assert.ok(st.length > 20, 'chartLock style exists');
   assert.doesNotMatch(st, /#[0-9a-fA-F]{3,8}|'white'|'black'|rgba\(/);
 });
+
+// Founder 2026-10-31 18:25 EDT ("3 sim"): the Premium list in Settings names the lab charts now that
+// they are Premium — only the lab charts (vaccines and vials have no chart), in every language.
+test('A-211: the Settings Premium list names the lab charts (6 languages)', () => {
+  const src = read('i18n/translations.js');
+  const vals = [...src.matchAll(/^\s*settings_premium_feat_4:\s*(["'])(.*)\1,/gm)].map((m) => m[2]);
+  assert.equal(vals.length, 6);
+  const want = ['Lab charts', 'Gráficos de análisis', 'Gráficos dos exames', 'Graphiques des analyses', 'Laborwerte im Verlauf', 'Grafici delle analisi'];
+  want.forEach((w, i) => assert.ok(vals[i].endsWith(' · ' + w), vals[i]));
+});
