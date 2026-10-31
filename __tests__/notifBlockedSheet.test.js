@@ -132,6 +132,21 @@ test('NB-3 / NB-4 Today: read with the reminder health, after the Android setup 
   assert.match(fn, /onOpen: \(\) => \{ openReminderFix\('notifications'\)\.catch\(\(\) => \{\}\); \}/);
 });
 
+// Simulator pass 2026-10-31 (iPhone 17 Pro Max, iOS 26.5, +qa2, pt): notifications turned back ON in
+// the phone's Settings and the app brought back within a minute of the last foreground (the App.js
+// resync is throttled to once a minute, so no "synced" event came) → Today still said "Seus lembretes
+// estão bloqueados" although the Reminder check read "Permitidas" with 9 reminders scheduled; it
+// cleared only on the next tab change. Today must read the reminder health again whenever it comes
+// back to the foreground while it is the screen in front (a turn-off in Settings is caught the same
+// way, so the sheet's "once per state change" never misses a change).
+test('NB-2 / RC-6 Today reads the reminder health again at every return to the foreground (not only after a throttled resync)', () => {
+  const src = read('screens/TodayScreen.js');
+  const fg = sliceBlock(src, 'function onTodayForeground(');
+  assert.match(fg, /readReminders\(\)/, 'a foreground on Today re-reads the reminder health');
+  // The foreground hook only calls it while Today is in front.
+  assert.match(src, /if \(st === 'active' && focusedRef\.current\) onTodayForeground\(\);/);
+});
+
 test('NB-6 the module is pure (no React Native) and has no raw colours', () => {
   const src = read('lib/notifBlocked.js');
   assert.doesNotMatch(src, /require\('react-native'\)|from 'react-native'/);
