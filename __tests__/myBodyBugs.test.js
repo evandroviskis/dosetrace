@@ -44,11 +44,12 @@ test('MB-18: "Delete this value" asks first; only the sheet\'s Delete writes the
   let sheet = null;
   const mEdit = { id: 42, marker: 'Hematocrit', date: '2026-08-20', value: 47.6, unit: '%' };
   const run = new Function(
-    'mEdit', 't', 'formatDate', 'deleteValueCopy', 'setValueSheet', 'deleteBiomarker', 'requestSync', 'setMEdit', 'fetchReports',
+    'mEdit', 't', 'formatDate', 'deleteValueCopy', 'setValueSheet', 'deleteBiomarker', 'requestSync', 'setMEdit', 'fetchReports', 'markerLabel', 'language',
     `${fnCode(BODY, 'askDeleteValue')}\n${fnCode(BODY, 'deleteValueNow')}\nreturn askDeleteValue;`,
   )(
     mEdit, t, () => 'August 20, 2026', deleteValueCopy, (c) => { sheet = c; },
     (id) => calls.push(['delete', id]), () => calls.push(['sync']), (v) => calls.push(['setMEdit', v]), () => calls.push(['fetch']),
+    require('../lib/markerNames').markerLabel, 'en', // A-207: the question names the marker as shown
   );
   run();
   assert.deepEqual(calls, [], 'nothing is deleted before the answer');

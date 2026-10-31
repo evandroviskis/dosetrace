@@ -386,7 +386,7 @@ test('BK-21: the right page\'s title is the first focusable element (a header)',
   // Lab test and marker on the right page: the title is a header there (the phone is unchanged).
   assert.match(findFn(BODY, 'renderReportDetail').code, /<Text style=\{s\.screenTitle\} accessibilityRole=\{inBook \? 'header' : undefined\}>\{formatDate\(reportDetail\.date\)\}<\/Text>/);
   assert.match(findFn(BODY, 'renderBookRight').code, /renderReportDetail\(bookReport, true\)/);
-  assert.match(findFn(BODY, 'renderMarkerDetail').code, /<Text style=\{\[s\.screenTitle, s\.grow\]\} accessibilityRole="header">\{markerDetail\.marker\}<\/Text>/);
+  assert.match(findFn(BODY, 'renderMarkerDetail').code, /<Text style=\{\[s\.screenTitle, s\.grow\]\} accessibilityRole="header">\{markerLabel\(markerDetail\.marker, language\)\}<\/Text>/);
   // Each detail's title block comes before anything tappable.
   for (const f of ['renderReportDetail', 'renderMarkerDetail']) {
     const code = findFn(BODY, f).code;

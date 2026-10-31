@@ -24,6 +24,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, addBiomarkerToReport, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
+import { markerLabel, markerToSave } from '../lib/markerNames';
 import { isFavorite, setFavorite, setReportTag, dropReportDate } from '../lib/bodyPrefs';
 import { loadLabPrefs, saveLabStar, saveLabTags } from '../lib/labPrefs';
 import { hasNativeModule } from '../lib/nativeModule';
@@ -251,7 +252,7 @@ export default function BodyScreen({ navigation, route }) {
   const cards = useMemo(() => reportCards(rows), [rows]);
   const reports = useMemo(() => {
     const entries = cards
-      .map(c => (q ? { ...c, markers: c.markers.filter(m => String(m.marker || '').toLowerCase().includes(q)) } : c))
+      .map(c => (q ? { ...c, markers: c.markers.filter(m => String(m.marker || '').toLowerCase().includes(q) || markerLabel(m.marker, language).toLowerCase().includes(q)) } : c))
       .filter(c => c.markers.length > 0);
     return orderCards(entries, newestFirst);
   }, [cards, q, newestFirst]);
@@ -275,10 +276,10 @@ export default function BodyScreen({ navigation, route }) {
   }, [rows, favorites]);
   const markerSeries = useMemo(() => {
     let series = allMarkerSeries;
-    if (q) series = series.filter(x => x.marker.toLowerCase().includes(q));
+    if (q) series = series.filter(x => x.marker.toLowerCase().includes(q) || markerLabel(x.marker, language).toLowerCase().includes(q));
     if (favOnly) series = series.filter(x => x.isFav);
     // Favorites first, then alphabetical within each group.
-    return series.slice().sort((a, b) => (b.isFav - a.isFav) || a.marker.localeCompare(b.marker));
+    return series.slice().sort((a, b) => (b.isFav - a.isFav) || markerLabel(a.marker, language).localeCompare(markerLabel(b.marker, language)));
   }, [allMarkerSeries, q, favOnly]);
 
   // The test or marker the user opened. Built from ALL rows (not the search-filtered
@@ -410,7 +411,7 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   // Distinct markers available to include in an export (canonical-merged).
-  const exportMarkers = useMemo(() => buildMarkerSeries(rows), [rows]);
+  const exportMarkers = useMemo(() => buildMarkerSeries(rows, { language }), [rows, language]); // A-207: names in the app language
 
   // AD-99 (picture ad99-ad100-labs.html B / P2): how many AI scans this account used this month,
   // asked of the server (extract-bloodwork usage mode, the ai_scan_usage count it enforces). No
@@ -684,7 +685,7 @@ export default function BodyScreen({ navigation, route }) {
   function openMarkerEdit(obj) {
     setMAdding(false);
     setMEdit(obj);
-    setMName(obj.marker || '');
+    setMName(markerLabel(obj.marker || '', language)); // A-207: the name as shown; Save keeps the stored one if unchanged
     setMValue(obj.value != null ? inputNumber(obj.value, language) : ''); // "5,2" in pt; saved back through the comma-aware parse
     setMUnit(obj.unit || '');
     setMDate(obj.date || obj.report_date || '');
@@ -746,7 +747,7 @@ export default function BodyScreen({ navigation, route }) {
       } finally { savingRef.current = false; }
       return;
     }
-    updateBiomarker(mEdit.id, { marker: mName.trim(), value, unit: mUnit.trim(), report_date: mDate });
+    updateBiomarker(mEdit.id, { marker: markerToSave(mName, mEdit.marker, language), value, unit: mUnit.trim(), report_date: mDate });
     requestSync();
     setMEdit(null);
     fetchReports();
@@ -757,7 +758,7 @@ export default function BodyScreen({ navigation, route }) {
   function askDeleteValue() {
     if (!mEdit) return;
     const id = mEdit.id;
-    const copy = deleteValueCopy(t, mEdit.marker, formatDate(mEdit.date || mEdit.report_date));
+    const copy = deleteValueCopy(t, markerLabel(mEdit.marker, language), formatDate(mEdit.date || mEdit.report_date));
     setValueSheet({
       title: copy.title,
       body: copy.body,
@@ -915,13 +916,14 @@ export default function BodyScreen({ navigation, route }) {
       await removeExportFiles(FileSystem);
 
       if (kind === 'csv') {
-        const csv = buildRecordsCSV(data, { labels, ...selection });
+        const csv = buildRecordsCSV(data, { labels, language, ...selection });
         uri = sharedFilePath(FileSystem, RECORDS_CSV_NAME);
         await FileSystem.writeAsStringAsync(uri, csv);
         mime = 'text/csv';
       } else {
         const html = buildRecordsHTML(data, {
           labels,
+          language,
           title: t('export_title'),
           exportedOn: `${t('export_exported_prefix')} ${dateStr}`,
           disclaimer: t('export_disclaimer'),
@@ -1133,7 +1135,7 @@ export default function BodyScreen({ navigation, route }) {
         <View style={s.list}>
           {reportDetail.markers.map((m, j) => (
             <TouchableOpacity key={m.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(m)}>
-              <Text style={[s.body, s.grow]}>{m.marker}</Text>
+              <Text style={[s.body, s.grow]}>{markerLabel(m.marker, language)}</Text>
               <Text style={s.value}>{decimalText(m.value, language)}{'\u00A0'}{m.unit}</Text>
               <PenGlyph color={colors.ink3} />
             </TouchableOpacity>
@@ -1165,7 +1167,7 @@ export default function BodyScreen({ navigation, route }) {
           {withStar ? (
             /* Book right page: no nav row, so the favorite star sits beside the title. */
             <View style={s.titleRow}>
-              <Text style={[s.screenTitle, s.grow]} accessibilityRole="header">{markerDetail.marker}</Text>
+              <Text style={[s.screenTitle, s.grow]} accessibilityRole="header">{markerLabel(markerDetail.marker, language)}</Text>
               <TouchableOpacity
                 style={s.starBtnLg}
                 onPress={() => toggleFavorite(markerDetail.marker)}
@@ -1177,7 +1179,7 @@ export default function BodyScreen({ navigation, route }) {
               </TouchableOpacity>
             </View>
           ) : (
-            <Text style={s.screenTitle}>{markerDetail.marker}</Text>
+            <Text style={s.screenTitle}>{markerLabel(markerDetail.marker, language)}</Text>
           )}
         </View>
 
@@ -1364,7 +1366,7 @@ export default function BodyScreen({ navigation, route }) {
                       <StarGlyph color={mk.isFav ? colors.ink : colors.ink3} filled={mk.isFav} size={20} />
                     </TouchableOpacity>
                     <View style={[s.grow, s.col2]}>
-                      <Text style={s.head}>{mk.marker}</Text>
+                      <Text style={s.head}>{markerLabel(mk.marker, language)}</Text>
                       <Text style={[s.foot, s.tnum]}>
                         {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
                       </Text>
