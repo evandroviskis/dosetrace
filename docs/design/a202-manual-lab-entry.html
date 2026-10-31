@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A-202 Digitar exames</title>
+<style>
+  /* ---------- the page (not the app) ---------- */
+  :root { --page:#F4F5F2; --fg:#111315; --muted:#53585D; --pcard:#FFFFFF; --pline:#D3D6D0; --mark:#2350D8; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page:#0B0C0D; --fg:#EEEFEB; --muted:#9A9F9A; --pcard:#17191B; --pline:#2A2E32; --mark:#8AA8FF; } }
+  :root[data-theme="dark"] { --page:#0B0C0D; --fg:#EEEFEB; --muted:#9A9F9A; --pcard:#17191B; --pline:#2A2E32; --mark:#8AA8FF; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px 16px 56px; background:var(--page); color:var(--fg); font:14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width:1260px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  .lead { color:var(--muted); max-width:82ch; margin:0 0 14px; }
+  h2 { font-size:18px; margin:40px 0 4px; }
+  h3 { font-size:13px; margin:18px 0 10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .sub { color:var(--muted); max-width:82ch; margin:0 0 6px; }
+  .box { background:var(--pcard); border:1px solid var(--pline); border-radius:16px; padding:14px 16px; margin:14px 0; max-width:900px; }
+  .box h4 { margin:0 0 6px; font-size:15px; }
+  .box ul, .box ol { margin:4px 0; padding-left:20px; }
+  .box li { margin:4px 0; }
+  .row { display:flex; gap:22px; flex-wrap:wrap; align-items:flex-start; }
+  .col { width:290px; min-width:0; }
+  .cap { font-weight:700; margin:0 0 4px; }
+  .note { color:var(--muted); font-size:12.5px; margin:0 0 8px; min-height:56px; }
+  .en { color:var(--muted); font-size:12px; margin:8px 0 0; }
+  .en b { color:var(--fg); font-weight:600; }
+  .rec { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; background:var(--mark); color:var(--page); border-radius:8px; padding:2px 8px; margin-left:8px; vertical-align:3px; }
+  .legend { display:inline-block; width:34px; height:16px; border:2px dashed var(--mark); border-radius:6px; vertical-align:-3px; margin-right:6px; }
+  table { border-collapse:collapse; width:100%; max-width:1100px; font-size:13px; }
+  th, td { text-align:left; vertical-align:top; padding:7px 10px; border-bottom:1px solid var(--pline); }
+  th { color:var(--muted); font-weight:600; }
+  td.k { color:var(--muted); white-space:nowrap; }
+  code { font-size:12px; }
+
+  /* ---------- the phone: app tokens from lib/theme.js, nothing else ---------- */
+  .t-light { --ground:#DDE0DB; --raised:#FFFFFF; --well:#EEF0EC; --line:#C3C7C0; --tick:#71766F; --ink:#111315; --ink2:#454A4F; --ink3:#53585D; --onInk:#FFFFFF; --data:#2350D8; --act:#111315; --onAct:#FFFFFF; --risk:#9E1F19; --attention:#7E4A00; --segOn:#FFFFFF; --segOnLine:#C3C7C0; --scrim:rgba(0,0,0,0.45); --hl:#2350D8;
+             /* the system keyboard (iOS), drawn only to show where the sheet sits: not an app colour */
+             --kbd:#D1D3D9; --key:#FFFFFF; --key2:#ABAFB8; }
+  .t-dark  { --ground:#121416; --raised:#282B30; --well:#1D2024; --line:#3C4147; --tick:#747A7F; --ink:#EEEFEB; --ink2:#B5B9B4; --ink3:#9A9F9A; --onInk:#121416; --data:#8AA8FF; --act:#EEEFEB; --onAct:#121416; --risk:#F08A80; --attention:#E3A54E; --segOn:#4A4F56; --segOnLine:#5E646B; --scrim:rgba(0,0,0,0.45); --hl:#8AA8FF;
+             --kbd:#2B2B2D; --key:#5B5B5F; --key2:#3F3F42; }
+  .ph { position:relative; width:290px; height:629px; border-radius:36px; overflow:hidden; border:1px solid var(--pline); flex:none; background:var(--ground); }
+  /* drawn at the real 393 x 852 pt size and scaled to 290 px wide */
+  .scr { position:absolute; left:0; top:0; width:393px; height:852px; transform:scale(.738); transform-origin:0 0; overflow:hidden; background:var(--ground); color:var(--ink);
+         font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Roboto, Arial, sans-serif; font-size:17px; line-height:22px; -webkit-font-smoothing:antialiased; }
+  .scr svg { display:block; flex:none; }
+  .sb { height:54px; display:flex; align-items:center; padding:6px 34px 0 46px; font-weight:600; font-size:17px; }
+  .nav { display:flex; align-items:center; justify-content:space-between; min-height:44px; padding:6px 18px 0; margin-bottom:14px; gap:10px; }
+  .back { display:flex; align-items:center; gap:4px; font-size:17px; white-space:nowrap; }
+  .hact { display:flex; align-items:center; gap:12px; }
+  .add { min-height:40px; border-radius:20px; background:var(--act); color:var(--onAct); padding:0 16px; display:flex; align-items:center; font-size:15px; font-weight:700; white-space:nowrap; }
+  .add.o { background:var(--well); color:var(--ink); }
+  .txt { display:flex; align-items:center; gap:5px; font-size:17px; white-space:nowrap; }
+  .rnd { width:40px; height:40px; border-radius:20px; background:var(--well); display:grid; place-items:center; }
+  .body { padding:0 16px; display:flex; flex-direction:column; gap:14px; }
+  .tb { padding:0 4px; display:flex; flex-direction:column; gap:4px; }
+  .h1 { font-size:30px; line-height:36px; font-weight:700; letter-spacing:-.75px; }
+  .sec { font-size:15px; line-height:20px; color:var(--ink2); }
+  .foot { font-size:13px; line-height:18px; color:var(--ink2); }
+  .px { padding:0 4px; }
+  .tnum { font-variant-numeric:tabular-nums; }
+  .card { background:var(--raised); border-radius:24px; padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .card.empty { align-items:center; text-align:center; padding-top:28px; }
+  .ttl { font-size:22px; line-height:28px; font-weight:700; letter-spacing:-.2px; }
+  .head { font-size:17px; line-height:22px; font-weight:600; }
+  .btnP, .btnO { min-height:52px; border-radius:26px; display:flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; font-size:17px; font-weight:700; text-align:center; align-self:stretch; }
+  .btnP { background:var(--act); color:var(--onAct); }
+  .btnO { background:var(--well); color:var(--ink); }
+  .sm { min-height:40px; border-radius:20px; font-size:15px; align-self:flex-start; }
+  .acts { display:flex; gap:10px; }
+  .acts > * { flex:1; }
+  .bul { display:flex; gap:10px; align-items:baseline; font-size:15px; line-height:20px; color:var(--ink2); }
+  .bul i { width:6px; height:6px; border-radius:3px; background:var(--ink3); flex:none; transform:translateY(-2px); }
+  .seg { display:flex; background:var(--well); border-radius:12px; padding:3px; }
+  .seg span { flex:1; text-align:center; font-size:15px; font-weight:600; padding:7px 0; border-radius:9px; color:var(--ink2); border:1px solid transparent; }
+  .seg .on { background:var(--segOn); border-color:var(--segOnLine); color:var(--ink); }
+  .srch { display:flex; gap:8px; }
+  .srch .in { flex:1; display:flex; align-items:center; gap:8px; min-height:44px; border:1px solid var(--line); border-radius:14px; padding:0 12px; background:var(--raised); color:var(--ink3); font-size:17px; }
+  .pill { min-height:44px; padding:0 14px; border-radius:22px; border:1px solid var(--line); display:flex; align-items:center; font-size:13px; }
+  .rep { flex-direction:row; align-items:center; }
+  .rep .c { flex:1; display:flex; flex-direction:column; gap:6px; }
+  .list { background:var(--raised); border-radius:22px; padding:0 16px; }
+  .li { display:flex; align-items:center; gap:12px; min-height:56px; }
+  .li + .li { border-top:1px solid var(--line); }
+  .li .n { flex:1; }
+  .val { font-family:"SF Mono", ui-monospace, Menlo, monospace; font-size:15px; font-weight:500; }
+  .danger { text-align:center; color:var(--risk); font-weight:700; font-size:17px; padding:12px 0; }
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:84px; border-top:.5px solid var(--line); background:var(--ground); display:flex; padding-top:8px; z-index:3; }
+  .tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; line-height:13px; font-weight:600; color:var(--ink3); }
+  .tab.on { color:var(--ink); }
+  .tab i { width:24px; height:24px; border-radius:7px; border:1.8px solid currentColor; }
+  .hl { outline:3px dashed var(--hl); outline-offset:4px; border-radius:16px; }
+  .ag .hl { outline-offset:-5px; border-radius:14px; }
+  /* sheets */
+  .scrim { position:absolute; inset:0; background:var(--scrim); z-index:5; }
+  .bs { position:absolute; left:8px; right:8px; bottom:30px; background:var(--raised); border-radius:26px; padding:20px; display:flex; flex-direction:column; gap:14px; max-height:88%; overflow:hidden; z-index:6; }
+  .bs.kb { bottom:308px; max-height:none; top:62px; }
+  .bs.top { bottom:auto; top:62px; }
+  .sbar { display:flex; align-items:center; gap:8px; min-height:44px; flex:none; }
+  .sbar .c { min-width:64px; font-size:17px; }
+  .sbar .t { flex:1; text-align:center; font-size:17px; font-weight:600; }
+  .sbar .a { min-width:64px; text-align:right; font-size:17px; font-weight:600; }
+  .sbar .a.off { color:var(--ink3); font-weight:400; }
+  .fld { display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .lblrow { display:flex; align-items:center; justify-content:space-between; }
+  .lbl { font-size:13px; line-height:18px; color:var(--ink2); padding:0 4px; }
+  .inp { background:var(--raised); border:1px solid var(--line); border-radius:14px; min-height:50px; padding:0 14px; display:flex; align-items:center; font-size:17px; white-space:nowrap; overflow:hidden; }
+  .inp.plh { color:var(--ink3); }
+  .inp.focus { border:2px solid var(--ink); padding:0 13px; }
+  .inp .mono, .mono { font-family:"SF Mono", ui-monospace, Menlo, monospace; font-weight:500; }
+  .grid { display:flex; gap:12px; }
+  .grid > .fld { flex:1; }
+  .dbtn { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 14px; border-radius:14px; background:var(--well); }
+  .dfix { min-height:48px; display:flex; align-items:center; padding:0 14px; border-radius:14px; border:1px solid var(--line); color:var(--ink); }
+  .sep { border-top:1px solid var(--line); }
+  .xbtn { width:32px; height:32px; border-radius:16px; background:var(--well); display:grid; place-items:center; }
+  .sugg { border:1px solid var(--line); border-radius:14px; background:var(--raised); overflow:hidden; }
+  .sugg .h { padding:10px 14px 4px; font-size:13px; line-height:18px; color:var(--ink2); }
+  .sugg .o { min-height:48px; display:flex; align-items:center; padding:0 14px; border-top:1px solid var(--line); font-size:17px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .chip { min-height:36px; padding:0 14px; border-radius:18px; background:var(--well); display:flex; align-items:center; font-size:15px; font-weight:600; }
+  .caret { display:inline-block; width:2px; height:22px; background:var(--data); margin-left:1px; }
+  .cut { color:var(--ink3); font-size:13px; text-align:center; }
+  .aw { position:absolute; left:8px; right:8px; bottom:30px; display:flex; flex-direction:column; gap:8px; z-index:6; }
+  .ag { background:var(--raised); border-radius:18px; overflow:hidden; }
+  .ahd { padding:14px 18px; text-align:center; display:flex; flex-direction:column; gap:2px; }
+  .ahd b { font-size:13px; line-height:18px; font-weight:600; }
+  .ahd span { font-size:13px; line-height:18px; color:var(--ink2); }
+  .ao { min-height:56px; display:flex; align-items:center; justify-content:center; font-size:19px; border-top:1px solid var(--line); }
+  .ao.cancel { font-weight:700; border-top:0; }
+  .cs { position:absolute; left:16px; right:16px; top:50%; transform:translateY(-50%); background:var(--raised); border-radius:26px; padding:20px; display:flex; flex-direction:column; gap:14px; z-index:9; }
+  .cs .t { font-size:22px; line-height:28px; font-weight:700; }
+  .cs .b { font-size:17px; line-height:22px; color:var(--ink2); }
+  .cbtn { flex:1; min-height:44px; border-radius:26px; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; }
+  .cbtn.s { background:var(--well); color:var(--ink); }
+  .cbtn.d { background:var(--risk); color:var(--onInk); }
+  .scrim2 { position:absolute; inset:0; background:var(--scrim); z-index:8; }
+  .pk { position:absolute; left:8px; right:8px; bottom:30px; background:var(--raised); border-radius:26px; padding:20px; display:flex; flex-direction:column; gap:10px; z-index:9; }
+  .pk .bar { display:flex; justify-content:space-between; align-items:center; min-height:44px; font-size:17px; font-weight:600; }
+  .wheel { position:relative; display:flex; gap:4px; height:208px; }
+  .wband { position:absolute; left:0; right:0; top:84px; height:40px; border-radius:10px; background:var(--well); }
+  .wcol { flex:1; position:relative; }
+  .wrow { height:40px; display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--ink3); }
+  .wrow.on { font-size:21px; font-weight:600; color:var(--ink); }
+  .kbd { position:absolute; left:0; right:0; bottom:0; height:300px; background:var(--kbd); padding:10px 4px 0; display:flex; flex-direction:column; gap:12px; z-index:7; }
+  .kr { display:flex; gap:6px; justify-content:center; }
+  .kr span { width:33px; height:42px; border-radius:6px; background:var(--key); }
+  .kr span.w { width:48px; background:var(--key2); }
+  .kr span.sp { width:190px; }
+  .kr span.rt { width:92px; background:var(--key2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>A-202 — Digitar valores de exames à mão</h1>
+<p class="lead">Hoje o Diário de exames só recebe valores pela leitura por IA (botão "+ Enviar"). O próprio app já promete o contrário: a animação gratuita diz "Digite os valores de qualquer laudo e guarde-os juntos por data" e o aviso de limite diz "Você ainda pode inserir tudo à mão". Aprovado em 2026-09-30 ("o diário de exames digitado à mão é grátis; os gráficos são Premium", <code>docs/decisions.md:268</code>), fechado como AD-68 ("aprovado → próximo build, desenho primeiro") e DV-107. Esta página mostra o app hoje, o que o protótipo tem, três lugares possíveis para a entrada e a janela de digitação, nos temas claro e escuro.</p>
+<p class="sub"><span class="legend"></span>A linha tracejada azul marca o que muda em relação ao app de hoje.</p>
+
+<div class="box">
+  <h4>Já decidido — aplicado aqui, sem pergunta</h4>
+  <ul>
+    <li><b>Grátis para todos</b>, sem cadeado nem contagem: digitar não usa leitura de IA (decisions.md:268). O cartão "Leitura de exames — recurso Premium" continua igual para quem é grátis.</li>
+    <li><b>Nada de interpretação</b>: sem faixa de referência, sem "alto/baixo", sem cor por valor. O valor aparece exatamente como foi digitado (regra de produto e linha dura da IA, CLAUDE.md).</li>
+    <li><b>Data do exame</b> com a mesma roda de datas do "Editar valor" e do "Mudar a data deste exame": começa em hoje, vai até 30 anos atrás, nunca uma data futura (AD-100).</li>
+    <li><b>Vírgula decimal aceita</b>: o valor é lido como no "Editar valor" (<code>parseMeasure</code>), "47,6" = 47,6. Só números: o campo valor do banco é numérico, igual à leitura por IA.</li>
+    <li><b>Um "Salvar" = um exame</b>: todos os valores da janela entram com a mesma data e formam um único cartão no diário, como uma leitura por IA (<code>lib/labReports.js</code>: um lote = um cartão).</li>
+    <li><b>Digitar não pede a permissão de IA</b>: nada sai do aparelho para a IA. A permissão continua sendo pedida antes de qualquer foto ou PDF ser enviado (Apple 5.1.1).</li>
+    <li><b>Nunca perder o que foi digitado</b>: fechar a janela com valores preenchidos pergunta antes ("Descartar estes valores?"), como no assistente de protocolo.</li>
+    <li><b>A animação gratuita</b> ("Todos os seus valores de exames em um só lugar"): o botão "Experimentar" passa a abrir a janela de digitação, que é o que a animação mostra.</li>
+    <li><b>Fold</b>: o mesmo botão e a mesma janela na página da direita (o livro já usa o mesmo cabeçalho do diário).</li>
+  </ul>
+</div>
+
+<div id="out"></div>
+
+<h2>Textos propostos (português formal, com o inglês correspondente)</h2>
+<p class="sub">Os demais idiomas (es, fr, de, it) serão escritos de forma natural a partir do contexto de cada tela, não traduzidos palavra por palavra.</p>
+<table id="strings"></table>
+
+<div class="box" style="margin-top:26px">
+  <h4>Notas para a construção (não são perguntas)</h4>
+  <ul>
+    <li><b>"Adicionar valor" dentro de um exame</b> grava os valores com o carimbo do próprio exame, para que entrem no mesmo cartão e não criem um segundo cartão na mesma data.</li>
+    <li><b>Linhas vazias são ignoradas</b>. Uma linha com marcador e sem número (ou o contrário) mostra o aviso que já existe, "Insira um nome de marcador e um valor numérico.", e nada é perdido.</li>
+    <li><b>Valores como "&lt;0,5" ou "Negativo"</b> não podem ser guardados hoje (a coluna é numérica; a leitura por IA também os descarta). Fica como item novo no registro, fora deste build.</li>
+    <li><b>Origem "manual"</b>: DV-107 cita uma coluna <code>source</code> que a tabela <code>biomarkers</code> não tem. Nada nestas telas depende dela; adicioná-la seria uma migração (aparelho + nuvem). Decidir na construção.</li>
+    <li><b>MB-13</b> retirou "ou insira os valores à mão" do aviso "Serviço de leitura indisponível" porque não era possível digitar exames. Com o A-202 isso deixa de ser verdade: fato novo, vai ao registro, fora deste build.</li>
+  </ul>
+</div>
+</div>
+
+<script>
+(function () {
+  // ---------- icons (the app's monoline set, approximated) ----------
+  function svg(p, s, sw) { return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 1.8) + '" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
+  var I = {
+    chevL: '<path d="M15 5l-7 7 7 7"/>', chevR: '<path d="M9 5l7 7-7 7"/>',
+    drop: '<path d="M12 3.5c3 4 6 7.6 6 11a6 6 0 0 1-12 0c0-3.4 3-7 6-11z"/>',
+    cal: '<rect x="4" y="5.5" width="16" height="14" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+    x: '<path d="M7 7l10 10M17 7L7 17"/>',
+    frame: '<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M12 8c1.5 2 3 3.6 3 5.2a3 3 0 0 1-6 0C9 11.6 10.5 10 12 8z"/>',
+    up: '<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"/>',
+    pen: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>'
+  };
+  function ic(n, s, st) { return '<span style="display:flex;' + (st || '') + '">' + svg(I[n], s) + '</span>'; }
+  function H(cls) { return cls ? ' hl' : ''; }
+
+  // ---------- shared pieces ----------
+  var SB = '<div class="sb">9:41</div>';
+  function tabs(l) { return '<div class="tabbar">' + l.map(function (l, i) { return '<div class="tab' + (i === 3 ? ' on' : '') + '"><i></i>' + l + '</div>'; }).join('') + '</div>'; }
+  var TABS = tabs(['Hoje', 'Protocolos', 'Evolução', 'Meu corpo', 'Ajustes']);
+  var TABS_EN = tabs(['Today', 'Protocols', 'Journey', 'My Body', 'Settings']);
+  var EXPORT_EN = '<div class="txt">' + ic('up', 16) + 'Export</div>';
+  function nav(right, back) { return '<div class="nav"><div class="back">' + ic('chevL', 22) + (back || 'Meu corpo') + '</div><div class="hact">' + (right || '') + '</div></div>'; }
+  var EXPORT = '<div class="txt">' + ic('up', 16) + 'Exportar</div>';
+  var USE_FREE = '<div class="sec tnum">0 de 3 leituras usadas este mês (exames, vacinas e frascos) · renovam em 1º de nov.</div>';
+  var USE_PREM = '<div class="sec tnum">5 leituras usadas este mês (exames, vacinas e frascos)</div>';
+  function titleBlock(use) { return '<div class="tb"><div class="h1">Diário de exames</div>' + use + '</div>'; }
+  var PREM = '<div class="card"><div class="head">Leitura de exames — recurso Premium</div><div class="sec">3 leituras grátis por mês (somando exames, carteiras de vacinação e frascos) · Mais com Premium</div><div class="btnP sm">Assinar</div></div>';
+  var TIPS = '<div class="card"><div class="head">O que conseguimos ler</div>' + ['Exames de laboratórios e clínicas particulares', 'Hormônios — Testosterona, Estradiol, IGF-1, DHEA', 'Metabólico — HbA1c, glicose, insulina, lipídios'].map(function (x) { return '<div class="bul"><i></i>' + x + '</div>'; }).join('') + '</div>';
+  var SUB_TODAY = 'Envie seu exame de sangue em PDF e extraímos automaticamente todos os valores dos seus biomarcadores. Você tem 3 leituras grátis por mês (somando exames, carteiras de vacinação e frascos).';
+  var SUB_NEW = 'Digite os valores do seu laudo ou envie uma foto ou um PDF para a IA ler. Você tem 3 leituras grátis por mês (somando exames, carteiras de vacinação e frascos).';
+  function empty(title, sub, btns, mark) {
+    return '<div class="card empty">' + ic('drop', 44, 'color:var(--ink3)') + '<div class="ttl' + H(mark) + '">' + title + '</div><div class="sec' + H(mark) + '">' + sub + '</div>' + (btns || '') + '</div>';
+  }
+  var JOURNAL = '<div class="foot px">Você inseriu estes dados. O DoseTrace os organiza e exibe em gráficos — nunca interpreta seus resultados. Para qualquer dúvida médica, consulte um profissional qualificado.</div>' +
+    '<div class="seg"><span class="on">Por data</span><span>Por marcador</span></div>' +
+    '<div class="srch"><div class="in">' + ic('search', 18) + 'Buscar marcadores…</div><div class="pill">Recentes</div></div>' +
+    rep('20 de agosto de 2026', '14 marcadores') + rep('2 de março de 2026', '6 marcadores') + rep('11 de novembro de 2025', '9 marcadores');
+  function rep(d, n, mark) { return '<div class="card rep' + H(mark) + '"><div class="c"><div class="ttl" style="font-size:20px;line-height:25px">' + d + '</div><div class="sec tnum">' + n + '</div></div>' + ic('chevR', 20, 'color:var(--tick)') + '</div>'; }
+  function screen(inner, overlay, noTabs, en) { return SB + inner + (noTabs ? '' : (en ? TABS_EN : TABS)) + (overlay || ''); }
+  function phone(theme, html) { return '<div class="ph ' + theme + '"><div class="scr">' + html + '</div></div>'; }
+  var KBD = '<div class="kbd">' + [10, 9, 7].map(function (n, r) { var k = ''; if (r === 2) k += '<span class="w"></span>'; for (var i = 0; i < n; i++) k += '<span></span>'; if (r === 2) k += '<span class="w"></span>'; return '<div class="kr">' + k + '</div>'; }).join('') + '<div class="kr"><span class="w"></span><span class="w"></span><span class="sp"></span><span class="rt"></span></div></div>';
+
+  // ---------- the entry sheet ----------
+  function sbar(save, mark) { return '<div class="sbar' + H(mark) + '"><div class="c">Cancelar</div><div class="t">Digitar valores</div><div class="a' + (save ? '' : ' off') + '">Salvar</div></div>'; }
+  function dateFld(d, mark) { return '<div class="fld' + H(mark) + '"><div class="lbl">Data do exame</div><div class="dbtn"><span class="tnum">' + d + '</span>' + ic('cal', 20, 'color:var(--ink2)') + '</div><div class="foot px">Todos os valores abaixo ficam neste exame.</div></div>'; }
+  function inp(v, o) { o = o || {}; var cls = 'inp' + (v ? '' : ' plh') + (o.focus ? ' focus' : ''); var txt = v || o.ph || ''; return '<div class="' + cls + '"><span class="' + (o.mono && v ? 'mono' : '') + '">' + txt + '</span>' + (o.focus ? '<span class="caret"></span>' : '') + '</div>'; }
+  function line(m, v, u, o) {
+    o = o || {};
+    var h = '<div class="fld"><div class="lblrow"><div class="lbl">Marcador</div>' + (o.rm ? '<div class="xbtn" aria-label="Remover este valor">' + svg(I.x, 16) + '</div>' : '') + '</div>' + inp(m, { ph: 'Ex.: Vitamina D', focus: o.fm }) + '</div>';
+    if (o.sugg) h += o.sugg;
+    else h += '<div class="grid"><div class="fld"><div class="lbl">Valor</div>' + inp(v, { ph: 'Ex.: 24,5', mono: 1, focus: o.fv }) + '</div><div class="fld"><div class="lbl">Unidade</div>' + inp(u, { ph: 'Ex.: ng/mL', focus: o.fu }) + '</div></div>';
+    if (o.units) h += o.units;
+    return '<div style="display:flex;flex-direction:column;gap:12px">' + h + '</div>';
+  }
+  var ADD_ANOTHER = function (mark) { return '<div class="btnO' + H(mark) + '">+ Adicionar outro valor</div>'; };
+  function entryBlank(mark) {
+    return '<div class="bs">' + sbar(false, mark) + dateFld('31 de outubro de 2026', mark) + '<div class="sep"></div>' + line('', '', '') + ADD_ANOTHER(mark) + '</div>';
+  }
+
+  // the journal behind sheets (dimmed)
+  var BEHIND_EMPTY_B = nav('<div class="add">+ Adicionar</div>') + '<div class="body">' + titleBlock(USE_FREE) + PREM + '</div>';
+
+  // ---------- figures ----------
+  var S = [];
+  S.push({ h: '1 · App hoje', sub: 'O único caminho é a leitura por IA. O estado vazio diz "Nenhum exame enviado ainda" e só oferece enviar.', figs: [
+    { cap: 'Diário vazio (plano grátis)', note: 'Cabeçalho "+ Enviar"; o cartão vazio só oferece "Enviar exame de sangue".',
+      b: function () { return screen(nav('<div class="add">+ Enviar</div>') + '<div class="body">' + titleBlock(USE_FREE) + PREM + empty('Nenhum exame enviado ainda', SUB_TODAY, '<div class="btnP">Enviar exame de sangue</div>') + TIPS + '</div>'); } },
+    { cap: 'Diário com exames (Premium)', note: '"Exportar" e "+ Enviar" no topo. Não existe outro jeito de adicionar um valor.',
+      b: function () { return screen(nav(EXPORT + '<div class="add">+ Enviar</div>') + '<div class="body">' + titleBlock(USE_PREM) + JOURNAL + '</div>'); } },
+    { cap: '"+ Enviar" → "Adicionar um exame"', note: 'Depois da permissão de IA: foto, imagem ou PDF. Nenhuma opção para digitar.',
+      b: function () { return screen(nav(EXPORT + '<div class="add">+ Enviar</div>') + '<div class="body">' + titleBlock(USE_PREM) + JOURNAL + '</div>', '<div class="scrim"></div><div class="aw"><div class="ag"><div class="ahd"><b>Adicionar um exame</b><span>Tire uma foto, escolha uma imagem ou um PDF — qualquer laboratório, qualquer idioma.</span></div><div class="ao">Tirar uma foto</div><div class="ao">Escolher uma foto</div><div class="ao">Arquivo PDF</div></div><div class="ag ao cancel">Cancelar</div></div>'); } }
+  ]});
+  S.push({ h: '2 · Protótipo aprovado ("Sam Carter")', sub: 'O protótipo não tem tela para digitar valores de exame. O mais próximo são a janela "Edit value" (corrigir um valor lido) e a animação gratuita do diário digitado (Marker / Value / Date / Save). A proposta reaproveita os campos e o estilo do "Edit value". O protótipo está em inglês.', figs: [
+    { cap: 'Protótipo: diário vazio', note: '"No bloodwork yet" e "Upload lab report"; nada sobre digitar.',
+      b: function () { return screen(nav('<div class="add">+ Upload</div>', 'My Body') + '<div class="body"><div class="tb"><div class="h1">Lab test journal</div></div><div class="card"><div class="head">Bloodwork scan — Premium feature</div><div class="sec">First scan free · 20 scans a month with Premium</div><div class="btnP sm">Upgrade</div></div>' + empty('No bloodwork yet', 'Upload a PDF lab report and we\'ll automatically extract all your biomarker values. Your first upload is free.', '<div class="btnP">Upload lab report</div>') + '</div>', '', false, true); } },
+    { cap: 'Protótipo: "Edit value"', note: 'Marker; Value + Unit lado a lado; Test date com calendário. É a base da janela proposta.',
+      b: function () { return screen(nav(EXPORT_EN + '<div class="add">+ Upload</div>', 'My Body') + '<div class="body"><div class="tb"><div class="h1">Lab test journal</div></div>' + rep('August 20, 2026', '14 markers') + '</div>', '<div class="scrim"></div><div class="bs"><div class="sbar"><div class="c">Cancel</div><div class="t">Edit value</div><div class="a">Save</div></div><div class="fld"><div class="lbl">Marker</div>' + inp('Hematocrit') + '</div><div class="grid"><div class="fld"><div class="lbl">Value</div>' + inp('47.6', { mono: 1 }) + '</div><div class="fld"><div class="lbl">Unit</div>' + inp('%') + '</div></div><div class="fld"><div class="lbl">Test date</div><div class="dbtn"><span>August 20, 2026</span>' + ic('cal', 20, 'color:var(--ink2)') + '</div></div><div class="danger">Delete this value</div></div>', false, true); } }
+  ]});
+  S.push({ h: '3 · Opção A — dois botões no topo', sub: '"+ Digitar" ao lado de "+ Enviar". O estado vazio ganha dois botões. Em português (e alemão) o cabeçalho não cabe com "Exportar" escrito: ele vira só o ícone, o que muda o cabeçalho aprovado (MB-7).', figs: [
+    { cap: 'A · Diário vazio', note: 'Dois botões no cartão vazio; título e texto novos.',
+      b: function () { return screen(nav('<div class="add o hl">+ Digitar</div><div class="add">+ Enviar</div>') + '<div class="body">' + titleBlock(USE_FREE) + PREM + empty('Nenhum exame ainda', SUB_NEW, '<div class="btnP hl">Digitar os valores</div><div class="btnO">Enviar exame de sangue</div>', 1) + '</div>'); } },
+    { cap: 'A · Diário com exames', note: 'Três itens no topo; "Exportar" vira ícone para caber.',
+      b: function () { return screen(nav('<div class="rnd hl">' + svg(I.up, 18) + '</div><div class="add o hl">+ Digitar</div><div class="add">+ Enviar</div>') + '<div class="body">' + titleBlock(USE_PREM) + JOURNAL + '</div>'); } }
+  ]});
+  S.push({ h: '4 · Opção B — um botão, uma escolha', rec: true, sub: 'O botão do topo passa de "+ Enviar" para "+ Adicionar" e abre a escolha que já existe ("Adicionar um exame"), agora com "Digitar os valores" na primeira linha. A permissão de IA só aparece depois de escolher foto ou PDF, e ainda antes de qualquer envio.', figs: [
+    { cap: 'B · Diário vazio', note: 'Título e texto novos; o botão do cartão abre a mesma escolha.',
+      b: function () { return screen(nav('<div class="add hl">+ Adicionar</div>') + '<div class="body">' + titleBlock(USE_FREE) + PREM + empty('Nenhum exame ainda', SUB_NEW, '<div class="btnP hl">Adicionar exame</div>', 1) + TIPS + '</div>'); } },
+    { cap: 'B · Diário com exames', note: 'O cabeçalho aprovado fica igual; só a palavra do botão muda.',
+      b: function () { return screen(nav(EXPORT + '<div class="add hl">+ Adicionar</div>') + '<div class="body">' + titleBlock(USE_PREM) + JOURNAL + '</div>'); } },
+    { cap: 'B · "+ Adicionar" → a escolha', note: '"Digitar os valores" primeiro. Foto, imagem e PDF seguem como hoje (permissão de IA na primeira vez).',
+      b: function () { return screen(nav(EXPORT + '<div class="add">+ Adicionar</div>') + '<div class="body">' + titleBlock(USE_PREM) + JOURNAL + '</div>', '<div class="scrim"></div><div class="aw"><div class="ag"><div class="ahd hl"><b>Adicionar um exame</b><span>Digite os valores do laudo ou deixe a IA ler uma foto ou um PDF — qualquer laboratório, qualquer idioma.</span></div><div class="ao hl" style="font-weight:600">Digitar os valores</div><div class="ao">Tirar uma foto</div><div class="ao">Escolher uma foto</div><div class="ao">Arquivo PDF</div></div><div class="ag ao cancel">Cancelar</div></div>'); } }
+  ]});
+  S.push({ h: '5 · Opção C — como o Diário de vacinas', sub: 'Igual ao Diário de vacinas aprovado (MB-20): dois botões grandes sob o título, "+ Adicionar valores" e "Escanear / enviar". O "+ Enviar" sai do topo (muda MB-7) e o cartão vazio perde o próprio botão (muda MB-9).', figs: [
+    { cap: 'C · Diário vazio', note: 'Os dois botões ficam acima de tudo; o cartão vazio só explica.',
+      b: function () { return screen(nav('') + '<div class="body">' + titleBlock(USE_FREE) + '<div class="acts hl"><div class="btnP">+ Adicionar valores</div><div class="btnO">' + svg(I.frame, 18) + 'Escanear / enviar</div></div>' + PREM + empty('Nenhum exame ainda', 'Digite os valores do seu laudo ou escaneie uma foto ou um PDF. Você tem 3 leituras grátis por mês (somando exames, carteiras de vacinação e frascos).', '', 1) + '</div>'); } },
+    { cap: 'C · Diário com exames', note: 'A linha de botões ocupa cerca de 66 pt em toda visita e empurra a lista.',
+      b: function () { return screen(nav(EXPORT) + '<div class="body">' + titleBlock(USE_PREM) + '<div class="acts hl"><div class="btnP">+ Adicionar valores</div><div class="btnO">' + svg(I.frame, 18) + 'Escanear / enviar</div></div>' + JOURNAL + '</div>'); } }
+  ]});
+
+  var SUGG = '<div class="sugg hl"><div class="h">No seu diário</div><div class="o">Vitamina B12</div><div class="o">Vitamina D</div></div>';
+  var UNITS = '<div class="fld hl"><div class="lbl">Unidades que você já usou para este marcador</div><div class="chips"><span class="chip">pg/mL</span><span class="chip">pmol/L</span></div></div>';
+  S.push({ h: '6 · A janela "Digitar valores" (a mesma nas três opções)', sub: 'Os campos do "Editar valor" do protótipo, repetidos por linha, com a data do exame no topo (um exame = uma data). A barra Cancelar / Salvar fica fixa no topo enquanto a lista rola, para salvar depois de 15 valores sem voltar ao início. A tecla "Próximo" do teclado passa de Marcador para Valor, Unidade e o marcador da linha seguinte.', figs: [
+    { cap: '6.1 · Janela aberta', note: 'Data = hoje. "Salvar" apagado até haver uma linha completa.',
+      b: function () { return screen(BEHIND_EMPTY_B, '<div class="scrim"></div>' + entryBlank(1)); } },
+    { cap: '6.2 · Digitando o marcador', note: 'A lista rolou até a 3ª linha. Sugestões só dos marcadores que já estão no diário da pessoa; tocar preenche, ignorar também funciona.',
+      b: function () { return screen(BEHIND_EMPTY_B, '<div class="scrim"></div><div class="bs kb">' + sbar(true) + line('Vit', '', '', { rm: 1, fm: 1, sugg: SUGG }) + '</div>' + KBD, true); } },
+    { cap: '6.3 · Unidade', note: 'A unidade não é preenchida sozinha: aparecem as que a pessoa já usou para esse marcador; o laudo manda.',
+      b: function () { return screen(BEHIND_EMPTY_B, '<div class="scrim"></div><div class="bs kb">' + sbar(true) + line('Vitamina B12', '412', '', { rm: 1, fu: 1, units: UNITS }) + ADD_ANOTHER(1) + '</div>' + KBD, true); } },
+    { cap: '6.4 · Data do exame', note: 'A roda de datas do app: até 30 anos atrás, nunca depois de hoje.',
+      b: function () {
+        function col(rows, on) { return '<div class="wcol">' + rows.map(function (r, i) { return '<div class="wrow' + (i === on ? ' on' : '') + '">' + r + '</div>'; }).join('') + '</div>'; }
+        return screen(BEHIND_EMPTY_B, '<div class="scrim"></div>' + entryBlank(0) + '<div class="scrim2"></div><div class="pk"><div class="bar"><span>Data do exame</span><span>Concluído</span></div><div class="wheel"><div class="wband"></div>' + col(['12', '13', '14', '15', '16'], 2) + col(['ago.', 'set.', 'out.', '', ''], 2) + col(['2024', '2025', '2026', '', ''], 2) + '</div></div>');
+      } },
+    { cap: '6.5 · Cancelar com valores digitados', note: 'Nunca perder o que foi digitado por um toque fora ou um Cancelar sem querer.',
+      b: function () { return screen(BEHIND_EMPTY_B, '<div class="scrim"></div><div class="bs">' + sbar(true) + dateFld('14 de outubro de 2026') + '<div class="sep"></div>' + line('Vitamina D', '31,5', 'ng/mL') + '</div><div class="scrim2"></div><div class="cs hl"><div class="t">Descartar estes valores?</div><div class="b">O que você inseriu será perdido.</div><div class="acts"><div class="cbtn s">Cancelar</div><div class="cbtn d">Descartar</div></div></div>'); } },
+    { cap: '6.6 · Depois de "Salvar"', note: 'Abre o exame salvo, para conferir o que foi digitado (um exame antigo não cai no topo da lista). Novo: "+ Adicionar valor".',
+      b: function () { return screen(nav('', 'Diário de exames') + '<div class="body"><div class="tb"><div class="h1">14 de outubro de 2026</div><div class="sec tnum">3 marcadores</div></div><div class="card" style="flex-direction:row;align-items:center"><div class="head" style="flex:1">Etiquetas</div><div class="sec">Nenhuma etiqueta</div>' + ic('chevR', 18, 'color:var(--tick)') + '</div><div class="list">' + [['Vitamina D', '31,5', 'ng/mL'], ['Ferritina', '84', 'ng/mL'], ['Vitamina B12', '412', 'pg/mL']].map(function (r) { return '<div class="li"><span class="n">' + r[0] + '</span><span class="val">' + r[1] + '&nbsp;' + r[2] + '</span><span style="color:var(--ink3)">' + svg(I.pen, 16) + '</span></div>'; }).join('') + '</div><div class="btnO hl">+ Adicionar valor</div><div class="btnO">' + svg(I.cal, 18) + 'Mudar a data deste exame</div><div class="danger">Excluir este exame</div></div>'); } },
+    { cap: '6.7 · "+ Adicionar valor" num exame', note: 'A mesma janela, com a data presa ao exame. Serve também para o valor que a IA não leu.',
+      b: function () { return screen(nav('', 'Diário de exames') + '<div class="body"><div class="tb"><div class="h1">20 de agosto de 2026</div><div class="sec tnum">14 marcadores</div></div></div>', '<div class="scrim"></div><div class="bs">' + sbar(false) + '<div class="fld hl"><div class="lbl">Data do exame</div><div class="dfix tnum">20 de agosto de 2026</div><div class="foot px">Os valores entram neste exame. Para mudar a data do exame inteiro, use "Mudar a data deste exame".</div></div><div class="sep"></div>' + line('', '', '') + ADD_ANOTHER() + '</div>'); } }
+  ]});
+
+  // English under each figure (only the strings that are new or changed on that phone)
+  var EN = {
+    '1': ['', '', ''],
+    '2': ['', ''],
+    '3': ['<b>+ Type</b> · <b>No lab tests yet</b> · <b>Type in the values from your report, or send a photo or PDF for AI to read. You get 3 free scans a month (labs, vaccine cards, and vials combined).</b> · <b>Type in the values</b>', 'Export becomes an icon only (accessibility label "Export") · <b>+ Type</b>'],
+    '4': ['<b>+ Add</b> · <b>No lab tests yet</b> · <b>Type in the values from your report, or send a photo or PDF for AI to read. You get 3 free scans a month (labs, vaccine cards, and vials combined).</b> · <b>Add lab test</b>', '<b>+ Add</b>', '"Add a lab report" (kept) · <b>Type in the values from your report, or let AI read a photo or PDF — any lab, any language.</b> · <b>Type in the values</b>'],
+    '5': ['<b>+ Add values</b> · "Scan / upload" (as in the Vaccine journal) · <b>No lab tests yet</b> · <b>Type in the values from your report, or scan a photo or PDF. You get 3 free scans a month (labs, vaccine cards, and vials combined).</b>', '<b>+ Add values</b> · "Scan / upload"'],
+    '6': ['<b>Type in values</b> · "Test date" (kept) · <b>Every value below is saved to this test.</b> · Marker / Value / Unit (kept) · placeholders <b>e.g. Vitamin D</b>, <b>e.g. 24.5</b>, <b>e.g. ng/mL</b> · <b>+ Add another value</b>', '<b>In your journal</b> · remove button label <b>Remove this value</b>', '<b>Units you used for this marker</b>', '"Test date" · "Done" (kept)', '<b>Discard these values?</b> · <b>What you entered will be lost.</b> · Cancel · Discard', '<b>+ Add a value</b>', '<b>These values go into this test. To change the date of the whole test, use "Change this test\'s date".</b>']
+  };
+
+  var out = document.getElementById('out');
+  var html = '';
+  S.forEach(function (sec, si) {
+    html += '<h2>' + sec.h + (sec.rec ? '<span class="rec">Recomendada</span>' : '') + '</h2><p class="sub">' + sec.sub + '</p>';
+    if (sec.rec) html += '<div class="box"><h4>Por que a B</h4>Quem digita normalmente tem um laudo em papel ou PDF com 5 a 20 valores de uma mesma data, e quem é grátis tem só 3 leituras de IA por mês, somando exames, vacinas e frascos. Para essas pessoas, digitar vira o caminho principal, então ele precisa estar na mesma porta da leitura e não escondido. A B coloca as duas formas atrás do único botão que o protótipo aprovado já tem: só a palavra muda ("+ Enviar" → "+ Adicionar"), o cabeçalho cabe em todos os idiomas e a lista não desce. Quem usa a IA dá o mesmo número de toques de hoje: a permissão só muda de lugar, de antes da escolha para depois dela, e continua antes de qualquer envio. Digitar fica a dois toques, sem a permissão de IA, porque nada sai do aparelho. Quem já usou as 3 leituras do mês vê "Digitar os valores" na mesma janela, o que cumpre a promessa "Você ainda pode inserir tudo à mão". A A não cabe no cabeçalho em português sem tirar a palavra "Exportar". A C copia bem o Diário de vacinas, mas muda dois itens aprovados (MB-7 e MB-9) e ocupa espaço em toda visita.</div>';
+    ['t-light', 't-dark'].forEach(function (th) {
+      html += '<h3>' + (th === 't-light' ? 'Tema claro' : 'Tema escuro') + '</h3><div class="row">';
+      sec.figs.forEach(function (f, fi) {
+        var en = (EN[String(si + 1)] || [])[fi];
+        html += '<div class="col"><p class="cap">' + f.cap + '</p><p class="note">' + f.note + '</p>' + phone(th, f.b()) + (th === 't-dark' && en ? '<p class="en">EN: ' + en + '</p>' : (th === 't-dark' ? '<p class="en">EN: sem texto novo.</p>' : '')) + '</div>';
+      });
+      html += '</div>';
+    });
+  });
+  out.innerHTML = html;
+
+  // ---------- the strings table ----------
+  var ST = [
+    ['Botão do topo (B)', '+ Adicionar', '+ Add', 'era "+ Enviar" / "+ Upload"'],
+    ['Escolha (B), linha 1', 'Digitar os valores', 'Type in the values', 'nova'],
+    ['Escolha (B), texto', 'Digite os valores do laudo ou deixe a IA ler uma foto ou um PDF — qualquer laboratório, qualquer idioma.', 'Type in the values from your report, or let AI read a photo or PDF — any lab, any language.', 'substitui blood_upload_choose_sub só no diário de exames'],
+    ['Vazio, título', 'Nenhum exame ainda', 'No lab tests yet', 'era "Nenhum exame enviado ainda"'],
+    ['Vazio, texto (grátis)', 'Digite os valores do seu laudo ou envie uma foto ou um PDF para a IA ler. Você tem 3 leituras grátis por mês (somando exames, carteiras de vacinação e frascos).', 'Type in the values from your report, or send a photo or PDF for AI to read. You get 3 free scans a month (labs, vaccine cards, and vials combined).', 'mantém a frase S-24 das 3 leituras'],
+    ['Vazio, texto (Premium)', 'Digite os valores do seu laudo ou envie uma foto ou um PDF para a IA ler. As leituras de exames, carteiras de vacinação e frascos estão incluídas no Premium.', 'Type in the values from your report, or send a photo or PDF for AI to read. Lab, vaccine card, and vial scans are included with Premium.', 'sem número (AD-69)'],
+    ['Vazio, botão (B)', 'Adicionar exame', 'Add lab test', 'era "Enviar exame de sangue"'],
+    ['Janela, título', 'Digitar valores', 'Type in values', 'nova'],
+    ['Janela, data', 'Data do exame', 'Test date', 'existente'],
+    ['Janela, nota da data', 'Todos os valores abaixo ficam neste exame.', 'Every value below is saved to this test.', 'nova'],
+    ['Campos', 'Marcador · Valor · Unidade', 'Marker · Value · Unit', 'existentes'],
+    ['Exemplos nos campos', 'Ex.: Vitamina D · Ex.: 24,5 · Ex.: ng/mL', 'e.g. Vitamin D · e.g. 24.5 · e.g. ng/mL', 'novos (o número segue o idioma)'],
+    ['Sugestões de marcador', 'No seu diário', 'In your journal', 'nova'],
+    ['Sugestões de unidade', 'Unidades que você já usou para este marcador', 'Units you used for this marker', 'nova'],
+    ['Remover linha (leitor de tela)', 'Remover este valor', 'Remove this value', 'nova'],
+    ['Mais uma linha', '+ Adicionar outro valor', '+ Add another value', 'nova'],
+    ['Linha incompleta', 'Insira um nome de marcador e um valor numérico.', 'Enter a marker name and a numeric value.', 'existente (blood_edit_invalid)'],
+    ['Descartar, título', 'Descartar estes valores?', 'Discard these values?', 'nova'],
+    ['Descartar, texto', 'O que você inseriu será perdido.', 'What you entered will be lost.', 'igual ao do protocolo'],
+    ['Descartar, botões', 'Cancelar · Descartar', 'Cancel · Discard', 'existentes'],
+    ['Dentro do exame', '+ Adicionar valor', '+ Add a value', 'nova'],
+    ['Data presa ao exame', 'Os valores entram neste exame. Para mudar a data do exame inteiro, use "Mudar a data deste exame".', 'These values go into this test. To change the date of the whole test, use "Change this test\'s date".', 'nova'],
+    ['Opção A, topo', '+ Digitar', '+ Type', 'só na A'],
+    ['Opção C, botões', '+ Adicionar valores · Escanear / enviar', '+ Add values · Scan / upload', 'só na C'],
+    ['Opção C, vazio', 'Digite os valores do seu laudo ou escaneie uma foto ou um PDF. Você tem 3 leituras grátis por mês (somando exames, carteiras de vacinação e frascos).', 'Type in the values from your report, or scan a photo or PDF. You get 3 free scans a month (labs, vaccine cards, and vials combined).', 'só na C']
+  ];
+  document.getElementById('strings').innerHTML = '<tr><th>Onde</th><th>Português</th><th>English</th><th>Situação</th></tr>' + ST.map(function (r) { return '<tr><td class="k">' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td class="k">' + r[3] + '</td></tr>'; }).join('');
+})();
+</script>
+</body>
+</html>
