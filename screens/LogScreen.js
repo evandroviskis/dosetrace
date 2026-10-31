@@ -115,7 +115,15 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A-181 code review #7: a sync that finished (a pull may have landed) refreshes the card.
-  useEffect(() => addSyncListener((e) => { if (e && e.type === 'sync_complete') refreshUnsync(); }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A-200: first the Missed scan, so the dose the card promised is written on this screen (as Sync now).
+  useEffect(() => addSyncListener((e) => {
+    if (!e || e.type !== 'sync_complete') return;
+    scanMissedDoses().then((n) => {
+      if (n > 0) requestSync();
+      fetchLogs();
+      refreshUnsync();
+    }).catch(() => refreshUnsync());
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useFocusEffect(
     useCallback(() => {

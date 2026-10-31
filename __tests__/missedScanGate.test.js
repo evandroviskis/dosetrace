@@ -362,7 +362,7 @@ test('A-123 (4): one gate for the session in lib/firstSyncGate.js, shared by Tod
 test('A-123 (4): every caller goes through scanMissedDoses (Today focus, new day, Dose log, report)', () => {
   const today = read('screens/TodayScreen.js');
   assert.equal((today.match(/scanMissedDoses\(\)/g) || []).length, 2, 'Today focus + refreshIfNewDay');
-  assert.equal((read('screens/LogScreen.js').match(/scanMissedDoses\(\)/g) || []).length, 1, 'Dose log focus (also the Fold right page)');
+  assert.equal((read('screens/LogScreen.js').match(/scanMissedDoses\(\)/g) || []).length, 2, 'Dose log focus (also the Fold right page) + a finished sync (A-200)');
   // No other writer of Missed rows from screens.
   for (const f of ['TodayScreen.js', 'LogScreen.js', 'SettingsScreen.js']) {
     assert.doesNotMatch(read(`screens/${f}`), /computeMissedDoses\(/, f);
