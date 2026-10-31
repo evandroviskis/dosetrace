@@ -1,4 +1,4 @@
-// Founder 2026-10-31 19:10 EDT ("Concordo com a sua sugestão número 2"): the food-chat greeting was
+// Founder 2026-10-31 19:08 EDT ("Concordo com a sua sugestão número 2"): the food-chat greeting was
 // informal in Portuguese ("E aí, …", against the formal-pt rule of 2026-10-20). It becomes a plain,
 // polite question in every language, each written as a native app would say it.
 const test = require('node:test');

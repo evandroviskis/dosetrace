@@ -87,7 +87,7 @@ test('A-101a: an end label that would overlap "Now" is hidden; Now always shows'
   assert.match(c, /\{axisShow\.showRight \? \(/);
 });
 
-// Fold + iPhone 2026-10-31 (fixed on the spot, founder rule 19:10 EDT): Your numbers kept "80 kg"
+// Fold + iPhone 2026-10-31 (fixed on the spot, founder rule 2026-10-31 19:08 EDT): Your numbers kept "80 kg"
 // while that day's weigh-in was corrected to 79,4 (A-212 Update / a weigh-in edit). Typing the weight
 // always writes that day's weigh-in, so a same-day weigh-in with a DIFFERENT number was written
 // after the typing: it wins. Same number, or typed on a later day: kept.

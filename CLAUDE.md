@@ -39,7 +39,7 @@ new fact, in one line.
   prints file:line + excerpt, marks Second Brain lines VIGENTE/SUBSTITUÍDA, or
   "NENHUMA DECISÃO REGISTRADA para: …". A UserPromptSubmit hook runs it on every founder message.
 
-## Standing rule: found it → fix it now (founder, 2026-10-31 19:10 EDT)
+## Standing rule: found it → fix it now (founder, 2026-10-31 19:08 EDT)
 
 "Encontrou o erro, corrige na hora." Any error found while working — a bug, an inconsistency, odd or
 wrong copy, a decided-but-never-built rule — is fixed in the same session, test first, as soon as it is
