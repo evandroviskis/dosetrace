@@ -1,0 +1,228 @@
+<title>Barra de vidro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap">
+<style>
+  :root {
+    --page: #EEF0EC; --page-fg: #111315; --page-fg2: #454A4F; --page-line: #C3C7C0; --page-card: #FFFFFF;
+    --seg: #DDE0DB; --seg-on: #FFFFFF;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #0B0C0E; --page-fg: #EEEFEB; --page-fg2: #B5B9B4; --page-line: #3C4147; --page-card: #1D2024;
+      --seg: #1D2024; --seg-on: #3C4147; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #0B0C0E; --page-fg: #EEEFEB; --page-fg2: #B5B9B4; --page-line: #3C4147; --page-card: #1D2024;
+    --seg: #1D2024; --seg-on: #3C4147; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--page); color: var(--page-fg); font-family: 'Geist', -apple-system, 'Helvetica Neue', Arial, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; text-wrap: balance; }
+  .lead { color: var(--page-fg2); font-size: 14px; line-height: 1.5; margin: 0 0 24px; max-width: 62ch; }
+  .phones { display: flex; flex-wrap: wrap; gap: 32px; justify-content: center; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .cap { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--page-fg2); }
+  .seg { display: flex; background: var(--seg); border-radius: 12px; padding: 3px; gap: 2px; }
+  .seg button { font: 600 12px 'Geist', sans-serif; border: 0; background: transparent; color: var(--page-fg2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+  .seg button.on { background: var(--seg-on); color: var(--page-fg); }
+  .notes { margin-top: 32px; display: grid; gap: 10px; max-width: 66ch; margin-inline: auto; }
+  .notes p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--page-fg2); }
+  .notes b { color: var(--page-fg); font-weight: 600; }
+
+  /* ── Phone: fixed palettes (the app's own tokens from lib/theme.js), so each phone shows one theme ── */
+  .phone { width: 340px; max-width: 100%; height: 700px; border-radius: 46px; padding: 10px; background: #050506; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+  .screen { position: relative; height: 100%; border-radius: 37px; overflow: hidden; background: var(--ground); color: var(--ink); }
+  .light { --ground:#DDE0DB; --raised:#FFFFFF; --well:#EEF0EC; --line:#C3C7C0; --ink:#111315; --ink2:#454A4F; --ink3:#53585D; --data:#2350D8; --tick:#71766F;
+           --glass: rgba(246,247,244,.42); --glass-edge: rgba(255,255,255,.85); --glass-shade: rgba(0,0,0,.10); --lens: rgba(255,255,255,.62); --lens-edge: rgba(255,255,255,.95); }
+  .dark  { --ground:#121416; --raised:#282B30; --well:#1D2024; --line:#3C4147; --ink:#EEEFEB; --ink2:#B5B9B4; --ink3:#9A9F9A; --data:#8AA8FF; --tick:#747A7F;
+           --glass: rgba(40,43,48,.40); --glass-edge: rgba(255,255,255,.22); --glass-shade: rgba(0,0,0,.45); --lens: rgba(255,255,255,.14); --lens-edge: rgba(255,255,255,.30); }
+
+  .scroll { position: absolute; inset: 0; overflow-y: auto; padding: 46px 16px 120px; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .status { position: absolute; top: 0; left: 0; right: 0; height: 44px; display: flex; justify-content: space-between; align-items: center; padding: 6px 28px 0; font-size: 14px; font-weight: 600; z-index: 3; color: var(--ink); background: linear-gradient(var(--ground) 60%, transparent); }
+  .t-title { font-size: 30px; font-weight: 600; margin: 4px 0 0; letter-spacing: -.01em; }
+  .t-date { font-size: 14px; color: var(--ink2); margin: 2px 0 16px; }
+  .card { background: var(--raised); border-radius: 20px; padding: 16px; margin-bottom: 12px; }
+  .ringrow { display: flex; align-items: center; gap: 16px; }
+  .big { font-size: 44px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+  .sub { font-size: 13px; color: var(--ink2); margin-top: 4px; }
+  .lbl { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink3); margin-bottom: 10px; }
+  .dose { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .dose:first-of-type { border-top: 0; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .dn { font-size: 15px; font-weight: 600; }
+  .dm { font-size: 12px; color: var(--ink2); margin-top: 2px; }
+  .dose .st { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--ink2); }
+  .dose .st.done { color: var(--data); }
+  .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .wd { aspect-ratio: 1; border-radius: 10px; background: var(--well); display: grid; place-items: center; font-size: 11px; font-weight: 600; color: var(--ink3); }
+  .wd.done { background: var(--data); color: #fff; }
+  .dark .wd.done { color: #0F1114; }
+  .wd.today { outline: 1.5px solid var(--ink); outline-offset: -1.5px; color: var(--ink); }
+  .curve svg { width: 100%; height: auto; display: block; }
+
+  /* ── Glass tab bar (proposal) ── */
+  .bar { position: absolute; left: 12px; right: 12px; bottom: 16px; height: 64px; border-radius: 32px; z-index: 5;
+         display: flex; padding: 4px;
+         background: var(--glass);
+         -webkit-backdrop-filter: blur(12px) saturate(190%) brightness(1.04); backdrop-filter: blur(12px) saturate(190%) brightness(1.04);
+         box-shadow: inset 0 1px 0 var(--glass-edge), inset 0 -1px 1px rgba(255,255,255,.08), inset 1px 0 0 rgba(255,255,255,.18), 0 10px 28px var(--glass-shade), 0 1px 3px var(--glass-shade); }
+  .bar::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+         background: linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 42%, rgba(255,255,255,0) 70%, rgba(255,255,255,.10) 100%); mix-blend-mode: soft-light; }
+  .lens { position: absolute; top: 4px; bottom: 4px; left: 0; border-radius: 28px; background: var(--lens);
+          box-shadow: inset 0 1px 0 var(--lens-edge), inset 0 -1px 0 rgba(255,255,255,.12), 0 2px 8px rgba(0,0,0,.08);
+          transition: transform .48s cubic-bezier(.3,1.5,.55,1), width .3s ease, opacity .2s;
+          will-change: transform; }
+  .lens.press { transition: transform .18s ease-out; }
+  .lens.stretch { animation: squish .48s cubic-bezier(.3,1.2,.5,1); }
+  @keyframes squish { 0% { scale: 1 1; } 30% { scale: 1.28 .88; } 65% { scale: .96 1.04; } 100% { scale: 1 1; } }
+  .tab { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+         border: 0; background: transparent; cursor: pointer; color: var(--ink3); font: 600 10px 'Geist', sans-serif; padding: 0; -webkit-tap-highlight-color: transparent; }
+  .tab.on { color: var(--ink); }
+  .tab svg { width: 23px; height: 23px; transition: transform .25s cubic-bezier(.3,1.5,.55,1); }
+  .tab:active svg { transform: scale(.9); }
+  .tab span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+  /* ── Flat tab bar (the app today, DESIGN.md §5) ── */
+  .screen.flat .bar { left: 0; right: 0; bottom: 0; height: 84px; border-radius: 0; padding: 8px 0 22px; background: var(--ground);
+         -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-top: .5px solid var(--line); }
+  .screen.flat .bar::before, .screen.flat .lens { display: none; }
+  .screen.flat .tab { font-size: 11px; }
+  .screen.flat .scroll { padding-bottom: 96px; }
+  .home { position: absolute; bottom: 7px; left: 50%; translate: -50% 0; width: 120px; height: 5px; border-radius: 3px; background: var(--ink); opacity: .85; z-index: 6; }
+  .hint { font-size: 12px; color: var(--page-fg2); text-align: center; }
+</style>
+
+<div class="wrap">
+  <h1>Barra de baixo com efeito de vidro</h1>
+  <p class="lead">Toque nos ícones para trocar de aba e role a tela do celular para ver o conteúdo passando por trás do vidro. Em cada celular, o seletor embaixo alterna entre a proposta e a barra como ela é hoje.</p>
+
+  <div class="phones" id="phones"></div>
+
+  <div class="notes">
+    <p><b>Desenho aproximado.</b> O navegador imita o desfoque e o brilho, mas não a refração do iOS 26. No iPhone, a borda do vidro distorce levemente o que passa por trás, e a bolha da aba escolhida se deforma um pouco mais ao trocar.</p>
+    <p><b>Só no iPhone com iOS 26 ou mais novo.</b> O efeito é da Apple. No Android (o Fold) e em iPhones com sistema anterior ele não existe, e a barra continuaria plana como hoje.</p>
+    <p><b>Precisa de build nativo.</b> Não pode ir por atualização EAS.</p>
+    <p><b>Muda uma regra do desenho atual.</b> O desenho Graduated define a barra plana, com uma linha fina em cima (DESIGN.md §5). Em maio havia a decisão "Liquid Glass no iOS, Material 3 no Android", mas ela ficou para trás com o Graduated.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  const tabs = [
+    { key: 'today', label: 'Hoje', svg: (f) => [[3,3],[14,3],[3,14],[14,14]].map(([x,y]) => `<rect x="${x}" y="${y}" width="7" height="7" rx="2.2" fill="${f ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="${f ? 0 : 1.9}"/>`).join('') },
+    { key: 'prot', label: 'Protocolos', svg: (f) => `<path d="M10.5 20.5 20.5 10.5a5.66 5.66 0 0 0-8-8L2.5 12.5a5.66 5.66 0 0 0 8 8Z" stroke="currentColor" stroke-width="${f ? 2.2 : 1.9}" stroke-linejoin="round" fill="currentColor" fill-opacity="${f ? .16 : 0}"/><path d="M8.5 8.5 15.5 15.5" stroke="currentColor" stroke-width="${f ? 2.2 : 1.9}" stroke-linecap="round"/>` },
+    { key: 'evol', label: 'Evolução', svg: (f) => `<path d="M6 21 V4" stroke="currentColor" stroke-width="${f ? 2.2 : 1.9}" stroke-linecap="round"/><path d="M6 4.5 C9.5 2.8 13 6.2 17.5 4.5 L17.5 10.5 C13 12.2 9.5 8.8 6 10.5 Z" stroke="currentColor" stroke-width="${f ? 2.2 : 1.9}" stroke-linejoin="round" fill="currentColor" fill-opacity="${f ? .16 : 0}"/>` },
+    { key: 'body', label: 'Meu corpo', svg: (f) => `<circle cx="12" cy="7.5" r="3.6" fill="${f ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="${f ? 0 : 1.9}"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1" stroke="currentColor" stroke-width="${f ? 2.2 : 1.9}" stroke-linecap="round" fill="currentColor" fill-opacity="${f ? .16 : 0}"/>` },
+    { key: 'set', label: 'Ajustes', svg: (f) => `<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" stroke="currentColor" stroke-width="${f ? 2 : 1.7}" stroke-linejoin="round" fill="currentColor" fill-opacity="${f ? .14 : 0}"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="${f ? 2 : 1.7}" fill="currentColor" fill-opacity="${f ? .5 : 0}"/>` },
+  ];
+
+  // Graduated dial: 50 ticks, the done share in the data colour.
+  function dial(done) {
+    let s = '';
+    for (let i = 0; i < 50; i++) {
+      const a = (i / 50) * Math.PI * 2 - Math.PI / 2;
+      const r1 = 30, r2 = i % 5 === 0 ? 22 : 25;
+      const on = i < Math.round(done * 50);
+      s += `<line x1="${36 + r1 * Math.cos(a)}" y1="${36 + r1 * Math.sin(a)}" x2="${36 + r2 * Math.cos(a)}" y2="${36 + r2 * Math.sin(a)}" stroke="${on ? 'var(--data)' : 'var(--tick)'}" stroke-width="${on ? 2 : 1.2}" stroke-linecap="round"/>`;
+    }
+    return `<svg width="72" height="72" viewBox="0 0 72 72">${s}</svg>`;
+  }
+  function curve() {
+    const pts = [];
+    for (let d = 0; d <= 28; d += .5) {
+      let y = 0;
+      for (let k = 0; k <= d; k += 7) y += Math.exp(-(d - k) * Math.log(2) / 5);
+      pts.push([10 + d * 10.4, 110 - y * 30]);
+    }
+    const p = pts.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' ');
+    return `<svg viewBox="0 0 310 124"><line x1="10" y1="110" x2="302" y2="110" stroke="var(--line)"/>${[0,7,14,21,28].map(d => `<line x1="${10 + d * 10.4}" y1="110" x2="${10 + d * 10.4}" y2="115" stroke="var(--tick)"/><text x="${10 + d * 10.4}" y="123" font-size="9" fill="var(--ink3)" text-anchor="middle" font-family="Geist">dia ${d}</text>`).join('')}<path d="${p} L 301 110 L 10 110 Z" fill="var(--data)" fill-opacity=".12"/><path d="${p}" stroke="var(--data)" stroke-width="2" fill="none"/></svg>`;
+  }
+
+  const content = `
+    <div class="t-title">Hoje</div>
+    <div class="t-date">Sexta-feira, 31 de outubro</div>
+    <div class="card ringrow">${dial(2 / 3)}<div><div class="big">2 de 3</div><div class="sub">doses de hoje registradas</div></div></div>
+    <div class="card">
+      <div class="lbl">Doses de hoje</div>
+      <div class="dose"><span class="dot" style="background:#E0752E"></span><div><div class="dn">Testosterona cipionato</div><div class="dm">100 mg · 08:00</div></div><span class="st done">Feita</span></div>
+      <div class="dose"><span class="dot" style="background:#1F9E8F"></span><div><div class="dn">BPC-157</div><div class="dm">250 mcg · 12:00</div></div><span class="st done">Feita</span></div>
+      <div class="dose"><span class="dot" style="background:#8A4FD8"></span><div><div class="dn">Zinco</div><div class="dm">15 mg · 21:00</div></div><span class="st">21:00</span></div>
+    </div>
+    <div class="card">
+      <div class="lbl">Esta semana</div>
+      <div class="week">${['S','T','Q','Q','S','S','D'].map((d, i) => `<div class="wd ${i < 4 ? 'done' : i === 4 ? 'today' : ''}">${d}</div>`).join('')}</div>
+    </div>
+    <div class="card curve">
+      <div class="lbl">Acúmulo da dose · Testosterona</div>
+      ${curve()}
+    </div>
+    <div class="card">
+      <div class="lbl">Seus números reais</div>
+      <div class="ringrow"><div><div class="big">2.180</div><div class="sub">kcal por dia, média de 7 dias</div></div></div>
+    </div>
+    <div class="card">
+      <div class="lbl">Frascos</div>
+      <div class="dose"><span class="dot" style="background:#E0752E"></span><div><div class="dn">Testosterona · 10 ml</div><div class="dm">18 doses restantes</div></div></div>
+      <div class="dose"><span class="dot" style="background:#1F9E8F"></span><div><div class="dn">BPC-157 · 5 mg</div><div class="dm">9 doses restantes</div></div></div>
+    </div>`;
+
+  function phone(theme, caption) {
+    const col = document.createElement('div');
+    col.className = 'col';
+    col.innerHTML = `
+      <div class="cap">${caption}</div>
+      <div class="phone"><div class="screen ${theme}">
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="scroll">${content}</div>
+        <nav class="bar"><div class="lens"></div>${tabs.map((t, i) => `<button class="tab${i === 0 ? ' on' : ''}" data-i="${i}"><svg viewBox="0 0 24 24" fill="none">${t.svg(i === 0)}</svg><span>${t.label}</span></button>`).join('')}</nav>
+        <div class="home"></div>
+      </div></div>
+      <div class="seg"><button class="on" data-mode="glass">Vidro (proposta)</button><button data-mode="flat">Barra de hoje</button></div>
+      <div class="hint">role a tela · toque nas abas</div>`;
+    document.getElementById('phones').appendChild(col);
+
+    const screen = col.querySelector('.screen');
+    const bar = col.querySelector('.bar');
+    const lens = col.querySelector('.lens');
+    const btns = [...col.querySelectorAll('.tab')];
+    let cur = 0;
+
+    function place(i, animate) {
+      const b = btns[i];
+      lens.style.width = (b.offsetWidth) + 'px';
+      lens.style.transform = `translateX(${b.offsetLeft}px)`;
+      if (animate) { lens.classList.remove('stretch'); void lens.offsetWidth; lens.classList.add('stretch'); }
+    }
+    function select(i) {
+      if (i === cur) return;
+      btns.forEach((b, k) => {
+        b.classList.toggle('on', k === i);
+        b.querySelector('svg').innerHTML = tabs[k].svg(k === i);
+      });
+      cur = i;
+      place(i, true);
+      col.querySelector('.scroll').scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    btns.forEach((b, i) => {
+      b.addEventListener('pointerdown', () => { if (i === cur) { lens.classList.add('press'); lens.style.transform = `translateX(${b.offsetLeft}px) scale(1.08, 1.12)`; } });
+      b.addEventListener('pointerup', () => { lens.classList.remove('press'); if (i === cur) place(i, false); });
+      b.addEventListener('pointerleave', () => { if (lens.classList.contains('press')) { lens.classList.remove('press'); place(cur, false); } });
+      b.addEventListener('click', () => select(i));
+    });
+    col.querySelectorAll('.seg button').forEach((s) => s.addEventListener('click', () => {
+      col.querySelectorAll('.seg button').forEach((x) => x.classList.toggle('on', x === s));
+      screen.classList.toggle('flat', s.dataset.mode === 'flat');
+      requestAnimationFrame(() => place(cur, false));
+    }));
+    requestAnimationFrame(() => place(0, false));
+    window.addEventListener('resize', () => place(cur, false));
+    if (document.fonts) document.fonts.ready.then(() => place(cur, false));
+  }
+
+  phone('light', 'Tema claro');
+  phone('dark', 'Tema escuro');
+})();
+</script>
