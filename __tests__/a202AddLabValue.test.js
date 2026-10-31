@@ -7,45 +7,73 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { CLOUD_FIELDS, toCloudPayload } = require('../lib/syncMappers');
+const { toCloudPayload } = require('../lib/syncMappers');
 const { reportCards } = require('../lib/labReports');
 const { translations } = require('../i18n/translations');
 
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 
-test('AV-4: the biomarkers payload carries created_at, so the cloud keeps the test\'s stamp', () => {
-  assert.ok(CLOUD_FIELDS.biomarkers.includes('created_at'));
-  const p = toCloudPayload('biomarkers', { report_date: '2026-10-16', marker: 'Ferritin', value: 78, unit: 'ng/mL', created_at: '2026-10-31T13:58:40.000Z' });
-  assert.equal(p.created_at, '2026-10-31T13:58:40.000Z');
+const { makeDb, makeCloud } = require('./helpers/syncHarness');
+const { loadFn } = require('./helpers/extractFn');
+const { pushPending, fullImport } = require('../lib/syncCore');
+const USER = 'user-A';
+function dbFns(db) {
+  const getDB = () => db;
+  const fn = (name) => loadFn('lib/database.js', `export function ${name}(`, name, { getDB });
+  return { addBiomarkerToReport: fn('addBiomarkerToReport'), updateBiomarker: fn('updateBiomarker'), getBiomarkers: fn('getBiomarkers') };
+}
+// A test as a phone that PULLED it sees it: the cloud stamped each row itself, a second apart.
+function seedPulledTest(db, cloud, date, stamps) {
+  stamps.forEach((st, i) => {
+    const rid = `b-${i}`;
+    cloud._store.biomarkers.set(rid, { id: rid, user_id: USER, report_date: date, marker: 'M' + i, value: i, unit: 'u', created_at: st, updated_at: cloud._stamp() });
+    db.runSync(`INSERT INTO biomarkers (remote_id, user_id, report_date, marker, value, unit, created_at, updated_at, sync_status) VALUES (?, ?, ?, ?, ?, 'u', ?, '000000', 'synced')`, [rid, USER, date, 'M' + i, i, st]);
+  });
+}
+
+// Review 2026-10-31 (DV-001 / TR-SYNC-4): created_at goes up on INSERT only, never on an update, never null.
+test('DV-001: a value created offline at T0 and pushed later arrives in the cloud with T0', async () => {
+  const db = makeDb(); const cloud = makeCloud();
+  db.runSync(`INSERT INTO biomarkers (user_id, report_date, marker, value, unit, created_at, updated_at, sync_status) VALUES (?, '2026-10-16', 'TSH', 2.1, 'mUI/L', '2026-10-31T14:23:31.000Z', '2026-10-31T14:23:31.000Z', 'pending')`, [USER]);
+  await pushPending(db, cloud, USER);
+  const c = cloud.rows('biomarkers', USER);
+  assert.equal(c.length, 1);
+  assert.equal(c[0].created_at, '2026-10-31T14:23:31.000Z');
 });
 
-test('AV-4: a value added days later with the test\'s stamp stays in that one card (here and after a pull)', () => {
-  const stamp = '2026-10-31T13:58:40.000Z';
-  // As pulled: the cloud had stamped each scanned row itself, a second apart.
-  const pulled = [
-    { report_date: '2026-10-16', marker: 'Ferritin', created_at: '2026-10-31T13:58:41.100Z' },
-    { report_date: '2026-10-16', marker: 'Glucose', created_at: '2026-10-31T13:58:42.300Z' },
-  ];
-  const lateAdd = { report_date: '2026-10-16', marker: 'Vitamin D', created_at: '2026-11-04T09:00:00.000Z' };
-  assert.equal(reportCards([...pulled, lateAdd]).length, 2, 'the cloud\'s own stamp would split the test');
-  const unified = [...pulled.map((r) => ({ ...r, created_at: stamp })), { ...lateAdd, created_at: stamp }];
-  const cards = reportCards(unified);
-  assert.equal(cards.length, 1);
-  assert.equal(cards[0].markers.length, 3);
+test('DV-001: an edit never sends created_at (the cloud keeps its stamp even when the phone\'s differs)', async () => {
+  const db = makeDb(); const cloud = makeCloud();
+  const { updateBiomarker } = dbFns(db);
+  seedPulledTest(db, cloud, '2026-10-16', ['2026-10-16T10:00:01.000Z']);
+  // The scanning phone kept its own batch stamp, a few seconds before the cloud's.
+  db.runSync(`UPDATE biomarkers SET created_at = '2026-10-16T10:00:00.000Z'`);
+  const id = db.getFirstSync('SELECT id FROM biomarkers').id;
+  updateBiomarker(id, { value: 9 });
+  await pushPending(db, cloud, USER);
+  const row = cloud.rows('biomarkers', USER)[0];
+  assert.equal(Number(row.value), 9);
+  assert.equal(row.created_at, '2026-10-16T10:00:01.000Z');
+  const upd = toCloudPayload('biomarkers', { report_date: 'd', marker: 'm', value: 1, unit: 'u', created_at: null });
+  assert.ok(!('created_at' in upd), 'never a null created_at');
 });
 
-test('AV-4: the database adds the value and gives the whole test one stamp, in one transaction, scoped to that test', () => {
-  const db = read('lib/database.js');
-  const m = db.match(/export function addBiomarkerToReport\(userId, card, row\) \{[\s\S]*?\n\}/);
-  assert.ok(m, 'addBiomarkerToReport exists');
-  const fn = m[0];
-  assert.match(fn, /BEGIN IMMEDIATE[\s\S]*COMMIT[\s\S]*ROLLBACK/);
-  assert.match(fn, /UPDATE biomarkers SET created_at = \?, updated_at = \?, sync_status = 'pending'/);
-  assert.match(fn, /report_date = \? AND created_at IN/);
-  assert.match(fn, /sync_status != 'deleted'/);
-  assert.match(fn, /INSERT INTO biomarkers/);
-  assert.match(db, /r\.created_at \|\| now/, 'insertBiomarkers keeps a given stamp');
+test('AV-4: a value added inside a pulled test joins that test, here and after a reimport (one card)', async () => {
+  const db = makeDb(); const cloud = makeCloud();
+  const { addBiomarkerToReport, getBiomarkers } = dbFns(db);
+  seedPulledTest(db, cloud, '2026-10-16', ['2026-10-31T13:58:41.100Z', '2026-10-31T13:58:42.300Z', '2026-10-31T13:58:43.500Z']);
+  const card = reportCards(getBiomarkers(USER))[0];
+  assert.equal(card.markers.length, 3);
+  addBiomarkerToReport(USER, card, { marker: 'TSH', value: 2.1, unit: 'mUI/L' });
+  const here = reportCards(getBiomarkers(USER));
+  assert.equal(here.length, 1); assert.equal(here[0].markers.length, 4);
+  assert.equal(db.getAllSync(`SELECT 1 FROM biomarkers WHERE sync_status = 'pending'`).length, 1, 'only the new value goes up; the old rows are not rewritten');
+  await pushPending(db, cloud, USER);
+  const fresh = makeDb();
+  await fullImport(fresh, cloud, USER);
+  const again = reportCards(dbFns(fresh).getBiomarkers(USER));
+  assert.equal(again.length, 1, 'one test after a reinstall');
+  assert.equal(again[0].markers.length, 4);
 });
 
 test('AV-2 / AV-3: "+ Adicionar valor" on the test page opens the Edit value window in add mode, the date held to the test', () => {
@@ -67,10 +95,10 @@ test('AV-2 / AV-3: "+ Adicionar valor" on the test page opens the Edit value win
 
 test('AV-4 / AV-5 / AV-7: Save adds through addBiomarkerToReport with the same checks as Edit value, never a scan', () => {
   const src = read('screens/BodyScreen.js');
-  const save = src.slice(src.indexOf('function saveMarkerEdit()'), src.indexOf('function saveMarkerEdit()') + 1400);
+  const save = src.slice(src.indexOf('function saveMarkerEdit()'), src.indexOf('function saveMarkerEdit()') + 2000);
   assert.match(save, /parseMeasure\(mValue, language\)/);
   assert.match(save, /blood_edit_invalid/);
-  assert.match(save, /if \(mEdit\.adding\) \{[\s\S]*addBiomarkerToReport\(user\.id, mEdit\.card, \{ marker: mName\.trim\(\), value, unit: mUnit\.trim\(\) \}\)/);
+  assert.match(save, /if \(mEdit\.adding\) \{[\s\S]*addBiomarkerToReport\(userId, mEdit\.card, \{ marker: mName\.trim\(\), value, unit: mUnit\.trim\(\) \}\)/);
   assert.doesNotMatch(save, /extract-bloodwork|ensureAiConsent|scanUsage/);
 });
 
@@ -84,7 +112,7 @@ test('AV-6: closing the add window with something typed asks "Discard this value
 test('AV-10 / AV-11: the explainer stops promising to type reports; the new words exist in 6 languages', () => {
   for (const lang of LANGS) {
     const tr = translations[lang];
-    for (const k of ['blood_add_value_btn', 'blood_add_value_title', 'blood_add_discard_title']) assert.equal(typeof tr[k], 'string', `${lang}.${k}`);
+    for (const k of ['blood_add_value_btn', 'blood_add_value_title', 'blood_add_discard_title', 'blood_add_value_failed']) assert.equal(typeof tr[k], 'string', `${lang}.${k}`);
     assert.doesNotMatch(tr.xp_labsman_body, /Type in|Escribe los valores|Digite os valores|Saisissez|Tippe|Inserisci i valori/, lang);
   }
   assert.equal(translations.pt.blood_add_value_btn, '+ Adicionar valor');
@@ -115,4 +143,17 @@ test('AV-1: no lab test is created by hand — a new test is written only by the
   assert.equal(calls.length, 1);
   const persist = src.slice(src.indexOf('async function persistMarkers('), src.indexOf('async function persistMarkers(') + 1200);
   assert.match(persist, /insertBiomarkers\(rows\);/);
+});
+
+// Review 2026-10-31: offline with an expired token getCachedUser() is null — the typed value must not
+// be dropped; a second Save while the first waits must not add it twice; a failed add says so and
+// keeps the window open.
+test('AV-4 / AV-6: Save never drops a typed value (offline, double tap, failed write)', () => {
+  const src = read('screens/BodyScreen.js');
+  const save = src.slice(src.indexOf('async function saveMarkerEdit()'), src.indexOf('async function saveMarkerEdit()') + 1800);
+  assert.match(save, /if \(savingRef\.current\) return;/);
+  assert.match(save, /const userId = mEdit\.card\.markers\?\.\[0\]\?\.user_id \|\| \(await getCachedUser\(\)\)\?\.id;/);
+  assert.doesNotMatch(save, /if \(!user\) \{ setMEdit\(null\)/, 'no close before the value is stored');
+  assert.match(save, /const added = addBiomarkerToReport\(userId, mEdit\.card, \{ marker: mName\.trim\(\), value, unit: mUnit\.trim\(\) \}\);\s*if \(!added\) \{/);
+  assert.match(save, /finally \{ savingRef\.current = false; \}/);
 });

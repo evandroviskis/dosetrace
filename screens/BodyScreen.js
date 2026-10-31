@@ -226,6 +226,7 @@ export default function BodyScreen({ navigation, route }) {
   // A-202: the window's mode (add or edit), kept until the next open so it never flips to Edit value
   // while it slides away after Save.
   const [mAdding, setMAdding] = useState(false);
+  const savingRef = useRef(false); // A-202: one Save at a time (the add may wait for the session)
   const [mName, setMName] = useState('');
   const [mValue, setMValue] = useState('');
   const [mUnit, setMUnit] = useState('');
@@ -726,12 +727,23 @@ export default function BodyScreen({ navigation, route }) {
       return;
     }
     if (mEdit.adding) {
-      const user = await getCachedUser();
-      if (!user) { setMEdit(null); notice(scanErrorSheet('signin', t)); return; }
-      addBiomarkerToReport(user.id, mEdit.card, { marker: mName.trim(), value, unit: mUnit.trim() });
-      requestSync();
-      setMEdit(null);
-      fetchReports();
+      // The window closes only once the value is stored: offline with an expired session the account
+      // is read from the test's own rows (never a dropped value), and a second tap waits for the first.
+      if (savingRef.current) return;
+      savingRef.current = true;
+      try {
+        const userId = mEdit.card.markers?.[0]?.user_id || (await getCachedUser())?.id;
+        const added = addBiomarkerToReport(userId, mEdit.card, { marker: mName.trim(), value, unit: mUnit.trim() });
+        if (!added) {
+          setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_add_value_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+          return;
+        }
+        requestSync();
+        setMEdit(null);
+        fetchReports();
+      } catch {
+        setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_add_value_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      } finally { savingRef.current = false; }
       return;
     }
     updateBiomarker(mEdit.id, { marker: mName.trim(), value, unit: mUnit.trim(), report_date: mDate });
