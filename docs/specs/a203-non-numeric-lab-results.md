@@ -5,7 +5,8 @@
 - data (production migration — applied only after the founder's "pode"): biomarkers gets `qualifier text` (one of '<', '>', '≤', '≥', null) and `value_text text` (the result as written when it is words), and `value` becomes nullable (a word result has no number). Local SQLite gets the same two columns; both sync (CLOUD_FIELDS). Old store versions (1.3.0) that pull a word result: they skip rows without a number (checked in code before the build) — no crash, the row simply does not show there.
 - code (planned): supabase/functions/extract-bloodwork (prompt + JSON: qualifier, value_text), lib/bodyScan.js / screens/BodyScreen.js persistMarkers (store them), lib/schema.js + lib/syncMappers.js (columns), lib/labReports.js / markerSeries (chart skips word results), the Edit value / Add value window (sign and words), lib/exportRecords.js (CSV + PDF show the sign and the words), i18n ×6 if a new word is needed.
 - tests (planned): __tests__/a203NonNumericLabs.test.js
-- checklist-signed:
+- checklist-signed: founder 2026-10-31 16:21 EDT ("Assino o checklist do A-203, pode aplicar a migração")
+- migration: supabase/migrations/20261031200000_biomarkers_qualifier_text.sql APPLIED to production 2026-10-31 16:21 EDT (qualifier, value_text, value nullable, two checks); verified by information_schema.
 - committed-to: next build whose scope is open
 
 ## Acceptance checklist
@@ -17,5 +18,5 @@
 | NN-3 | The chart of a marker with a sign draws the number and marks it with the sign beside the point; nothing is called high, low, normal or abnormal anywhere (AI hard line). | | | |
 | NN-4 | "Editar valor" and "+ Adicionar valor" let the person set or remove the sign and type a word result; a typed "<0,5" or ">2000" is read as sign + number in the app language (decimal comma). | | | |
 | NN-5 | Sync: the sign and the words go to the cloud and come back on a new phone (reinstall); the stored name and created_at rules of A-202/DV-001 stay. | | | |
-| NN-6 | Old app versions already in the stores never crash on a row without a number (code check of 1.3.0 before the build; such a row is simply not shown there). | | | |
+| NN-6 | Old app versions already in the stores never crash on a row without a number (code check of 1.3.0 before the build; such a row is simply not shown there). | built | Code check of the store build (70e0f55, 1.3.0) before applying: a null value shows as an empty line (lib/localeFormat formatNumber returns ''), MarkerChart reads null as 0 (Math.min/Max coerce; no crash; Premium only); SQLite value REAL accepts null; server: only admin_metrics counts rows. | |
 | NN-7 | The tricky fictitious report on the Fold reads B12 "> 2000 pg/mL" and PSA "< 0,01 ng/mL"; a report with "Anti-HIV: Não reagente" keeps it as written. Light and dark, phone and Fold. | | | |
