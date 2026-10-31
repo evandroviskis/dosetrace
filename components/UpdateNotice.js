@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useSheetGap } from './useSheetInset';
-import { tabBarStyle } from '../lib/tabBarStyle';
+import { tabBarSpace } from '../lib/tabBarStyle';
 import FeatureIcon from './FeatureIcon';
 import GradSwitch from './GradSwitch';
 
@@ -124,7 +124,7 @@ export function UpdateReadyBar({ visible, onRestart }) {
   const insets = useSafeAreaInsets();
   const s = useMemo(() => barStyles(c), [c]);
   if (!visible) return null;
-  const above = tabBarStyle(c, insets.bottom).height + 18;
+  const above = tabBarSpace(c, insets.bottom) + 18; // A-206: above the bar the platform draws
   return (
     <View style={[s.bar, { bottom: above }]} accessibilityLiveRegion="polite">
       <Text style={s.text} numberOfLines={2}>{t('upd_downloaded')}</Text>

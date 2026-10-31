@@ -40,6 +40,7 @@ import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutC
 import { completeLocalSignOut } from './lib/signOutCore';
 import { tabBarStyle } from './lib/tabBarStyle';
 import { tapAwayProps } from './components/tapAwayKeyboard';
+import GlassTabBar from './components/GlassTabBar';
 import { setWindowBackground } from './modules/dt-exact-alarm';
 import { setStrictRemoval } from './lib/secureStore';
 import { onSignedOutNow, afterSignedOut, checkAccountGone, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
@@ -242,6 +243,10 @@ function tabScreenOptions(colors, insets) {
   };
 }
 
+// A-206: Android draws the floating glass bar (the real app and its opening alike); iPhone keeps the
+// navigator's bar until Apple's own glass bar arrives with the native build.
+const GLASS_TAB_BAR = Platform.OS === 'android' ? (props) => <GlassTabBar {...props} /> : undefined;
+
 function MainTabs() {
   const { t } = useLanguage();
   const tabs = tabDefs(t);
@@ -251,6 +256,7 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={tabScreenOptions(colors, insets)}
+      tabBar={GLASS_TAB_BAR}
     >
       {tabs.map(tab => (
         <Tab.Screen
@@ -488,7 +494,7 @@ function BootTabs({ onTabTap }) {
   return (
     <NavigationContainer theme={navThemeFor(colors, isDark)}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Tab.Navigator screenOptions={tabScreenOptions(colors, insets)} screenListeners={({ route }) => ({ tabPress: (e) => { e.preventDefault(); if (onTabTap) onTabTap(route.name); } })}>
+      <Tab.Navigator screenOptions={tabScreenOptions(colors, insets)} tabBar={GLASS_TAB_BAR} screenListeners={({ route }) => ({ tabPress: (e) => { e.preventDefault(); if (onTabTap) onTabTap(route.name); } })}>
         {tabDefs(t).map((tab) => (
           <Tab.Screen
             key={tab.name}
