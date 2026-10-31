@@ -322,3 +322,11 @@ test('LB-16: the new styles and lines use theme tokens only (no raw colour)', ()
   }
   for (const f of ['lib/scanUsage.js', 'lib/labDateMove.js']) assert.doesNotMatch(read(f), /#[0-9a-f]{6}\b|'white'|'black'/i, f);
 });
+
+// Fold 2026-10-31: with 2 values the English window read "All 2 values…", which no native speaker
+// says. The count reads naturally for every n ≥ 2 ("The 2 values…", "The 12 values…").
+test('LB-9 English: the window body reads naturally for two values (never "All 2 values")', () => {
+  const en = translations.en;
+  assert.equal(en.blood_date_move_body.replace('{n}', '2'), 'The 2 values and the labels of this test move to the new date.');
+  assert.doesNotMatch(en.blood_date_move_body, /^All \{n\}/);
+});

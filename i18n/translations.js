@@ -1613,7 +1613,7 @@ export const translations = {
     blood_scans_renew: "they renew on {month} 1",
     // AD-100: "Mudar a data deste exame" and its window.
     blood_date_move: "Change this test's date",
-    blood_date_move_body: "All {n} values and the labels of this test move to the new date.",
+    blood_date_move_body: "The {n} values and the labels of this test move to the new date.",
     blood_date_move_body_one: "{n} value and the labels of this test move to the new date.", // singular (lib/plural.js)
     blood_date_move_labels_title: "Labels not saved yet",
     blood_date_move_labels_body: "The values are now on the new date. The labels stay with this test, and we’ll try to save them again the next time you open My Body.",
