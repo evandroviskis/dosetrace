@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,8 +19,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { usePremiumUpdates } from '../lib/usePremium';
-import { formatDate as localeDate, decimalText, inputNumber, MONTHS_SHORT } from '../lib/localeFormat';
-import { parseMeasure } from '../lib/doseMath';
+import { formatDate as localeDate, MONTHS_SHORT } from '../lib/localeFormat';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, addBiomarkerToReport, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
@@ -54,6 +54,7 @@ import SerumCurveScreen from './SerumCurveScreen';
 import { pluralKey } from '../lib/plural';
 import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
+import { scanResult, parseLabInput, labValueText, labNumberText, labInputText, chartPoints, isWordResult } from '../lib/labValue';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
 import { fetchScanUsage, scanUsageLine, scanUsageShown } from '../lib/scanUsage';
 import { movedCardKey, applyLabelMoves } from '../lib/labDateMove';
@@ -266,7 +267,8 @@ export default function BodyScreen({ navigation, route }) {
     }
     return Object.entries(byKey).map(([key, rs]) => {
       const sorted = rs.slice().sort((a, b) => (a.report_date < b.report_date ? -1 : a.report_date > b.report_date ? 1 : 0));
-      const points = sorted.map(r => ({ id: r.id, marker: r.marker, date: r.report_date, value: r.value, unit: r.unit }));
+      // A-203: each reading keeps its sign and its words (a word result has value null).
+      const points = sorted.map(r => ({ id: r.id, marker: r.marker, date: r.report_date, value: r.value, qualifier: r.qualifier ?? null, value_text: r.value_text ?? null, unit: r.unit }));
       const latest = points[points.length - 1];
       const display = sorted[sorted.length - 1].marker; // most recent original label
       // DV-006: by the canonical key, so a star stored under an older variant shows (and clears).
@@ -614,7 +616,7 @@ export default function BodyScreen({ navigation, route }) {
         return;
       }
 
-      const { markers, reportDate: parsedDate, droppedCount, dateFallback } = validateExtraction(data);
+      const { markers, reportDate: parsedDate, droppedCount, dateFallback } = validateExtraction(data, undefined, language);
 
       if (markers.length === 0) {
         setUploading(false);
@@ -648,20 +650,26 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   // Insert extracted markers straight into storage (no review gate). Returns the
-  // number of rows saved. Coerces values to numbers; drops rows with no name or
-  // no numeric value.
+  // number of rows saved (word results count as markers). A-203: each result is read by
+  // lib/labValue scanResult — a number, a sign + number ("> 2.000", "inferior a 0,01", read in the app
+  // language) or the report's words (value null); drops rows with no name or no result at all.
   async function persistMarkers(markers, date) {
     const user = await getCachedUser();
     if (!user) { notice(scanErrorSheet('signin', t)); return 0; }
     const rows = markers
-      .map(m => ({
-        user_id: user.id,
-        report_date: date,
-        marker: String(m.marker || '').trim(),
-        value: parseMeasure(m.value, language),
-        unit: String(m.unit || '').trim(),
-      }))
-      .filter(r => r.marker && Number.isFinite(r.value));
+      .map(m => {
+        const r = scanResult(m, language);
+        return {
+          user_id: user.id,
+          report_date: date,
+          marker: String(m.marker || '').trim(),
+          value: r ? r.value : null,
+          qualifier: r ? r.qualifier : null,
+          value_text: r ? r.value_text : null,
+          unit: String(m.unit || '').trim(),
+        };
+      })
+      .filter(r => r.marker && (Number.isFinite(r.value) || !!r.value_text));
     if (rows.length === 0) return 0;
 
     insertBiomarkers(rows);
@@ -677,7 +685,8 @@ export default function BodyScreen({ navigation, route }) {
     setMAdding(false);
     setMEdit(obj);
     setMName(markerLabel(obj.marker || '', language)); // A-207: the name as shown; Save keeps the stored one if unchanged
-    setMValue(obj.value != null ? inputNumber(obj.value, language) : ''); // "5,2" in pt; saved back through the comma-aware parse
+    // "5,2" in pt, "> 2000" with its sign, or the words (A-203); saved back through parseLabInput.
+    setMValue(labInputText(obj, language));
     setMUnit(obj.unit || '');
     setMDate(obj.date || obj.report_date || '');
     setMDateWheel(false);
@@ -713,11 +722,15 @@ export default function BodyScreen({ navigation, route }) {
   }
   async function saveMarkerEdit() {
     if (!mEdit) return;
-    const value = parseMeasure(mValue, language); // lab values: in English a comma stays the decimal ("1,025")
-    if (!mName.trim() || !Number.isFinite(value)) {
+    // A-203 (NN-4): "<0,5" / ">2000" → sign + number (parseMeasure in the app language: in English a
+    // comma stays the decimal, "1,025"); text that is not a number after a leading sign → the words
+    // (value null); a plain number clears the sign and the words. Empty → the same notice as before.
+    const parsed = parseLabInput(mValue, language);
+    if (!mName.trim() || !parsed) {
       setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_edit_invalid'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
+    const { value, qualifier, value_text } = parsed;
     if (mEdit.adding) {
       // The window closes only once the value is stored: offline with an expired session the account
       // is read from the test's own rows (never a dropped value), and a second tap waits for the first.
@@ -725,7 +738,7 @@ export default function BodyScreen({ navigation, route }) {
       savingRef.current = true;
       try {
         const userId = mEdit.card.markers?.[0]?.user_id || (await getCachedUser())?.id;
-        const added = addBiomarkerToReport(userId, mEdit.card, { marker: mName.trim(), value, unit: mUnit.trim() });
+        const added = addBiomarkerToReport(userId, mEdit.card, { marker: mName.trim(), value, qualifier, value_text, unit: mUnit.trim() });
         if (!added) {
           setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_add_value_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
           return;
@@ -738,7 +751,7 @@ export default function BodyScreen({ navigation, route }) {
       } finally { savingRef.current = false; }
       return;
     }
-    updateBiomarker(mEdit.id, { marker: markerToSave(mName, mEdit.marker, language), value, unit: mUnit.trim(), report_date: mDate });
+    updateBiomarker(mEdit.id, { marker: markerToSave(mName, mEdit.marker, language), value, qualifier, value_text, unit: mUnit.trim(), report_date: mDate });
     requestSync();
     setMEdit(null);
     fetchReports();
@@ -1122,7 +1135,7 @@ export default function BodyScreen({ navigation, route }) {
           {reportDetail.markers.map((m, j) => (
             <TouchableOpacity key={m.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(m)}>
               <Text style={[s.body, s.grow]}>{markerLabel(m.marker, language)}</Text>
-              <Text style={s.value}>{decimalText(m.value, language)}{'\u00A0'}{m.unit}</Text>
+              <Text style={isWordResult(m) ? s.valueWords : s.value}>{labValueText(m, language)}</Text>
               <PenGlyph color={colors.ink3} />
             </TouchableOpacity>
           ))}
@@ -1144,7 +1157,10 @@ export default function BodyScreen({ navigation, route }) {
   }
 
   function renderMarkerDetail(markerDetail, chartWidth, withStar) {
-    const latestText = `${decimalText(markerDetail.latest.value, language)}\u00A0${markerDetail.unit}`;
+    // A-203: the latest reading as written \u2014 "> 2000", "2,35" or the report's words (lib/labValue).
+    const latestText = labValueText(markerDetail.latest, language);
+    const latestWords = isWordResult(markerDetail.latest);
+    const chartCount = chartPoints(markerDetail.points).length;
     return (
       /* ONE MARKER (prototype markerScreen): the latest value as the number, the
          user's readings charted (no ranges, no good/bad colors), every reading. */
@@ -1173,17 +1189,19 @@ export default function BodyScreen({ navigation, route }) {
           {/* MB-16: "Latest · {date}" over a light 56 pt number with its unit attached. */}
           <Text style={[s.foot, s.tnum]}>{t('blood_latest_on').replace('{date}', formatDate(markerDetail.latest.date))}</Text>
           <View style={s.numRow} accessible accessibilityLabel={latestText}>
-            <Text style={s.display}>{decimalText(markerDetail.latest.value, language)}</Text>
+            <Text style={latestWords ? s.displayWords : s.display}>{labNumberText(markerDetail.latest, language)}</Text>
             {markerDetail.unit ? <Text style={s.unitAfter}>{markerDetail.unit}</Text> : null}
           </View>
           <Text style={[s.foot, s.tnum]}>
             {markerDetail.points.length} {markerDetail.points.length === 1 ? t('blood_reading') : t('blood_readings')}
           </Text>
-          {markerDetail.points.length >= 2 ? (
+          {/* A-203 (NN-2/NN-3): only readings with a number are charted; a marker whose readings are
+              all words shows no chart and no "need more" line — only its readings below. */}
+          {chartCount >= 2 ? (
             <MarkerChart points={markerDetail.points} unit={markerDetail.unit} language={language} width={chartWidth} />
-          ) : (
+          ) : chartCount === 1 ? (
             <Text style={s.sec}>{t('blood_need_more')}</Text>
-          )}
+          ) : null}
         </View>
 
         {/* Founder 2026-10-27 (collapse rule): every reading of this marker arrives closed; the latest
@@ -1193,7 +1211,7 @@ export default function BodyScreen({ navigation, route }) {
           {markerDetail.points.slice().reverse().map((p, j) => (
             <TouchableOpacity key={p.id ?? j} style={[s.li, j > 0 && s.liLine]} onPress={() => openMarkerEdit(p)}>
               <Text style={[s.body, s.grow, s.tnum]}>{formatDate(p.date)}</Text>
-              <Text style={s.value}>{decimalText(p.value, language)}{'\u00A0'}{p.unit}</Text>
+              <Text style={isWordResult(p) ? s.valueWords : s.value}>{labValueText(p, language)}</Text>
               <PenGlyph color={colors.ink3} />
             </TouchableOpacity>
           ))}
@@ -1357,7 +1375,7 @@ export default function BodyScreen({ navigation, route }) {
                         {mk.points.length} {mk.points.length === 1 ? t('blood_reading') : t('blood_readings')}
                       </Text>
                     </View>
-                    <Text style={s.value}>{decimalText(mk.latest.value, language)}{'\u00A0'}{mk.unit}</Text>
+                    <Text style={isWordResult(mk.latest) ? s.valueWords : s.value}>{labValueText(mk.latest, language)}</Text>
                     <Chevron color={colors.tick} />
                   </TouchableOpacity>
                 ))}
@@ -1692,7 +1710,9 @@ export default function BodyScreen({ navigation, route }) {
         <View style={s.fieldGrid}>
           <View style={[s.fld, s.grow]}>
             <Text style={s.fieldLabel}>{t('blood_edit_value')}</Text>
-            <TextInput style={s.input} value={mValue} onChangeText={setMValue} keyboardType="decimal-pad" placeholderTextColor={colors.ink3} />
+            {/* A-203 (NN-4): a sign ("<0,5", ">2000") or the report's words ("Não reagente") — not a
+                decimal-only keypad; iPhone opens on numbers with punctuation and letters a tap away. */}
+            <TextInput style={s.input} value={mValue} onChangeText={setMValue} keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'} autoCorrect={false} placeholderTextColor={colors.ink3} />
           </View>
           <View style={[s.fld, s.grow]}>
             <Text style={s.fieldLabel}>{t('blood_edit_unit')}</Text>
@@ -1826,8 +1846,12 @@ const labsGraduated = (c) => ({
   sec: { fontSize: 15, color: c.ink2, lineHeight: 20 },
   foot: { fontSize: 13, color: c.ink2, lineHeight: 18 },
   value: { fontFamily: MONO['500'], fontSize: 15, color: c.ink, fontVariant: ['tabular-nums'] },
+  // A-203: a result in words ("Não reagente") in the text face, not the number face (picture option C).
+  valueWords: { fontSize: 15, fontWeight: '500', color: c.ink, flexShrink: 1, textAlign: 'right' },
   // the marker's latest value (DESIGN.md big number: Geist 300)
   display: { fontSize: 56, fontWeight: '300', color: c.ink, letterSpacing: -1.7, lineHeight: 62, fontVariant: ['tabular-nums'] },
+  // A-203: the latest reading in words — the same light face, a size that fits a phrase.
+  displayWords: { fontSize: 30, fontWeight: '300', color: c.ink, letterSpacing: -0.5, lineHeight: 36, flexShrink: 1 },
   tnum: { fontVariant: ['tabular-nums'] },
   center: { textAlign: 'center' },
   padX: { paddingHorizontal: 4 },

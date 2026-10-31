@@ -204,7 +204,9 @@ test('MB-15: deleting a blood test asks first in a DoseTrace sheet, and only Del
 test('MB-16: the marker card reads "Latest · {date}" over a light 56-pt number with the unit attached', () => {
   const code = fnCode(BODY, 'renderMarkerDetail');
   assert.match(code, /t\('blood_latest_on'\)\.replace\('\{date\}', formatDate\(markerDetail\.latest\.date\)\)/);
-  assert.match(code, /<Text style=\{s\.display\}>/);
+  // A-203 (founder 2026-10-31): the big number keeps s.display; a latest reading in words uses the
+  // same light face at a phrase size (s.displayWords), so the style is chosen by the reading.
+  assert.match(code, /<Text style=\{latestWords \? s\.displayWords : s\.display\}>/);
   assert.match(code, /<Text style=\{s\.unitAfter\}>\{markerDetail\.unit\}<\/Text>/);
   const d = styleOf(BODY, 'display');
   assert.match(d, /fontSize: 56/);
@@ -219,7 +221,9 @@ test('MB-17: Edit value is a bottom sheet; Test date opens its own wheel sheet t
   assert.match(BODY, /wheelAfter\(mDate \|\| today, new Date\(\), col, i, \{ \.\.\.TEST_DATE_RANGE, max: today \}\)/);
   assert.doesNotMatch(BODY, /DateTimePicker/, 'no inline iOS spinner');
   const save = fnCode(BODY, 'saveMarkerEdit');
-  assert.match(save, /const value = parseMeasure\(mValue, language\);/);
+  // A-203 (NN-4): the field is read by lib/labValue parseLabInput (parseMeasure in the app language,
+  // plus a leading sign or words); the empty check and its notice are unchanged.
+  assert.match(save, /const parsed = parseLabInput\(mValue, language\);/);
   assert.match(save, /setValueSheet\(\{ icon: 'warning', title: t\('error'\), body: t\('blood_edit_invalid'\)/);
   const { wheelAfter, wheelColumns } = require('../lib/bodyDates');
   const now = new Date(2026, 9, 3, 12);

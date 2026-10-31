@@ -102,8 +102,11 @@ test('every user-typed numeric field is parsed with the app language', () => {
   assert.match(calc, /parseMeasure\(v, language\)/, 'Your numbers, weigh-in, target, reality check fields');
   assert.match(calc, /readWeighInForm\(\{[^}]*language[^}]*\}\)/);
   const body = read('screens', 'BodyScreen.js');
-  assert.match(body, /parseMeasure\(mValue, language\)/, 'lab value edit');
-  assert.match(body, /value: parseMeasure\(m\.value, language\)/, 'lab scan review values the user may have edited');
+  // A-203 (founder 2026-10-31): both go through lib/labValue (a leading sign or words are kept); the
+  // number is still read with parseMeasure in the app language there.
+  assert.match(body, /parseLabInput\(mValue, language\)/, 'lab value edit');
+  assert.match(body, /scanResult\(m, language\)/, 'lab scan values');
+  assert.match(read('lib', 'labValue.js'), /parseMeasure\(x, language\)/, 'labValue reads the number with parseMeasure');
   const form = read('lib', 'protocolForm.js');
   assert.match(form, /function protocolPayload\(f, frequencyLabel, language\)/);
   const weigh = read('lib', 'weighInEdit.js');

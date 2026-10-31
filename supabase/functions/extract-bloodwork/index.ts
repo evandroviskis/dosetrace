@@ -17,7 +17,12 @@ const MAX_BASE64_LENGTH = 15 * 1024 * 1024;
 
 // IMPORTANT: this prompt is deliberately regulatory-safe (no interpretation,
 // classification, or clinical assessment). Do not alter its instructions.
-const EXTRACTION_PROMPT = `You are extracting numeric lab values from a laboratory report.
+// A-203 option C (founder 2026-10-31, checklist docs/specs/a203-non-numeric-lab-results.md): a result
+// printed with a sign comes back as "qualifier" + the number, a result printed in words as
+// "value_text" with "value": null — transcribed, never judged. Backward compatible: store apps up to
+// 1.3.x keep only rows whose value is a number (lib/bodyScan), so they skip word rows and read a
+// signed result as its number, as before.
+const EXTRACTION_PROMPT = `You are extracting lab values from a laboratory report.
 The report may be in any language (English, Portuguese, Spanish, French, German, Italian,
 Chinese, Japanese, Arabic, or others). It may come from any laboratory in any country,
 in any layout — tables, columnar reports, prose paragraphs, single or multi-page, digital
@@ -29,7 +34,9 @@ fences, no prose, no explanations before or after:
 {
   "report_date": "YYYY-MM-DD",
   "markers": [
-    { "marker": "Marker name", "value": numeric_value, "unit": "unit string" }
+    { "marker": "Marker name", "value": numeric_value, "unit": "unit string" },
+    { "marker": "Marker name", "qualifier": "<", "value": numeric_value, "unit": "unit string" },
+    { "marker": "Marker name", "value": null, "value_text": "result words as printed", "unit": "" }
   ]
 }
 
@@ -40,8 +47,20 @@ Rules:
   Cholesterol"; "Testosterona total" -> "Testosterone, Total"). Otherwise keep the
   original name from the report.
 - "value" is a number (not a string). Convert decimal comma to decimal point
-  (e.g., "5,4" -> 5.4). If the value is a non-numeric qualitative result
-  ("Negative", "Positive", "Reactive"), skip that marker entirely.
+  (e.g., "5,4" -> 5.4) and drop thousands separators the report uses (e.g., "2.000"
+  in a Portuguese report -> 2000).
+- When the RESULT column shows a sign or words meaning a sign before the number,
+  add "qualifier" with exactly one of "<", ">", "≤", "≥" and put the number in
+  "value": "< 0,01", "inferior a 0,01", "less than 0.01" -> "qualifier": "<", "value": 0.01;
+  "> 2.000", "superior a 2.000", "greater than 2000" -> "qualifier": ">", "value": 2000;
+  "≤ 1", "até 1", "up to 1" -> "≤"; "≥ 1", "at least 1" -> "≥". Never drop the sign.
+  Omit "qualifier" when the result is a plain number.
+- When the RESULT column shows words instead of a number ("Negative", "Positive",
+  "Reactive", "Não reagente", "Negativo", "Indetectável", "Traços", "1+"), return
+  "value": null and "value_text" with the words exactly as printed, in the report's own
+  language — never translated, never reworded. Use "value_text" only for the result
+  itself, never for a flag or status printed beside a result (H, L, "Alto", "Baixo",
+  "Normal", "Abnormal"), which stays excluded as below.
 - "unit" is a string exactly as printed on the report, preserving case
   (e.g., "mg/dL", "ng/dL", "mmol/L", "pg/mL", "IU/L", "%"). If no unit is printed
   for a value, use an empty string.
@@ -49,8 +68,9 @@ Rules:
   ISO-8601 (YYYY-MM-DD). Interpret local date formats correctly:
   DD/MM/YYYY (Brazil, EU) vs MM/DD/YYYY (US). See the DATE ORDER note below.
   Use today's date ONLY when no date at all is printed on the document.
-- Do NOT include reference ranges, normal ranges, flags (H/L), status labels,
-  interpretations, or any clinical assessment. Extract raw values only.
+- Do NOT include reference ranges, normal ranges, previous results, flags (H/L), status
+  labels, interpretations, or any clinical assessment. Extract raw values only: the
+  reference range and previous-result columns are ignored even when they show a sign.
 - Do NOT include patient identifiers, physician names, addresses, or any information
   that is not a lab measurement.
 - Do NOT wrap the JSON in code fences or add any commentary.

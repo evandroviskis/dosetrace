@@ -17,7 +17,8 @@ import { useMemo } from 'react';
 import Svg, { Line, Polyline, Circle, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
-import { formatDate, decimalText } from '../../lib/localeFormat';
+import { formatDate } from '../../lib/localeFormat';
+import { chartPoints, labNumberText } from '../../lib/labValue';
 
 const H = 170;        // drawing height (prototype 326 × 170)
 const SIDE = 12;      // left/right inset of the guide lines
@@ -32,8 +33,12 @@ const shortDate = (dateStr, language) => formatDate(dateStr, language, 'dayMonth
 export default function MarkerChart({ points, unit, language = 'en', width }) {
   const { colors } = useTheme();
   const W = Math.max(width || 300, 120);
+  // A-203: only readings with a number are drawn (a result in words is never a point); a reading
+  // with a sign sits at its number and carries the sign in its label ("> 2000").
+  const drawn = useMemo(() => chartPoints(points), [points]);
 
   const { xy, guides, labelled } = useMemo(() => {
+    const points = drawn;
     const vals = points.map(p => p.value);
     let lo = Math.min(...vals);
     let hi = Math.max(...vals);
@@ -45,15 +50,15 @@ export default function MarkerChart({ points, unit, language = 'en', width }) {
     const L = SIDE + INSET, R = W - SIDE - INSET;
     const X = (i) => (n === 1 ? W / 2 : L + (i / (n - 1)) * (R - L));
     const Y = (v) => BOTTOM - ((v - lo) / (hi - lo)) * (BOTTOM - TOP);
-    const pts = points.map((p, i) => ({ x: X(i), y: Y(p.value), value: p.value, date: p.date }));
+    const pts = points.map((p, i) => ({ x: X(i), y: Y(p.value), value: p.value, qualifier: p.qualifier, date: p.date }));
     // Many readings: label every k-th point (always the newest) so labels never collide.
     const step = n <= 1 ? 1 : Math.max(1, Math.ceil(MIN_LABEL_GAP / ((R - L) / (n - 1))));
     const show = new Set();
     for (let i = n - 1; i >= 0; i -= step) show.add(i);
     return { xy: pts, guides: [TOP, (TOP + BOTTOM) / 2, BOTTOM], labelled: show };
-  }, [points, W]);
+  }, [drawn, W]);
 
-  const a11y = points.map(p => `${shortDate(p.date, language)}: ${decimalText(p.value, language)}${unit ? ' ' + unit : ''}`).join(', ');
+  const a11y = drawn.map(p => `${shortDate(p.date, language)}: ${labNumberText(p, language, ' ')}${unit ? ' ' + unit : ''}`).join(', ');
 
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={a11y}>
@@ -76,7 +81,7 @@ export default function MarkerChart({ points, unit, language = 'en', width }) {
         ))}
         {xy.map((p, i) => (labelled.has(i) ? (
           <SvgText key={`v${i}`} x={p.x} y={p.y - 10} textAnchor="middle" fontFamily={MONO['500']} fontSize={11} fill={colors.ink}>
-            {decimalText(p.value, language)}
+            {labNumberText(p, language)}
           </SvgText>
         ) : null))}
         {xy.map((p, i) => (labelled.has(i) ? (
