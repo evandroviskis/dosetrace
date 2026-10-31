@@ -84,3 +84,43 @@ test('a dose log the server refuses (its protocol was deleted forever) stays pen
   assert.equal(cloud.rows('dose_logs', USER).length, 0, 'never written under a new id');
   assert.equal(B.getFirstSync('SELECT sync_status FROM protocols').sync_status, 'synced', 'the protocol is not re-queued');
 });
+
+// Parked since 2026-10-26 ("reinsertRow sem id ainda pode duplicar se a resposta se perder"), fixed
+// on the spot 2026-10-31 (founder rule 19:08 EDT). The fallback insert (old id refused and absent) went
+// without an id: when its answer was lost, the next sync inserted a second copy under another server
+// id. Now it carries a client id stored BEFORE the request (A-143), so a retry finds it and links.
+test('fallback insert whose answer is lost: the next sync links it, never a second protocol', async () => {
+  const { cloud, B, pid, remote } = await setup();
+  const ins = cloud.insert.bind(cloud);
+  let lost = true;
+  cloud.insert = async (t, p) => {
+    if (t === 'protocols' && p.id === remote) return { data: null, error: { code: '23514', message: 'check constraint' } };
+    if (t === 'protocols' && lost) { lost = false; await ins(t, p); return { data: null, error: { message: 'network timeout' } }; }
+    return ins(t, p);
+  };
+  await pushPending(B, cloud, USER);
+  await pushPending(B, cloud, USER);
+  assert.equal(cloud.rows('protocols', USER).length, 1, 'one protocol in the cloud');
+  const local = B.getFirstSync('SELECT remote_id, sync_status FROM protocols WHERE id = ?', [pid]);
+  assert.equal(local.remote_id, cloud.rows('protocols', USER)[0].id, 'linked to the landed row');
+  assert.equal(local.sync_status, 'synced');
+});
+
+test('a row deleted after a lost fallback insert deletes the landed copy too', async () => {
+  const { cloud, B, pid, remote } = await setup();
+  const ins = cloud.insert.bind(cloud);
+  cloud.insert = async (t, p) => {
+    if (t === 'protocols' && p.id === remote) return { data: null, error: { code: '23514', message: 'check constraint' } };
+    if (t === 'protocols') { await ins(t, p); return { data: null, error: { message: 'network timeout' } }; }
+    return ins(t, p);
+  };
+  const fetchIn = cloud.fetchIn.bind(cloud);
+  // the old id is looked up fine (absent); the lookup of the fallback's own id fails (connection dropped)
+  cloud.fetchIn = async (t, col, ids, u) => (ids.includes(remote) ? fetchIn(t, col, ids, u) : { data: null, error: { message: 'offline' } });
+  await pushPending(B, cloud, USER);
+  cloud.fetchIn = fetchIn;
+  assert.equal(cloud.rows('protocols', USER).length, 1, 'the fallback landed, its answer lost');
+  B.runSync(`UPDATE protocols SET sync_status = 'deleted' WHERE id = ?`, [pid]);
+  await pushPending(B, cloud, USER);
+  assert.equal(cloud.rows('protocols', USER).length, 0, 'the landed copy is deleted too, not left to come back on an import');
+});

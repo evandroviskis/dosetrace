@@ -104,7 +104,8 @@ test('when the same id cannot be reused, P gets a new cloud id and its history f
   const { cloud, B, remote, pid } = await setup();
   await oldBuildPurge(cloud, remote);
   const ins = cloud.insert.bind(cloud);
-  cloud.insert = async (t, p) => (p.id ? { data: null, error: { code: '23505', message: 'duplicate key' } } : ins(t, p));
+  // Only the old id is refused (the real cloud takes a client id: A-143; the fallback sends one, 2026-10-31).
+  cloud.insert = async (t, p) => (p.id === remote ? { data: null, error: { code: '23505', message: 'duplicate key' } } : ins(t, p));
   B.runSync(`UPDATE protocols SET name = 'P edited', updated_at = 'L1', sync_status = 'pending' WHERE id = ?`, [pid]);
   await pushPending(B, cloud, USER);
   const local = B.getFirstSync('SELECT * FROM protocols WHERE id = ?', [pid]);
