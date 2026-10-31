@@ -169,7 +169,8 @@ test('Part 9: starting a check keeps its start weight as that day\'s weigh-in (m
   const src = calc();
   const fn = src.match(/async function startRealityCheck\(\) \{[\s\S]*?\n  \}\n/);
   assert.ok(fn);
-  assert.match(fn[0], /mergeWeighIn\(/);
+  // A-212: the weigh-in is written in beginRealityCheck (a new one merged; a different number corrects it after asking).
+  assert.match(src.match(/async function beginRealityCheck\(kg, date, mode\) \{[\s\S]*?\n  \}\n/)[0], /mergeWeighIn\(/);
   assert.match(fn[0], /validStartDate\(rcStartDate, todayISO\(\)\)/, 'still never further back than 7 days (FL-44)');
 });
 

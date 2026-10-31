@@ -82,7 +82,7 @@ import { sexTapAction } from '../../lib/sexAtBirth';
 import { FoodReminderRow } from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
 import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
-import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch } from '../../lib/weighInEdit';
+import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch, startWeighInChoice } from '../../lib/weighInEdit';
 import { formatDate, formatNumber, formatInt, decimalText, inputNumber, MONTHS_SHORT } from '../../lib/localeFormat';
 import useColumnWidth from '../../components/useColumnWidth';
 import { parseMeasure, savedFieldText, canonicalDecimal } from '../../lib/doseMath';
@@ -922,20 +922,41 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // 2026-09-27) — validated again here, never further back, never in the future.
   // The start weight is also kept as that day's weigh-in when the day has none yet
   // (never over a weight already saved that day).
+  // A-212 (Q12 = C): the start weight IS that day's weigh-in. A different number than the weigh-in
+  // already logged that day asks first (DoseTrace sheet over the start sheet); Cancel keeps the
+  // sheet with the typed number. The same number, or no weigh-in that day, starts straight away.
   async function startRealityCheck() {
     const kg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
     if (kg == null) return;
     const date = rcStartDate && validStartDate(rcStartDate, todayISO()) ? rcStartDate : todayISO();
+    const uid = userIdRef.current;
+    const existing = uid ? (getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null) : null;
+    const choice = startWeighInChoice(existing, kg, unit);
+    if (choice !== 'ask') { await beginRealityCheck(kg, date, choice); return; }
+    setConfirm({
+      title: t('cal_rc_start_update_title').replace('{date}', fmtShort(date)),
+      body: t('cal_rc_start_update_body').replace('{old}', `${fmtW(existing.weight_kg)}\u00A0${wUnit}`).split('{new}').join(`${fmtW(kg)}\u00A0${wUnit}`),
+      // Two stacked buttons are drawn in reverse (DTSheet): Update on top, Cancel under it, as approved.
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('cal_wedit_update').replace('{date}', fmtShort(date)), kind: 'primary', onPress: () => beginRealityCheck(kg, date, 'update') },
+      ],
+    });
+  }
+
+  async function beginRealityCheck(kg, date, mode) {
     // Free days count from the day of this TAP, never the backdated start (FL-41 × FL-44).
     ensureFreeStart(userIdRef.current);
     const uid = userIdRef.current;
     if (uid) {
       const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
-      if (!existing || existing.weight_kg == null) {
+      if (mode === 'update' && existing) {
+        correctCalcSnapshot(uid, date, { weightKg: kg, bodyFatPct: existing.body_fat_pct ?? null, waistCm: existing.waist_cm ?? null });
+      } else if (!existing || existing.weight_kg == null) {
         upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg: kg }));
-        requestSync?.();
-        setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
       }
+      requestSync?.();
+      setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
     }
     const start = { date, weightKg: kg };
     setRcStart(start);
@@ -1753,6 +1774,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <Text style={s.btnPText}>{t('cal_rc_start_btn')}</Text>
         </TouchableOpacity>
         <Text style={s.foot2}>{t('cal_rc_start_hint').replace('{n}', String(REALITY_CHECK_DAYS))}</Text>
+        {/* A-212: "Atualizar a pesagem de {date}?" asks inside the sheet so it shows over it. */}
+        <DTSheet config={rcStartOpen ? confirm : null} onClose={closeConfirm} />
       </SheetModal>
 
       {/* Reality check typed calories (founder 2026-10-02: keep typing the calories by hand). */}
@@ -1921,7 +1944,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       </SheetModal>
 
       {/* Start over? / Stop reality check? / Update your weight (DoseTrace sheets, part 12, PO-14). */}
-      <DTSheet config={targetEditing || weEdit ? null : confirm} onClose={closeConfirm} />
+      <DTSheet config={targetEditing || weEdit || rcStartOpen ? null : confirm} onClose={closeConfirm} />
 
       {/* Free plan: "See how it works" — the explainer first, then Unlock with Premium (part 11). */}
       <FeaturePreviewSheet featureKey={rcExplain ? 'reality' : null} onClose={() => setRcExplain(false)} onUnlock={() => { setRcExplain(false); navigation.navigate('Paywall', { source: 'reality_check' }); }} />

@@ -125,7 +125,8 @@ test('A-77: a save (or the target Cancel, which discards on purpose today) clear
     assert.ok(m, name);
     return m[0];
   };
-  assert.match(src.match(/async function startRealityCheck\(\) \{[\s\S]*?\n  \}\n/)[0], /clearDraft\('progress:rcWeigh'\);/);
+  // A-212: the start (after the weigh-in question when it asks) runs in beginRealityCheck.
+  assert.match(src.match(/async function beginRealityCheck\(kg, date, mode\) \{[\s\S]*?\n  \}\n/)[0], /clearDraft\('progress:rcWeigh'\);/);
   assert.match(fn('saveTodayWeighIn'), /clearDraft\('progress:todayWeigh'\);/);
   // The target sheet: closing it (Cancel, backdrop, Android back) or saving ends targetEditing,
   // and the effect above clears the draft; the past weigh-in save empties its fields.

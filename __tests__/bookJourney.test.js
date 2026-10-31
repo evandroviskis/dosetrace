@@ -266,7 +266,9 @@ test('BK-19: CalculatorSection announces every saved calculator change (notifyDa
   const done = src.match(/async function completeRealityCheck\(res\) \{[\s\S]*?\n  \}\n/);
   assert.ok(done, 'completeRealityCheck');
   assert.match(done[0], /calcChanged\(\);/, 'a finished check announces the change');
-  for (const name of ['saveTodayWeighIn', 'saveTarget', 'saveBackfillWeighIn', 'startRealityCheck', 'resetRealityCheck']) {
+  // A-212: the start writes through beginRealityCheck (after the weigh-in question when it asks).
+  assert.match(src.match(/async function beginRealityCheck\(kg, date, mode\) \{[\s\S]*?\n  \}\n/)[0], /calcChanged\(\);/, 'beginRealityCheck announces the change');
+  for (const name of ['saveTodayWeighIn', 'saveTarget', 'saveBackfillWeighIn', 'resetRealityCheck']) {
     const m = src.match(new RegExp(`(async )?function ${name}\\(\\) \\{[\\s\\S]*?\\n  \\}\\n`));
     assert.ok(m, name);
     assert.match(m[0], /calcChanged\(\);/, `${name} announces the change`);
