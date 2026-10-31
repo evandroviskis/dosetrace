@@ -70,3 +70,18 @@ test('A-204: every scrolling list beside a field takes the first tap while the k
     }
   }
 });
+
+// iPhone 2026-10-31 (new protocol, typed fast): the first letter shrank the AI card above the name
+// field, the field moved up, and the field was measured AFTER the move — the tap that focused it read
+// as "away" and closed the keyboard after one letter. The field being typed is measured when the
+// finger goes down, before anything moves; a tap that focuses a field (none focused at the start)
+// never closes the keyboard.
+test('A-204: the field is measured at touch start; a tap that starts with no field focused never closes', () => {
+  const tap = fs.readFileSync(path.join(__dirname, '..', 'components/tapAwayKeyboard.js'), 'utf8');
+  const start = tap.slice(tap.indexOf('onTouchStart'), tap.indexOf('onTouchEnd'));
+  assert.match(start, /focusedInput\(\)/);
+  assert.match(start, /\.measure\(/);
+  const end = tap.slice(tap.indexOf('onTouchEnd'));
+  assert.doesNotMatch(end, /\.measure\(/, 'never measured after the touch (the layout may have moved)');
+  assert.match(end, /if \(!from \|\| !from\.input \|\| !from\.rect\) return;/);
+});
