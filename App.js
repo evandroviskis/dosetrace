@@ -41,6 +41,8 @@ import { completeLocalSignOut } from './lib/signOutCore';
 import { tabBarStyle } from './lib/tabBarStyle';
 import { tapAwayProps } from './components/tapAwayKeyboard';
 import GlassTabBar from './components/GlassTabBar';
+import { loadNativeTabs } from './lib/nativeViews';
+import { TAB_ICONS } from './lib/tabIcons';
 import { setWindowBackground } from './modules/dt-exact-alarm';
 import { setStrictRemoval } from './lib/secureStore';
 import { onSignedOutNow, afterSignedOut, checkAccountGone, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
@@ -147,7 +149,10 @@ import { DTSheet } from './screens/components/ProtocolParts';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 import ProgressScreen from './screens/ProgressScreen';
 
-const Tab = createBottomTabNavigator();
+// A-206 GB-7: on iPhone, Apple's own tab bar (iOS 26 Liquid Glass) when its native view is in the
+// binary (lib/nativeViews); otherwise — Android, or a binary without it — today's JS navigator.
+const NATIVE_TABS = loadNativeTabs();
+const Tab = NATIVE_TABS ? NATIVE_TABS.createNavigator() : createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 // ── Tab-bar line icons ─────────────────────────────────────────
@@ -243,9 +248,27 @@ function tabScreenOptions(colors, insets) {
   };
 }
 
-// A-206: Android draws the floating glass bar (the real app and its opening alike); iPhone keeps the
-// navigator's bar until Apple's own glass bar arrives with the native build.
+// A-206: Android draws the floating glass bar (the real app and its opening alike). On iPhone no
+// tabBar prop: it would replace Apple's own bar.
 const GLASS_TAB_BAR = Platform.OS === 'android' ? (props) => <GlassTabBar {...props} /> : undefined;
+
+// A-206 GB-7: Apple's bar (iPhone, native view present) shrinks while the screen scrolls down and comes
+// back on scroll up; the chosen tab is ink, the others ink3 — never blue. Nothing for the JS bars.
+function tabNavProps(colors) {
+  if (!NATIVE_TABS) return {};
+  return {
+    minimizeBehavior: 'onScrollDown',
+    tabBarActiveTintColor: colors.ink,
+    tabBarInactiveTintColor: colors.ink3,
+  };
+}
+
+// One tab's label and icon: Apple's bar takes the glyphs as template images (outline, filled when
+// chosen: lib/tabIcons); the JS bars draw the glyph components.
+function tabOptions(tab) {
+  if (NATIVE_TABS) return { tabBarLabel: tab.label, tabBarIcon: ({ focused }) => TAB_ICONS[tab.name][focused ? 'filled' : 'outline'] };
+  return { tabBarLabel: tab.label, tabBarIcon: ({ focused }) => <TabIcon Glyph={tab.Glyph} focused={focused} /> };
+}
 
 function MainTabs() {
   const { t } = useLanguage();
@@ -255,6 +278,7 @@ function MainTabs() {
   const insets = useSafeAreaInsets(); // the tab bar sits above the system's bottom bar (Android)
   return (
     <Tab.Navigator
+      {...tabNavProps(colors)}
       screenOptions={tabScreenOptions(colors, insets)}
       tabBar={GLASS_TAB_BAR}
     >
@@ -263,12 +287,7 @@ function MainTabs() {
           key={tab.name}
           name={tab.name}
           component={tab.component}
-          options={{
-            tabBarLabel: tab.label,
-            tabBarIcon: ({ focused }) => (
-              <TabIcon Glyph={tab.Glyph} focused={focused} />
-            ),
-          }}
+          options={tabOptions(tab)}
         />
       ))}
     </Tab.Navigator>
@@ -494,13 +513,13 @@ function BootTabs({ onTabTap }) {
   return (
     <NavigationContainer theme={navThemeFor(colors, isDark)}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Tab.Navigator screenOptions={tabScreenOptions(colors, insets)} tabBar={GLASS_TAB_BAR} screenListeners={({ route }) => ({ tabPress: (e) => { e.preventDefault(); if (onTabTap) onTabTap(route.name); } })}>
+      <Tab.Navigator {...tabNavProps(colors)} screenOptions={tabScreenOptions(colors, insets)} tabBar={GLASS_TAB_BAR} screenListeners={({ route }) => ({ tabPress: (e) => { e.preventDefault(); if (onTabTap) onTabTap(route.name); } })}>
         {tabDefs(t).map((tab) => (
           <Tab.Screen
             key={tab.name}
             name={tab.name}
             component={tab.name === 'Today' ? TodayOpening : BootEmpty}
-            options={{ tabBarLabel: tab.label, tabBarIcon: ({ focused }) => <TabIcon Glyph={tab.Glyph} focused={focused} /> }}
+            options={{ ...tabOptions(tab), preventsDefault: true }}
           />
         ))}
       </Tab.Navigator>

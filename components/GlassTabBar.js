@@ -10,8 +10,18 @@ import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withSequence, withTiming } from 'react-native-reanimated';
 import { useTheme } from '../lib/theme';
 import { glassBarRoom } from '../lib/tabBarStyle';
+import { loadBlurView } from '../lib/nativeViews';
 
 const PAD = 4;
+
+// A-206 option A (founder 2026-10-31 15:57 EDT): a real blur (expo-blur) under the capsule, the glass
+// tint (glassFill) on top of it. The bar keeps its own room in the layout (GB-3), so the blur softens the
+// screen's ground under the capsule — accepted. Without the native view (a binary built before it, e.g.
+// today's dev client) BlurView is null and the capsule paints glassFill itself, exactly as before.
+const BlurView = loadBlurView();
+// Blur strength per theme (expo-blur 1–100; its tint overlay grows with it): light glass stays bright,
+// dark glass a little deeper.
+const BLUR = { light: 24, dark: 32 };
 
 // The glass highlight: the sheen colour fading out over the upper half (Apple's glass catches the
 // light along its top edge).
@@ -52,12 +62,25 @@ export default function GlassTabBar({ state, descriptors, navigation, insets }) 
   if (focusedOptions.tabBarStyle && StyleSheet.flatten(focusedOptions.tabBarStyle)?.display === 'none') return null;
 
   const lensH = room.barHeight - PAD * 2;
+  // With the blur, the capsule's own paint is the ground under it (what the bar's room shows anyway),
+  // which keeps Android's elevation shadow; the glass tint (glassFill) sits on the blur.
   return (
     <View style={{ height: room.total, paddingTop: room.topGap, paddingBottom: room.bottomGap + room.inset, backgroundColor: c.ground }}>
       <View
         onLayout={(e) => setW(e.nativeEvent.layout.width)}
-        style={[s.bar, { height: room.barHeight, borderRadius: room.barHeight / 2, backgroundColor: c.glassFill, borderColor: c.glassEdge, shadowColor: c.glassShade }]}
+        style={[s.bar, { height: room.barHeight, borderRadius: room.barHeight / 2, backgroundColor: BlurView ? c.ground : c.glassFill, borderColor: c.glassEdge, shadowColor: c.glassShade }]}
       >
+        {BlurView ? (
+          <BlurView
+            pointerEvents="none"
+            experimentalBlurMethod="dimezisBlurView"
+            intensity={isDark ? BLUR.dark : BLUR.light}
+            tint={isDark ? 'dark' : 'light'}
+            style={[StyleSheet.absoluteFill, { borderRadius: room.barHeight / 2, overflow: 'hidden' }]}
+          >
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: c.glassFill }]} />
+          </BlurView>
+        ) : null}
         <Sheen id="glassBarSheen" color={c.glassSheen} strength={isDark ? 0.14 : 0.85} radius={room.barHeight / 2} />
         {tabW > 0 && (
           <Animated.View pointerEvents="none" style={[s.lens, { width: tabW, height: lensH, borderRadius: lensH / 2, backgroundColor: c.glassLens, borderColor: c.glassEdge }, lens]}>
