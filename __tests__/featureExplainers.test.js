@@ -36,7 +36,8 @@ test('part 18: the eight explainers in the prototype order, with the approved co
     sites: ['Rotate your injection sites', 'Log where you injected and see your own rotation at a glance, with the spot you have not used the longest.'],
     log: ['Keep your streak', 'Every dose you log fills your week and your streak, so you see at a glance how consistent you have been.'],
     energy: ['Your daily numbers', 'From your weight, height, age, and activity, DoseTrace estimates your resting burn, your daily burn, and a protein range, using standard formulas.'],
-    labsman: ['All your lab values in one place', 'Type in values from any lab report and keep them together by date, with the units on your report.'],
+    // A-202 (founder 2026-10-31): lab tests are never typed by hand; the explainer says so.
+    labsman: ['All your lab values in one place', 'Upload your lab report and the AI reads the values. You can fix any of them or add one it missed, all kept by date.'],
     notes: ['Notes on your doses', 'Add a note when you log a dose, like how you felt or when you took it, and find it later in your dose log.'],
   };
   for (const x of EXPLAINERS) {

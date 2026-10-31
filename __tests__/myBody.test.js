@@ -211,7 +211,7 @@ test('MB-16: the marker card reads "Latest · {date}" over a light 56-pt number 
 });
 
 test('MB-17: Edit value is a bottom sheet; Test date opens its own wheel sheet that never reaches a future day', () => {
-  assert.match(BODY, /<BottomSheet visible=\{!!mEdit\} onClose=\{closeMarkerEdit\}>\s*<SheetBar title=\{t\('blood_edit_title'\)\} cancelLabel=\{t\('cancel'\)\} onCancel=\{closeMarkerEdit\} actionLabel=\{t\('save'\)\} onAction=\{saveMarkerEdit\} \/>/);
+  assert.match(BODY, /<BottomSheet visible=\{!!mEdit\} onClose=\{closeMarkerEdit\}>\s*<SheetBar title=\{mAdding \? t\('blood_add_value_title'\) : t\('blood_edit_title'\)\} cancelLabel=\{t\('cancel'\)\} onCancel=\{closeMarkerEdit\} actionLabel=\{t\('save'\)\} onAction=\{saveMarkerEdit\} \/>/);
   assert.match(BODY, /<DTPickerSheet visible=\{!!mEdit && mDateWheel\} title=\{t\('blood_edit_date'\)\} doneLabel=\{t\('done'\)\}/);
   assert.match(BODY, /wheelAfter\(mDate \|\| today, new Date\(\), col, i, \{ \.\.\.TEST_DATE_RANGE, max: today \}\)/);
   assert.doesNotMatch(BODY, /DateTimePicker/, 'no inline iOS spinner');

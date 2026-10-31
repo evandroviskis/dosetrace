@@ -22,7 +22,7 @@ import { formatDate as localeDate, decimalText, inputNumber, MONTHS_SHORT } from
 import { parseMeasure } from '../lib/doseMath';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, addBiomarkerToReport, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
 import { isFavorite, setFavorite, setReportTag, dropReportDate } from '../lib/bodyPrefs';
 import { loadLabPrefs, saveLabStar, saveLabTags } from '../lib/labPrefs';
@@ -223,6 +223,9 @@ export default function BodyScreen({ navigation, route }) {
   const [selVaccines, setSelVaccines] = useState(() => new Set());
   // Editing a stored marker (correcting an extracted value).
   const [mEdit, setMEdit] = useState(null);
+  // A-202: the window's mode (add or edit), kept until the next open so it never flips to Edit value
+  // while it slides away after Save.
+  const [mAdding, setMAdding] = useState(false);
   const [mName, setMName] = useState('');
   const [mValue, setMValue] = useState('');
   const [mUnit, setMUnit] = useState('');
@@ -678,6 +681,7 @@ export default function BodyScreen({ navigation, route }) {
   // Open the marker editor for a stored row (from either view). `obj` carries
   // the biomarker id plus its current marker/value/unit/date.
   function openMarkerEdit(obj) {
+    setMAdding(false);
     setMEdit(obj);
     setMName(obj.marker || '');
     setMValue(obj.value != null ? inputNumber(obj.value, language) : ''); // "5,2" in pt; saved back through the comma-aware parse
@@ -686,15 +690,48 @@ export default function BodyScreen({ navigation, route }) {
     setMDateWheel(false);
     setValueSheet(null);
   }
+  // A-202 (founder 2026-10-31): "+ Adicionar valor" on an uploaded test — the value the scan missed.
+  // The same window as Edit value, empty, its date held to the test; no test is ever typed by hand.
+  function openAddValue(card) {
+    setMAdding(true);
+    setMEdit({ adding: true, card });
+    setMName('');
+    setMValue('');
+    setMUnit('');
+    setMDate(card.date);
+    setMDateWheel(false);
+    setValueSheet(null);
+  }
   function closeMarkerEdit() {
+    // AV-6: what was typed into a new value is never lost without a question.
+    if (mEdit?.adding && (mName.trim() || mValue.trim() || mUnit.trim())) {
+      setValueSheet({
+        title: t('blood_add_discard_title'),
+        body: t('protocols_discard_body'),
+        buttons: [
+          { label: t('cancel'), kind: 'secondary' },
+          { label: t('protocols_discard'), kind: 'danger', onPress: () => { setMDateWheel(false); setMEdit(null); } },
+        ],
+      });
+      return;
+    }
     setMDateWheel(false);
     setMEdit(null);
   }
-  function saveMarkerEdit() {
+  async function saveMarkerEdit() {
     if (!mEdit) return;
     const value = parseMeasure(mValue, language); // lab values: in English a comma stays the decimal ("1,025")
     if (!mName.trim() || !Number.isFinite(value)) {
       setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_edit_invalid'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      return;
+    }
+    if (mEdit.adding) {
+      const user = await getCachedUser();
+      if (!user) { setMEdit(null); notice(scanErrorSheet('signin', t)); return; }
+      addBiomarkerToReport(user.id, mEdit.card, { marker: mName.trim(), value, unit: mUnit.trim() });
+      requestSync();
+      setMEdit(null);
+      fetchReports();
       return;
     }
     updateBiomarker(mEdit.id, { marker: mName.trim(), value, unit: mUnit.trim(), report_date: mDate });
@@ -1091,6 +1128,9 @@ export default function BodyScreen({ navigation, route }) {
           ))}
         </View>
 
+        <TouchableOpacity style={s.moveBtn} onPress={() => openAddValue(reportDetail)} accessibilityRole="button">
+          <Text style={s.btnOText}>{t('blood_add_value_btn')}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={s.moveBtn} onPress={() => openDateMove(reportDetail)} accessibilityRole="button">
           <FeatureIcon name="calendar" size={18} color={colors.ink} />
           <Text style={s.btnOText}>{t('blood_date_move')}</Text>
@@ -1672,7 +1712,7 @@ export default function BodyScreen({ navigation, route }) {
 
       {/* EDIT / DELETE A STORED VALUE (prototype meditSheet) */}
       <BottomSheet visible={!!mEdit} onClose={closeMarkerEdit}>
-        <SheetBar title={t('blood_edit_title')} cancelLabel={t('cancel')} onCancel={closeMarkerEdit} actionLabel={t('save')} onAction={saveMarkerEdit} />
+        <SheetBar title={mAdding ? t('blood_add_value_title') : t('blood_edit_title')} cancelLabel={t('cancel')} onCancel={closeMarkerEdit} actionLabel={t('save')} onAction={saveMarkerEdit} />
         <View style={s.fld}>
           <Text style={s.fieldLabel}>{t('blood_edit_marker')}</Text>
           <TextInput style={s.input} value={mName} onChangeText={setMName} placeholderTextColor={colors.ink3} />
@@ -1689,14 +1729,23 @@ export default function BodyScreen({ navigation, route }) {
         </View>
         <View style={s.fld}>
           <Text style={s.fieldLabel}>{t('blood_edit_date')}</Text>
-          <TouchableOpacity style={s.dateBtn} onPress={() => setMDateWheel(true)} accessibilityRole="button">
-            <Text style={[s.body, s.tnum]}>{mDate ? formatDate(mDate) : '—'}</Text>
-            <FeatureIcon name="calendar" size={20} color={colors.ink2} />
-          </TouchableOpacity>
+          {mAdding ? (
+            /* AV-3: the test's own date; the whole test moves with "Mudar a data deste exame". */
+            <View style={s.dateBtn}>
+              <Text style={[s.body, s.tnum]}>{mDate ? formatDate(mDate) : '—'}</Text>
+            </View>
+          ) : (
+            <TouchableOpacity style={s.dateBtn} onPress={() => setMDateWheel(true)} accessibilityRole="button">
+              <Text style={[s.body, s.tnum]}>{mDate ? formatDate(mDate) : '—'}</Text>
+              <FeatureIcon name="calendar" size={20} color={colors.ink2} />
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity style={s.dangerBtn} onPress={askDeleteValue} accessibilityRole="button">
-          <Text style={s.dangerText}>{t('blood_edit_delete')}</Text>
-        </TouchableOpacity>
+        {!mAdding && (
+          <TouchableOpacity style={s.dangerBtn} onPress={askDeleteValue} accessibilityRole="button">
+            <Text style={s.dangerText}>{t('blood_edit_delete')}</Text>
+          </TouchableOpacity>
+        )}
         {/* The Test date wheel (prototype openDate): its own sheet, titled, with Done; never a
             future day. The field and the wheel share one local ISO day. */}
         <DTPickerSheet visible={!!mEdit && mDateWheel} title={t('blood_edit_date')} doneLabel={t('done')} onDone={() => setMDateWheel(false)}>
@@ -1733,7 +1782,7 @@ export default function BodyScreen({ navigation, route }) {
       <DTActionSheet config={sourceChoice} onClose={() => setSourceChoice(null)} />
 
       {/* Part 18: the lab-journal explainer when the user first opens Lab results. */}
-      {section === 'labs' && <FeatureExplainerGate candidates={labExplainers} />}
+      {section === 'labs' && <FeatureExplainerGate candidates={labExplainers} onTry={() => setTimeout(handleUploadPress, 350)} />}
     </SafeAreaView>
   );
 }

@@ -12,7 +12,9 @@ import { FeatureExplainerSheet } from './FeatureExplainers';
 
 const SETTLE_MS = 700; // let the screen settle before the sheet slides up
 
-export default function FeatureExplainerGate({ candidates }) {
+// onTry: what "Try it" opens on that screen (A-202: the lab journal's upload choice); without it
+// both buttons only close.
+export default function FeatureExplainerGate({ candidates, onTry }) {
   const [key, setKey] = useState(null);
   const candRef = useRef(candidates);
   candRef.current = candidates;
@@ -35,5 +37,5 @@ export default function FeatureExplainerGate({ candidates }) {
       return () => { live = false; clearTimeout(timer); setKey(null); };
     }, [])
   );
-  return <FeatureExplainerSheet featureKey={key} onClose={() => setKey(null)} />;
+  return <FeatureExplainerSheet featureKey={key} onClose={() => setKey(null)} onTry={onTry ? () => { setKey(null); onTry(key); } : undefined} />;
 }
