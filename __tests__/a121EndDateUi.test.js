@@ -137,6 +137,7 @@ function handlers(p) {
       return loadFn('lib/endProtocolFlow.js', 'export function endProtocolFully(', 'endProtocolFully', {
         endProtocolNow: this.endProtocolNow, cancelDoseReminder: this.cancelDoseReminder,
         dismissDeliveredDoseReminders: this.dismissDeliveredDoseReminders, AsyncStorage: this.AsyncStorage,
+        syncAllNotifications: async () => {},
       });
     },
     requestSync: () => calls.push(['sync']),

@@ -113,6 +113,7 @@ function endFlow(calls) {
     endProtocolNow: (id) => { calls.push(['endNow', id]); return '2026-10-30T12:00:00.000Z'; },
     cancelDoseReminder: async (id) => { calls.push(['cancel', id]); },
     dismissDeliveredDoseReminders: async (id) => { calls.push(['dismiss', id]); },
+    syncAllNotifications: async () => {},
     AsyncStorage: { removeItem: async (k) => { calls.push(['removeKey', k]); } },
   });
 }
@@ -219,7 +220,7 @@ test('A-85: the same last-dose window on the protocol page (after Edit vial) end
 test('A-85: the one End module imports the real writers (no copy of the End)', () => {
   const src = fs.readFileSync(path.join(__dirname, '../lib/endProtocolFlow.js'), 'utf8');
   assert.match(src, /import \{ endProtocolNow \} from '\.\/database';/);
-  assert.match(src, /import \{ cancelDoseReminder, dismissDeliveredDoseReminders \} from '\.\/notifications';/);
+  assert.match(src, /import \{ cancelDoseReminder, dismissDeliveredDoseReminders, syncAllNotifications \} from '\.\/notifications';/);
   assert.match(TODAY, /import \{ endProtocolFully \} from '\.\.\/lib\/endProtocolFlow';/);
   assert.match(PROT, /import \{ endProtocolFully \} from '\.\.\/lib\/endProtocolFlow';/);
 });
