@@ -1,0 +1,84 @@
+<title>Pesagem inicial</title>
+<style>
+  :root { --page:#EEF0EC; --fg:#111315; --fg2:#454A4F; }
+  * { box-sizing: border-box; }
+  body { margin:0; background: var(--page); color: var(--fg); font-family: -apple-system, 'Inter', Arial, sans-serif; }
+  .wrap { padding: 24px 16px 40px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 21px; margin: 0 0 6px; }
+  .lead { font-size: 14px; line-height: 1.5; color: var(--fg2); max-width: 82ch; margin: 0 0 20px; }
+  .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .col h2 { font-size: 15px; margin: 0 0 4px; }
+  .col p { font-size: 12.5px; color: var(--fg2); line-height: 1.45; margin: 0 0 10px; min-height: 54px; }
+  .pair { display: flex; gap: 10px; }
+  .ph { flex: 1; min-width: 0; border-radius: 22px; padding: 14px 10px; position: relative; overflow: hidden; height: 470px; }
+  .light { --g:#DDE0DB; --r:#FFFFFF; --w:#EEF0EC; --i:#111315; --i2:#454A4F; --i3:#53585D; --l:#C3C7C0; --act:#111315; --onact:#FFFFFF; }
+  .dark  { --g:#121416; --r:#282B30; --w:#1D2024; --i:#EEEFEB; --i2:#B5B9B4; --i3:#9A9F9A; --l:#3C4147; --act:#EEEFEB; --onact:#121416; }
+  .ph { background: var(--g); color: var(--i); }
+  .tt { font-size: 18px; font-weight: 800; margin: 2px 2px 10px; }
+  .card { background: var(--r); border-radius: 16px; padding: 10px; display: flex; flex-direction: column; gap: 7px; margin-bottom: 8px; }
+  .lab { font-size: 9.5px; color: var(--i2); }
+  .big { font-size: 26px; font-weight: 300; }
+  .big small { font-size: 9px; color: var(--i2); margin-left: 2px; font-family: ui-monospace, monospace; }
+  .row { font-size: 11px; display: flex; justify-content: space-between; border-top: 1px solid var(--l); padding-top: 7px; }
+  .row b { font-weight: 600; }
+  .sub { font-size: 9.5px; color: var(--i2); }
+  .mono { font-family: ui-monospace, monospace; }
+  .bad { outline: 2px solid #C7443B; outline-offset: 2px; border-radius: 4px; }
+  .ok { outline: 2px solid #17623F; outline-offset: 2px; border-radius: 4px; }
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; flex-direction: column; justify-content: flex-end; padding: 6px; }
+  .sheet { background: var(--r); border-radius: 18px; padding: 13px; display: flex; flex-direction: column; gap: 9px; }
+  .sheet h3 { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.25; }
+  .sheet .b { font-size: 11.5px; line-height: 1.4; color: var(--i2); }
+  .btn { min-height: 30px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; text-align: center; padding: 0 8px; }
+  .p { background: var(--act); color: var(--onact); }
+  .s { background: var(--w); color: var(--i); }
+  .under { position: absolute; left: 10px; right: 10px; top: 60px; }
+  .field { border: 1px solid var(--l); border-radius: 10px; padding: 7px 9px; font-size: 13px; }
+  .foot { margin-top: 18px; font-size: 13px; color: var(--fg2); line-height: 1.5; max-width: 90ch; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+</style>
+<div class="wrap">
+  <h1>A-212 · Pesagem inicial de "Seus números reais" = a pesagem do dia</h1>
+  <p class="lead">Decidido em 15/10 (Q12 = C): o peso com que a medição começa é a pesagem daquele dia; digitar outro número atualiza a pesagem, com confirmação. Hoje o app guarda os dois: a pesagem de 80,0 e um início de 79,4 no mesmo dia. Abaixo: como está, a pergunta que entra, e o resultado. A pergunta usa a mesma janela e o mesmo botão de "Atualizar seu peso" (já aprovados); são novos só o título e o texto.</p>
+  <div class="cols">
+    <div class="col">
+      <h2>1 · Hoje (defeito)</h2>
+      <p>A pesagem do dia continua 80,0 e a medição começa com 79,4. Dois pesos para o mesmo dia; o gráfico de pesagens e a medição não batem.</p>
+      <div class="pair">
+        <div class="ph light"><div class="tt">Progresso</div>
+          <div class="card"><div class="lab">Peso</div><div class="big bad">80,0<small>kg</small></div>
+            <div class="row"><b>Pesagens</b></div><div class="sub bad">1 · última 31 de out. · 80,0 kg</div></div>
+          <div class="card"><b style="font-size:13px">Seus números reais</b><div class="sub">Em andamento · pesagem em 21 de nov.</div><div class="mono bad" style="font-size:11px">① 79,4 kg · 31 de out.</div></div></div>
+        <div class="ph dark"><div class="tt">Progresso</div>
+          <div class="card"><div class="lab">Peso</div><div class="big bad">80,0<small>kg</small></div>
+            <div class="row"><b>Pesagens</b></div><div class="sub bad">1 · última 31 de out. · 80,0 kg</div></div>
+          <div class="card"><b style="font-size:13px">Seus números reais</b><div class="sub">Em andamento · pesagem em 21 de nov.</div><div class="mono bad" style="font-size:11px">① 79,4 kg · 31 de out.</div></div></div>
+      </div>
+    </div>
+    <div class="col">
+      <h2>2 · Proposta: a pergunta</h2>
+      <p>Só aparece quando aquele dia já tem uma pesagem com outro peso. Mesmo número: começa direto, sem pergunta. Cancelar volta à janela com o número digitado.</p>
+      <div class="pair">
+        <div class="ph light"><div class="under"><div class="card"><b style="font-size:13px">Seus números reais</b><div class="lab">Pesagem inicial em · Hoje</div><div class="field">79,4</div><div class="btn p">Registrar hoje e criar lembrete</div></div></div>
+          <div class="scrim"><div class="sheet"><h3>Atualizar a pesagem de 31 de out.?</h3><div class="b">Neste dia você já registrou 80,0 kg. Seus números reais começam com 79,4 kg, e essa pesagem passa a ser 79,4 kg.</div><div class="btn p">Atualizar a pesagem de 31 de out.</div><div class="btn s">Cancelar</div></div></div></div>
+        <div class="ph dark"><div class="under"><div class="card"><b style="font-size:13px">Seus números reais</b><div class="lab">Pesagem inicial em · Hoje</div><div class="field">79,4</div><div class="btn p">Registrar hoje e criar lembrete</div></div></div>
+          <div class="scrim"><div class="sheet"><h3>Atualizar a pesagem de 31 de out.?</h3><div class="b">Neste dia você já registrou 80,0 kg. Seus números reais começam com 79,4 kg, e essa pesagem passa a ser 79,4 kg.</div><div class="btn p">Atualizar a pesagem de 31 de out.</div><div class="btn s">Cancelar</div></div></div></div>
+      </div>
+    </div>
+    <div class="col">
+      <h2>3 · Depois de "Atualizar"</h2>
+      <p>Um peso só para o dia: a pesagem, o peso no topo e o início da medição mostram 79,4 (é a mesma linha de pesagem, sincronizada).</p>
+      <div class="pair">
+        <div class="ph light"><div class="tt">Progresso</div>
+          <div class="card"><div class="lab">Peso</div><div class="big ok">79,4<small>kg</small></div>
+            <div class="row"><b>Pesagens</b></div><div class="sub ok">1 · última 31 de out. · 79,4 kg</div></div>
+          <div class="card"><b style="font-size:13px">Seus números reais</b><div class="sub">Em andamento · pesagem em 21 de nov.</div><div class="mono ok" style="font-size:11px">① 79,4 kg · 31 de out.</div></div></div>
+        <div class="ph dark"><div class="tt">Progresso</div>
+          <div class="card"><div class="lab">Peso</div><div class="big ok">79,4<small>kg</small></div>
+            <div class="row"><b>Pesagens</b></div><div class="sub ok">1 · última 31 de out. · 79,4 kg</div></div>
+          <div class="card"><b style="font-size:13px">Seus números reais</b><div class="sub">Em andamento · pesagem em 21 de nov.</div><div class="mono ok" style="font-size:11px">① 79,4 kg · 31 de out.</div></div></div>
+      </div>
+    </div>
+  </div>
+  <p class="foot">Nos outros idiomas o título e o texto seguem o mesmo sentido, escritos como um app nativo diria (ex.: en "Update the Oct 31 weigh-in?" / "You already logged 80.0 kg that day. Your reality check starts at 79.4 kg, and that weigh-in becomes 79.4 kg."). Contornos vermelho/verde só marcam a diferença nesta imagem; não vão para o app.</p>
+</div>
