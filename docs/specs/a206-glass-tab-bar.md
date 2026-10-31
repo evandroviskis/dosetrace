@@ -6,7 +6,8 @@
 - registry: A-206 (docs/review/features.md).
 - code: components/GlassTabBar.js (Android, and the opening skeleton's bar), App.js (MainTabs and BootTabs), lib/tabBarStyle.js (the room the bar takes), lib/theme.js (glass* tokens), components/UpdateNotice.js (sits above the bar); iPhone: Apple's native tab bar (native module → EAS build).
 - tests: __tests__/a206GlassTabBar.test.js
-- checklist-signed:
+- checklist-signed: founder 2026-10-31 15:57 EDT ("Assino o checklist, pode seguir com a opção A")
+- blur (founder 2026-10-31 15:57 EDT, option A): Android's real blur of what passes behind (expo-blur, native) goes in the next store build with the iPhone's native bar — no test build just for it.
 - committed-to: next build whose scope is open
 
 ## Acceptance checklist
