@@ -80,8 +80,9 @@ test('part 17: the vial-finished pop-up is drawn with Graduated tokens (prototyp
   assert.match(style(VIALW, 'promptBtnSecondary'), /backgroundColor: c\.well/);
   assert.match(style(VIALW, 'promptMonthPillOn'), /backgroundColor: c\.raised, borderWidth: 1\.5, borderColor: c\.ink/);
   assert.match(style(VIALW, 'promptDayInput'), /backgroundColor: c\.raised[^}]*borderRadius: 14[^}]*minHeight: 50/);
-  // same words as before
-  assert.deepEqual(require('../lib/newVial').vialPromptKeys('finished'), { title: 'today_vial_done_title', sub: 'today_vial_done_sub', secondary: 'today_vial_finished', primary: 'today_vial_add' });
+  // same words as before, except A-85 option A (founder 2026-10-30): "Later" replaces "Protocol
+  // finished" and "End protocol" sits under the buttons (__tests__/a85EndProtocol.test.js)
+  assert.deepEqual(require('../lib/newVial').vialPromptKeys('finished'), { title: 'today_vial_done_title', sub: 'today_vial_done_sub', secondary: 'today_vial_later', primary: 'today_vial_add', end: 'end_protocol' });
   assert.match(VIALW, /t\('today_vial_mix_date'\)/);
   // The capacity line picks its singular or plural form (pluralCounts.test.js).
   assert.match(VIALW, /t\(pluralKey\('today_vial_new_capacity'/);

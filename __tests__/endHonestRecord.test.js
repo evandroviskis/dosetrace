@@ -97,14 +97,16 @@ test('A-89: Restore twice — the second does nothing, the protocol stays as the
   assert.equal(p.ended_at, null);
 });
 
-// Finding 2: the empty-vial prompt has only "Protocol finished" and "Add vial" — and "I'll mix the
-// next one tomorrow" is the common case. Until a picture with a way out is approved, its button
-// only closes the prompt (never ends the protocol and its reminders).
-test('the vial prompt\'s "Protocol finished" only closes it (no end until the approved picture)', () => {
+// Finding 2: the empty-vial prompt had only "Protocol finished" and "Add vial" — and "I'll mix the
+// next one tomorrow" is the common case, so its button only closed the prompt. A-85 option A (founder
+// 2026-10-30, docs/design/a85-end-protocol.html): that button is now "Later" and still only closes
+// (never ends the protocol and its reminders); ending is a separate "End protocol" that asks first
+// (__tests__/a85EndProtocol.test.js).
+test('the vial prompt\'s "Later" (the old "Protocol finished" only closes it, A-85) — End is a separate, confirmed action', () => {
   const s = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/TodayScreen.js'), 'utf8');
-  // A-132: the window is screens/components/NewVialPrompt.js; its secondary button ("Protocol
-  // finished" after the last dose) is Today's closeVialPrompt.
-  assert.equal(require('../lib/newVial').vialPromptKeys('finished').secondary, 'today_vial_finished');
+  // A-132: the window is screens/components/NewVialPrompt.js; its secondary button ("Later" after
+  // the last dose) is Today's closeVialPrompt.
+  assert.equal(require('../lib/newVial').vialPromptKeys('finished').secondary, 'today_vial_later');
   assert.match(s, /onSecondary=\{closeVialPrompt\}/);
   const w = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/components/NewVialPrompt.js'), 'utf8');
   assert.match(w, /secondary=\{t\(keys\.secondary\)\} onSecondary=\{onSecondary\}/);

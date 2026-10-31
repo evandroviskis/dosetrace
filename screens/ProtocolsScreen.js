@@ -52,6 +52,7 @@ import { pastStartAsk, pastStartWrites } from '../lib/pastDoses';
 import { tsMs } from '../lib/deleteDose';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
+import { endProtocolFully } from '../lib/endProtocolFlow';
 import T from '../lib/trashSelection';
 import { tabBarStyle, TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { dueNextOrder } from '../lib/protocolSort';
@@ -803,7 +804,7 @@ export function noteDraftKey(id) {
 // protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
 // A-121 (option A, docs/design/a121-telas/4-*): onEndDate(p) — the "Termina em" row under Schedule & reminders on
 // every ACTIVE protocol (the planned end in the app language's format, or "Sem data"); null = no row.
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null }) {
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null, onEndProtocol = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -842,6 +843,8 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
     muted: !plannedEnd,
     onPress: () => onEndDate(p),
   } : null;
+  // A-85 option A (picture column 4): "End protocol" at the end of the page, only on an active protocol.
+  const endShown = !!onEndProtocol && p.active === 1 && !p.deleted_at;
   const scheduleRows = [
     { label: t('protocols_frequency'), value: p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—') },
     { label: t('protocols_reminder'), value: (p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  '), mono: true },
@@ -942,6 +945,12 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
           </View>
         )}
       </NoteFrame>
+
+      {endShown ? (
+        <TouchableOpacity style={s.endRowBtn} onPress={() => onEndProtocol(p)} accessibilityRole="button">
+          <Text style={s.endRowText}>{t('end_protocol')}</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {deleteProtocol ? (
         <TouchableOpacity style={s.dangerBtn} onPress={() => deleteProtocol(p.id)} accessibilityRole="button">
@@ -2346,6 +2355,33 @@ export default function ProtocolsScreen() {
     closeWizard();
   }
 
+  // A-85 option A (docs/design/a85-end-protocol.html, column 4 → 3): "End protocol" asks first, with
+  // the course-end words without Continue (Cancel / End). End = the one End (lib/endProtocolFlow,
+  // SG-16), then back to the list (and off the book's right page); Today drops it at once.
+  function askEndProtocol(p) {
+    setScreenSheet({
+      title: t('end_protocol_confirm_title').replace('{name}', protocolDisplayName(p, t)),
+      body: t('end_protocol_confirm_body'),
+      buttons: [
+        { label: t('cancel'), kind: 'secondary' },
+        { label: t('today_course_end_end'), kind: 'primary', onPress: () => endProtocolHere(p.id) },
+      ],
+    });
+  }
+  function endProtocolHere(id) {
+    endProtocolFully(id);
+    closeProtocol();
+    fetchProtocols();
+    notifyDataChanged('protocol');
+    requestSync();
+  }
+  // The same last-dose window as Today's (after Edit vial counts every dose as used): its End too.
+  function endFromNewVialWindow() {
+    const p = newVialFor;
+    setNewVialFor(null);
+    if (p) endProtocolHere(p.id);
+  }
+
   async function deleteProtocol(id) {
     setScreenSheet({
       title: t('protocols_delete_title'),
@@ -2601,6 +2637,7 @@ export default function ProtocolsScreen() {
       p={p} vial={vialsByProtocol[p.id]}
       openEdit={inBook ? (q, st) => { claimBookProtocol(q.id); openEdit(q, st); } : openEdit}
       onEndDate={inBook ? (q) => { claimBookProtocol(q.id); openEndDate(q); } : openEndDate}
+      onEndProtocol={askEndProtocol}
       deleteProtocol={deleteProtocol}
       onSaveNote={saveProtocolNote} onRefill={askRefillBottle} onRefillVial={askRefillVial} onEditVial={openEditVial}
       onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
@@ -3012,6 +3049,7 @@ export default function ProtocolsScreen() {
         oldVial={newVialFor ? vialsByProtocol[newVialFor.id] : null}
         onSecondary={() => setNewVialFor(null)}
         onPrimary={saveNewVial}
+        onEnd={endFromNewVialWindow}
         sheet={newVialSheet}
         onSheetClose={() => setNewVialSheet(null)}
       />
@@ -4033,6 +4071,9 @@ const protocolsGraduated = (c) => ({
   noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
   noteWellOn: { borderColor: c.ink },
   acts2: { flexDirection: 'row', gap: 10 },
+  // A-85 picture .rowbtn: a raised row, the risk colour, centred
+  endRowBtn: { backgroundColor: c.raised, borderRadius: 22, minHeight: 56, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  endRowText: { fontSize: 17, fontWeight: '700', color: c.risk, textAlign: 'center' },
   dangerBtn: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
 

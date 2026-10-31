@@ -200,7 +200,9 @@ test('NV-2: "New vial" on the protocol page for every active reconstituted vial 
 // ── NV-3: the "New vial" window ──────────────────────────────────────────────────────────
 test('NV-3: the window says "New vial" (Cancel / Start new) when asked for; after the last dose it is unchanged', () => {
   assert.deepEqual(NV.vialPromptKeys('new'), { title: 'protocols_new_vial', sub: 'protocols_new_vial_body', secondary: 'cancel', primary: 'protocols_start_new' });
-  assert.deepEqual(NV.vialPromptKeys('finished'), { title: 'today_vial_done_title', sub: 'today_vial_done_sub', secondary: 'today_vial_finished', primary: 'today_vial_add' });
+  // A-85 option A (founder 2026-10-30): after the last dose, "Later" (was "Protocol finished", both close
+  // only) and "End protocol" (__tests__/a85EndProtocol.test.js); the title, body and Log new vial unchanged.
+  assert.deepEqual(NV.vialPromptKeys('finished'), { title: 'today_vial_done_title', sub: 'today_vial_done_sub', secondary: 'today_vial_later', primary: 'today_vial_add', end: 'end_protocol' });
   // the line about the old vial (the review case: Sep 13, 3 doses left)
   const p = { type: 'recon', amount: '10', unit: 'mg', dose: '2.5', dose_unit: 'mg' };
   assert.deepEqual(NV.oldVialNote(p, { mixed_on: '2026-09-13', total_doses: 4, doses_taken: 1 }), { mixedOn: '2026-09-13', left: 3 });

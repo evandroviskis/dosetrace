@@ -132,6 +132,13 @@ function handlers(p) {
     afterProtocolChange: async (o) => { calls.push(['schedule', o.saved.id]); },
     AsyncStorage: { removeItem: async (k) => { calls.push(['removeKey', k]); } },
     closeProtocolQuestion: () => calls.push(['close']),
+    // A-85: "Encerrar" runs the one End sequence (lib/endProtocolFlow), with the same fakes.
+    get endProtocolFully() {
+      return loadFn('lib/endProtocolFlow.js', 'export function endProtocolFully(', 'endProtocolFully', {
+        endProtocolNow: this.endProtocolNow, cancelDoseReminder: this.cancelDoseReminder,
+        dismissDeliveredDoseReminders: this.dismissDeliveredDoseReminders, AsyncStorage: this.AsyncStorage,
+      });
+    },
     requestSync: () => calls.push(['sync']),
     setEndPick: (k) => calls.push(['pick', k]), setInactiveStep: (x) => calls.push(['step', x]),
     endDateRange: () => ({ openKey: '2026-11-20', minKey: '2026-10-21' }),

@@ -28,7 +28,7 @@ import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { handledSlotIndexes, ymd } from '../lib/notificationPlan';
-import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, dismissDeliveredDoseReminders, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
+import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
 import { blockedSheetStep, blockedSheet, NOTIF_BLOCKED_KEY } from '../lib/notifBlocked';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery, shouldWarnWindow, windowAlertTitle } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
@@ -36,11 +36,12 @@ import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
   getProtocolById, hardDeleteOldProtocols, endProtocol, endProtocolAtLastDose, getHistoryProtocols, deactivateVialsByProtocol,
-  markProtocolStillGoing, setProtocolPlannedEnd, continueProtocolCourse, endProtocolNow,
+  markProtocolStillGoing, setProtocolPlannedEnd, continueProtocolCourse,
   getBiomarkers,
   getDB, getLocalDataUserId, withImmediateTransaction,
 } from '../lib/database';
 import { requestSync, addSyncListener, isOnlineNow, notifyDataChanged } from '../lib/sync';
+import { endProtocolFully } from '../lib/endProtocolFlow';
 import { offlinePendingAlert } from '../lib/offlineAlert';
 import { unsyncedCount } from '../lib/recoveryFlow';
 import { TABLES, getPendingChanges } from '../lib/syncCore';
@@ -735,15 +736,12 @@ export default function TodayScreen() {
     closeProtocolQuestion();
   }
 
-  // "Encerrar" (SG-16): the one End — Ended, dated by the course rules (DL-99 / DL-110), vials off;
-  // every reminder of it cancelled and the delivered banners cleared.
+  // "Encerrar" (SG-16): the one End (lib/endProtocolFlow) — Ended, dated by the course rules
+  // (DL-99 / DL-110), vials off; every reminder of it cancelled and the delivered banners cleared.
   function endCourse() {
     const p = inactiveProtocol;
     if (!p) return;
-    endProtocolNow(p.id);
-    cancelDoseReminder(p.id).catch(() => {});
-    dismissDeliveredDoseReminders(p.id).catch(() => {});
-    AsyncStorage.removeItem(`dosetrace_tx_check_${p.id}`).catch(() => {});
+    endProtocolFully(p.id);
     closeProtocolQuestion();
   }
   // "Continuar": the end date (and a legacy total) go, the span restarts (DL-113); a cleared total
@@ -1492,8 +1490,9 @@ export default function TodayScreen() {
     },
   };
 
-  // The ONE way the vial prompt closes ("Protocol finished", "Log new vial", or the undo
-  // of that dose). A site question waiting behind it opens after the prompt has faded out.
+  // The ONE way the vial prompt closes ("Later" — close only, also Android back —, "Log new vial",
+  // "End" on "End {name}?", or the undo of that dose). A site question waiting behind it opens after
+  // the prompt has faded out.
   function closeVialPrompt() {
     clearTimeout(vialTimerRef.current);
     vialDeferredRef.current = false;
@@ -1504,6 +1503,17 @@ export default function TodayScreen() {
     if (pendingVialsRef.current.length) { setTimeout(releasePendingVial, 450); return; }
     vialPromptOpenRef.current = false;
     setTimeout(openNextQuestion, 450); // a site question waiting behind the prompt
+  }
+
+  // A-85 option A (docs/design/a85-end-protocol.html): "End protocol" → "End {name}?" → End = the one
+  // End (lib/endProtocolFlow, SG-16), then the prompt closes and Today reloads. "Later" only closes.
+  function endFromVialPrompt() {
+    const p = continuationProtocol;
+    if (!p) return;
+    endProtocolFully(p.id);
+    closeVialPrompt();
+    fetchProtocols();
+    requestSync();
   }
 
   // A-141 (5) (Fold 2026-10-17): the vial-finished prompt covered the take's Undo bar, and its only
@@ -2698,6 +2708,7 @@ export default function TodayScreen() {
         oldVial={continuationProtocol ? vials[continuationProtocol.id] : null}
         onSecondary={closeVialPrompt}
         onPrimary={createNewVial}
+        onEnd={endFromVialPrompt}
         sheet={vialSheet}
         onSheetClose={() => setVialSheet(null)}
       />

@@ -23,7 +23,7 @@ import useChosenInView from '../../components/useChosenInView';
 import { pluralKey } from '../../lib/plural';
 import { dosesPerVial } from '../../lib/doseMath';
 import { formatDate } from '../../lib/localeFormat';
-import { vialPromptKeys, oldVialNote } from '../../lib/newVial';
+import { vialPromptKeys, vialPromptBack, oldVialNote } from '../../lib/newVial';
 import { editVialStart, acceptValidDaysText, acceptDosesUsedText, expiryYears } from '../../lib/vialEdit';
 import { supplyState } from '../../lib/supplyLow';
 import { DEFAULT_VALID_DAYS } from '../../lib/vialExpiry';
@@ -174,6 +174,9 @@ function Actions({ s, secondary, onSecondary, primary, onPrimary }) {
 
 // onSecondary closes; onPrimary({ month, day, expMonth, expYear }) saves. `sheet` = an error
 // presented from inside the window (M1/M4: iOS shows one modal at a time).
+// onEnd (A-85 option A, docs/design/a85-end-protocol.html): after the last dose ('finished') "End
+// protocol" sits under Later / Log new vial; it turns the same card into "End {name}?" (Cancel goes back
+// to the window, End calls onEnd = the screen's one End). Android back = Later (on the question: Cancel).
 // The screen clears its protocol as the window starts to fade out: keep the last one shown until the window is
 // gone, so the closing frame never switches to the other vial kind's fields (simulator 2026-10-27).
 // Only while closing: an open window always shows its live values (a protocol with no old vial never borrows
@@ -184,7 +187,7 @@ function useShownWhileClosing(value, visible) {
   return visible ? value : last.current;
 }
 
-export default function NewVialPrompt({ visible, mode = 'new', protocol: protocolProp, protocolName: protocolNameProp, oldVial: oldVialProp = null, onSecondary, onPrimary, sheet = null, onSheetClose }) {
+export default function NewVialPrompt({ visible, mode = 'new', protocol: protocolProp, protocolName: protocolNameProp, oldVial: oldVialProp = null, onSecondary, onPrimary, onEnd = null, sheet = null, onSheetClose }) {
   const protocol = useShownWhileClosing(protocolProp, !!visible);
   const protocolName = useShownWhileClosing(protocolNameProp, !!visible);
   const oldVial = useShownWhileClosing(oldVialProp, !!visible);
@@ -196,13 +199,16 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol: protoco
   const [newVialDay, setNewVialDay] = useState(String(new Date().getDate()));
   const [expMonth, setExpMonth] = useState(null);
   const [expYear, setExpYear] = useState(null);
-  // "Today" is picked each time the window opens; a new box's month and year start blank.
+  const [confirmEnd, setConfirmEnd] = useState(false); // A-85: "End {name}?" in the same card
+  // "Today" is picked each time the window opens; a new box's month and year start blank; each opening
+  // starts on the window, never on the question.
   useEffect(() => {
     if (!visible) return;
     const td = new Date();
     setNewVialMonth(td.getMonth());
     setNewVialDay(String(td.getDate()));
     setExpMonth(null); setExpYear(null);
+    setConfirmEnd(false);
   }, [visible]);
   // One save per opening: a double tap on Start new never writes twice (data review 2026-10-26).
   const latch = useRef(createOpenLatch()).current;
@@ -224,11 +230,31 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol: protoco
   const cap = !protocol ? null
     : rtu ? supplyState(oldVial, protocol).capacity
     : dosesPerVial({ amount: protocol.amount, unit: protocol.unit, dose: protocol.dose, doseUnit: protocol.dose_unit });
+  // A-85: "End protocol" only asks; the question's End is the only way it ends.
+  const askEnd = () => {
+    Keyboard.dismiss();
+    setConfirmEnd(true);
+  };
+  const onBack = () => {
+    if (vialPromptBack(confirmEnd) === 'window') setConfirmEnd(false);
+    else if (onSecondary) onSecondary();
+  };
 
   return (
-    <Modal visible={!!visible} transparent animationType="fade">
+    <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onBack}>
       <KeyboardFrame>
   <View style={vialKb.lift ? [s.promptOverlay, { paddingBottom: vialKb.lift.bottom }] : s.promptOverlay} onLayout={vialKb.onLayout}>
+          {confirmEnd ? (
+          <View style={s.promptCard}>
+            <Text style={s.promptTitle} accessibilityRole="header">{t('end_protocol_confirm_title').replace('{name}', protocolName || '')}</Text>
+            <Text style={s.promptSub}>{t('end_protocol_confirm_body')}</Text>
+            <Actions
+              s={s}
+              secondary={t('cancel')} onSecondary={() => setConfirmEnd(false)}
+              primary={t('today_course_end_end')} onPrimary={() => { if (!latch.take()) return; onEnd(); }}
+            />
+          </View>
+          ) : (
           <View style={[s.promptCard, vialKb.sheetStyle]}>
             <PromptBody style={s.promptBody} scrollProps={vialKb.scrollProps}>
               <Text style={s.promptTitle} accessibilityRole="header">{t(keys.title)}</Text>
@@ -253,7 +279,13 @@ export default function NewVialPrompt({ visible, mode = 'new', protocol: protoco
               secondary={t(keys.secondary)} onSecondary={onSecondary}
               primary={t(keys.primary)} onPrimary={() => { if (!latch.take()) return; onPrimary({ month: newVialMonth, day: newVialDay, expMonth, expYear }); }}
             />
+            {keys.end && onEnd ? (
+              <TouchableOpacity style={s.promptEndBtn} onPress={askEnd} accessibilityRole="button">
+                <Text style={s.promptEndText}>{t(keys.end)}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
+          )}
         </View>
       </KeyboardFrame>
       {/* Errors from the window are presented from inside it (M1/M4). */}
@@ -375,4 +407,7 @@ const makeStyles = (c) => StyleSheet.create({
   promptBtnSecondaryText: { fontSize: 15, fontWeight: '700', color: c.ink, textAlign: 'center' },
   promptBtnPrimary: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   promptBtnPrimaryText: { fontSize: 15, fontWeight: '700', color: c.onAct, textAlign: 'center' },
+  // A-85 picture .textbtn.risk: a text button under the two, 10 below them (the card gap is 14)
+  promptEndBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginTop: -4 },
+  promptEndText: { fontSize: 15, fontWeight: '700', color: c.risk, textAlign: 'center' },
 });
