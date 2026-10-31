@@ -1,0 +1,21 @@
+# Lab results that are not an exact number — A-203 option C
+
+- source: founder 2026-10-31 ("1 C") on docs/design/a203-non-numeric-lab-results.html (https://claude.ai/artifact/3tG11z1VvVKToXTLPKFwEV). Found the same day with the tricky fictitious report on the Fold (+qa4): "> 2.000" (B12) was stored as 2000 and "inferior a 0,01" (PSA) as 0.01; word results ("Não reagente") are dropped today.
+- registry: A-203 (docs/review/features.md).
+- data (production migration — applied only after the founder's "pode"): biomarkers gets `qualifier text` (one of '<', '>', '≤', '≥', null) and `value_text text` (the result as written when it is words), and `value` becomes nullable (a word result has no number). Local SQLite gets the same two columns; both sync (CLOUD_FIELDS). Old store versions (1.3.0) that pull a word result: they skip rows without a number (checked in code before the build) — no crash, the row simply does not show there.
+- code (planned): supabase/functions/extract-bloodwork (prompt + JSON: qualifier, value_text), lib/bodyScan.js / screens/BodyScreen.js persistMarkers (store them), lib/schema.js + lib/syncMappers.js (columns), lib/labReports.js / markerSeries (chart skips word results), the Edit value / Add value window (sign and words), lib/exportRecords.js (CSV + PDF show the sign and the words), i18n ×6 if a new word is needed.
+- tests (planned): __tests__/a203NonNumericLabs.test.js
+- checklist-signed:
+- committed-to: next build whose scope is open
+
+## Acceptance checklist
+
+| ID | Criterion | Status | Evidence | Deviation |
+|---|---|---|---|---|
+| NN-1 | A result printed with a sign ("> 2.000", "< 0,01", "inferior a", "superior a", "até", "≤", "≥") is read with its sign and stored as the sign + the number; it shows "> 2000 pg/mL" / "< 0,01 ng/mL" everywhere the value shows (test page, marker list, chart readout, export). | | | |
+| NN-2 | A result in words ("Não reagente", "Negativo", "Positivo", "Indetectável", "Traços"…) is stored as written, in the report's own words; it shows in the test page and the export, counts as a marker, and never appears in the chart (no number). | | | |
+| NN-3 | The chart of a marker with a sign draws the number and marks it with the sign beside the point; nothing is called high, low, normal or abnormal anywhere (AI hard line). | | | |
+| NN-4 | "Editar valor" and "+ Adicionar valor" let the person set or remove the sign and type a word result; a typed "<0,5" or ">2000" is read as sign + number in the app language (decimal comma). | | | |
+| NN-5 | Sync: the sign and the words go to the cloud and come back on a new phone (reinstall); the stored name and created_at rules of A-202/DV-001 stay. | | | |
+| NN-6 | Old app versions already in the stores never crash on a row without a number (code check of 1.3.0 before the build; such a row is simply not shown there). | | | |
+| NN-7 | The tricky fictitious report on the Fold reads B12 "> 2000 pg/mL" and PSA "< 0,01 ng/mL"; a report with "Anti-HIV: Não reagente" keeps it as written. Light and dark, phone and Fold. | | | |
