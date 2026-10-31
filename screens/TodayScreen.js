@@ -19,7 +19,7 @@ import { firstSyncGate } from '../lib/firstSyncGate';
 import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
+import { TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
@@ -2158,7 +2158,7 @@ export default function TodayScreen() {
             <Text style={s.pageEditText}>{t('protocols_edit')}</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView {...pageLift.scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={s.pageScroll}>
+        <ScrollView {...TAB_SCROLL_PROPS} {...pageLift.scrollProps} showsVerticalScrollIndicator={false} contentContainerStyle={s.pageScroll}>
           <ProtocolDetail
             key={p.id}
             p={p} vial={vial}
@@ -2445,7 +2445,7 @@ export default function TodayScreen() {
   const skel = (key) => (ready[SKEL_SECTION[key]] ? null : <SkeletonBlock spec={plan.find((b) => b.key === key)} first={key === firstSkel} />);
 
   const leftPage = (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+      <ScrollView {...TAB_SCROLL_PROPS} showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         {/* Today v2.1 order (founder 2026-09-29): header → Alerts (gone when none) → Pending
             from yesterday → tracker → AI food log → Doses → Taken → Tomorrow / Next 5 days. */}
         <View style={s.header}>

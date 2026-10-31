@@ -19,7 +19,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
+import { TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
 import { useNavigation, useFocusEffect, NavigationContext } from '@react-navigation/native';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
 import { setSelection, clearSelection } from '../lib/bookSelection';
@@ -168,7 +168,7 @@ export default function JourneyScreen() {
   const outline = <View pointerEvents="none" style={[StyleSheet.absoluteFill, s.selected]} />;
 
   const dashboard = (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+      <ScrollView {...TAB_SCROLL_PROPS} showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         <View style={s.header}>
           <Text style={s.title}>{t('tab_journey')}</Text>
           <Text style={s.sub}>{t('journey_subtitle')}</Text>

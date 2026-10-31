@@ -56,7 +56,7 @@ test('BK-2: the phone path keeps the collapsible, remembered groups, in the prot
     ['settings_preferences', 'settings_notifications', 'settings_data_privacy', 'settings_support']);
   // Title outside the scroll, profile, Premium, each group = one card (header + body when open),
   // the Sign out / Delete account card, version.
-  assert.match(PHONE, /<Text style=\{s\.headerTitle\}>\{t\('settings_title'\)\}<\/Text>[\s\S]*<ScrollView ref=\{phoneScrollRef\}/);
+  assert.match(PHONE, /<Text style=\{s\.headerTitle\}>\{t\('settings_title'\)\}<\/Text>[\s\S]*<ScrollView \{\.\.\.TAB_SCROLL_PROPS\} ref=\{phoneScrollRef\}/);
   const order = ['renderProfileCard()', 'renderPremiumCard()', 'SETTINGS_GROUPS.map(g => renderGroupCard(g))', 'renderAccountActions()', 'renderVersionFooter()'];
   let at = -1;
   for (const piece of order) {

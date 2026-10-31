@@ -54,7 +54,7 @@ import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { endProtocolFully } from '../lib/endProtocolFlow';
 import T from '../lib/trashSelection';
-import { tabBarStyle, TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
+import { tabBarStyle, TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
 import { dueNextOrder } from '../lib/protocolSort';
 import { protocolTakeAction } from '../lib/protocolTake';
 import { pendingFromYesterday } from '../lib/pendingYesterday';
@@ -2898,7 +2898,7 @@ export default function ProtocolsScreen() {
                 <Text style={s.headerTitle} accessibilityRole="header">{t('protocols_title')}</Text>
                 {addButton}
               </View>
-              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+              <ScrollView {...TAB_SCROLL_PROPS} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
                 {protocols.length === 0 && !loading && emptyState}
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
@@ -2915,7 +2915,7 @@ export default function ProtocolsScreen() {
                   <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+              <ScrollView {...TAB_SCROLL_PROPS} {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
                 {renderDetail(bookProtocol, true)}
                 <View style={s.bottomPad} />
                 {detailLift.spacer}
@@ -2949,7 +2949,7 @@ export default function ProtocolsScreen() {
         )}
       </View>
 
-      <ScrollView {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+      <ScrollView {...TAB_SCROLL_PROPS} {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {view === 'heroes' && protocols.length > 0 && (() => {
           const low = protocols.filter(p => vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low).map(p => (p.compound_id ? t(p.compound_id) : p.name));
           // Part 1: the last completed dose under the counts (prototype "Last: TB-500 · Mon 7:42 PM").

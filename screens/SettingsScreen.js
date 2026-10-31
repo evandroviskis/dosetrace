@@ -21,7 +21,7 @@ import Svg, { Path } from 'react-native-svg';
 import Animated from 'react-native-reanimated';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
+import { TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
 import { getPremiumSnapshot } from '../lib/premiumState';
@@ -1358,7 +1358,7 @@ export default function SettingsScreen({ navigation }) {
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
         </View>
 
-        <ScrollView ref={phoneScrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView {...TAB_SCROLL_PROPS} ref={phoneScrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
 
@@ -1387,7 +1387,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.header}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
         </View>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView {...TAB_SCROLL_PROPS} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
           <View style={s.bookNav}>
@@ -1422,7 +1422,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.header}>
           <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
         </View>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
+        <ScrollView {...TAB_SCROLL_PROPS} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
           <View style={s.group}>{renderGroupBody(open)}</View>
           <View style={{ height: 40 }} />
         </ScrollView>

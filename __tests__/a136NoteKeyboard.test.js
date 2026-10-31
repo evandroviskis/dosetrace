@@ -42,7 +42,7 @@ test('A-136 (9): the note field asks to be lifted; every page with ProtocolDetai
   assert.match(detail, /ref=\{noteRef\}/);
   const today = read('screens/TodayScreen.js');
   assert.match(today, /const pageLift = useKeyboardLift\(\);/);
-  assert.match(today, /<ScrollView \{\.\.\.pageLift\.scrollProps\} showsVerticalScrollIndicator=\{false\} contentContainerStyle=\{s\.pageScroll\}>/);
+  assert.match(today, /<ScrollView \{\.\.\.TAB_SCROLL_PROPS\} \{\.\.\.pageLift\.scrollProps\} showsVerticalScrollIndicator=\{false\} contentContainerStyle=\{s\.pageScroll\}>/);
   assert.match(today, /onNoteFocus=\{pageLift\.liftField\}/);
   assert.match(today, /\{pageLift\.spacer\}/);
   assert.match(pro, /const detailLift = useKeyboardLift\(scrollRef\);/); // keeps the views' scroll-to-top ref

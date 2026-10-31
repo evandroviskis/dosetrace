@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
+import { TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -1083,7 +1083,7 @@ export default function BodyScreen({ navigation, route }) {
     return (
       /* ONE TEST (prototype reportScreen): date as the title, its labels, every value
          (tap to edit), and deleting the whole upload. */
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+      <ScrollView {...TAB_SCROLL_PROPS} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
           <Text style={s.screenTitle} accessibilityRole={inBook ? 'header' : undefined}>{formatDate(reportDetail.date)}</Text>
           <Text style={[s.sec, s.tnum]}>{markerCount(reportDetail.markers)} {t(pluralKey('blood_markers', markerCount(reportDetail.markers), language))}</Text>
@@ -1148,7 +1148,7 @@ export default function BodyScreen({ navigation, route }) {
     return (
       /* ONE MARKER (prototype markerScreen): the latest value as the number, the
          user's readings charted (no ranges, no good/bad colors), every reading. */
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
+      <ScrollView {...TAB_SCROLL_PROPS} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
         <View style={s.titleBlock}>
           {withStar ? (
             /* Book right page: no nav row, so the favorite star sits beside the title. */
@@ -1407,7 +1407,7 @@ export default function BodyScreen({ navigation, route }) {
   // "‹ back" to its journal, or the Curve. Each page scrolls on its own.
   function renderBookLeft() {
     return (
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
+      <ScrollView {...TAB_SCROLL_PROPS} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
         <View style={s.bookHero}>
           <Text style={s.hubGreeting}>{t('tab_body')}</Text>
           <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
@@ -1439,7 +1439,7 @@ export default function BodyScreen({ navigation, route }) {
   // journal (By date / By marker, search, sort; the tips while there is no test).
   function renderBookJournal() {
     return (
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+      <ScrollView {...TAB_SCROLL_PROPS} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={[s.titleBlock, s.pageTop]}>
           <Text style={s.screenTitle} accessibilityRole="header">{t('body_card_labs_title')}</Text>
           {renderScanUsage()}
@@ -1512,7 +1512,7 @@ export default function BodyScreen({ navigation, route }) {
       {book ? (
         <BookPanes left={renderBookLeft()} right={renderBookRight()} rightKey={rightPage.group === 'vaccines' ? 'vaccines' : rightPage.id} />
       ) : section === null ? (
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView {...TAB_SCROLL_PROPS} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           <View style={s.hubHero}>
             <Text style={s.hubGreeting}>{t('tab_body')}</Text>
             <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
@@ -1566,7 +1566,7 @@ export default function BodyScreen({ navigation, route }) {
         renderMarkerDetail(markerDetail, CHART_WIDTH, false)
       ) : (
       /* LAB TEST JOURNAL (prototype labsScreen) */
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
+      <ScrollView {...TAB_SCROLL_PROPS} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]} keyboardShouldPersistTaps="handled">
         <View style={s.titleBlock}>
           <Text style={s.screenTitle}>{t('body_card_labs_title')}</Text>
           {renderScanUsage()}

@@ -90,14 +90,7 @@ test('GB-5 on iPhone: a screen that hides the tab bar (Recently deleted selectio
   assert.match(read('screens/ProtocolsScreen.js'), /tabBarStyle: trashSel \? \{ display: 'none' \} : tabBarStyle\(colors, insets\.bottom\)/);
 });
 
-test('GB-3 on iPhone: every tab screen ends above Apple\'s bar (its measured height); no room when the bar is hidden', () => {
-  const nav = read('components/NativeTabs.js');
-  assert.match(nav, /const measured = useContext\(BottomTabBarHeightContext\);/);
-  assert.match(nav, /const room = hidden \? 0 : measured > 0 \? measured : tabBarSpace\(colors, insets\.bottom, 'ios'\);/);
-  assert.match(nav, /<View style=\{\{ flex: 1, paddingBottom: room \}\}>/);
-  assert.match(nav, /const barRoomLayout = \(\{ children, options \}\) => <BarRoom hidden=\{isTabBarHidden\(options\?\.tabBarStyle\)\}>\{children\}<\/BarRoom>;/);
-  assert.match(nav, /screenLayout: screenLayout \|\| barRoomLayout/);
-});
+// GB-3 superseded the same day: the screens run behind the glass (see the GB-3 (iPhone) test below).
 
 test('icons: the five DoseTrace glyphs exist as template PNGs, 24 pt at @1x/@2x/@3x, outline and filled', () => {
   const names = ['today', 'protocols', 'journey', 'body', 'settings'];
@@ -178,4 +171,23 @@ test('config: packages pinned; Android never links the native bottom tabs; no pl
   const bp = app.expo.plugins.find((p) => Array.isArray(p) && p[0] === 'expo-build-properties')[1];
   assert.equal(bp.ios.useFrameworks, 'static');
   assert.ok(parseFloat(bp.ios.deploymentTarget) >= 14);
+});
+
+// GB-3, decided by logic from the approved preview (founder 2026-10-31: the video he chose shows the
+// screens passing BEHIND the glass): on iPhone the tab screens run under Apple's bar and UIKit keeps
+// the last row reachable (contentInsetAdjustmentBehavior "automatic", the package's documented way);
+// no fixed room above the bar. Android keeps its bar in the layout (GlassTabBar).
+test('GB-3 (iPhone): tab screens run under the glass; every page scroll view lets iOS keep its end reachable', () => {
+  const nt = fs.readFileSync(path.join(__dirname, '..', 'components/NativeTabs.js'), 'utf8');
+  assert.doesNotMatch(nt, /paddingBottom: room/, 'no fixed room above Apple\'s bar');
+  const tb = fs.readFileSync(path.join(__dirname, '..', 'lib/tabBarStyle.js'), 'utf8');
+  assert.match(tb, /export const TAB_SCROLL_PROPS = Platform\.OS === 'ios' \? \{ contentInsetAdjustmentBehavior: 'automatic' \} : \{\};/);
+  const pages = {
+    'screens/TodayScreen.js': 2, 'screens/ProtocolsScreen.js': 3, 'screens/JourneyScreen.js': 1,
+    'screens/BodyScreen.js': 6, 'screens/SettingsScreen.js': 3,
+  };
+  for (const [f, n] of Object.entries(pages)) {
+    const src = fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+    assert.equal((src.match(/\{\.\.\.TAB_SCROLL_PROPS\}/g) || []).length, n, f);
+  }
 });
