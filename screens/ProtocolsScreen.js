@@ -190,7 +190,7 @@ function sizeLabel(p, vial, t, language = 'en') {
   }
   if (p.type === 'oral') {
     if (p.serving_strength == null || p.serving_strength === '') return null;
-    return `${decimalText(p.serving_strength, language)}\u00A0${unitText(p.serving_strength_unit || 'mg', language)}`;
+    return `${decimalText(p.serving_strength, language)}\u00A0${unitText(p.serving_strength_unit || 'mg', language)} ${t('protocols_serving_noun')}`; // A-209
   }
   return null;
 }
@@ -359,7 +359,7 @@ function RowsBlock({ s, title, rows, style }) {
           <TouchableOpacity key={`${i}-${r.label}`} style={[s.rw, s.rwTap, i > 0 && s.rwSep]} onPress={r.onPress} accessibilityRole="button" accessibilityLabel={`${r.label}, ${r.value}`}>
             <Text style={s.rwKey}>{r.label}</Text>
             <View style={s.rwTapEnd}>
-              <Text style={[s.rwVal, r.muted && s.rwValMuted]}>{r.value}</Text>
+              <Text style={[s.rwVal, s.rwValInTap, r.muted && s.rwValMuted]}>{r.value}</Text>
               <RowChevron color={c.tick} />
             </View>
           </TouchableOpacity>
@@ -4066,6 +4066,8 @@ const protocolsGraduated = (c) => ({
   // A-121: the tappable "Termina em" row (prototype row with the arrow): value + chevron at the end.
   rwTap: { alignItems: 'center' },
   rwTapEnd: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0, maxWidth: '60%' },
+  // A-210: inside the end box the value is not capped again (60% of 60% wrapped "Sem data").
+  rwValInTap: { maxWidth: '100%', flexShrink: 1 },
   rwValMuted: { fontWeight: '400', color: c.ink2 },
   noteIn: { padding: 12, gap: 10 },
   noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
