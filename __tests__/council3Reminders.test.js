@@ -54,7 +54,7 @@ test('EA-4: re-arming cancels and reschedules every snoozed copy (so it becomes 
 });
 
 test('RG-2: the setup step counts Notifications ready only with the Dose reminders category on, and shows it when off', () => {
-  const s = R.setupSteps({ ...base, doseChannelImportance: 0 });
+  const s = R.setupSteps({ ...base, doseChannelImportance: R.IMPORTANCE_NONE });
   assert.equal(s.done, false);
   assert.ok(s.rows.some((r) => r.id === 'channel' && r.state === 'block'), 'the category row appears when it is off');
   assert.ok(!R.setupSteps(base).rows.some((r) => r.id === 'channel'));

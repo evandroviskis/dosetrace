@@ -19,7 +19,7 @@ const between = (src, a, b) => { const i = src.indexOf(a); assert.ok(i >= 0, a);
 // ── SP-1: the Settings row and its three states ───────────────────────────────────────────────
 test('SP-1: the Settings row state — a block is risk and never "All set"; attention counts; all set only when nothing blocks', () => {
   assert.equal(R.setupRowState(ok).kind, 'ok');
-  for (const h of [{ ...ok, permission: 'denied' }, { ...ok, doseChannelImportance: 0 }, { ...ok, scheduledCount: 0 }]) {
+  for (const h of [{ ...ok, permission: 'denied' }, { ...ok, doseChannelImportance: R.IMPORTANCE_NONE }, { ...ok, scheduledCount: 0 }]) {
     assert.equal(R.setupRowState(h).kind, 'block', JSON.stringify(h).slice(0, 60));
   }
   const w = R.setupRowState({ ...ok, exactAlarms: false, batteryOptimized: true });

@@ -19,7 +19,7 @@ test('RC-3 iPhone: notifications only', () => {
 });
 
 test('RC-3 states: permission off and the category off block; battery optimized only warns', () => {
-  const c = R.reminderChecks({ ...androidOk, permission: 'denied', doseChannelImportance: 0, batteryOptimized: true });
+  const c = R.reminderChecks({ ...androidOk, permission: 'denied', doseChannelImportance: R.IMPORTANCE_NONE, batteryOptimized: true });
   const by = Object.fromEntries(c.map((x) => [x.id, x.state]));
   assert.equal(by.notifications, 'block');
   assert.equal(by.channel, 'block');
@@ -36,7 +36,7 @@ test('RC-4 schedule: nothing scheduled with reminders on and a protocol that nee
 test('RC-6 Today warns only for a readable block, with reminders on and a protocol that needs one', () => {
   const warn = R.reminderChecks({ ...androidOk, batteryOptimized: true });
   assert.equal(R.shouldWarnToday({ remindersOn: true, activeWithTime: 2, checks: warn, schedule: 'ok' }), false, 'a warning alone never alerts');
-  const blocked = R.reminderChecks({ ...androidOk, doseChannelImportance: 0 });
+  const blocked = R.reminderChecks({ ...androidOk, doseChannelImportance: R.IMPORTANCE_NONE });
   assert.equal(R.shouldWarnToday({ remindersOn: true, activeWithTime: 2, checks: blocked, schedule: 'ok' }), true);
   assert.equal(R.shouldWarnToday({ remindersOn: false, activeWithTime: 2, checks: blocked, schedule: 'ok' }), false, 'reminders switched off in Settings');
   assert.equal(R.shouldWarnToday({ remindersOn: true, activeWithTime: 0, checks: blocked, schedule: 'none_needed' }), false);

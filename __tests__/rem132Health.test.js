@@ -90,8 +90,8 @@ test('DV-045: registered 3 days ago, never ran → stale', () => {
 
 // DV-098 (DL-49, AD-79 item 5): the channel of every reminder kind the user has switched on.
 // Logic only — the new Reminder check rows are drawn for the founder's picture before they show.
-test('DV-098: food reminders on + check-in channel importance 0 → a block row', () => {
-  const h = { ...android, checkinChannelImportance: 0, vialChannelImportance: 3, foodOn: true, checkinOn: false, vialOn: true };
+test('DV-098: food reminders on + check-in channel switched off (importance NONE) → a block row', () => {
+  const h = { ...android, checkinChannelImportance: R.IMPORTANCE_NONE, vialChannelImportance: 3, foodOn: true, checkinOn: false, vialOn: true };
   const rows = R.kindChannelChecks(h);
   assert.deepEqual(rows.map((r) => [r.id, r.state]), [['channel_checkin', 'block'], ['channel_vial', 'ok']]);
   // Every check-in kind off → that channel is not asked about.
