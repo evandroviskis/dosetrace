@@ -29,7 +29,12 @@ test('Your numbers and the lab value edit read typed text with parseMeasure', ()
   const calc = read('screens', 'components', 'CalculatorSection.js');
   assert.match(calc, /const num = v => \{ const n = parseMeasure\(v, language\); return Number\.isFinite\(n\) \? n : null; \};/);
   const body = read('screens', 'BodyScreen.js');
-  assert.match(body, /const value = parseMeasure\(mValue, language\);/);
-  assert.match(body, /value: parseMeasure\(m\.value, language\),/);
+  // A-203 (founder 2026-10-31): the lab value edit and the scan rows go through lib/labValue, which
+  // reads the number with parseMeasure in the app language (plus a leading sign, or the words).
+  assert.match(body, /const parsed = parseLabInput\(mValue, language\);/);
+  assert.match(body, /const r = scanResult\(m, language\);/);
   assert.doesNotMatch(body, /parseDecimal\(mValue|parseDecimal\(m\.value/);
+  const { parseLabInput } = require('../lib/labValue');
+  assert.equal(parseLabInput('1,025', 'en').value, 1.025, 'English: a comma stays the decimal (parseMeasure)');
+  assert.equal(parseLabInput('1,025', 'pt').value, 1.025);
 });

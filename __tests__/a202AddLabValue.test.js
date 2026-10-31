@@ -95,10 +95,12 @@ test('AV-2 / AV-3: "+ Adicionar valor" on the test page opens the Edit value win
 
 test('AV-4 / AV-5 / AV-7: Save adds through addBiomarkerToReport with the same checks as Edit value, never a scan', () => {
   const src = read('screens/BodyScreen.js');
-  const save = src.slice(src.indexOf('function saveMarkerEdit()'), src.indexOf('function saveMarkerEdit()') + 2000);
-  assert.match(save, /parseMeasure\(mValue, language\)/);
+  // A-203 (founder 2026-10-31): the value is read by parseLabInput (parseMeasure + a leading sign or
+  // the words) and the add carries the sign and the words; the window is longer, so a wider slice.
+  const save = src.slice(src.indexOf('function saveMarkerEdit()'), src.indexOf('function saveMarkerEdit()') + 2600);
+  assert.match(save, /parseLabInput\(mValue, language\)/);
   assert.match(save, /blood_edit_invalid/);
-  assert.match(save, /if \(mEdit\.adding\) \{[\s\S]*addBiomarkerToReport\(userId, mEdit\.card, \{ marker: mName\.trim\(\), value, unit: mUnit\.trim\(\) \}\)/);
+  assert.match(save, /if \(mEdit\.adding\) \{[\s\S]*addBiomarkerToReport\(userId, mEdit\.card, \{ marker: mName\.trim\(\), value, qualifier, value_text, unit: mUnit\.trim\(\) \}\)/);
   assert.doesNotMatch(save, /extract-bloodwork|ensureAiConsent|scanUsage/);
 });
 
@@ -150,10 +152,12 @@ test('AV-1: no lab test is created by hand — a new test is written only by the
 // keeps the window open.
 test('AV-4 / AV-6: Save never drops a typed value (offline, double tap, failed write)', () => {
   const src = read('screens/BodyScreen.js');
-  const save = src.slice(src.indexOf('async function saveMarkerEdit()'), src.indexOf('async function saveMarkerEdit()') + 1800);
+  // A-203 (founder 2026-10-31): the window grew (the sign and the words), so a wider slice, and the
+  // add carries qualifier and value_text.
+  const save = src.slice(src.indexOf('async function saveMarkerEdit()'), src.indexOf('async function saveMarkerEdit()') + 2400);
   assert.match(save, /if \(savingRef\.current\) return;/);
   assert.match(save, /const userId = mEdit\.card\.markers\?\.\[0\]\?\.user_id \|\| \(await getCachedUser\(\)\)\?\.id;/);
   assert.doesNotMatch(save, /if \(!user\) \{ setMEdit\(null\)/, 'no close before the value is stored');
-  assert.match(save, /const added = addBiomarkerToReport\(userId, mEdit\.card, \{ marker: mName\.trim\(\), value, unit: mUnit\.trim\(\) \}\);\s*if \(!added\) \{/);
+  assert.match(save, /const added = addBiomarkerToReport\(userId, mEdit\.card, \{ marker: mName\.trim\(\), value, qualifier, value_text, unit: mUnit\.trim\(\) \}\);\s*if \(!added\) \{/);
   assert.match(save, /finally \{ savingRef\.current = false; \}/);
 });

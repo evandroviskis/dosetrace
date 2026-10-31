@@ -55,7 +55,13 @@ test('lab value edit and Your numbers: a prefilled number saves back the same va
   }
   assert.equal(inputNumber(5.2, 'pt'), '5,2');
   const body = read('screens', 'BodyScreen.js');
-  assert.match(body, /setMValue\(obj\.value != null \? inputNumber\(obj\.value, language\) : ''\)/);
+  // A-203 (founder 2026-10-31): the prefill is lib/labValue labInputText — inputNumber in the app
+  // language, with the sign before it or the words; it reads back through parseLabInput unchanged.
+  assert.match(body, /setMValue\(labInputText\(obj, language\)\)/);
+  const { labInputText, parseLabInput } = require('../lib/labValue');
+  for (const l of LANGS) {
+    for (const v of [5.2, 0.85, 12.345, 1250.5, 986, 1.125]) assert.equal(parseLabInput(labInputText({ value: v }, l), l).value, v, `${l} lab prefill ${v}`);
+  }
   assert.match(read('screens', 'ProtocolsScreen.js'), /formFromProtocol\(p, vialsByProtocol\[p\.id\], new Date\(\), language\)/);
   const calc = read('screens', 'components', 'CalculatorSection.js');
   assert.match(calc, /setWeightNow\(inputNumber\(w, language\), date\)/); // A-101e: the weigh-in also stamps weightAt
