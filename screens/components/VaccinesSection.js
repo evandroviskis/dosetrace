@@ -40,6 +40,7 @@ import { todayLocal, wheelColumns, wheelAfter } from '../../lib/bodyDates';
 import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
 import { BottomSheet, SheetBar, SheetToast } from './BodySheets';
 import Svg, { Path } from 'react-native-svg';
+import { imageMediaType } from '../../lib/imageType';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const TOAST_MS = 4000; // the prototype toast()
@@ -177,8 +178,7 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
       const asset = result.assets[0];
       if (!asset?.base64) { notice(scanErrorSheet('read', t), true); return; }
       if (asset.base64.length > MAX_FILE_BYTES * 1.4) { notice(scanErrorSheet('big', t), true); return; }
-      const mediaType = asset.mimeType
-        || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+      const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
       setUploading(true);
       await extractVaccines({ image_base64: asset.base64, media_type: mediaType });
     } catch (err) {

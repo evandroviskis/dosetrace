@@ -100,6 +100,7 @@ import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 import { pluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
+import { imageMediaType } from '../lib/imageType';
 import {
   isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass,
@@ -1883,8 +1884,7 @@ export default function ProtocolsScreen() {
       // Vial-photo errors reuse "Couldn't read that label" (approved 2026-09-29).
       if (!asset?.base64) return fail(t('vial_scan_error'), t('vial_scan_error_sub'));
       if (asset.base64.length > MAX_SCAN_BYTES * 1.4) return fail(t('error'), t('blood_error_file_too_large'));
-      const mediaType = asset.mimeType
-        || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+      const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
       setVialScanning(true);
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
         body: { kind: 'vial', lang: language, image_base64: asset.base64, media_type: mediaType },

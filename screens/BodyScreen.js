@@ -57,6 +57,7 @@ import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
 import { fetchScanUsage, scanUsageLine, scanUsageShown } from '../lib/scanUsage';
 import { movedCardKey, applyLabelMoves } from '../lib/labDateMove';
 import CollapsibleSection from '../components/CollapsibleSection';
+import { imageMediaType } from '../lib/imageType';
 
 // Small monoline controls of the Lab test journal (prototype CHEV / BI.star / BI.pen,
 // 24-grid, 1.8 stroke). Colors always come from the theme.
@@ -541,8 +542,7 @@ export default function BodyScreen({ navigation, route }) {
       const base64 = asset?.base64;
       if (!base64) { notice(scanErrorSheet('read', t), true); return; }
       if (base64.length > MAX_FILE_BYTES * 1.4) { notice(scanErrorSheet('big', t), true); return; }
-      const mediaType = asset.mimeType
-        || (String(asset.uri || '').toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+      const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
 
       setUploading(true);
       await extractWithClaude(base64, { image: true, mediaType });
