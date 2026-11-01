@@ -1,5 +1,7 @@
 # DoseTrace — full app handoff
 
+> **SUPERSEDED (2026-10-31, DV-178).** This overview is historical. The current description of the app is `docs/product/PRD.md` (behaviour) and `docs/product/TRD.md` (data, sync, platform); the running state is `STATE.md` and the Second Brain HANDOFF. Known stale parts here: past-dose backfill, RLS delete on every table and cloud deletes (rows are tombstoned and synced), `calc_inputs` and the open reality check in `user_metadata` (now synced tables), and the body map in My Body. Do not build from this file.
+
 A complete, self-contained overview of what DoseTrace is, how it's built, every
 feature, the data/backend architecture, the release pipeline, and what's done vs.
 still open. Written so another assistant can understand the whole app with no other

@@ -161,6 +161,8 @@ Inside Progress, the Reality check section before any weigh-in shows only its on
 
 ## 5. Dose accumulation: opening compound (A-41 + founder rule)
 
+> **Amended 2026-10-31 (DL-36, DV-157):** step (2) below, "the compound of the most recent dose marked Taken", was never built and is not wanted: A-41 (2026-10-02) defines the restore — the last view, else the newest protocol. The text below is kept as the record of the plan.
+
 Open on (1) the compound last viewed (saved per user) if still active and charted; else (2) the
 compound of the most recent dose marked Taken; else (3) the first active protocol (today). Blend = all
 its components; one unit per chart. Code: pure helper `initialSelection()` (tests first) used in
