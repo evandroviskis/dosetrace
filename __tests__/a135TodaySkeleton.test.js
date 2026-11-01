@@ -159,11 +159,11 @@ test('SK-1/SK-2: App.js — the loading gate opens on Today\'s skeleton after a 
   assert.ok(!cb.includes('forgetTodayLayout'), 'nothing new inside onAuthStateChange');
   // The opening's tab bar is the real tab navigator with the same options; taps wait for the app.
   const tabs = app.slice(app.indexOf('function BootTabs('), app.indexOf('\n}\n', app.indexOf('function BootTabs(')));
-  assert.match(tabs, /screenOptions=\{tabScreenOptions\(colors, insets\)\}/);
+  assert.match(tabs, /screenOptions=\{TAB_SCREEN_OPTIONS\}/);
   assert.match(tabs, /tabPress: \(e\) => \{ e\.preventDefault\(\);/); // council (2): the tap is remembered (a135CouncilFixes)
   assert.match(tabs, /component=\{tab\.name === 'Today' \? TodayOpening : BootEmpty\}/);
   const main = app.slice(app.indexOf('function MainTabs('), app.indexOf('\n}\n', app.indexOf('function MainTabs(')));
-  assert.match(main, /screenOptions=\{tabScreenOptions\(colors, insets\)\}/, 'the real tab bar uses the same options');
+  assert.match(main, /screenOptions=\{TAB_SCREEN_OPTIONS\}/, 'the real tab navigator uses the same options');
 });
 
 test('SK-1: the language and theme say when their stored choice was read (no English / wrong-theme first frame)', () => {

@@ -124,7 +124,7 @@ export function UpdateReadyBar({ visible, onRestart }) {
   const insets = useSafeAreaInsets();
   const s = useMemo(() => barStyles(c), [c]);
   if (!visible) return null;
-  const above = tabBarSpace(c, insets.bottom) + 18; // A-206: above the bar the platform draws
+  const above = tabBarSpace(insets.bottom) + 18; // A-206: above the glass bar
   return (
     <View style={[s.bar, { bottom: above }]} accessibilityLiveRegion="polite">
       <Text style={s.text} numberOfLines={2}>{t('upd_downloaded')}</Text>

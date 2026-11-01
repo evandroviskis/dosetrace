@@ -76,19 +76,18 @@ test('selection: toggle, Select all / Deselect all, the bar counts and is off at
   assert.deepEqual(T.confirmKeys(3), { title: 'protocols_purge_title_many', body: 'protocols_purge_body_many' });
 });
 
-test('the screen: Select only with items, the check, Cancel, the bar replaces the tab bar, the confirm sheet', () => {
+test('the screen: Select only with items, the check, Cancel, the bar above the glass bar (never hidden, 2026-11-01), the confirm sheet', () => {
   const s = read('screens/ProtocolsScreen.js');
   const i = s.indexOf('const deletedSection = ');
   const sec = s.slice(i, s.indexOf('\n  ) : null;', i));
   assert.match(sec, /t\('protocols_select'\)/);
   assert.match(sec, /t\(T\.allLabelKey\(trashSel, deletedIds\)\)/);
   assert.match(sec, /accessibilityRole="checkbox"/);
-  assert.match(s, /navigation\.setOptions\(\{ tabBarStyle: trashSel \? \{ display: 'none' \} : tabBarStyle\(colors, insets\.bottom\) \}\)/);
+  assert.doesNotMatch(s, /tabBarStyle: trashSel/, 'the tab bar stays');
   assert.match(s, /t\('protocols_restore_n'\)\.replace\('\{n\}', String\(bar\.n\)\)/);
   assert.match(s, /t\('protocols_delete_forever_n'\)\.replace\('\{n\}', String\(bar\.n\)\)/);
   assert.match(s, /disabled=\{!bar\.enabled\}/);
   assert.match(s, /function confirmPurge\(ids\)/);
-  assert.match(read('App.js'), /tabBarStyle: tabBarStyle\(colors, insets\.bottom\),/);
 });
 
 test('the strings exist in six languages', () => {

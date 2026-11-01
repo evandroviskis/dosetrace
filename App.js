@@ -40,11 +40,9 @@ import { hasAnswers, startEntry } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { completeLocalSignOut } from './lib/signOutCore';
-import { tabBarStyle } from './lib/tabBarStyle';
+import { mainBarState, mainBarPress } from './lib/mainBar';
 import { tapAwayProps } from './components/tapAwayKeyboard';
 import GlassTabBar from './components/GlassTabBar';
-import { loadNativeTabs } from './lib/nativeViews';
-import { TAB_ICONS } from './lib/tabIcons';
 import { setWindowBackground } from './modules/dt-exact-alarm';
 import { setStrictRemoval } from './lib/secureStore';
 import { onSignedOutNow, afterSignedOut, checkAccountGone, completePendingWipe, sessionAfterPendingWipe, markerOnSignIn, registerWipe, bumpSignInGeneration, signInGeneration, WIPE_PENDING_KEY } from './lib/signedOut';
@@ -153,10 +151,8 @@ import { DTSheet } from './screens/components/ProtocolParts';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 import ProgressScreen from './screens/ProgressScreen';
 
-// A-206 GB-7: on iPhone, Apple's own tab bar (iOS 26 Liquid Glass) when its native view is in the
-// binary (lib/nativeViews); otherwise — Android, or a binary without it — today's JS navigator.
-const NATIVE_TABS = loadNativeTabs();
-const Tab = NATIVE_TABS ? NATIVE_TABS.createNavigator() : createBottomTabNavigator();
+// A-206 (founder 2026-11-01): the iPhone draws the same glass bar as Android (components/GlassTabBar).
+const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 // ── Tab-bar line icons ─────────────────────────────────────────
@@ -236,56 +232,23 @@ const tabDefs = (t) => [
 ];
 const TAB_NAMES = tabDefs(() => '').map((tab) => tab.name);
 
-// Graduated tab bar (DESIGN.md §5): flat on the ground, hairline on top, active = ink + 600,
-// inactive = ink3. Never blue. The bar sits above the system's bottom bar (Android).
-function tabScreenOptions(colors, insets) {
-  return {
-    headerShown: false,
-    tabBarActiveTintColor: colors.ink,
-    tabBarInactiveTintColor: colors.ink3,
-    tabBarStyle: tabBarStyle(colors, insets.bottom),
-    tabBarLabelStyle: {
-      fontSize: 11,
-      fontWeight: '600',
-      marginTop: 2,
-    },
-  };
-}
+const TAB_SCREEN_OPTIONS = { headerShown: false };
 
-// A-206: Android draws the floating glass bar (the real app and its opening alike). On iPhone no
-// tabBar prop: it would replace Apple's own bar.
-const GLASS_TAB_BAR = Platform.OS === 'android' ? (props) => <GlassTabBar {...props} /> : undefined;
+// A-206: the opening (BootTabs) draws the floating glass bar in its tab navigator, on both platforms.
+const GLASS_TAB_BAR = (props) => <GlassTabBar {...props} />;
+// The real app's tab navigator draws no bar: MainStack draws it under every screen (MainBar).
+const NO_TAB_BAR = () => null;
 
-// A-206 GB-7: Apple's bar (iPhone, native view present) shrinks while the screen scrolls down and comes
-// back on scroll up; the chosen tab is ink, the others ink3 — never blue. Nothing for the JS bars.
-function tabNavProps(colors) {
-  if (!NATIVE_TABS) return {};
-  return {
-    minimizeBehavior: 'onScrollDown',
-    tabBarActiveTintColor: colors.ink,
-    tabBarInactiveTintColor: colors.ink3,
-  };
-}
-
-// One tab's label and icon: Apple's bar takes the glyphs as template images (outline, filled when
-// chosen: lib/tabIcons); the JS bars draw the glyph components.
+// One tab's label and icon (the glass bar draws the glyph components).
 function tabOptions(tab) {
-  if (NATIVE_TABS) return { tabBarLabel: tab.label, tabBarIcon: ({ focused }) => TAB_ICONS[tab.name][focused ? 'filled' : 'outline'] };
   return { tabBarLabel: tab.label, tabBarIcon: ({ focused }) => <TabIcon Glyph={tab.Glyph} focused={focused} /> };
 }
 
 function MainTabs() {
   const { t } = useLanguage();
   const tabs = tabDefs(t);
-
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets(); // the tab bar sits above the system's bottom bar (Android)
   return (
-    <Tab.Navigator
-      {...tabNavProps(colors)}
-      screenOptions={tabScreenOptions(colors, insets)}
-      tabBar={GLASS_TAB_BAR}
-    >
+    <Tab.Navigator screenOptions={TAB_SCREEN_OPTIONS} tabBar={NO_TAB_BAR}>
       {tabs.map(tab => (
         <Tab.Screen
           key={tab.name}
@@ -298,9 +261,38 @@ function MainTabs() {
   );
 }
 
+// A-206 (founder 2026-11-01: "não deixa a barra oculta em momento algum, tanto no Android quanto no
+// iPhone"): ONE glass bar under every screen of the main stack — the tabs and the screens opened from
+// them (Dose accumulation, the dose log, Progress, FAQ, team messages, reminder check, Premium, the
+// food chat). It sits outside the stack's cards, so it never slides, shrinks or hides; the screens end
+// above it. The chosen tab is the one under the stack; a tap on any tab (the chosen one too) closes the
+// screens opened over the tabs and shows that tab.
+function MainBar({ stackState, navigation }) {
+  const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const tabs = tabDefs(t);
+  const bar = mainBarState(stackState, tabs.map((tab) => tab.name));
+  const descriptors = {};
+  tabs.forEach((tab) => { descriptors[tab.name] = { options: tabOptions(tab) }; });
+  const barNav = {
+    emit: ({ target }) => { mainBarPress(navigation, bar, target); return { defaultPrevented: true }; },
+    navigate: () => {},
+  };
+  return <GlassTabBar state={bar} descriptors={descriptors} navigation={barNav} insets={insets} />;
+}
+
+function MainStackLayout({ state, navigation, children }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>{children}</View>
+      <MainBar stackState={state} navigation={navigation} />
+    </View>
+  );
+}
+
 function MainStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} layout={(props) => <MainStackLayout {...props} />}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Log" component={LogScreen} />
       <Stack.Screen name="SerumCurve" component={SerumCurveScreen} />
@@ -526,11 +518,10 @@ function BootEmpty() {
 function BootTabs({ onTabTap }) {
   const { t } = useLanguage();
   const { colors, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
   return (
     <NavigationContainer theme={navThemeFor(colors, isDark)}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Tab.Navigator {...tabNavProps(colors)} screenOptions={tabScreenOptions(colors, insets)} tabBar={GLASS_TAB_BAR} screenListeners={({ route }) => ({ tabPress: (e) => { e.preventDefault(); if (onTabTap) onTabTap(route.name); } })}>
+      <Tab.Navigator screenOptions={TAB_SCREEN_OPTIONS} tabBar={GLASS_TAB_BAR} screenListeners={({ route }) => ({ tabPress: (e) => { e.preventDefault(); if (onTabTap) onTabTap(route.name); } })}>
         {tabDefs(t).map((tab) => (
           <Tab.Screen
             key={tab.name}

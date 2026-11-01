@@ -46,7 +46,7 @@ for (const f of ['screens/LogScreen.js', 'screens/SerumCurveScreen.js', 'screens
   });
 }
 
-test('A-136 (1): the Recently deleted bar (tab bar hidden) clears the system bar itself', () => {
+test('A-136 (1) / A-206 (2026-11-01): the Recently deleted bar sits above the glass bar, which already clears the system bar', () => {
   const src = read('screens/ProtocolsScreen.js');
-  assert.match(src, /<View style=\{\[s\.trashBar, \{ paddingBottom: 12 \+ insets\.bottom \}\]\}>/);
+  assert.match(src, /<View style=\{\[s\.trashBar, \{ paddingBottom: 12 \}\]\}>/);
 });

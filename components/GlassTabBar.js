@@ -1,5 +1,6 @@
 // A-206 (founder 2026-10-31, docs/specs/a206-glass-tab-bar.md): the floating "Liquid Glass" tab bar
-// of the approved preview, imitated on Android (Apple's glass exists only on iOS 26): a capsule with
+// of the approved preview, drawn by the app on Android and iPhone alike (founder 2026-11-01: the iPhone
+// uses this bar, not Apple's): a capsule with
 // a light edge, a sheen on its upper half and a soft shadow; the chosen tab sits in a glossy lens that
 // slides to the next one with a spring and a short stretch, as Apple's bubble does. Active = ink,
 // never blue. It takes its own room in the layout (lib/tabBarStyle glassBarRoom), so no screen ends
@@ -56,10 +57,6 @@ export default function GlassTabBar({ state, descriptors, navigation, insets }) 
   }, [state.index, tabW]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lens = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { scaleX: sx.value }] }));
-
-  // GB-5: a screen that hides the bar (Recently deleted selection) still hides it.
-  const { options: focusedOptions } = descriptors[state.routes[state.index].key];
-  if (focusedOptions.tabBarStyle && StyleSheet.flatten(focusedOptions.tabBarStyle)?.display === 'none') return null;
 
   const lensH = room.barHeight - PAD * 2;
   // With the blur, the capsule's own paint is the ground under it (what the bar's room shows anyway),
