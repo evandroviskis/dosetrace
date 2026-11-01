@@ -45,6 +45,7 @@ function profile(mode, supabase = null) {
     setShowCountryPicker: (v) => { if (v === false) out.closedPicker++; },
     fetchUser: () => { out.refetched++; },
     forgetKeptKeys: async () => {}, // DV-114 Gate B 2: no answer kept on this phone here
+    flushPendingGate: async () => ({ status: "none" }), // Gate B re-review: nothing kept to send first
   });
   return { out, save };
 }

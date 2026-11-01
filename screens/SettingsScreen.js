@@ -24,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
-import { profileMeta, forgetKeptKeys } from '../lib/pendingGateStore';
+import { profileMeta, forgetKeptKeys, flushPendingGate } from '../lib/pendingGateStore';
 import { getPremiumSnapshot } from '../lib/premiumState';
 import { firstProfile, profileCardView } from '../lib/profileCardFirst';
 import { whenAllSettled, deferred } from '../lib/firstLoad';
@@ -622,6 +622,8 @@ export default function SettingsScreen({ navigation }) {
           ...legacyActivity(user?.user_metadata?.activity_level, activityLevel),
           has_provider: hasProvider || null,
       };
+      // Gate B re-review: a kept 18+ / profile answer goes first, so this newer save always lands last.
+      await flushPendingGate(); // never throws (offline → kept for later)
       const res = await supabase.auth.updateUser({ data: profileData });
       if (res && res.error) throw res.error;
       await forgetKeptKeys(user && user.id, Object.keys(profileData)).catch(() => {}); // DV-114 Gate B 2: newer than a kept answer, before the reload

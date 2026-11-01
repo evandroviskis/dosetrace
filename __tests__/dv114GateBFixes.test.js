@@ -231,3 +231,14 @@ test('Gate B 2: the profile is read with the kept answer laid over it wherever i
   assert.match(calc, /activitySource\(\{ meta: profileMeta\(user\), /);
   assert.match(read('screens/JourneyScreen.js'), /progressTile\(\{ saved, meta: profileMeta\(user\), /);
 });
+
+// Gate B re-review 2026-11-01 (finding 1, low): a flush already sending an older kept answer could land after
+// a Settings profile save and put the older values back. Settings sends the kept answer FIRST, then writes.
+test('Gate B re-review: the Settings profile save sends a kept answer before its own write (newer always lands last)', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'screens/SettingsScreen.js'), 'utf8');
+  const save = src.slice(src.indexOf('async function saveProfile('), src.indexOf('async function handleExportData('));
+  const flush = save.indexOf('await flushPendingGate()');
+  const write = save.indexOf('await supabase.auth.updateUser({ data: profileData })');
+  assert.ok(flush > 0 && write > flush, 'flush awaited before the profile write');
+  assert.match(src, /import \{ profileMeta, forgetKeptKeys, flushPendingGate \} from '\.\.\/lib\/pendingGateStore';/);
+});
