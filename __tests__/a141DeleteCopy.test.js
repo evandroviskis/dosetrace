@@ -57,5 +57,6 @@ test('A-141 (4): no delete / restore / Recently deleted string ×6 promises a da
 
 test('A-141 (4): both delete sheets use this text', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'ProtocolsScreen.js'), 'utf8');
-  assert.equal((src.match(/body: t\('protocols_delete_confirm_settings'\)/g) || []).length, 2);
+  // DV-216: one delete sheet serves the protocol page and the Ended row
+  assert.equal((src.match(/body: t\('protocols_delete_confirm_settings'\)/g) || []).length, 1);
 });

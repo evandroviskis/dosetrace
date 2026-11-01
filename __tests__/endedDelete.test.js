@@ -54,9 +54,12 @@ test('the Ended row has the Recently deleted trash, opening the same Delete prot
   assert.match(sec, /accessibilityLabel=\{t\('protocols_delete'\)\}/);
   assert.match(sec, /style=\{s\.deleteForeverBtn\}/);
   assert.match(sec, /<FeatureIcon name="trash" size=\{22\} color=\{colors\.risk\} \/>/);
-  const fn = s.slice(s.indexOf('function deleteEndedProtocol(p) {'), s.indexOf('function deleteEndedProtocol(p) {') + 900);
-  assert.match(fn, /title: t\('protocols_delete_title'\)/);
-  assert.match(fn, /softDeleteProtocol\(p\.id\)/);
+  // DV-216: the same Delete protocol sheet and path as the protocol page
+  const fn = s.slice(s.indexOf('function deleteEndedProtocol(p) {'), s.indexOf('function deleteEndedProtocol(p) {') + 300);
+  assert.match(fn, /deleteProtocol\(p\.id, p\);/);
+  const del = s.slice(s.indexOf('async function deleteProtocol(id, known = null) {'), s.indexOf('async function deleteProtocol(id, known = null) {') + 900);
+  assert.match(del, /title: t\('protocols_delete_title'\)/);
+  assert.match(del, /softDeleteProtocol\(id\)/);
   const restore = s.slice(s.indexOf('function restoreProtocol(id) {'), s.indexOf('function restoreProtocol(id) {') + 700);
   assert.match(restore, /const outcome = restoreProtocolDB\(id, \{ allowActive \}\);/);
   assert.match(restore, /if \(outcome == null\) \{ fetchProtocols\(\); return; \}/, 'a second tap changes nothing');

@@ -1424,25 +1424,9 @@ export default function ProtocolsScreen() {
   // with it. Counts against the free plan's limit like adding one.
   // Round 4 (2026-10-03): an Ended row is deleted the way any protocol is — the same "Delete
   // protocol" sheet, a soft delete to Recently deleted (Restore puts it back in Ended).
+  // DV-216: the Ended row's trash is the same delete as the protocol page's (banners, vials, event).
   function deleteEndedProtocol(p) {
-    setScreenSheet({
-      title: t('protocols_delete_title'),
-      body: t('protocols_delete_confirm_settings'),
-      buttons: [
-        { label: t('cancel'), kind: 'secondary' },
-        {
-          label: t('protocols_delete'), kind: 'danger',
-          onPress: () => {
-            softDeleteProtocol(p.id);
-            cancelDoseReminder(p.id).catch(() => {});
-            afterProtocolChange().catch(() => {});
-            fetchProtocols();
-            notifyDataChanged('protocol');
-            requestSync();
-          },
-        },
-      ],
-    });
+    deleteProtocol(p.id, p);
   }
 
   // Founder 2026-10-07 (council 3 decision 1): Retomar asks which container — a new vial/bottle (full,
@@ -2414,7 +2398,7 @@ export default function ProtocolsScreen() {
     if (p) endProtocolHere(p.id);
   }
 
-  async function deleteProtocol(id) {
+  async function deleteProtocol(id, known = null) {
     setScreenSheet({
       title: t('protocols_delete_title'),
       body: t('protocols_delete_confirm_settings'),
@@ -2423,7 +2407,7 @@ export default function ProtocolsScreen() {
         {
           label: t('protocols_delete'), kind: 'danger',
           onPress: () => {
-            const target = protocols.find(p => p.id === id);
+            const target = known || protocols.find(p => p.id === id);
             softDeleteProtocol(id);
             deactivateVialsByProtocol(id);
             cancelDoseReminder(id).catch(() => {});

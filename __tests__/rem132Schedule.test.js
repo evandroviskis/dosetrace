@@ -145,7 +145,7 @@ test('DV-051: delete a protocol → the summary plan excludes it (every Protocol
   assert.ok(after.every((d) => !(d.list || []).includes('TB-500')));
   const src = read('screens/ProtocolsScreen.js');
   assert.doesNotMatch(src, /scheduleDoseReminder\(/, 'no write re-plans only its doses any more');
-  for (const fnName of ['async function deleteProtocol(id) {', 'function deleteEndedProtocol(p) {', 'function confirmPurge(ids) {']) {
+  for (const fnName of ['async function deleteProtocol(id, known = null) {', 'function confirmPurge(ids) {']) { // DV-216: the Ended row calls deleteProtocol
     assert.match(sliceBlock(src, fnName), /cancelDoseReminder\([^)]*\)\.catch[\s\S]*afterProtocolChange\(\)\.catch/, fnName);
   }
   for (const fnName of ['async function restoreProtocol(id) {', 'async function saveNewVial({', 'async function saveVialEdit(input) {', 'function refillOralBottle(id) {']) {

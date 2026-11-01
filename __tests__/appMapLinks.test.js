@@ -189,7 +189,7 @@ test('L-42: every notification tap goes through the one router to its reason (do
 // ── L-46: protocol delete → its reminders and snoozed copies go ────────────────────────────
 test('L-46: deleting a protocol cancels its reminders and banners; snoozed copies of a deleted protocol are dropped', async () => {
   const src = read('screens/ProtocolsScreen.js');
-  const del = sliceBlock(src, 'async function deleteProtocol(id) {');
+  const del = sliceBlock(src, 'async function deleteProtocol(id, known = null) {');
   assert.match(del, /softDeleteProtocol\(id\);[\s\S]*cancelDoseReminder\(id\)\.catch[\s\S]*dismissDeliveredDoseReminders\(id\)\.catch/);
 
   const N = fakeN(['dose-5-2026-10-03-t0', 'dose-5-2026-10-04-t0', 'dose-6-2026-10-03-t0', 'snz-abc']);
