@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
+import { profileMeta, forgetKeptKeys } from '../lib/pendingGateStore';
 import { getPremiumSnapshot } from '../lib/premiumState';
 import { firstProfile, profileCardView } from '../lib/profileCardFirst';
 import { whenAllSettled, deferred } from '../lib/firstLoad';
@@ -452,20 +453,22 @@ export default function SettingsScreen({ navigation }) {
       // the calculator — the same level Journey shows. Old 4-level values map to 5 (never lost).
       // Read first (the one await), then every field in one step — and never while Edit profile is
       // open: what the user typed there stays until Save or Cancel (A-169 review 2026-10-26).
-      const activity = activitySourceKey(user.user_metadata, await getCalcInputs().catch(() => null));
+      // DV-114 Gate B 2: the profile with an 18+ / profile answer still kept on this phone laid over it.
+      const pm = profileMeta(user) || {};
+      const activity = activitySourceKey(pm, await getCalcInputs().catch(() => null));
       if (editProfileOpen.current) return;
-      setDisplayName(user.user_metadata?.display_name || '');
-      setGender(user.user_metadata?.gender || '');
-      setBirthMonth(birthMonthIndex(user.user_metadata?.birth_month)); // stored 1-based → 0-11; an old 0 = January
+      setDisplayName(pm.display_name || '');
+      setGender(pm.gender || '');
+      setBirthMonth(birthMonthIndex(pm.birth_month)); // stored 1-based → 0-11; an old 0 = January
       // Founder 2026-10-31: an old 0-based January is rewritten as 1 (merge write, outside the auth callback).
       if (String(user.user_metadata?.birth_month) === '0') supabase.auth.updateUser({ data: { birth_month: 1 } }).catch(() => {});
-      setBirthYear(user.user_metadata?.birth_year ?? null);
-      setBirthYearText(user.user_metadata?.birth_year != null ? String(user.user_metadata.birth_year) : '');
-      setCountry(user.user_metadata?.country || '');
-      const pg = user.user_metadata?.primary_goal || '';
+      setBirthYear(pm.birth_year ?? null);
+      setBirthYearText(pm.birth_year != null ? String(pm.birth_year) : '');
+      setCountry(pm.country || '');
+      const pg = pm.primary_goal || '';
       setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []);
       setActivityLevel(activity);
-      setHasProvider(user.user_metadata?.has_provider || '');
+      setHasProvider(pm.has_provider || '');
     }
   }
 
@@ -582,8 +585,7 @@ export default function SettingsScreen({ navigation }) {
     try {
       // DV-008 / DL-56: updateUser RESOLVES { error } when the save is refused (offline): that
       // is a failure too — Edit profile stays open with the typed values and the error sheet shows.
-      const res = await supabase.auth.updateUser({
-        data: {
+      const profileData = {
           display_name: displayName.trim() || null,
           gender: gender || null,
           birth_month: birthMonth != null ? birthMonth + 1 : null, // store 1-based (matches onboarding)
@@ -597,9 +599,10 @@ export default function SettingsScreen({ navigation }) {
           // An old 4-level value rewritten as its new level is kept (never lose user data).
           ...legacyActivity(user?.user_metadata?.activity_level, activityLevel),
           has_provider: hasProvider || null,
-        },
-      });
+      };
+      const res = await supabase.auth.updateUser({ data: profileData });
       if (res && res.error) throw res.error;
+      await forgetKeptKeys(user && user.id, Object.keys(profileData)).catch(() => {}); // DV-114 Gate B 2: newer than a kept answer, before the reload
       setShowCountryPicker(false);
       setEditProfileOpen(false);
       fetchUser();

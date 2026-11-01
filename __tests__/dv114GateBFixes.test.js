@@ -182,3 +182,52 @@ test('Gate B 1: the deliberate sign-out tries to send it first, counts it, and r
   // App decides the gate with THIS account's kept answer.
   assert.match(read('App.js'), /const gateAnswer = usePendingGate\(session && session\.user \? session\.user\.id : null\);/);
 });
+
+// ── Finding 2 (MEDIUM): the app reads the profile with the kept answer; a newer save wins ───────
+test('Gate B 2: a Settings profile save drops the kept answer\'s matching keys — newer wins, the rest is still sent', async () => {
+  const { gate, writes } = makeGate();
+  await gate.load();
+  await gate.save('u1', { adult_confirmed_at: 'X', birth_year: 1985, primary_goal: 'recomp' });
+  // Settings saves the profile (online): display_name, birth_year, primary_goal, country…
+  await gate.drop('u1', ['display_name', 'birth_year', 'primary_goal', 'country']);
+  assert.deepEqual(gate.get('u1').patch, { adult_confirmed_at: 'X' });
+  assert.equal((await gate.flush()).status, 'written');
+  assert.deepEqual(writes, [{ adult_confirmed_at: 'X' }], 'the older birth year and goal never overwrite the newer save');
+  // Every key saved → nothing left, nothing to send, gone from the phone.
+  const s = makeGate();
+  await s.gate.load();
+  await s.gate.save('u1', { birth_year: 1985 });
+  await s.gate.drop('u1', ['birth_year']);
+  assert.equal(s.gate.get('u1'), null);
+  assert.equal(s.storage.m.has(G.KEY), false);
+  // Another account's kept answer is never touched.
+  await s.gate.save('u2', { birth_year: 1970 });
+  await s.gate.drop('u1', ['birth_year']);
+  assert.deepEqual(s.gate.get('u2').patch, { birth_year: 1970 });
+});
+
+test('Gate B 2: the profile is read with the kept answer laid over it wherever it is shown or prefilled', () => {
+  const store = read('lib/pendingGateStore.js');
+  assert.match(store, /export function profileUser\(user\) \{ return user \? withPendingAnswer\(user, pendingGate\.get\(user\.id\)\) : user; \}/);
+  assert.match(store, /export function profileMeta\(user\) \{ const u = profileUser\(user\); return \(u && u\.user_metadata\) \|\| null; \}/);
+  assert.match(store, /export function forgetKeptKeys\(userId, keys\) \{ return pendingGate\.drop\(userId, keys\); \}/);
+  // Edit profile prefill (Settings).
+  const st = read('screens/SettingsScreen.js');
+  const load = st.slice(st.indexOf('async function loadUser(user)'), st.indexOf('// A-169 review (2026-10-26): the card is tappable'));
+  assert.match(load, /const pm = profileMeta\(user\) \|\| \{\};/);
+  for (const f of ['display_name', 'gender', 'country', 'primary_goal', 'has_provider']) assert.match(load, new RegExp(`pm\\.${f}`), f);
+  assert.match(load, /birthMonthIndex\(pm\.birth_month\)/);
+  assert.match(load, /setBirthYear\(pm\.birth_year \?\? null\)/);
+  assert.match(load, /activitySourceKey\(pm, /);
+  // Settings' save: the saved keys leave the kept answer (newer wins).
+  assert.match(st, /const res = await supabase\.auth\.updateUser\(\{ data: profileData \}\);\s*if \(res && res\.error\) throw res\.error;\s*await forgetKeptKeys\(user && user\.id, Object\.keys\(profileData\)\)/);
+  // Today's greeting, the body map and its explainer, the calculator, Journey's tile.
+  assert.match(read('screens/TodayScreen.js'), /const name = profileMeta\(user\)\?\.display_name;/);
+  assert.match(read('screens/components/BodyMapModal.js'), /figureSex\(profileMeta\(user\)\)/);
+  assert.match(read('components/FeatureExplainers.js'), /figureSex\(profileMeta\(u\)\)/);
+  const calc = read('screens/components/CalculatorSection.js');
+  assert.match(calc, /profileBodyInputs\(\{ meta: profileMeta\(user\), /);
+  assert.match(calc, /metaRef\.current = profileMeta\(user\);/);
+  assert.match(calc, /activitySource\(\{ meta: profileMeta\(user\), /);
+  assert.match(read('screens/JourneyScreen.js'), /progressTile\(\{ saved, meta: profileMeta\(user\), /);
+});

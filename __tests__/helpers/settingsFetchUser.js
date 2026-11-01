@@ -36,6 +36,7 @@ function settings({ getCachedUser, cap = 60 } = {}) {
     setDisplayName: set('displayName'), setGender: set('gender'), setBirthMonth: set('birthMonth'),
     setBirthYear: set('birthYear'), setBirthYearText: set('birthYearText'), setCountry: set('country'),
     setPrimaryGoals: set('primaryGoals'), activitySourceKey: (m) => (m && m.activity_level) || '',
+    profileMeta: (u) => (u && u.user_metadata) || null, // DV-114 Gate B 2 (no answer kept on this phone here)
     birthMonthIndex: require('../../lib/profileName').birthMonthIndex, // founder 2026-10-31: old 0 = January
     supabase: { auth: { updateUser: async () => ({}) } },
     getCalcInputs: async () => null, setActivityLevel: set('activityLevel'), setHasProvider: set('hasProvider'),

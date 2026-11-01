@@ -54,6 +54,7 @@ import { useSheetEdgePad } from '../../components/useSheetInset';
 import useSheetKeyboard from '../../components/useSheetKeyboard';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getCachedUser } from '../../lib/supabase';
+import { profileMeta } from '../../lib/pendingGateStore';
 import {
   getSiteById,
   parseStored,
@@ -162,7 +163,7 @@ export default function BodyMapModal({
     let live = true;
     getCachedUser()
       .then((user) => {
-        const next = figureSex(user?.user_metadata);
+        const next = figureSex(profileMeta(user)); // DV-114 Gate B 2: a sex kept on this phone counts
         lastKnownSex = next;
         if (live) setSex(next);
       })

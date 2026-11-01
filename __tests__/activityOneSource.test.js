@@ -50,7 +50,7 @@ test('only one side known, legacy profile keys, nothing known', () => {
 
 test('the calculator reads the one source and writes a user choice to the profile too', () => {
   const src = read('screens/components/CalculatorSection.js');
-  assert.match(src, /activitySource\(\{ meta: user\?\.user_metadata, saved: savedForBody \}\)/);
+  assert.match(src, /activitySource\(\{ meta: profileMeta\(user\), saved: savedForBody \}\)/); // DV-114 Gate B 2: the profile with a kept answer
   assert.match(src, /onPress=\{\(\) => chooseActivity\(a\.value\)\}/);
   const fn = src.slice(src.indexOf('function chooseActivity'), src.indexOf('}', src.indexOf('supabase.auth.updateUser', src.indexOf('function chooseActivity'))));
   assert.match(fn, /activity_level: key/);
@@ -61,7 +61,7 @@ test('the calculator reads the one source and writes a user choice to the profil
 
 test('Edit profile shows the same level and stamps only a changed answer', () => {
   const src = read('screens/SettingsScreen.js');
-  assert.match(src, /const activity = activitySourceKey\(user\.user_metadata, await getCalcInputs\(\)\.catch\(\(\) => null\)\);/);
+  assert.match(src, /const activity = activitySourceKey\(pm, await getCalcInputs\(\)\.catch\(\(\) => null\)\);/); // DV-114 Gate B 2: pm = profileMeta(user)
   assert.match(src, /setActivityLevel\(activity\);/);
   assert.match(src, /activity_set_at: new Date\(\)\.toISOString\(\)/);
   assert.match(src, /activityLevel !== normalizeActivityLevel\(user\?\.user_metadata\?\.activity_level\)/);

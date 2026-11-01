@@ -163,7 +163,7 @@ test('L-30: the sex chosen in Journey is saved to the profile (gender), the only
   await save('other');
   assert.equal(writes.length, 1, 'only male / female are written');
   // Settings and the calculator read the same key back.
-  assert.match(read('screens/SettingsScreen.js'), /setGender\(user\.user_metadata\?\.gender \|\| ''\)/);
+  assert.match(read('screens/SettingsScreen.js'), /setGender\(pm\.gender \|\| ''\)/); // DV-114 Gate B 2: pm = profileMeta(user)
   assert.match(read('lib/bodyProfile.js'), /gender/);
 });
 
