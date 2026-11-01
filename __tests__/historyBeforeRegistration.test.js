@@ -53,7 +53,8 @@ test('(b) the adherence report and the rings count only logged doses and only da
 
 test('(b) the streaks, the report streak and both Log counts use the logged rows only', () => {
   const today = read('screens/TodayScreen.js');
-  assert.match(today, /loggedOnly\(getLogsSince\(user\.id, thirtyDaysAgo\.toISOString\(\)\) \|\| \[\], activeProtocols\)/);
+  // DV-034: the tracker streak reads a year back (since = TRACKER_LOOKBACK_DAYS ago), still logged rows only.
+  assert.match(today, /loggedOnly\(getLogsSince\(user\.id, since\.toISOString\(\)\) \|\| \[\], activeProtocols\)/);
   assert.match(today, /loggedOnly\(getTakenLogsSince\(user\.id, thirtyDaysAgo\.toISOString\(\)\) \|\| \[\], activeProtocols\)/);
   assert.match(read('screens/SettingsScreen.js'), /reportStreaks\(protocols, loggedOnly\(getTakenLogsSince\(user\.id, yearAgo\.toISOString\(\)\) \|\| \[\], protocols\), now\)/);
   assert.match(read('screens/ProtocolsScreen.js'), /setLogCounts\(outcomeCounts\(logs\)\)/);

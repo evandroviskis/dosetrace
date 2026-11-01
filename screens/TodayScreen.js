@@ -78,7 +78,7 @@ import FeatureIcon from '../components/FeatureIcon';
 import TeamMessageGate from '../components/TeamMessageGate';
 import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import { onVialPromptRequest } from '../lib/vialPromptRequests';
-import { scheduleOn } from '../lib/scheduleHistory';
+import { trackerStreak, TRACKER_LOOKBACK_DAYS } from '../lib/trackerStreak';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
@@ -89,7 +89,7 @@ import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
 import useKeyboardLift from '../components/useKeyboardLift';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { DTSheet, VialCells, EndDateStep } from './components/ProtocolParts';
-import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
+import { cardSlot, cardPlan, caughtUpPlan, reminderFocus, dosePageKey } from '../lib/dosePageState';
 import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
 import { undoBarRuns, enqueueVialPrompt, nextVialPrompt } from '../lib/undoBar';
@@ -153,7 +153,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
   );
 }
 import {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, nextDoseAt, frequencyLabelFor, upcomingAgenda,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, nextDoseAt, frequencyLabelFor, upcomingAgenda,
   courseState, endDateRange,
 } from '../lib/schedule';
 import { editMixDate, mixDateError } from '../lib/vialEdit';
@@ -256,6 +256,8 @@ export default function TodayScreen() {
   const [userName, setUserName] = useState('');
   const [streak, setStreak] = useState(0);
   const [weekDots, setWeekDots] = useState([]);
+  const [streakDoseDays, setStreakDoseDays] = useState(false); // DV-034: no daily protocol → "dose days"
+  const streakProps = { streak, streakDoseDays }; // the tracker line (DV-034: lib/trackerStreak trackerStreakLine)
   // A-120: the alert inputs are read together (lib/todayAlertsLoad) and set in ONE update, so the
   // alerts box is drawn once with all of them. rcNow: where the open reality check stands
   // (lib/realityCheckNow); latestLabDate: the most recent bloodwork report_date; snooze:
@@ -343,6 +345,7 @@ export default function TodayScreen() {
   useClock({ everyMinute: true, enabled: isFocused });
   const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
   const takeNoticeT = useRef(null);
+  const focusNoticeT = useRef(null); // DV-036: the "already logged" toast's timer
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save
   const resetTake = (protocolId) => setTakeReset(prev => ({ ...prev, [protocolId]: (prev[protocolId] || 0) + 1 }));
   const [undoData, setUndoData] = useState(null);
@@ -398,6 +401,7 @@ export default function TodayScreen() {
   }
   const todayError = (body, delayMs) => showTodaySheet({ icon: 'warning', title: t('error'), body, buttons: okButton() }, delayMs);
   const [takeNotice, setTakeNotice] = useState(false); // "Not marked as taken" after Cancel / a confirmed back (S-25)
+  const [focusNotice, setFocusNotice] = useState(null); // DV-036: "This dose of {name} was already logged at {time}."
 
   // S-26 book layout (BK-16, BK-19, BK-20): the rows the dose page reads (yesterday + today),
   // a revision the embedded Dose log refreshes on, the undo record of every dose Today wrote
@@ -965,71 +969,28 @@ export default function TodayScreen() {
     } catch { /* keep the last rings */ }
   }
 
+  // DV-034 (DL-03, AD-85, option C): the tracker streak looks back a year (it stopped at 30 days, so
+  // 40 days without a miss read "30") and, with no daily protocol, counts dose days. The rule lives in
+  // lib/trackerStreak (rest days skipped, each day by the schedule in force that day — DV-247).
   async function fetchStreakData() {
     const user = await getCachedUser();
     if (!user) return;
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const since = new Date(now);
+    since.setDate(since.getDate() - TRACKER_LOOKBACK_DAYS);
+    since.setHours(0, 0, 0, 0);
 
     // Active + ended (A-83): an ended protocol's past days still count, nothing after its end.
     const activeProtocols = getHistoryProtocols(user.id) || [];
     // A-30: only doses logged in the app (declared history before a protocol was added never counts).
-    const logs = loggedOnly(getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [], activeProtocols);
+    const logs = loggedOnly(getLogsSince(user.id, since.toISOString()) || [], activeProtocols);
     if (activeProtocols.length === 0) {
-      setStreak(0); setWeekDots([]); return;
+      setStreak(0); setWeekDots([]); setStreakDoseDays(false); return;
     }
-
-    // Track counts per day per protocol (multi-dose aware)
-    const takenByDay = {}; // { dateStr: { protocol_id: count } }
-    logs.forEach(l => {
-      if (l.outcome !== 'Taken') return;
-      const day = new Date(l.logged_at).toDateString();
-      if (!takenByDay[day]) takenByDay[day] = {};
-      takenByDay[day][l.protocol_id] = (takenByDay[day][l.protocol_id] || 0) + 1;
-    });
-
-    // Protocols that existed and expected at least one dose on the given date — DV-247: by the schedule
-    // in force that day (lib/scheduleHistory), so an edit never rewrites the past days.
-    // Rest days (interval protocols) and pre-creation days never count against the user.
-    function dueOn(d) {
-      return activeProtocols.filter(p => existedOn(p, d) && expectedDosesOn(scheduleOn(p, d), d) > 0);
-    }
-    function isDayComplete(d) {
-      const due = dueOn(d);
-      if (due.length === 0) return false;
-      const dayData = takenByDay[d.toDateString()] || {};
-      return due.every(p => (dayData[p.id] || 0) >= expectedDosesOn(scheduleOn(p, d), d));
-    }
-    function isDayPartial(d) {
-      const dayData = takenByDay[d.toDateString()];
-      if (!dayData) return false;
-      const anyTaken = dueOn(d).some(p => dayData[p.id]);
-      return anyTaken && !isDayComplete(d);
-    }
-
-    let streakCount = 0;
-    if (isDayComplete(now)) streakCount++;
-    for (let i = 1; i <= 30; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      if (dueOn(d).length === 0) continue; // rest day — neither adds nor breaks
-      if (isDayComplete(d)) streakCount++;
-      else break;
-    }
-    setStreak(streakCount);
-
-    const dots = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const status = dueOn(d).length === 0
-        ? 'rest'
-        : isDayComplete(d) ? 'complete' : isDayPartial(d) ? 'partial' : 'missed';
-      dots.push({ dayIndex: d.getDay(), isToday: i === 0, status });
-    }
-    setWeekDots(dots);
+    const r = trackerStreak({ protocols: activeProtocols, takenLogs: logs, now });
+    setStreak(r.streak);
+    setStreakDoseDays(r.doseDays);
+    setWeekDots(r.weekDots);
   }
 
   // opts.deferUi (ms): let the "taken" confirmation play before the card re-sorts; the
@@ -1729,7 +1690,8 @@ export default function TodayScreen() {
     // An oral dose is written now ("today, skip yesterday" writes both rows together).
     const extraDeleteIds = opts.skipYesterday ? skipYesterdayRow(p.id, opts.skipYesterday) : [];
     const write = { tapMs, slotMs: slot.slotMs, flipRowId: slot.flipRowId };
-    const cancelUpTo = Number.isFinite(slot.ti) ? slot.ti + 1 : 0; // that slot's reminders and earlier
+    // That slot's reminders and earlier; DV-036: a reminder's card adds the reminder's own range (ti + 1).
+    const cancelUpTo = Math.max(Number.isFinite(slot.ti) ? slot.ti + 1 : 0, opts.cancelUpTo || 0);
     if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds, write, cancelUpTo }); return; }
     // A-80 (founder: the take animation felt slow): the drop lands in 360 ms and the
     // card / tracker update exactly when it lands, never before.
@@ -1799,7 +1761,12 @@ export default function TodayScreen() {
     const d = new Date(at); d.setHours(0, 0, 0, 0);
     return Math.round((d - startOfToday) / 86400000);
   };
-  const todayCards = dailyOrder.filter(p => bucketDay(p) <= 0);
+  // DV-129 (DL-12, AD-79 item 12, option A): a skip counts as resolved — a card whose every slot of
+  // today is Taken or Skipped leaves the list, and its skipped lines go inside the caught-up card
+  // (lib/dosePageState caughtUpPlan). nextDoseAt counts Taken only, so it cannot decide this alone.
+  const caught = caughtUpPlan({ cards: dailyOrder.filter(p => bucketDay(p) <= 0), logs: todayRows, nowMs: Date.now() });
+  const todayCards = caught.open;
+  const caughtSkipped = caught.skipped;
   // A-134: Tomorrow / Next 5 days are dose slots (lib/schedule upcomingAgenda): Tomorrow lists
   // every dose due tomorrow, also a daily dose still open today (prototype foldRow 'tom'), and
   // the counts are doses (DL-11, DV-037). Past day 6 only "N more later" (the Protocols tab).
@@ -1807,8 +1774,8 @@ export default function TodayScreen() {
   const tomorrowCards = agenda.tomorrow;
   const next5Cards = agenda.next5;
   const laterCount = agenda.laterCount;
-  // Doses were due today and all handled → show a positive "all done" note
-  // instead of an empty Today section.
+  // Doses were due today and all handled (taken or skipped) → show a positive "all done" note
+  // instead of an empty Today section; a skipped dose's line sits inside it (DV-129).
   const allDoneToday = todayCards.length === 0 && totalCount > 0;
 
   // ── Today alerts ─────────────────────────────────────────────
@@ -2042,14 +2009,46 @@ export default function TodayScreen() {
   const pickedDose = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams && bookParams.protocolId != null
     ? bookParams : null;
   const todayKey = localDayKey(Date.now());
+  // DV-036 (DL-10, AD-79 item 9): a reminder's body tap (a focus without My Protocols' take) —
+  // its own slot open (the focus card takes it as the reminder's button would) or already logged
+  // (a toast says when). lib/dosePageState reminderFocus.
+  const reminderPlan = (() => {
+    if (!notifFocus || notifFocus.take) return null;
+    const p = protocols.find((x) => x.id === notifFocus.protocolId);
+    if (!p) return null;
+    const r = reminderFocus({ protocol: p, logs: todayRows, focus: notifFocus, nowMs: Date.now() });
+    return r ? { ...r, protocol: p } : null;
+  })();
   // A-44: today's dose its reminder named, while it is still open (a dose already logged, or
   // one for another day, is not pulled up). Yesterday's pending slot is highlighted in place.
   const focusCard = (() => {
     if (!notifFocus || (notifFocus.dayKey && notifFocus.dayKey !== todayKey)) return null;
     const p = todayCards.find((x) => x.id === notifFocus.protocolId);
     if (!p) return null;
+    if (!notifFocus.take) return reminderPlan && reminderPlan.kind === 'open' ? p : null;
     return cardPlan({ protocol: p, logs: todayRows, nowMs: Date.now() }).next ? p : null;
   })();
+  // DV-036 (AD-79 item 9, option A): the reminder's dose was already logged (e.g. from the
+  // notification's own button) → the ink toast says so, with the time, for a few seconds. Once per
+  // tap, and only for a row written BEFORE the tap (nonce = the tap's time): a take or skip from the
+  // focus card afterwards never says "already"; a row that arrives a moment late (a sync, the
+  // headless button) still does.
+  const focusNoticeRef = useRef(null);
+  useEffect(() => {
+    if (!ready.doses || !notifFocus || notifFocus.take || focusNoticeRef.current === notifFocus.nonce) return;
+    if (!reminderPlan || reminderPlan.kind !== 'logged') return;
+    if (Number.isFinite(notifFocus.nonce) && Date.parse(reminderPlan.loggedAt) > notifFocus.nonce) return;
+    focusNoticeRef.current = notifFocus.nonce;
+    const pr = reminderPlan.protocol;
+    const name = pr.compound_id ? t(pr.compound_id) : pr.name;
+    const d = new Date(reminderPlan.loggedAt);
+    const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const text = t(reminderPlan.outcome === 'Skipped' ? 'today_focus_already_skipped' : 'today_focus_already_taken')
+      .replace('{name}', name).replace('{time}', formatTimeAMPM(hhmm));
+    clearTimeout(focusNoticeT.current);
+    setFocusNotice(text);
+    focusNoticeT.current = setTimeout(() => setFocusNotice(null), 6000);
+  }, [ready.doses, notifFocus, reminderPlan && reminderPlan.kind]); // eslint-disable-line react-hooks/exhaustive-deps
   const isFocusPend = (item) => !!(notifFocus && notifFocus.dayKey && notifFocus.dayKey !== todayKey
     && item.protocolId === notifFocus.protocolId && (notifFocus.slotMs == null || item.slotMs === notifFocus.slotMs));
   doseFocusOpenRef.current = !!focusCard || (Array.isArray(pendingYest) && pendingYest.some(isFocusPend)); // A-163
@@ -2354,7 +2353,7 @@ export default function TodayScreen() {
               key={`take-${p.id}-${dosesTakenToday}-${takeReset[p.id] || 0}-${cp.next.slotMs != null ? cp.next.slotMs : `i${cp.next.ti}`}`}
               label={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
               takenLabel={takenLabel}
-              onTake={(rect) => handleTake(p, rect, 0, { slot: cp.next })}
+              onTake={(rect) => handleTake(p, rect, 0, { slot: opts.takeSlot || cp.next, cancelUpTo: opts.cancelUpTo })}
               askFirst={needsSiteQuestion(p.type)}
               s={s}
               colors={colors}
@@ -2455,7 +2454,8 @@ export default function TodayScreen() {
           // A-44: the dose its reminder was about, at the top, highlighted (ink outline).
           <View style={s.block}>
             <View style={s.lab}><Text style={s.labText}>{t('today_notif_focus_title')}</Text></View>
-            {renderDoseCard(focusCard, { highlight: true })}
+            {/* DV-036 (DL-10): a reminder's card takes what the reminder's button would. */}
+            {renderDoseCard(focusCard, { highlight: true, takeSlot: reminderPlan && reminderPlan.kind === 'open' ? reminderPlan.slot : null, cancelUpTo: reminderPlan && reminderPlan.kind === 'open' ? reminderPlan.cancelUpTo : null })}
           </View>
         )}
 
@@ -2555,7 +2555,7 @@ export default function TodayScreen() {
 
         {skel('tracker')}
         {ready.tracker && protocols.length > 0 && (
-          <View onLayout={onBlock('tracker')}><TodayTracker rings={rings} weekDots={weekDots} streak={streak} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} /></View>
+          <View onLayout={onBlock('tracker')}><TodayTracker rings={rings} weekDots={weekDots} {...streakProps} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} /></View>
         )}
         {skel('food')}
         <View style={ready.food ? null : s.hiddenUntilLoaded} onLayout={onBlock('food')}>
@@ -2584,10 +2584,35 @@ export default function TodayScreen() {
             </View>
             {todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))}
             {todayCards.length === 0 && allDoneToday && (
-              // Part 13 (prototype caught()): the ok check beside the line.
+              // Part 13 (prototype caught()): the ok check beside the line. DV-129 (option A): each
+              // dose skipped today sits under it — name · "Skipped — you can still log it" and its
+              // Mark taken, which logs exactly that skipped row (as the card's own skipped line did).
               <View style={s.doneCard}>
-                <CheckMark size={22} color={colors.ok} />
-                <Text style={s.doneText}>{t('today_all_done')}</Text>
+                <View style={s.doneRow}>
+                  <CheckMark size={22} color={colors.ok} />
+                  <Text style={s.doneText}>{t('today_all_done')}</Text>
+                </View>
+                {caughtSkipped.map((sp) => {
+                  const pr = sp.protocol;
+                  const skTime = (pr.doses_per_day || 1) > 1 && Number.isFinite(sp.slot.slotMs)
+                    ? formatTimeAMPM(new Date(sp.slot.slotMs).toTimeString().slice(0, 5)) : null;
+                  const prName = pr.compound_id ? t(pr.compound_id) : pr.name;
+                  return (
+                    <View key={`csk-${pr.id}-${sp.slot.flipRowId}`} style={s.doneSkip}>
+                      <Text style={s.doneSkipText}><Text style={s.doneSkipName}>{prName}</Text>{' · '}{skTime ? `${skTime} · ` : ''}{t('today_skipped_today')}</Text>
+                      {sp.slot.canTake && (
+                        <TouchableOpacity
+                          style={s.skipLineBtn}
+                          onPress={() => { lightHaptic(); handleTake(sp.protocol, null, 0, { slot: sp.slot }); }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${t('today_mark_taken')}, ${prName}${skTime ? `, ${skTime}` : ''}`}
+                        >
+                          <Text style={s.skipLineBtnText}>{t('today_mark_taken')}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             )}
             {takenNames.length > 0 && (takenOpen ? (
@@ -2675,6 +2700,13 @@ export default function TodayScreen() {
       {takeNotice && !undoData && (
         <View style={toast.takeNoticeBar} accessibilityLiveRegion="polite">
           <Text style={s.takeNoticeText}>{t('today_take_undone')}</Text>
+        </View>
+      )}
+
+      {/* DV-036 (AD-79 item 9, option A): a reminder tap on a dose already logged — the same ink toast. */}
+      {focusNotice && !undoData && !takeNotice && (
+        <View style={toast.takeNoticeBar} accessibilityLiveRegion="polite">
+          <Text style={s.takeNoticeText}>{focusNotice}</Text>
         </View>
       )}
 
@@ -3047,7 +3079,12 @@ const todayV21Styles = (c) => ({
   doseBtnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', paddingHorizontal: 12, gap: 6 },
   doseBtnLabel: { flexShrink: 1, textAlign: 'center' }, // council 2026-10-28: the row never limited the text, so it could not shrink or wrap
   doseBtnPrimaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
-  doneCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16 },
+  doneCard: { gap: 12, backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16 },
+  doneRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // DV-129: a skipped dose inside the caught-up card (picture .line: hairline on top, text in ink2).
+  doneSkip: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12 },
+  doneSkipText: { flex: 1, fontSize: 15, color: c.ink2 },
+  doneSkipName: { fontWeight: '700', color: c.ink },
   doneText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   takenLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 6, paddingVertical: 4 },
   takenMark: { marginTop: 1 },

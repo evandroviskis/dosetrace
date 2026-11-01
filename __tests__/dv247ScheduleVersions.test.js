@@ -56,7 +56,9 @@ test('DV-247: the write, the sync, the restart and Today use the history', () =>
   assert.match(read('lib/schema.js'), /ALTER TABLE protocols ADD COLUMN schedule_history TEXT;/);
   assert.match(read('lib/protocolEnd.js'), /'schedule_history', \/\/ DV-247/);
   assert.match(read('supabase/migrations/20261101010000_protocol_schedule_history.sql'), /add column if not exists schedule_history text/);
-  const today = read('screens/TodayScreen.js');
+  // DV-034 moved Today's tracker streak into lib/trackerStreak (Today calls it); the rule is the same.
+  assert.match(read('screens/TodayScreen.js'), /trackerStreak\(\{ protocols: activeProtocols, takenLogs: logs, now \}\)/);
+  const today = read('lib/trackerStreak.js');
   assert.match(today, /existedOn\(p, d\) && expectedDosesOn\(scheduleOn\(p, d\), d\) > 0/);
   assert.match(today, /\(dayData\[p\.id\] \|\| 0\) >= expectedDosesOn\(scheduleOn\(p, d\), d\)/);
 });

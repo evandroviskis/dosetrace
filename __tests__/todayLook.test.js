@@ -162,7 +162,8 @@ test('part 12: Tomorrow / Next 5 days — drawn 15 x 9 arrows, "1 dose", prototy
 test('part 13: "You’re all caught up" card has the ok check', () => {
   assert.match(TODAY, /<CheckMark size=\{22\} color=\{colors\.ok\} \/>\s*<Text style=\{s\.doneText\}>/);
   assert.match(style(TODAY, 'doneText'), /fontWeight: '600'/);
-  assert.match(style(TODAY, 'doneCard'), /flexDirection: 'row'/);
+  // DV-129: the card is a column (the check row, then any skipped line); the check row stays a row.
+  assert.match(style(TODAY, 'doneRow'), /flexDirection: 'row'/);
 });
 
 // ── part 15: toast ────────────────────────────────────────────────
