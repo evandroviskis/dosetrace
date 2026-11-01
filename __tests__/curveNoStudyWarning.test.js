@@ -17,8 +17,13 @@ test('every "estimated" entry says where its estimate comes from', () => {
   assert.deepEqual(bad.map(([n]) => n), []);
   assert.equal(getHalfLifeEntry('BPC-157').basis, 'animal');
   assert.equal(getHalfLifeEntry('TB-500').basis, 'analog');
-  assert.equal(getHalfLifeEntry('GHK-Cu').basis, 'animal');
   assert.equal(getHalfLifeEntry('KPV').basis, 'none');
+  // Pharmacometrician council 2026-11-01: the basis names where the DRAWN value comes from.
+  // Boldenone Undecylenate / Stanozolol injectable draw textbook values that ignore their horse data; GHK-Cu has
+  // no t½ in any species → no measurement. γ-Endorphin's data is des-Tyr-γ-endorphin (another peptide) and
+  // Pentadeca Arginate borrows BPC-157's value → a similar compound.
+  for (const n of ['Boldenone Undecylenate', 'Stanozolol injectable', 'GHK-Cu']) assert.equal(getHalfLifeEntry(n).basis, 'none', n);
+  for (const n of ['γ-Endorphin', 'Pentadeca Arginate']) assert.equal(getHalfLifeEntry(n).basis, 'analog', n);
   for (const [, e] of Object.entries(HALF_LIVES)) if (e.tier !== 'estimated') assert.equal(e.basis, undefined);
 });
 
