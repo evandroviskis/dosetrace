@@ -27,7 +27,8 @@ function fakeN(ids) {
 // itself is behaviour-tested in historyBeforeRegistration.test.js (lib/declared historyQuestion).
 test('L-06: a past start date asks the history question; only "No" writes, and only history_from', () => {
   const src = read('screens/ProtocolsScreen.js');
-  assert.equal(src.split('historyQuestion(').length - 1, 1, 'one call site (the add flow)');
+  // A-90 / DL-86: a second call site, the edit that moves the start earlier (a90EditStartEarlier.test.js)
+  assert.equal(src.split('historyQuestion(').length - 1, 2, 'the add flow and the edit that moves the start earlier');
   const i = src.indexOf('const hq = historyQuestion(protocolData, Date.now());');
   assert.ok(i > 0);
   const block = src.slice(i, src.indexOf('requestSync();\n    // Refresh every mounted screen', i));

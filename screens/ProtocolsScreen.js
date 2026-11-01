@@ -48,7 +48,7 @@ import {
 } from '../lib/database';
 import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
-import { pastStartAsk, pastStartWrites } from '../lib/pastDoses';
+import { pastStartAsk, pastStartWrites, editStartAsk, editStartWrites } from '../lib/pastDoses';
 import { tsMs } from '../lib/deleteDose';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -739,7 +739,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false, 
           <Text style={s.pname}>{p.compound_id ? t(p.compound_id) : p.name}</Text>
           <Text style={s.pmeta}>
             {sz ? `${sz} · ` : ''}
-            {decimalText(p.dose, language)}{'\u00A0'}{unitText(p.dose_unit, language)}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''} · {frequencyLabelFor(p.interval_days, t)}
+            {isInjectable ? t('protocols_dose_line').replace('{amount}', `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`) : `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`} · {frequencyLabelFor(p.interval_days, t)}
           </Text>
         </View>
         <View style={s.pchev}><RowChevron color={c.tick} /></View>
@@ -892,7 +892,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
         <View style={s.ptitleRow}>
           <View style={[s.ptitleDot, { backgroundColor: displayColor(p.color) || c.data }]} />
           <Text style={s.ptitleMeta}>
-            {sz ? `${sz} · ` : ''}{decimalText(p.dose, language)}{'\u00A0'}{unitText(p.dose_unit, language)}{isInjectable ? ` ${t('protocols_dose_noun')}` : ''}
+            {sz ? `${sz} · ` : ''}{isInjectable ? t('protocols_dose_line').replace('{amount}', `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`) : `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}`}
           </Text>
         </View>
         <Text style={s.ptitleName} accessibilityRole="header">{name}</Text>
@@ -2127,6 +2127,7 @@ export default function ProtocolsScreen() {
       const stored = patch.start_date ? getProtocolById(editingId) : null;
       const clash = stored ? startAfterEnd(stored, patch.start_date) : null;
       if (clash) { setSaving(false); showStartAfterEnd(stored, patch.start_date, clash.endKey); return; }
+      const startBefore = stored; // A-90 / DL-86: the start as it was, for the question after the save
       // Founder 2026-10-27, option A: a new dose (not the same quantity in another unit) on a protocol with
       // doses marked at the old value, or an estimated past, asks "Desde quando você usa {new}?" — never deduced.
       const doseEdited = 'dose' in patch || 'dose_unit' in patch;
@@ -2188,6 +2189,34 @@ export default function ProtocolsScreen() {
       // schedule so it stops "asking" at the previous hour. A rename/color/dose
       // edit leaves a still-pending reminder untouched.
       if (scheduleChanged) dismissDeliveredDoseReminders(editingId).catch(() => {});
+      // A-90 (1) / DL-86 (sweep 2026-10-31): a start moved EARLIER, before the day the protocol was added,
+      // asks the past-doses question again for the curve — it never estimates a period nobody confirmed,
+      // and an earlier "Não" can be corrected. Não: the curve starts on the day it was added (the logged
+      // doses after it stay). Nothing is written to the Dose log.
+      const eAsk = startBefore && editedProtocol
+        ? editStartAsk({ before: startBefore, after: editedProtocol, nowMs: Date.now(), curveAsk: !!historyQuestion(editedProtocol, Date.now()) })
+        : null;
+      if (eAsk) {
+        const doseText = `${decimalText(editedProtocol.dose, language)}\u00A0${unitText(editedProtocol.dose_unit, language)}`;
+        const title = t(pluralKey('protocols_past_title', eAsk.n, language))
+          .replace('{date}', formatDate(editedProtocol.start_date, language, 'dayMonthAuto')).replace('{n}', String(eAsk.n)).replace('{dose}', doseText);
+        const many = eAsk.n > 1;
+        // Added today: "Se não, ela começa hoje" (the create texts); added earlier: it starts on that day.
+        const body = eAsk.createdDay === todayISO()
+          ? t(many ? 'protocols_past_body_many' : 'protocols_past_body')
+          : t(many ? 'protocols_past_body_edit_many' : 'protocols_past_body_edit').replace('{date}', formatDate(eAsk.createdDay, language, 'dayMonthAuto'));
+        const answer = (kind) => () => {
+          const w = editStartWrites(kind, eAsk, getProtocolById(editingId));
+          if (!w) return;
+          try { updateProtocol(editingId, w); } catch { /* best-effort */ }
+          notifyDataChanged('protocol');
+          requestSync();
+        };
+        const noBtn = { label: t('protocols_past_no'), kind: 'secondary', onPress: answer('no') };
+        const yesBtn = { label: t(eAsk.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'), kind: 'primary', onPress: answer('yes') };
+        const almostBtn = { label: t('protocols_past_almost'), kind: 'secondary', onPress: answer('almost') };
+        setScreenSheet({ title, body, locked: true, buttons: many ? [yesBtn, almostBtn, noBtn] : [noBtn, yesBtn] });
+      }
     } else {
       // Safety net: never persist beyond the free limit even if the wizard was
       // somehow opened over it (stale count, reopened modal). Checks the live

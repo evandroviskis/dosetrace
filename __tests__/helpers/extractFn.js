@@ -47,10 +47,12 @@ function databaseDefaults() {
   // eslint-disable-next-line no-new-func
   const takenStamp = new Function('stampForTaken', `${sliceBlock(src, 'function takenStamp(')}\nreturn takenStamp;`)(stampForTaken);
   // eslint-disable-next-line no-new-func
-  const doseCtx = new Function('sameMass', 'historyOf', `${sliceBlock(src, 'function doseCtx(')}\nreturn doseCtx;`)(sameMass, historyOf);
+  const { historyCut } = require('../../lib/declared'); // A-90: an earlier "Não" cuts only when after the start
+  // eslint-disable-next-line no-new-func
+  const doseCtx = new Function('sameMass', 'historyOf', 'historyCut', `${sliceBlock(src, 'function doseCtx(')}\nreturn doseCtx;`)(sameMass, historyOf, historyCut);
   // eslint-disable-next-line no-new-func
   const isoOf = new Function(`${sliceBlock(src, 'function isoOf(')}\nreturn isoOf;`)();
-  return { stampForTaken, nextDoseHistory, takenStamp, doseCtx, sameMass, historyOf, isoOf };
+  return { stampForTaken, nextDoseHistory, takenStamp, doseCtx, sameMass, historyOf, isoOf, historyCut };
 }
 
 // Returns the named function, evaluated with `deps` in scope.
