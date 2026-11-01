@@ -69,7 +69,7 @@ import SyringeScale from './components/SyringeScale';
 import { startNewVial, vialPastWindow, vialAlertTarget } from '../lib/newVial';
 import NewVialPrompt from './components/NewVialPrompt';
 import { supplyState, vialCapacity, bottleState } from '../lib/supplyLow';
-import { vialDaysLeft } from '../lib/vialExpiry';
+import { vialDaysLeft, vialDaysTone } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
@@ -2331,7 +2331,8 @@ export default function TodayScreen() {
                 {daysLeft != null ? ' · ' : ''}
                 {daysLeft != null && (
                   // Q9 = B (founder, re-confirmed 2026-10-02 "dias coloridos"): coloured by deadline.
-                  <Text style={{ color: daysLeft <= 3 ? colors.risk : daysLeft <= 7 ? colors.attention : colors.ok, fontWeight: '600' }}>
+                  // DV-018: the one tone, shared with My Protocols (lib/vialExpiry vialDaysTone).
+                  <Text style={vialDaysTone(daysLeft, colors)}>
                     {daysLeft <= 0 ? t('protocols_vial_past') : t(pluralKey('protocols_vial_days_left', daysLeft, language)).replace('{n}', String(daysLeft))}
                   </Text>
                 )}

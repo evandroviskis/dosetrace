@@ -81,7 +81,7 @@ import DoseFixSheet from './components/DoseFixSheet';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark, scheduleSinceNow } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
-import { DEFAULT_VALID_DAYS, vialDaysLeft } from '../lib/vialExpiry';
+import { DEFAULT_VALID_DAYS, vialDaysLeft, vialDaysTone } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
@@ -219,11 +219,6 @@ function oralFormLabel(form, t) {
 // box date the user entered (vial.expires_on). null when unknown.
 function vialDaysLeftFor(p, vial) {
   return vialDaysLeft(vial, p, new Date()); // DV-018: the one owner (lib/vialExpiry)
-}
-
-// Supply words only (DESIGN.md §2.5): ≤3 days risk, ≤7 attention, else the plain caption.
-function daysTone(days, c) {
-  return days <= 3 ? c.risk : days <= 7 ? c.attention : c.ink2;
 }
 
 // A label that arrives all in capitals (an old string) is shown in sentence case.
@@ -656,7 +651,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial, onEditVial }) {
           {dateText}
           {dateText && daysLeft != null && !past ? ' · ' : ''}
           {daysLeft != null && !past ? (
-            <Text style={{ color: daysTone(daysLeft, c), fontWeight: daysLeft <= 7 ? '600' : '400' }}>
+            <Text style={vialDaysTone(daysLeft, c)}>
               {t(pluralKey('protocols_vial_days_left', daysLeft, language)).replace('{n}', String(daysLeft))}
             </Text>
           ) : null}
@@ -760,7 +755,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false, 
             ) : null}
             {showCap && showDays ? ' · ' : ''}
             {showDays ? (
-              <Text style={{ color: daysTone(vialDaysLeft, c), fontWeight: vialDaysLeft <= 7 ? '600' : '400' }}>
+              <Text style={vialDaysTone(vialDaysLeft, c)}>
                 {t(pluralKey('protocols_vial_days_left', vialDaysLeft, language)).replace('{n}', String(vialDaysLeft))}
               </Text>
             ) : null}

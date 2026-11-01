@@ -91,7 +91,8 @@ test('part 3: card — 10 pt dot, drawn arrow; Low stays amber, days coloured (Q
   assert.match(SCREEN, /<View style=\{s\.pchev\}><RowChevron color=\{c\.tick\} \/><\/View>/);
   assert.match(style(SCREEN, 'pchev'), /marginTop: 5/);
   assert.match(style(SCREEN, 'otagAttn'), /borderColor: c\.attention/);
-  assert.match(SCREEN, /color: daysTone\(vialDaysLeft, c\)/);
+  // DV-018 colour: the shared tone of Today's card (lib/vialExpiry vialDaysTone).
+  assert.match(SCREEN, /style=\{vialDaysTone\(vialDaysLeft, c\)\}/);
 });
 
 test('part 4: Recently deleted — 1 pt lines, 10 pt rings (archive B, 2026-10-27)', () => {
