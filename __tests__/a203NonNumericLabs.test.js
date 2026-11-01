@@ -95,9 +95,9 @@ test('NN-1/NN-2: the scan JSON — qualifier + number, a signed string, or value
   assert.deepEqual(L.scanResult({ value: 5.4, value_text: 'whatever' }, 'en'), { value: 5.4, qualifier: null, value_text: null }, 'a number wins');
   assert.equal(L.scanResult({ value: null }, 'pt'), null);
   assert.equal(L.scanResult({ value: '' , value_text: '  ' }, 'pt'), null);
-  // A-26 unchanged: a plain number string keeps the reading service's rule, whatever the app language.
+  // DV-076 (founder 2026-10-31) superseded A-26 for scans: a plain number string follows the app language.
   assert.equal(L.scanResult({ value: '1,234' }).value, 1234);
-  assert.equal(L.scanResult({ value: '1,234' }, 'pt').value, 1234);
+  assert.equal(L.scanResult({ value: '1,234' }, 'pt').value, 1.234);
   assert.equal(L.scanResult({ value: '5,5' }, 'en').value, 5.5);
   // The number after a sign is read in the app language (parseMeasure, the lab-number rule).
   assert.equal(L.scanResult({ value: '< 1,5' }, 'en').value, 1.5);
