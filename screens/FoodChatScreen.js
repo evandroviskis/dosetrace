@@ -40,6 +40,7 @@ import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
+import { formatTime } from '../lib/timeFormat';
 import { syncAllNotifications, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
@@ -67,7 +68,13 @@ function fuDraftKey(open) {
 // the 8 PM / "Log it" params come from the `params` prop instead of the route. As a pushed
 // screen it moves onto the right page when the window unfolds, saving the draft first (BK-10).
 export default function FoodChatScreen({ embedded = false, params: paramsProp = null }) {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
+  // DV-213: when the 24-hour ceiling frees a call, in the user's 12/24 h choice.
+  const ceilingTime = (iso) => {
+    const d = iso ? new Date(iso) : null;
+    if (!d || Number.isNaN(d.getTime())) return '—';
+    return formatTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, language, timeFormat);
+  };
   const { colors } = useTheme();
   const navigation = useNavigation();
   const route = useRoute();
@@ -423,10 +430,11 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     // "Saved — I'll estimate it when you're back online" ONLY when actually offline;
     // any other failure: saved, tried again later (FL-46).
     const fail = sendFailureNotice(res, isOnlineNow());
-    if (fail === 'quota') {
+    if (fail === 'quota' || fail === 'ceiling') {
+      // DV-213: the day's limit, or the 24-hour ceiling with the time a call frees up; the text goes back.
       deleteFoodLog(id); requestSync?.(); refresh(userId);
       setText(raw);
-      setNotice({ kind: 'quota' });
+      setNotice(fail === 'ceiling' ? { kind: 'ceiling', at: res.retryAt || null } : { kind: 'quota' });
     } else {
       setNotice({ kind: fail });
       // The saved row is really retried (FL-46): shortly while online, and as soon
@@ -451,6 +459,9 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     } else if (outcome !== 'applied') {
       updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true }));
       if (outcome === 'refused') setNotice({ kind: 'deflect' });
+      // DV-213 (AD-105): a refused answer says why (it was dropped in silence).
+      else if (outcome === 'limit') setNotice({ kind: 'followup_limit' });
+      else if (outcome === 'ceiling') setNotice({ kind: 'ceiling', at: res.retryAt || null });
     } else {
       const e = echoFor([storedItem(open.rowId, open.index) || res.items[0]], open.raw || rawOfRows([open.rowId]));
       if (e) setNotice({ kind: 'updated', text: e, rowIds: [open.rowId] });
@@ -698,6 +709,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
           : x.kind === 'too_old_some' ? t('nutri_too_old_some')
           : x.kind === 'earlier' ? t('nutri_which_earlier')
             : x.kind === 'quota' ? t('nutri_quota')
+            : x.kind === 'ceiling' ? t('nutri_ceiling').replace('{time}', ceilingTime(x.at))
+            : x.kind === 'followup_limit' ? t('nutri_followup_limit')
               : x.kind === 'offline' ? t('nutri_offline_saved')
                 : x.kind === 'retry' ? t('nutri_retry_later')
                 : x.kind === 'updated' ? t('nutri_echo_updated').replace('{items}', x.text || '') : '';

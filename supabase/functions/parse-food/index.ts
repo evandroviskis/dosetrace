@@ -198,8 +198,16 @@ Deno.serve(async (req) => {
         console.error('[parse-food] quota count failed:', hardErr?.code || dayRes.error?.code);
       } else {
         const limit = kind === 'followup' ? DAILY_FOLLOWUP_LIMIT : DAILY_FOOD_LIMIT;
-        if ((typeof hard === 'number' && hard >= HARD_24H_CEILING) || (typeof dayRes.count === 'number' && dayRes.count >= limit)) {
-          return jsonResponse({ error: 'Daily logging limit reached', code: 'quota_exceeded', limit }, 429);
+        // DV-213 (AD-105): each cap says which it is, so the app shows a true message. The rolling
+        // 24 h ceiling also says when a call frees up (the oldest call in the window + 24 h).
+        if (typeof hard === 'number' && hard >= HARD_24H_CEILING) {
+          const { data: oldest } = await adminClient.from('ai_food_usage').select('created_at').eq('user_id', user.id).gte('created_at', since).order('created_at', { ascending: true }).limit(1);
+          const first = oldest && oldest[0] ? Date.parse(oldest[0].created_at as string) : NaN;
+          const retryAt = Number.isFinite(first) ? new Date(first + 24 * 3600 * 1000).toISOString() : null;
+          return jsonResponse({ error: '24-hour limit reached', code: 'ceiling_24h', retry_at: retryAt }, 429);
+        }
+        if (typeof dayRes.count === 'number' && dayRes.count >= limit) {
+          return jsonResponse({ error: 'Daily logging limit reached', code: kind === 'followup' ? 'followup_limit' : 'quota_exceeded', limit }, 429);
         }
       }
     }
