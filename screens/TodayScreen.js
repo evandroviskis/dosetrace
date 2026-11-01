@@ -78,6 +78,7 @@ import FeatureIcon from '../components/FeatureIcon';
 import TeamMessageGate from '../components/TeamMessageGate';
 import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import { onVialPromptRequest } from '../lib/vialPromptRequests';
+import { scheduleOn } from '../lib/scheduleHistory';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
@@ -989,16 +990,17 @@ export default function TodayScreen() {
       takenByDay[day][l.protocol_id] = (takenByDay[day][l.protocol_id] || 0) + 1;
     });
 
-    // Protocols that existed and expected at least one dose on the given date.
+    // Protocols that existed and expected at least one dose on the given date — DV-247: by the schedule
+    // in force that day (lib/scheduleHistory), so an edit never rewrites the past days.
     // Rest days (interval protocols) and pre-creation days never count against the user.
     function dueOn(d) {
-      return activeProtocols.filter(p => existedOn(p, d) && expectedDosesOn(p, d) > 0);
+      return activeProtocols.filter(p => existedOn(p, d) && expectedDosesOn(scheduleOn(p, d), d) > 0);
     }
     function isDayComplete(d) {
       const due = dueOn(d);
       if (due.length === 0) return false;
       const dayData = takenByDay[d.toDateString()] || {};
-      return due.every(p => (dayData[p.id] || 0) >= expectedDosesOn(p, d));
+      return due.every(p => (dayData[p.id] || 0) >= expectedDosesOn(scheduleOn(p, d), d));
     }
     function isDayPartial(d) {
       const dayData = takenByDay[d.toDateString()];
