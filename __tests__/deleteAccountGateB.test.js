@@ -140,10 +140,11 @@ test('(2) readLiveEntitlement reports the entitlement store, willRenew and the r
     subscriptionsByProductIdentifier: { m: { store: 'APP_STORE', willRenew: true }, y: { store: 'PLAY_STORE', willRenew: false } },
   };
   const read = loadFn('lib/purchases.js', 'export async function readLiveEntitlement(', 'readLiveEntitlement', {
-    Purchases: { isConfigured: async () => true, getCustomerInfo: async () => info },
+    Purchases: { isConfigured: async () => true, getCustomerInfo: async () => info, getAppUserID: async () => 'u1' },
     isDevAccount: () => false, ENTITLEMENT_ID: 'DoseTrace Pro',
   });
-  assert.deepEqual(await read(), { reachable: true, premium: true, expiresAt: '2026-11-01T00:00:00Z', endedOn: null, store: 'APP_STORE', willRenew: true, renewingStores: ['APP_STORE'] });
+  // DV-082 (Gate B review 2026-10-31): the answer names the RevenueCat user it is for.
+  assert.deepEqual(await read(), { reachable: true, premium: true, expiresAt: '2026-11-01T00:00:00Z', endedOn: null, store: 'APP_STORE', willRenew: true, renewingStores: ['APP_STORE'], appUserId: 'u1' });
 });
 
 test('(2) getBillingStore asks the live store, never throws', async () => {

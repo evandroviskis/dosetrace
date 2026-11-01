@@ -4,6 +4,8 @@
 - Code state reviewed: branch `main`, HEAD **902c9ea** ("fix(food-log): third audit ..."). NOTE: the 27 Sep handoff says main is at c8ec113; one newer commit (902c9ea) is on main now. Working tree clean apart from the untracked `Claude outputs/` folder.
 - Sources: `CLAUDE.md`, `STATE.md`, `docs/APP-HANDOFF.md`, `docs/specs/food-log.md` (46 criteria), `docs/specs/README.md`, `docs/journey-review-eval-2026-09-13.md`, `docs/data-safety-tables-spec.md`, `docs/nutrition-logger-conversation-spec.md`, `Claude outputs/DoseTrace-handoff-2026-09-27.md`, `App.js`, `screens/`, `screens/components/`, `lib/`, `__tests__/`, git log (last 300 messages).
 
+| A-213 | **A food entry still waiting to be read, pushed before a sign-out, is never read after the same user signs back in on this phone** (rowsToReparse skips a row with a remote_id that is not in dosetrace_food_local_pending, and that key goes with the account). Found by the Gate B review of DV-081 (2026-10-31). | Gate B review 2026-10-31 | **Target: fixed in this sweep (found it → fix it now)** | Open | — |
+
 ## Counts (this draft)
 - Main registry (F-rows): **74** — Shipped 62 · In spec, partial 10 · Approved, not started 0 · Unclear 2.
 - "Approved or mentioned but not found" (A-rows): **25** — Approved, not started 5 (A-01 CFBundleLocalizations, A-02 screenshot 01 + order, A-03 flip to parse-food / deploy v9, A-04 server food rule, A-13 synced storage for reality-check/calc inputs) · In spec, partial 1 (A-05, the 39 partial FL rows) · Unclear 4 · open founder decisions 2 · deferred / mentioned-only / not in main 13.
