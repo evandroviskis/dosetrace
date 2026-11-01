@@ -1216,7 +1216,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                         {t('curve_combined')} · {t(`substance_${c.substance}`)} · {readoutShort}
                       </Text>
                       <Text style={s.readoutVal}>
-                        {mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))}{'\u00A0'}{unitLbl}
+                        {readoutT < model.start ? '—' : mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))}{'\u00A0'}{unitLbl}
                       </Text>
                     </View>
                   ))}
