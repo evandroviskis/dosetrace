@@ -121,7 +121,8 @@ const foodResp = (action, extra = {}) => ({ actionIdentifier: action, notificati
 
 test('foodTapParams: every tap opens the one food chat — a body tap with that evening\'s question, Log it at the composer', () => {
   assert.deepEqual(foodTapParams(foodResp('expo.modules.notifications.actions.DEFAULT'), 42), { eveningDay: '2026-09-27', nonce: 42 });
-  assert.deepEqual(foodTapParams(foodResp('FOOD_LOG_IT'), 42), { logIt: 42 });
+  // DV-197 (FL-40): Log it carries the question's day, so a meal logged after midnight goes on that day.
+  assert.deepEqual(foodTapParams(foodResp('FOOD_LOG_IT'), 42), { logIt: 42, eveningDay: '2026-09-27', nonce: 42 });
   assert.equal(foodTapParams(foodResp('FOOD_DAY_DONE'), 42), null, 'closes the day, no navigation');
   assert.equal(foodTapParams({ actionIdentifier: 'x', notification: { request: { identifier: 'dose-1', content: { data: { type: 'dose_reminder' } } } } }, 42), null);
   // Android headless shape (dataString)

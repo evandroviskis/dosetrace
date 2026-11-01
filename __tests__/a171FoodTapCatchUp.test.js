@@ -40,7 +40,7 @@ test('A-171: a food question more than 7 days old opens the food chat on today, 
     assert.deepEqual(notifTapTarget(foodResp(day), NOW), { screen: 'FoodChat', params: { eveningDay: null, nonce: NOW } });
   }
   // The buttons are unchanged: "Log it" opens the composer (today), the others never navigate.
-  assert.deepEqual(foodTapParams(foodResp('2026-10-02', { action: 'FOOD_LOG_IT' }), NOW), { logIt: NOW });
+  assert.deepEqual(foodTapParams({ ...foodResp('2026-10-02'), actionIdentifier: 'FOOD_LOG_IT' }, NOW), { logIt: NOW, eveningDay: null, nonce: NOW }, 'Log it on an old question: today (DV-197 keeps the 7-day rule)');
   assert.equal(foodTapParams(foodResp('2026-10-02', { action: 'FOOD_DAY_DONE' }), NOW), null);
 });
 
