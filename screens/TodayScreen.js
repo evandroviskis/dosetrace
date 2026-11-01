@@ -78,7 +78,7 @@ import FeatureIcon from '../components/FeatureIcon';
 import TeamMessageGate from '../components/TeamMessageGate';
 import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import { onVialPromptRequest } from '../lib/vialPromptRequests';
-import { scheduleOn } from '../lib/scheduleHistory';
+import { trackerStreak, TRACKER_LOOKBACK_DAYS } from '../lib/trackerStreak';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
@@ -153,7 +153,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
   );
 }
 import {
-  sortedDoseTimes, expectedDosesOn, nextDueDate, existedOn, nextDoseAt, frequencyLabelFor, upcomingAgenda,
+  sortedDoseTimes, expectedDosesOn, nextDueDate, nextDoseAt, frequencyLabelFor, upcomingAgenda,
   courseState, endDateRange,
 } from '../lib/schedule';
 import { editMixDate, mixDateError } from '../lib/vialEdit';
@@ -256,6 +256,8 @@ export default function TodayScreen() {
   const [userName, setUserName] = useState('');
   const [streak, setStreak] = useState(0);
   const [weekDots, setWeekDots] = useState([]);
+  const [streakDoseDays, setStreakDoseDays] = useState(false); // DV-034: no daily protocol → "dose days"
+  const streakProps = { streak, streakDoseDays }; // the tracker line (DV-034: lib/trackerStreak trackerStreakLine)
   // A-120: the alert inputs are read together (lib/todayAlertsLoad) and set in ONE update, so the
   // alerts box is drawn once with all of them. rcNow: where the open reality check stands
   // (lib/realityCheckNow); latestLabDate: the most recent bloodwork report_date; snooze:
@@ -967,71 +969,28 @@ export default function TodayScreen() {
     } catch { /* keep the last rings */ }
   }
 
+  // DV-034 (DL-03, AD-85, option C): the tracker streak looks back a year (it stopped at 30 days, so
+  // 40 days without a miss read "30") and, with no daily protocol, counts dose days. The rule lives in
+  // lib/trackerStreak (rest days skipped, each day by the schedule in force that day — DV-247).
   async function fetchStreakData() {
     const user = await getCachedUser();
     if (!user) return;
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const since = new Date(now);
+    since.setDate(since.getDate() - TRACKER_LOOKBACK_DAYS);
+    since.setHours(0, 0, 0, 0);
 
     // Active + ended (A-83): an ended protocol's past days still count, nothing after its end.
     const activeProtocols = getHistoryProtocols(user.id) || [];
     // A-30: only doses logged in the app (declared history before a protocol was added never counts).
-    const logs = loggedOnly(getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [], activeProtocols);
+    const logs = loggedOnly(getLogsSince(user.id, since.toISOString()) || [], activeProtocols);
     if (activeProtocols.length === 0) {
-      setStreak(0); setWeekDots([]); return;
+      setStreak(0); setWeekDots([]); setStreakDoseDays(false); return;
     }
-
-    // Track counts per day per protocol (multi-dose aware)
-    const takenByDay = {}; // { dateStr: { protocol_id: count } }
-    logs.forEach(l => {
-      if (l.outcome !== 'Taken') return;
-      const day = new Date(l.logged_at).toDateString();
-      if (!takenByDay[day]) takenByDay[day] = {};
-      takenByDay[day][l.protocol_id] = (takenByDay[day][l.protocol_id] || 0) + 1;
-    });
-
-    // Protocols that existed and expected at least one dose on the given date — DV-247: by the schedule
-    // in force that day (lib/scheduleHistory), so an edit never rewrites the past days.
-    // Rest days (interval protocols) and pre-creation days never count against the user.
-    function dueOn(d) {
-      return activeProtocols.filter(p => existedOn(p, d) && expectedDosesOn(scheduleOn(p, d), d) > 0);
-    }
-    function isDayComplete(d) {
-      const due = dueOn(d);
-      if (due.length === 0) return false;
-      const dayData = takenByDay[d.toDateString()] || {};
-      return due.every(p => (dayData[p.id] || 0) >= expectedDosesOn(scheduleOn(p, d), d));
-    }
-    function isDayPartial(d) {
-      const dayData = takenByDay[d.toDateString()];
-      if (!dayData) return false;
-      const anyTaken = dueOn(d).some(p => dayData[p.id]);
-      return anyTaken && !isDayComplete(d);
-    }
-
-    let streakCount = 0;
-    if (isDayComplete(now)) streakCount++;
-    for (let i = 1; i <= 30; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      if (dueOn(d).length === 0) continue; // rest day — neither adds nor breaks
-      if (isDayComplete(d)) streakCount++;
-      else break;
-    }
-    setStreak(streakCount);
-
-    const dots = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const status = dueOn(d).length === 0
-        ? 'rest'
-        : isDayComplete(d) ? 'complete' : isDayPartial(d) ? 'partial' : 'missed';
-      dots.push({ dayIndex: d.getDay(), isToday: i === 0, status });
-    }
-    setWeekDots(dots);
+    const r = trackerStreak({ protocols: activeProtocols, takenLogs: logs, now });
+    setStreak(r.streak);
+    setStreakDoseDays(r.doseDays);
+    setWeekDots(r.weekDots);
   }
 
   // opts.deferUi (ms): let the "taken" confirmation play before the card re-sorts; the
@@ -2596,7 +2555,7 @@ export default function TodayScreen() {
 
         {skel('tracker')}
         {ready.tracker && protocols.length > 0 && (
-          <View onLayout={onBlock('tracker')}><TodayTracker rings={rings} weekDots={weekDots} streak={streak} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} /></View>
+          <View onLayout={onBlock('tracker')}><TodayTracker rings={rings} weekDots={weekDots} {...streakProps} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} /></View>
         )}
         {skel('food')}
         <View style={ready.food ? null : s.hiddenUntilLoaded} onLayout={onBlock('food')}>

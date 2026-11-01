@@ -11,6 +11,7 @@ import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { ringPct } from '../../lib/adherenceRings';
 import { trackerFit, sideTextSize } from '../../lib/trackerFit';
+import { trackerStreakLine } from '../../lib/trackerStreak';
 import FeatureIcon from '../../components/FeatureIcon';
 import RowChevron from '../../components/RowChevron';
 
@@ -77,7 +78,7 @@ function DayMark({ status, inv }) {
 }
 
 // rings: { today: {taken, due} | null, week, month } · weekDots: [{ dayIndex, isToday, status }]
-export default function TodayTracker({ rings, weekDots = [], streak = 0, onHistory, t, ringRef }) {
+export default function TodayTracker({ rings, weekDots = [], streak = 0, streakDoseDays = false, onHistory, t, ringRef }) {
   const { colors } = useTheme();
   const inv = colors.slabInv; // the slab's own measured palette (prototype .inv)
   const slab = colors.slab;
@@ -153,7 +154,8 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, onHisto
       <TouchableOpacity style={s.streak} onPress={onHistory} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t('today_view_log')}>
         <FeatureIcon name="flame" size={20} color={inv.attention} />
         <Text style={s.streakText} numberOfLines={2}>
-          {streak > 0 ? `${streak} ${streak === 1 ? t('today_streak_day') : t('today_streak_days')}` : t('today_streak_none')}
+          {/* DV-034 (AD-85, option C): no daily protocol → "{n} dose days without a miss". */}
+          {trackerStreakLine({ streak, doseDays: streakDoseDays }, t)}
         </Text>
         {streak >= 7 && <Text style={s.fire} numberOfLines={1}>{t('today_streak_fire')}</Text>}
         <View style={s.history}>
