@@ -207,7 +207,7 @@ test('Part 11: free plan: Premium tag and "See how it works" opens the explainer
 
 test('Part 12: Start over and Stop ask first in a DoseTrace sheet; nothing is cleared before the confirm', () => {
   const src = calc();
-  assert.match(src, /import \{ DTSheet, DTPickerSheet, DTWheel \} from '\.\/ProtocolParts';/);
+  assert.match(src, /import \{ DTSheet, DTPickerSheet, DTWheel(, AndroidDateDialog)? \} from '\.\/ProtocolParts';/);
   assert.doesNotMatch(src, /Alert\.alert\(t\('cal_rc_stop_title'\)/, 'no grey system alert');
   const reset = src.match(/function confirmResetRealityCheck\(\) \{[\s\S]*?\n  \}\n/);
   assert.ok(reset);

@@ -12,6 +12,8 @@ import { MONO } from '../../lib/fonts';
 import FeatureIcon from '../../components/FeatureIcon';
 import { vialCells } from '../../lib/todayFormat';
 import { wheelSettle, dateColumns, dateAfter } from '../../lib/wheelPick';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { localISO } from '../../lib/localDate';
 
 // A button's action runs only after the sheet is gone: presenting the camera, the
 // photo library or another sheet while this one is still animating out fails on iOS.
@@ -169,6 +171,28 @@ export function DTActionSheet({ config, onClose }) {
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+// DV-234 (decisions 2026-10-02): on Android a date (curve date, past weigh-in, target) opens the system
+// date dialog — the DTWheel sheet is the iPhone's. Same bounds as the wheel (minISO / maxISO); a cancel
+// keeps the date.
+export function AndroidDateDialog({ visible, iso, minISO, maxISO, onPick, onClose }) {
+  if (!visible) return null;
+  const at = (x) => { const d = new Date(x + 'T12:00:00'); return isNaN(d.getTime()) ? null : d; };
+  return (
+    <DateTimePicker
+      value={at(iso) || new Date()}
+      mode="date"
+      display="default"
+      minimumDate={minISO ? at(minISO) || undefined : undefined}
+      maximumDate={maxISO ? at(maxISO) || undefined : undefined}
+      onChange={(event, d) => {
+        onClose();
+        if (event.type === 'dismissed' || !d) return;
+        onPick(localISO(d));
+      }}
+    />
   );
 }
 

@@ -88,7 +88,7 @@ import useColumnWidth from '../../components/useColumnWidth';
 import { parseMeasure, savedFieldText, canonicalDecimal } from '../../lib/doseMath';
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
-import { DTSheet, DTPickerSheet, DTWheel } from './ProtocolParts';
+import { DTSheet, DTPickerSheet, DTWheel, AndroidDateDialog } from './ProtocolParts';
 import { FeaturePreviewSheet } from '../../components/FeaturePreviews';
 import FoldChevron from '../../components/FoldChevron';
 import RowChevron from '../../components/RowChevron';
@@ -1924,12 +1924,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             </View>
           ) : <Text style={s.btnPText}>{t('cal_tgt_backfill_save')}</Text>}
         </TouchableOpacity>
-        <DTPickerSheet visible={showBfDatePicker} title={t('cal_tgt_backfill_date')} doneLabel={t('done')} onDone={() => setShowBfDatePicker(false)}>
-          <DTWheel
-            columns={dateColumns(bfDate, new Date(), monthLabels)}
-            onChange={(col, i) => setBfDate(clampPast(dateAfter(bfDate, new Date(), col, i)))}
-          />
-        </DTPickerSheet>
+        {Platform.OS === 'android' ? (
+          <AndroidDateDialog visible={showBfDatePicker} iso={bfDate} maxISO={todayISO()} onPick={(iso) => setBfDate(clampPast(iso))} onClose={() => setShowBfDatePicker(false)} />
+        ) : (
+          <DTPickerSheet visible={showBfDatePicker} title={t('cal_tgt_backfill_date')} doneLabel={t('done')} onDone={() => setShowBfDatePicker(false)}>
+            <DTWheel
+              columns={dateColumns(bfDate, new Date(), monthLabels)}
+              onChange={(col, i) => setBfDate(clampPast(dateAfter(bfDate, new Date(), col, i)))}
+            />
+          </DTPickerSheet>
+        )}
       </SheetModal>
 
       {/* Your target — edit sheet (prototype tgtSheet). */}
@@ -1973,12 +1977,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             <Text style={s.dangerText}>{t('cal_tgt_remove')}</Text>
           </TouchableOpacity>
         ) : null}
-        <DTPickerSheet visible={showTgtDatePicker} title={t('cal_tgt_date')} doneLabel={t('done')} onDone={() => { if (!tgtDate) setTgtDate(clampFuture(todayISO())); setShowTgtDatePicker(false); }}>
-          <DTWheel
-            columns={dateColumns(tgtDate || todayISO(), new Date(), monthLabels)}
-            onChange={(col, i) => setTgtDate(clampFuture(dateAfter(tgtDate || todayISO(), new Date(), col, i)))}
-          />
-        </DTPickerSheet>
+        {Platform.OS === 'android' ? (
+          <AndroidDateDialog visible={showTgtDatePicker} iso={tgtDate || todayISO()} minISO={todayISO()} onPick={(iso) => setTgtDate(clampFuture(iso))} onClose={() => setShowTgtDatePicker(false)} />
+        ) : (
+          <DTPickerSheet visible={showTgtDatePicker} title={t('cal_tgt_date')} doneLabel={t('done')} onDone={() => { if (!tgtDate) setTgtDate(clampFuture(todayISO())); setShowTgtDatePicker(false); }}>
+            <DTWheel
+              columns={dateColumns(tgtDate || todayISO(), new Date(), monthLabels)}
+              onChange={(col, i) => setTgtDate(clampFuture(dateAfter(tgtDate || todayISO(), new Date(), col, i)))}
+            />
+          </DTPickerSheet>
+        )}
         {/* Remove target asks first: inside the editor so it shows over this sheet. */}
         <DTSheet config={targetEditing ? confirm : null} onClose={() => setConfirm(null)} />
       </SheetModal>

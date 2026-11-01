@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Pressable,
   PixelRatio,
+  Platform,
 } from 'react-native';
 import Modal from '../components/PresenceModal';
 import { axisLabels } from '../lib/curveAxis';
@@ -38,7 +39,7 @@ import { isOne } from '../lib/plural';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
 import { localISO } from '../lib/localDate';
 import { dateColumns, dateAfter } from '../lib/wheelPick';
-import { DTPickerSheet, DTWheel } from './components/ProtocolParts';
+import { DTPickerSheet, DTWheel, AndroidDateDialog } from './components/ProtocolParts';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import CollapsibleSection from '../components/CollapsibleSection';
@@ -1279,12 +1280,16 @@ export default function SerumCurveScreen({ embedded = false }) {
       )}
 
       {/* "Other date": the prototype wheel in a DoseTrace bottom sheet (part 19). */}
-      <DTPickerSheet visible={showReadoutPicker} title={t('curve_readout_title')} doneLabel={t('curve_done')} onDone={() => { if (!readoutDate) setReadoutDate(todayISO()); setShowReadoutPicker(false); }}>
-        <DTWheel
-          columns={dateColumns(readoutISO, new Date(), MONTHS_SHORT[language] || MONTHS_SHORT.en, { minISO: oldestReadout })}
-          onChange={(col, i) => setReadoutDate(dateAfter(readoutISO, new Date(), col, i, { minISO: oldestReadout }))}
-        />
-      </DTPickerSheet>
+      {Platform.OS === 'android' ? (
+        <AndroidDateDialog visible={showReadoutPicker} iso={readoutISO} minISO={oldestReadout} onPick={setReadoutDate} onClose={() => setShowReadoutPicker(false)} />
+      ) : (
+        <DTPickerSheet visible={showReadoutPicker} title={t('curve_readout_title')} doneLabel={t('curve_done')} onDone={() => { if (!readoutDate) setReadoutDate(todayISO()); setShowReadoutPicker(false); }}>
+          <DTWheel
+            columns={dateColumns(readoutISO, new Date(), MONTHS_SHORT[language] || MONTHS_SHORT.en, { minISO: oldestReadout })}
+            onChange={(col, i) => setReadoutDate(dateAfter(readoutISO, new Date(), col, i, { minISO: oldestReadout }))}
+          />
+        </DTPickerSheet>
+      )}
 
       {/* Multi-select picker sheet */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
