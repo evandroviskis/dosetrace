@@ -205,7 +205,8 @@ test('PA-39 / PA-63: Terms of service AND Privacy policy linked on the consent s
 test('PA-41: Finish setup writes only the shown steps and reports a failed save in a sheet', () => {
   assert.match(ONB, /accountPatch\(form, meta, new Date\(\)\.toISOString\(\), steps\)/);
   assert.match(ONB, /refreshForm\(cur, meta, touched\.current\)/);
-  assert.match(ONB, /friendlyError\(error, t, 'error_save_failed'\)/);
+  // DV-114: a refused save (offline keeps the answer on the phone, dv114OfflineGates.test.js).
+  assert.match(ONB, /friendlyError\(r\.error, t, 'error_save_failed'\)/);
   assert.match(ONB, /t\('ob_finish_setup'\)/);
   assert.match(ONB, /async function handleSignOut\(\) \{[\s\S]{0,200}signOutIntended\(/, 'the sign-out escape is the one deliberate sign-out (behaviour: signOutSinglePath.test.js)');
 });

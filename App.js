@@ -146,6 +146,8 @@ import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
 import AgeConfirmScreen from './screens/AgeConfirmScreen';
 import { needsAdultConfirmation } from './lib/adultGate';
+import { usePendingGate, useGateToast, withPendingAnswer, startPendingGateFlush, flushPendingGate } from './lib/pendingGateStore';
+import { SheetToast } from './screens/components/BodySheets';
 import { DTSheet } from './screens/components/ProtocolParts';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 import ProgressScreen from './screens/ProgressScreen';
@@ -322,6 +324,13 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // A-194: the Fold's taskbar area under the tab bar shows the window background (Android).
   useEffect(() => { setWindowBackground(colors.ground); }, [colors.ground]);
   const { t, language, timeFormat } = useLanguage();
+  // DV-114 (DL-92): an 18+ or profile answer given offline is kept on this phone (lib/pendingGate) —
+  // the gates read the account with that answer laid over it (same account only), so the person goes
+  // on into the app; the toast says it goes to the account when the internet is back.
+  const gateAnswer = usePendingGate();
+  const gateToast = useGateToast(t);
+  const gateUser = session ? withPendingAnswer(session.user, gateAnswer.pending) : null;
+  const gated = (u) => !isProfileComplete(u) || needsAdultConfirmation(u && u.user_metadata);
 
   // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed
   // up. Locked: the person picks one of the two (lib/accountGuard).
@@ -365,7 +374,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   //     locked, while signed in;
   //   the sign-out sheet of the reset-link account switch (screens 3 / 3b / 5a / 5b);
   //   screen 1 / 1b — the takeover notice: once, on Main only (after the 18+ and profile steps).
-  const onMain = !!session && !recovery && !accountHeld && isProfileComplete(session.user) && !needsAdultConfirmation(session.user && session.user.user_metadata);
+  const onMain = !!session && !recovery && !accountHeld && !gated(gateUser);
   const dev = device || {};
   // The one sign-out sheet (the reset-link switch, screen 4's "Sign out of this phone") comes before
   // screen 4 itself, which shows again when the person stays.
@@ -451,7 +460,11 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
           // DV-242: the local data still belongs to another account — an empty screen (the boot
           // ground) under the sheet, so this account never sees it; nothing syncs meanwhile.
           <Stack.Screen name="AccountHold" component={BootEmpty} />
-        ) : !isProfileComplete(session.user) ? (
+        ) : !gateAnswer.ready && gated(session.user) ? (
+          // DV-114: the phone's pending answer is not read yet (a moment at start) — the empty ground,
+          // so a gate it already answered never flashes.
+          <Stack.Screen name="GateWait" component={BootEmpty} />
+        ) : !isProfileComplete(gateUser) ? (
           // A session with an incomplete profile — every Apple/Google sign-in, or a
           // returning account missing a now-required field — completes it through the
           // SAME onboarding flow (signed-in mode: prefilled, only the missing steps,
@@ -460,7 +473,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
           <Stack.Screen name="CompleteProfile">
             {() => <OnboardingFlowScreen session={session} />}
           </Stack.Screen>
-        ) : needsAdultConfirmation(session.user?.user_metadata) ? (
+        ) : needsAdultConfirmation(gateUser.user_metadata) ? (
           // An old account whose stored birth year makes it under 18 confirms once that the
           // user is 18 or older (founder 2026-10-03). Until then the app stays behind this
           // sheet — export, delete and sign out are offered; nothing is deleted automatically.
@@ -477,6 +490,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
       <UpdateInviteSheet config={deviceSheet || linkSheet ? null : upd.invite} onUpdate={upd.onUpdate} onLater={upd.onLater} />
       <UpdateReadyBar visible={upd.ready} onRestart={upd.onRestart} />
     </NavigationContainer>
+    <SheetToast text={gateToast} />
     </View>
   );
 }
@@ -1105,6 +1119,7 @@ export default function App() {
         // freshly-created account, then clear the stash. No-op for returning
         // users with no stash. Deferred (never inline in onAuthStateChange).
         applyPendingProfile(supabase).catch(() => {});
+        flushPendingGate(); // DV-114: an 18+ / profile answer kept on this phone goes to the account
         if (step.held) return;
 
         // One-time move of the open reality check + calculator inputs into the
@@ -1133,6 +1148,10 @@ export default function App() {
     // all side-effects. Supabase holds an internal lock while this runs, and doing
     // async work / calling supabase methods inline deadlocks the client — which is
     // why signing out cleared the data but never routed back to the welcome screen.
+    // DV-114: a gate answer kept on this phone is written on app open, connection back and return to
+    // the app (and on sign-in, above) — never from inside onAuthStateChange.
+    const stopGateFlush = startPendingGateFlush();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session); // drives the navigator (null → Onboarding) immediately
       noteSessionUser((session && session.user) || null); // A-169: every event, SIGNED_OUT → null (a variable write only)
@@ -1187,6 +1206,7 @@ export default function App() {
       if (appleRevokeSub) appleRevokeSub.remove();
       if (appStateSub) appStateSub.remove();
       stopExactWatch();
+      stopGateFlush();
       if (unsubSyncForFood) unsubSyncForFood();
     };
   }, []);

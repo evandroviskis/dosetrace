@@ -25,6 +25,7 @@ import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { PRIVACY_URL } from '../lib/legalLinks';
 import { friendlyError } from '../lib/friendlyError';
+import { answerGate } from '../lib/pendingGateStore';
 import { PROFILE_ACTIVITY } from '../lib/activityLevels';
 import { activityParts } from '../lib/progressFormat';
 import {
@@ -280,18 +281,20 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   async function finish() {
     if (!signedIn) { toAuth('create'); return; }
-    // Signed-in: write the shown steps' fields to the account; on error keep everything
+    // Signed-in: write the shown steps' fields to the account; on a refusal keep everything
     // typed and say so in a DoseTrace sheet. Success clears the gate via USER_UPDATED.
+    // DV-114 (DL-92): offline, the answer is kept on this phone (lib/pendingGateStore) and goes to
+    // the account when the internet is back; App.js opens the app at once and the toast says so.
     if (saving) return;
     setSaving(true);
     const data = accountPatch(form, meta, new Date().toISOString(), steps);
-    const { error } = await supabase.auth.updateUser({ data });
+    const r = await answerGate({ userId: session.user.id, patch: data, write: () => supabase.auth.updateUser({ data }) });
     setSaving(false);
-    if (error) {
-      setSheet({ icon: 'alert', title: t('error'), body: friendlyError(error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+    if (r.status === 'failed') {
+      setSheet({ icon: 'alert', title: t('error'), body: friendlyError(r.error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
-    clearOnboarding().catch(() => {}); // written into the account: gone from the device
+    clearOnboarding().catch(() => {}); // written into the account (or kept for it on this phone, DV-114): gone from the stash
     await markSeenOnboarding();
   }
 

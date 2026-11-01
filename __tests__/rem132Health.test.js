@@ -89,7 +89,7 @@ test('DV-045: registered 3 days ago, never ran → stale', () => {
 });
 
 // DV-098 (DL-49, AD-79 item 5): the channel of every reminder kind the user has switched on.
-// Logic only — the new Reminder check rows are drawn for the founder's picture before they show.
+// The rows themselves (shown and counted on the Reminder check): __tests__/dv098ChannelRows.test.js.
 test('DV-098: food reminders on + check-in channel switched off (importance NONE) → a block row', () => {
   const h = { ...android, checkinChannelImportance: R.IMPORTANCE_NONE, vialChannelImportance: 3, foodOn: true, checkinOn: false, vialOn: true };
   const rows = R.kindChannelChecks(h);
@@ -99,6 +99,6 @@ test('DV-098: food reminders on + check-in channel switched off (importance NONE
   // Unreadable (null) → no row; iPhone has no channels.
   assert.deepEqual(R.kindChannelChecks({ ...h, checkinChannelImportance: null, vialChannelImportance: null }), []);
   assert.deepEqual(R.kindChannelChecks({ ...h, os: 'ios' }), []);
-  // Not yet part of the counted rows (no picture yet): the Reminder check is unchanged.
+  // Never part of reminderChecks (dose reminders); setupSteps shows and counts them (dv098ChannelRows).
   assert.ok(!R.reminderChecks(h).some((c) => c.id.startsWith('channel_')));
 });

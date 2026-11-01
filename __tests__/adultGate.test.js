@@ -28,8 +28,9 @@ test('PA-101: no birth year (or a broken one) is not this gate — the build-49 
     assert.equal(G.needsAdultConfirmation(m, NOW), false, JSON.stringify(m));
   }
   const app = read('App.js');
-  const gate = app.indexOf('!isProfileComplete(session.user)');
-  const age = app.indexOf('needsAdultConfirmation(session.user?.user_metadata)');
+  // DV-114: both gates read the account with this phone's pending answer laid over it (gateUser).
+  const gate = app.indexOf('!isProfileComplete(gateUser)');
+  const age = app.indexOf('needsAdultConfirmation(gateUser.user_metadata)');
   assert.ok(gate > 0 && age > gate, 'the profile gate (birth year asked there) comes first, then this one');
 });
 
@@ -37,10 +38,12 @@ test('PA-102: confirming writes only its own keys (confirmation + the real year)
   assert.deepEqual(Object.keys(G.adultConfirmPatch('2026-10-03T12:00:00.000Z', 1990, NOW)).sort(), ['adult_confirmed_at', 'birth_year']);
 });
 
-test('PA-103: offline or a failed save keeps the account behind the sheet and says why — it can be tried again', () => {
+// DV-114 (DL-92, founder 2026-11-01): offline is no longer a failure — the answer is kept on the phone
+// and the app opens (dv114OfflineGates.test.js). A refused save still keeps the account here and says why.
+test('PA-103: a refused save keeps the account behind the sheet and says why — it can be tried again', () => {
   const scr = read('screens', 'AgeConfirmScreen.js');
   const confirm = scr.slice(scr.indexOf('async function confirmAdult()'), scr.indexOf('async function exportData()'));
-  assert.match(confirm, /if \(error\) \{[\s\S]{0,200}friendlyError\(error, t, 'error_save_failed'\)/);
+  assert.match(confirm, /if \(r\.status === 'failed'\) \{[\s\S]{0,200}friendlyError\(r\.error, t, 'error_save_failed'\)/);
   assert.doesNotMatch(confirm, /signOut|delete/i, 'a failure never signs out or deletes');
   const t = (k) => `<${k}>`;
   assert.equal(require('../lib/friendlyError').friendlyError({ message: 'Network request failed' }, t, 'error_save_failed'), '<error_network>');
