@@ -81,9 +81,9 @@ test('DV-244: scheduleSince passed but nothing known for the protocol -> no new 
 test('DV-244: scanMissedDoses passes the schedule ledger to the scan', () => {
   const src = fs.readFileSync(path.join(__dirname, '../lib/doseActions.js'), 'utf8');
   const body = src.slice(src.indexOf('export async function scanMissedDoses'));
-  const call = body.slice(body.indexOf('computeMissedDoses(protocols, kept'));
+  const call = body.slice(body.indexOf('computeMissedDoses(scanned, kept'));
   assert.match(call.slice(0, call.indexOf(';')), /scheduleSince/);
-  assert.ok(body.indexOf('const scheduleSince = await observeSchedules(') < body.indexOf('computeMissedDoses(protocols, kept'), 'the ledger is read first');
+  assert.ok(body.indexOf('const scheduleSince = await observeSchedules(') < body.indexOf('computeMissedDoses(scanned, kept'), 'the ledger is read first');
 });
 
 // ── A-182 ───────────────────────────────────────────────────────────────────────────────────────

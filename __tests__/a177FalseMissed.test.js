@@ -217,7 +217,7 @@ test('A-177: scanMissedDoses always passes the pull time and runs the 60-day cle
   const src = read('lib/doseActions.js');
   const body = src.slice(src.indexOf('export async function scanMissedDoses'));
   assert.match(body, /const pulledThroughMs = await readDoseLogsPull\(AsyncStorage, user\.id, nowMs\)/);
-  const call = body.slice(body.indexOf('computeMissedDoses(protocols, kept'));
+  const call = body.slice(body.indexOf('computeMissedDoses(scanned, kept'));
   assert.match(call.slice(0, call.indexOf(';')), /pulledThroughMs/);
   assert.match(body, /falseMissedRows\(\[\.\.\.protocols, \.\.\.ended\], /);
   assert.ok(body.indexOf('duplicateMissedRows(') < body.indexOf('falseMissedRows('), 'after the A-176 duplicates');

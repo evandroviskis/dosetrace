@@ -502,7 +502,12 @@ test('A-123 F6 through the real scan: an ended protocol\'s duplicate Missed row 
   sync.emit({ type: 'sync_complete' });
   await scan();
   assert.equal(B.getFirstSync('SELECT sync_status FROM dose_logs WHERE id = ?', [miss]).sync_status, 'deleted');
-  assert.equal(liveRows(B, 'Missed').length, 0, 'and no new Missed rows for an ended protocol');
+  // DV-031 / DL-05 (2026-10-12, built 2026-10-31): an ended protocol's owed slots BEFORE its end are written;
+  // never the slot the other phone's Taken covers, never one after the end.
+  for (const r of liveRows(B, 'Missed')) {
+    assert.ok(Date.parse(r.logged_at) < at(0, 6).getTime(), 'before the end');
+    assert.ok(Math.abs(Date.parse(r.logged_at) - at(2, 8).getTime()) > 3600000, 'not the covered slot');
+  }
 });
 
 test('A-123 F4: back from the background on a new day, the other phone\'s dose only in the cloud -> no Missed before the sync', async () => {
