@@ -8,5 +8,5 @@ const { translations } = require('../i18n/translations');
 test('DV-024: the choice sentence promises no zero count', () => {
   const banned = /zero|cero|zéro|null genommen/i;
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.doesNotMatch(translations[l].protocols_restart_body, banned, l);
-  assert.equal(translations.pt.protocols_restart_body, 'Um novo ciclo começa hoje; o ciclo anterior fica no histórico. Vai usar um novo ou continuar com o mesmo?');
+  assert.equal(translations.pt.protocols_restart_body, 'Um novo ciclo começa hoje; o ciclo anterior fica no histórico. Vai usar um frasco novo ou continuar com o mesmo?'); // 2026-10-31 review: names the container (the buttons say frasco)
 });
