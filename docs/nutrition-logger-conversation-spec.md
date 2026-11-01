@@ -11,6 +11,9 @@
 >   checkIntake`). Anything not logged counts as nothing; the UI says so and shows
 >   its working ("{total} kcal over {d} days"). Offered tap-to-use, never auto-filled.
 >   The per-logged-day and 7-day averages are retired.
+>   [superseded 2026-09-27 by docs/specs/food-log.md FL-3 (founder: "We need 7 days straight of calories"):
+>   the intake is the average of the most recent run of at least 7 consecutive fully logged days
+>   inside the check (`lib/nutrition.js` `intakeRun`); `checkIntake` and the whole-window average are gone]
 > - **Catch-ups are first-class**: food from any earlier time is logged without
 >   asking when. The parser returns an optional `days_ago` (only when the user says
 >   when); the entry is dated to that day. Output contract gains `days_ago`.
