@@ -175,9 +175,9 @@ const { freeStartDay } = require('../lib/foodThread');
 test('foodLogAccess: free users get 7 days from their REAL first use (first log or the day they tapped start) (FL-41)', () => {
   assert.equal(FREE_DAYS, 7);
   assert.equal(foodLogAccess({ premium: true, todayISO: '2026-09-10' }).mode, 'premium');
-  assert.equal(foodLogAccess({ premium: false, firstUse: null, todayISO: '2026-09-10' }).mode, 'trial', 'never used: free');
+  assert.equal(foodLogAccess({ premium: false, firstUse: null, todayISO: '2026-09-10' }).mode, 'free_days', 'never used: free');
   const u = { premium: false, firstUse: '2026-09-01' };
-  assert.equal(foodLogAccess({ ...u, todayISO: '2026-09-07' }).mode, 'trial', 'day 7');
+  assert.equal(foodLogAccess({ ...u, todayISO: '2026-09-07' }).mode, 'free_days', 'day 7');
   const d8 = foodLogAccess({ ...u, todayISO: '2026-09-08' });
   assert.deepEqual([d8.mode, d8.reason], ['locked', 'free_days_ended'], 'day 8 → paywall');
 });
@@ -186,7 +186,7 @@ test('foodLogAccess: a free user who backdates the check start 7 days still gets
   const tapped = '2026-09-10';
   const backdated = { date: '2026-09-03' }; // start weigh-in picked 7 days back
   const x = { premium: false, firstUse: tapped, rcStart: backdated };
-  assert.equal(foodLogAccess({ ...x, todayISO: '2026-09-16' }).mode, 'trial', 'day 7 from the tap');
+  assert.equal(foodLogAccess({ ...x, todayISO: '2026-09-16' }).mode, 'free_days', 'day 7 from the tap');
   assert.equal(foodLogAccess({ ...x, todayISO: '2026-09-16' }).until, '2026-09-16');
   assert.equal(foodLogAccess({ ...x, todayISO: '2026-09-17' }).mode, 'locked');
 });

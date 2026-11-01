@@ -11,7 +11,7 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'screens/components/Calcu
 test('DV-101: rcFree is the free days (trial), never the grace week', () => {
   const sets = src.match(/setRcFree\([^;]*\);/g) || [];
   assert.equal(sets.length >= 2, true);
-  for (const s of sets.filter((x) => /access/.test(x))) assert.match(s, /access\.mode === 'trial'/, s);
+  for (const s of sets.filter((x) => /access/.test(x))) assert.match(s, /access\.mode === 'free_days'/, s);
 });
 
 test('DV-102: the typed-calories link and sheet are Premium only', () => {

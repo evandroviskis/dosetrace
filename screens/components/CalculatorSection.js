@@ -229,7 +229,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // Not before load() knows the user: loadFoodAccess(null) would lock the free week (Gate B review).
     if (!userIdRef.current) return;
     // DV-101 (AD-14): the reality check's free access is the free days only — never a lapsed payer's grace week.
-    loadFoodAccess(userIdRef.current).then((r) => setRcFree(!!(r.access.canLog && r.access.mode === 'trial'))).catch(() => {});
+    loadFoodAccess(userIdRef.current).then((r) => setRcFree(!!(r.access.canLog && r.access.mode === 'free_days'))).catch(() => {});
   });
 
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -239,7 +239,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const user = await getCachedUser();
     const uid = user?.id || null;
     // Free users get the reality check (and food log) for 7 days too (FL-41).
-    try { const a = (await loadFoodAccess(uid)).access; setRcFree(!!(a.canLog && a.mode === 'trial')); } catch { setRcFree(false); } // DV-101
+    try { const a = (await loadFoodAccess(uid)).access; setRcFree(!!(a.canLog && a.mode === 'free_days')); } catch { setRcFree(false); } // DV-101
     // Set EVERY load (not only the first) so a save can never no-op because the
     // session wasn't ready on the first focus.
     if (uid) userIdRef.current = uid;

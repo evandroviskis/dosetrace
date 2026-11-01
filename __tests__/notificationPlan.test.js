@@ -138,7 +138,7 @@ test('responseKey: the same tap has one key (launch path and listener dedupe), a
 test('remindersForAccess: no 8 PM question for a locked user, and none past the last open day (FL-41)', () => {
   const days = [day(0), day(1), day(2), day(3)];
   assert.deepEqual(remindersForAccess(days, { canLog: false, mode: 'locked' }), []);
-  assert.deepEqual(remindersForAccess(days, { canLog: true, mode: 'trial', until: day(1) }), [day(0), day(1)]);
+  assert.deepEqual(remindersForAccess(days, { canLog: true, mode: 'free_days', until: day(1) }), [day(0), day(1)]);
   assert.deepEqual(remindersForAccess(days, { canLog: true, mode: 'premium', until: null }), days);
   assert.deepEqual(remindersForAccess(days, { canLog: true, mode: 'grace', until: null }), days, 'store unreachable: lenient');
   assert.deepEqual(remindersForAccess(days, null), []);

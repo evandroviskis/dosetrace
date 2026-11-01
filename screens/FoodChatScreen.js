@@ -522,8 +522,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   }
 
   const gated = !!access && !access.canLog;
-  const inTrial = access && access.mode === 'trial';
-  const freeLeft = inTrial && access.freeDaysLeft != null ? access.freeDaysLeft : 0;
+  const inFreeDays = access && access.mode === 'free_days';
+  const freeLeft = inFreeDays && access.freeDaysLeft != null ? access.freeDaysLeft : 0;
 
   // ── Bubbles (Graduated, prototype chatScreen: .bub.app / .bub.user / .entry / .deflect) ──
   const AppBubble = ({ children, style }) => <View style={[s.app, style]}>{children}</View>;
@@ -785,7 +785,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
                 {busy ? <ActivityIndicator size="small" color={colors.onAct} /> : <FeatureIcon name="ai_spark" size={20} color={colors.onAct} />}
               </TouchableOpacity>
             </View>
-            <Text style={s.caveat}>{t('nutri_est_note')}{inTrial && freeLeft > 0 ? '  ·  ' + t(pluralKey('nutri_free_note', freeLeft, language)).replace('{n}', String(freeLeft)) : ''}</Text>
+            <Text style={s.caveat}>{t('nutri_est_note')}{inFreeDays && freeLeft > 0 ? '  ·  ' + t(pluralKey('nutri_free_note', freeLeft, language)).replace('{n}', String(freeLeft)) : ''}</Text>
           </View>
         </KeyboardAvoidingView>
       )}

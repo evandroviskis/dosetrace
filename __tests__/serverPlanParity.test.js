@@ -53,7 +53,7 @@ test('RL-2: the food rule is identical — daily while open, closed days skipped
 
 test('RL-2: none for locked users, and only until the last open day (remindersForAccess identical)', () => {
   const days = ['2026-10-01', '2026-10-02', '2026-10-03'];
-  for (const access of [null, { canLog: false }, { canLog: true, mode: 'premium' }, { canLog: true, mode: 'trial', until: '2026-10-02' }]) {
+  for (const access of [null, { canLog: false }, { canLog: true, mode: 'premium' }, { canLog: true, mode: 'free_days', until: '2026-10-02' }]) {
     assert.deepEqual(server.remindersForAccess(days, access), client.remindersForAccess(days, access), JSON.stringify(access));
   }
 });
