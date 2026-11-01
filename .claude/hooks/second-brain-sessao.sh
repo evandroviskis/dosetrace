@@ -15,6 +15,7 @@ esac
   echo "SECOND BRAIN = MEMÓRIA OBRIGATÓRIA (regra do Evandro, 2026-10-23). Pasta: ~/Desktop/Second Brain."
   echo "Antes de cada resposta: confronte o que você lembra com a pasta. Se a memória e a pasta divergem, vale a pasta (e avise)."
   echo
+  [ "$P" = dosetrace ] && "${CLAUDE_PROJECT_DIR:-$HOME/Desktop/dosetrace}/scripts/atraso-entrega.sh" 2>/dev/null && echo
   [ -f "$ENTRY" ] && head -c 6000 "$ENTRY"
   echo
   echo "=== $P/01-estado.md (início) ==="
