@@ -1284,7 +1284,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         </View>
         <View style={[s.heroCol, fontScale >= 1.3 && s.heroColStack]}>
           <Text style={s.foot2}>{t('cal_tdee')}</Text>
-          {plan ? (
+          {/* DV-149 (AD-93): the measured burn shows whenever it exists; the estimate keeps the inputs gate. */}
+          {plan || scoreCheck ? (
             <>
               <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
                 {fmtInt(round10(scoreCheck ? scoreCheck.tdee : plan.tdeeVal))}<Text style={s.unit}> {t('cal_kcal')}</Text>
@@ -1309,10 +1310,12 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
               ? `${t('cal_measured_from_check')} · ${t('cal_est')} ${fmtInt(round10(plan.tdeeVal))}`
               : `${t(`cal_eq_${plan.method}`)} · ${t('cal_bmr')} ${fmtInt(round10(plan.bmr))}`}
           </Text>
+        ) : scoreCheck ? (
+          <Text style={[s.foot2, s.tnum]}>{t('cal_measured_from_check')}</Text>
         ) : (
           <Text style={s.sec2}>{t('cal_fill_numbers')}</Text>
         )}
-        {plan && !burnGate.complete ? (
+        {(plan || scoreCheck) && !burnGate.complete ? (
           <TouchableOpacity onPress={() => setNumbersOpen(true)} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
             <Text style={s.linkU}>{t('cal_complete_numbers')}</Text>
           </TouchableOpacity>
