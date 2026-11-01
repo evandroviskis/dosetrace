@@ -47,6 +47,8 @@ import { usePremiumUpdates } from '../lib/usePremium';
 import { restorePurchases } from '../lib/purchases';
 import { restoreOutcome, outcomeSheet } from '../lib/paywallPlans';
 import { subscriptionCard } from '../lib/subscriptionStatus';
+import CompoundPills from '../components/CompoundPills';
+import { toggleKey } from '../lib/trackingTypes';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
@@ -287,6 +289,7 @@ export default function SettingsScreen({ navigation }) {
   const [birthYearText, setBirthYearText] = useState('');
   const [country, setCountry] = useState('');
   const [primaryGoals, setPrimaryGoals] = useState(first.primaryGoals);
+  const [trackingTypes, setTrackingTypes] = useState([]); // DV-113: "What you use" (tracking_types)
   const [activityLevel, setActivityLevel] = useState('');
   const [hasProvider, setHasProvider] = useState('');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
@@ -479,6 +482,7 @@ export default function SettingsScreen({ navigation }) {
       setCountry(user.user_metadata?.country || '');
       const pg = user.user_metadata?.primary_goal || '';
       setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []);
+      setTrackingTypes(Array.isArray(user.user_metadata?.tracking_types) ? user.user_metadata.tracking_types : []);
       setActivityLevel(activity);
       setHasProvider(user.user_metadata?.has_provider || '');
     }
@@ -585,6 +589,7 @@ export default function SettingsScreen({ navigation }) {
     if (birthYear == null) missing.push(t('profile_birth_year'));
     if (!gender) missing.push(t('profile_sex'));
     if (!country.trim()) missing.push(t('profile_country'));
+    if (trackingTypes.length === 0) missing.push(t('profile_sec_tracking'));
     if (primaryGoals.length === 0) missing.push(t('profile_goal'));
     if (!activityLevel) missing.push(t('profile_activity'));
     if (!hasProvider) missing.push(t('profile_provider'));
@@ -604,6 +609,8 @@ export default function SettingsScreen({ navigation }) {
           birth_month: birthMonth != null ? birthMonth + 1 : null, // store 1-based (matches onboarding)
           birth_year: birthYear,
           country: country.trim() || null,
+          // DV-113: what you use, as onboarding stores it (merged into user_metadata with the rest).
+          tracking_types: trackingTypes.slice(),
           primary_goal: primaryGoals.length > 0 ? primaryGoals.join(',') : null,
           activity_level: activityLevel || null,
           activity_scale: 5, // the 5-level scale (Gate B)
@@ -1734,6 +1741,13 @@ export default function SettingsScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
+            {/* ── What you use (DV-113 / DL-58: onboarding's four options, its component) ── */}
+            <Text style={s.editSection}>{t('profile_sec_tracking')}</Text>
+            <View style={s.editField}>
+              <Text style={[s.editHint, s.editHintTop]}>{t('profile_tracking_hint')}</Text>
+              <CompoundPills value={trackingTypes} onToggle={(key) => setTrackingTypes((p) => toggleKey(p, key))} t={t} />
+            </View>
+
             {/* ── Your goals ────────────────────────────────────────── */}
             <Text style={s.editSection}>{t('profile_sec_goals')}</Text>
 
@@ -2046,6 +2060,7 @@ const settingsGraduated = (c) => ({
   editField: { marginTop: 18 },
   editLabel: { fontSize: 13, lineHeight: 18, fontWeight: '400', color: c.ink2, marginBottom: 10, paddingHorizontal: 4 },
   editHint: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: -6, marginBottom: 10, paddingHorizontal: 4 },
+  editHintTop: { marginTop: -8 }, // DV-113: the hint right under its section title (no field label above it)
   sexHelp: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: 10, paddingHorizontal: 4 },
   editInput: { minHeight: 50, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line },
   editPick: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 48, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.well },

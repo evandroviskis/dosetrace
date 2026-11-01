@@ -38,6 +38,7 @@ function profile(mode, supabase = null) {
     // The typed values in Edit profile.
     displayName: 'Sam Carter', birthMonth: 4, birthYear: 1985, gender: 'male', country: 'Portugal',
     primaryGoals: ['fat_loss'], activityLevel: 'moderate', hasProvider: 'yes',
+    trackingTypes: ['peptides'], // DV-113: "What you use"
     user: { id: 'u1', user_metadata: { display_name: 'Sam', activity_level: 'moderate', analytics_opt_in: false } },
     setEditSheet: (v) => out.editSheet.push(v),
     setEditProfileOpen: (v) => { if (v === false) out.closedEdit++; }, // A-169 review: every close goes through it
@@ -77,6 +78,7 @@ test('DV-008: the profile write sends only the profile keys (merge, never clobbe
   const keys = Object.keys(out.writes[0].data).sort();
   for (const k of ['analytics_opt_in', 'dose_reminders', 'calc_inputs', 'calc_reality_open']) assert.ok(!keys.includes(k), `${k} is never written by Edit profile`);
   assert.equal(out.writes[0].data.display_name, 'Sam Carter');
+  assert.deepEqual(out.writes[0].data.tracking_types, ['peptides'], 'DV-113: what you use, in the same merge write');
 });
 
 function analytics(mode, supabase = null) {
