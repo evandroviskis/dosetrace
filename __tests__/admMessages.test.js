@@ -47,9 +47,9 @@ function world(opts) {
   const o = opts || {};
   const now = () => Date.now();
   const accounts = Object.assign({
-    [TARGET]: { email: 'Carla@x.y', meta: { language: 'pt' }, tokens: [{ token: TOK(1), platform: 'ios' }, { token: TOK(2), platform: 'android' }] },
+    [TARGET]: { email: 'Carla@x.y', meta: { language: 'pt' }, tokens: [{ token: TOK(1), platform: 'ios', app_version: '1.3.1' }, { token: TOK(2), platform: 'android', app_version: '1.3.2' }] },
     [NODEV]: { email: 'diego@x.y', meta: { language: 'pt' }, tokens: [] },
-    [QUIET]: { email: 'quiet@x.y', meta: { language: 'en', silent_mode: true }, tokens: [{ token: TOK(3), platform: 'android' }] },
+    [QUIET]: { email: 'quiet@x.y', meta: { language: 'en', silent_mode: true }, tokens: [{ token: TOK(3), platform: 'android', app_version: '1.3.1' }] },
   }, o.accounts || {});
   const log = []; // admin_actions_log (Premium and messages share it)
   const msgs = []; // team_messages
@@ -147,7 +147,7 @@ test('TM-1/TM-8 (GET): the account behind the id with its app language, the fixe
   assert.equal(g.json.language, 'pt');
   assert.equal(g.json.title, TITLES.pt);
   assert.equal(g.json.silent, false);
-  assert.deepEqual(g.json.devices, { count: 2, platforms: ['ios', 'android'] });
+  assert.deepEqual(g.json.devices, { count: 2, platforms: ['ios', 'android'], waiting: 0 });
   assert.ok(!g.body.includes('ExponentPushToken'), 'push tokens never leave the server');
   assert.deepEqual(g.json.history.map((h) => h.id), [recent.id, old.id], 'newest first');
   assert.deepEqual(Object.keys(g.json.history[0]).sort(), ['accepted', 'body', 'created_at', 'devices', 'failed', 'id', 'read_at', 'silent', 'translated', 'withdrawn_at'] /* TM-25 adds translated */);
@@ -155,7 +155,7 @@ test('TM-1/TM-8 (GET): the account behind the id with its app language, the fixe
   assert.equal(expoCalls(g).length, 0, 'reading never pushes');
   const q = await get(world(), '?user_id=' + QUIET);
   assert.equal(q.json.silent, true); assert.equal(q.json.title, TITLES.en);
-  assert.deepEqual(q.json.devices, { count: 1, platforms: ['android'] });
+  assert.deepEqual(q.json.devices, { count: 1, platforms: ['android'], waiting: 0 });
 }));
 
 test('TM-8 (GET): an account whose app never reported its language → language null and the title in English; an unknown id → 404; a bad id → 400 with no call', withEnv(async () => {
@@ -163,7 +163,7 @@ test('TM-8 (GET): an account whose app never reported its language → language 
   const id = GHOST.replace('dddd', 'ffff');
   const g = await get(W, '?user_id=' + id);
   assert.equal(g.json.language, null); assert.equal(g.json.title, TITLES.en);
-  assert.deepEqual(g.json.devices, { count: 0, platforms: [] });
+  assert.deepEqual(g.json.devices, { count: 0, platforms: [], waiting: 0 });
   const n = await get(W, '?user_id=' + GHOST);
   assert.equal(n.code, 404); assert.equal(n.json.code, 'not_found');
   const b = await get(W, '?user_id=nope');
@@ -264,7 +264,7 @@ test('TM-6/TM-11: a send stores the message, pushes one notification per device 
 test('TM-11: the notification title is "Mensagem da equipe DoseTrace" in the account\'s app language (English when unknown), the body is the message, data = {type:"team_message", id}; nothing else in the payload', withEnv(async () => {
   assert.deepEqual(api().TITLES, TITLES);
   for (const l of Object.keys(TITLES)) {
-    const W = world({ accounts: { [TARGET]: { email: 'carla@x.y', meta: { language: l }, tokens: [{ token: TOK(1), platform: 'ios' }] } } });
+    const W = world({ accounts: { [TARGET]: { email: 'carla@x.y', meta: { language: l }, tokens: [{ token: TOK(1), platform: 'ios', app_version: '1.3.1' }] } } });
     const r = await post(W, sendBody({ request_id: RID(20) }));
     assert.equal(r.code, 200, r.body);
     assert.equal(W.pushes.length, 1);
@@ -277,7 +277,7 @@ test('TM-11: the notification title is "Mensagem da equipe DoseTrace" in the acc
     assert.equal(p.channelId, 'checkin-reminders', 'a channel every installed app version already created (Android)');
     assert.ok(!JSON.stringify(p).includes('@'), 'no e-mail in the payload');
   }
-  const W = world({ accounts: { [TARGET]: { email: 'carla@x.y', meta: {}, tokens: [{ token: TOK(1), platform: 'android' }] } } });
+  const W = world({ accounts: { [TARGET]: { email: 'carla@x.y', meta: {}, tokens: [{ token: TOK(1), platform: 'android', app_version: '1.3.1' }] } } });
   await post(W, sendBody({ request_id: RID(21) }));
   assert.equal(W.pushes[0].title, TITLES.en, 'language not reported by the app → English');
   const call = (await post(world(), sendBody({ request_id: RID(22) }))).calls.find((c) => c.url === EXPO);
@@ -706,4 +706,67 @@ test('Content rule (page): the same rule while typing (Enviar disabled, the reas
   assert.equal(T.pt.ms_rule, 'Somente avisos de conta e suporte. Nunca escreva orientação de saúde, dose ou tratamento, e nunca cite produtos, vendedores ou links.');
   assert.match(T.en.ms_rule, /products, sellers or links/);
   for (const [l, w] of [['es', /enlaces/], ['fr', /liens/], ['de', /Links/], ['it', /link/]]) assert.match(T[l].ms_rule, w, l);
+});
+
+// A-174 (founder 2026-10-22 on his iPhone; go "Pode nos três" 2026-11-01): an app older than 1.3.1 has no messages
+// screen, so a tap on the notification opens the app with nothing to read. The panel pushes only to devices whose
+// push token reports 1.3.1 or newer (push_tokens.app_version, written by 1.3.1+); an older or unreported version is
+// "waiting": not notified, and the person reads the message in the app after updating (it is stored either way).
+test('A-174 pushMessages: only tokens on 1.3.1 or newer are pushed; older, unreported or unreadable versions wait', () => {
+  const { pushMessages, MIN_MESSAGES_VERSION, canOpenMessages } = api();
+  assert.equal(MIN_MESSAGES_VERSION, '1.3.1');
+  for (const v of ['1.3.1', '1.3.2', '1.4.0', '1.10.0', '2.0', '1.3.1 (81)']) assert.equal(canOpenMessages(v), true, v);
+  for (const v of ['1.3.0', '1.2.4', '1.2.2', '0.9', '', null, undefined, 'abc', 1.31]) assert.equal(canOpenMessages(v), false, String(v));
+  const toks = [{ token: TOK(1), platform: 'ios', app_version: '1.3.1' }, { token: TOK(2), platform: 'android', app_version: '1.3.0' }, { token: TOK(3), platform: 'android' }, { token: TOK(4), platform: 'ios', app_version: '1.4.0' }];
+  assert.deepEqual(pushMessages(toks, 'pt', MSG, 'm1').map((m) => m.to), [TOK(1), TOK(4)]);
+});
+
+test('A-174 send: one device on 1.3.1 and one on 1.3.0 → Expo gets only the 1.3.1 one; the answer says 1 device and 1 waiting; the message is stored', withEnv(async () => {
+  const W = world({ accounts: { [TARGET]: { email: 'carla@x.y', meta: { language: 'pt' }, tokens: [{ token: TOK(1), platform: 'ios', app_version: '1.3.1' }, { token: TOK(2), platform: 'android', app_version: '1.3.0' }] } } });
+  const r = await post(W, sendBody());
+  assert.equal(r.code, 200, r.body);
+  assert.deepEqual(W.pushes.map((m) => m.to), [TOK(1)]);
+  assert.equal(r.json.devices, 1); assert.equal(r.json.accepted, 1); assert.equal(r.json.waiting, 1);
+  assert.equal(W.msgs.length, 1, 'stored: readable in the app after the update');
+  assert.equal(W.log[0].devices, 1, 'the log counts the devices pushed');
+  const g = await get(W, '?user_id=' + TARGET);
+  assert.deepEqual(g.json.devices, { count: 2, platforms: ['ios', 'android'], waiting: 1 });
+}));
+
+test('A-174 send: every device on an older app → nothing pushed, the message is saved, the answer says 0 devices and how many wait', withEnv(async () => {
+  const W = world({ accounts: { [TARGET]: { email: 'carla@x.y', meta: { language: 'pt' }, tokens: [{ token: TOK(1), platform: 'ios', app_version: '1.3.0' }, { token: TOK(2), platform: 'android' }] } } });
+  const r = await post(W, sendBody());
+  assert.equal(r.code, 200, r.body);
+  assert.equal(expoCalls(r).length, 0, 'no call to Expo');
+  assert.equal(r.json.devices, 0); assert.equal(r.json.waiting, 2);
+  assert.equal(W.msgs.length, 1);
+}));
+
+test('A-174 page: the devices line and the done screen say how many devices wait for the app update (6 languages)', () => {
+  for (const l of ['en', 'pt', 'es', 'fr', 'de', 'it']) {
+    const { P, t } = msgPure(l);
+    assert.equal(P.msgDoneKey({ silent: false, devices: 0, accepted: 0, waiting: 2 }), 'ms_saved_waiting', l);
+    assert.equal(P.msgDoneKey({ silent: false, devices: 0, accepted: 0, waiting: 0 }), 'ms_saved_nodev', l);
+    assert.equal(P.msgDoneKey({ silent: false, devices: 1, accepted: 1, waiting: 1 }), 'ms_sent_one', l);
+    assert.ok(P.msgDevLabel({ count: 2, platforms: ['ios', 'android'], waiting: 1 }, t).includes(t('ms_dev_waiting', { n: 1 })), l);
+    assert.ok(!P.msgDevLabel({ count: 2, platforms: ['ios', 'android'], waiting: 0 }, t).includes(t('ms_dev_waiting', { n: 0 })), l);
+    for (const k of ['ms_saved_waiting', 'ms_waiting_note', 'ms_dev_waiting']) assert.ok(t(k), l + ' ' + k);
+  }
+  const { P, t, esc } = msgPure('pt');
+  const h = P.msgDialogHtml(ST({ phase: 'done', result: { ok: true, devices: 1, accepted: 1, failed: 0, waiting: 1, silent: false } }), t, esc);
+  assert.ok(h.includes(esc(t('ms_waiting_note', { n: 1 }))), 'sent + waiting → the note');
+  const h0 = P.msgDialogHtml(ST({ phase: 'done', result: { ok: true, devices: 0, accepted: 0, failed: 0, waiting: 2, silent: false } }), t, esc);
+  assert.ok(h0.includes(esc(t('ms_saved_waiting', { n: 2 }))));
+});
+
+test('A-174 SQL: the newest admin_message_info hands each token its app version (read through to_jsonb, so it never fails on a database without the column); a new migration, identical in supabase_admin_rpcs.sql', () => {
+  const fn = latestFn('admin_message_info');
+  assert.match(fn, /jsonb_build_object\('token', p\.expo_token, 'platform', lower\(coalesce\(p\.platform, ''\)\), 'app_version', to_jsonb\(p\)->>'app_version'\)/);
+  assert.match(fn, /and not exists \(select 1 from public\.push_tokens q where q\.expo_token = p\.expo_token and q\.user_id <> u\.id and q\.updated_at > p\.updated_at\)/, 'the A-163 review fix stays');
+  assert.equal(fn, sqlFnIn(SQL, 'admin_message_info'));
+  const [file, src] = require('./helpers/sqlLatest.js').latestMigrationWith('admin_message_info');
+  assert.equal(file, '20261101020000_admin_message_info_app_version.sql');
+  assert.ok(!/alter table|create table|drop /i.test(src), 'function only');
+  assert.match(src, /revoke execute on function public\.admin_message_info\(uuid\) from public, anon, authenticated;/);
+  assert.match(src, /grant execute on function public\.admin_message_info\(uuid\) to service_role;/);
 });

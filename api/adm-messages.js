@@ -152,8 +152,24 @@ async function rpc(sb, fn, args) {
 
 // ------------------------------------------------------------------ push (TM-11 / TM-12)
 const titleFor = (lang) => TITLES[lang] || TITLES.en;
+// A-174: the messages screen arrived in 1.3.1. An older app (or one that never reported its version: 1.3.1 is the
+// first to write push_tokens.app_version) opens with nothing to read, so it is not notified; the message is stored
+// and the person reads it in the app after updating.
+const MIN_MESSAGES_VERSION = '1.3.1';
+function versionParts(v) {
+  const m = typeof v === 'string' ? v.trim().match(/^(\d+)\.(\d+)(?:\.(\d+))?/) : null;
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3] || 0)] : null;
+}
+function canOpenMessages(v) {
+  const a = versionParts(v), b = versionParts(MIN_MESSAGES_VERSION);
+  if (!a) return false;
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+  return true;
+}
+const hasToken = (x) => x && typeof x.token === 'string' && x.token;
+const waitingCount = (tokens) => (tokens || []).filter((x) => hasToken(x) && !canOpenMessages(x.app_version)).length;
 function pushMessages(tokens, lang, text, messageId) {
-  return (tokens || []).filter((x) => x && typeof x.token === 'string' && x.token).map((x) => ({
+  return (tokens || []).filter((x) => hasToken(x) && canOpenMessages(x.app_version)).map((x) => ({
     to: x.token,
     title: titleFor(lang),
     body: text,
@@ -222,7 +238,7 @@ async function handleGet(req, res) {
     language: i.language || null,
     title: titleFor(i.language),
     silent: i.silent === true,
-    devices: { count: tokens.length, platforms },
+    devices: { count: tokens.length, platforms, waiting: waitingCount(tokens) },
     history,
   });
 }
@@ -248,7 +264,7 @@ async function handleSend(res, v, actor, sb, info) {
   // The stored answer holds the outcome only: no text, no e-mail, no token.
   const answer = {
     ok: true, action: 'send', request_id: v.request_id, message_id: begin.j.message_id, created_at: begin.j.created_at,
-    devices: msgs.length, accepted: out.accepted, failed: out.failed, silent, translated: v.translated,
+    devices: msgs.length, accepted: out.accepted, failed: out.failed, waiting: silent ? 0 : waitingCount(info.tokens), silent, translated: v.translated,
   };
   try {
     await rpc(sb, 'admin_message_finish', { p_id: begin.j.id, p_devices: msgs.length, p_accepted: out.accepted, p_failed: out.failed, p_http: out.http, p_result: { status: 200, body: answer } });
@@ -351,4 +367,4 @@ module.exports = async (req, res) => {
   await handlePost(req, res, auth.user.id);
 };
 
-Object.assign(module.exports, { validate, pushMessages, TITLES, MAX_LEN, EXPO_URL, PUSH_TIMEOUT_MS, CHANNEL_ID, TRANSLATE_SYSTEM, TRANSLATE_PER_HOUR, AI_MODEL, stripQuotes, contentBlock });
+Object.assign(module.exports, { validate, pushMessages, MIN_MESSAGES_VERSION, canOpenMessages, TITLES, MAX_LEN, EXPO_URL, PUSH_TIMEOUT_MS, CHANNEL_ID, TRANSLATE_SYSTEM, TRANSLATE_PER_HOUR, AI_MODEL, stripQuotes, contentBlock });

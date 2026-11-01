@@ -47,7 +47,7 @@ function world(opts) {
   W.data = async (u, body, init) => {
     if (u === F.SB + '/rest/v1/rpc/admin_message_info') {
       const a = accounts[body.p_user_id];
-      return F.json(a ? { user_id: body.p_user_id, email: a.email, language: a.language, silent: false, tokens: [{ token: 'ExponentPushToken[dummy-1]', platform: 'ios' }], history: [] } : null);
+      return F.json(a ? { user_id: body.p_user_id, email: a.email, language: a.language, silent: false, tokens: [{ token: 'ExponentPushToken[dummy-1]', platform: 'ios', app_version: '1.3.1' }], history: [] } : null);
     }
     if (u === F.SB + '/rest/v1/rpc/admin_translate_take') {
       if (W.counterFail) return F.json({ message: 'function does not exist' }, W.counterFail);

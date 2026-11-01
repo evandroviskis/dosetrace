@@ -593,7 +593,7 @@ as $$
     'language', case when lower(left(u.raw_user_meta_data->>'language', 2)) in ('en', 'es', 'pt', 'fr', 'de', 'it')
                      then lower(left(u.raw_user_meta_data->>'language', 2)) end,
     'silent', coalesce(u.raw_user_meta_data->>'silent_mode', '') = 'true',
-    'tokens', coalesce((select jsonb_agg(jsonb_build_object('token', p.expo_token, 'platform', lower(coalesce(p.platform, ''))) order by p.updated_at desc)
+    'tokens', coalesce((select jsonb_agg(jsonb_build_object('token', p.expo_token, 'platform', lower(coalesce(p.platform, '')), 'app_version', to_jsonb(p)->>'app_version') order by p.updated_at desc)
                           from public.push_tokens p where p.user_id = u.id
                            and not exists (select 1 from public.push_tokens q where q.expo_token = p.expo_token and q.user_id <> u.id and q.updated_at > p.updated_at)), '[]'::jsonb),
     'history', coalesce((select jsonb_agg(to_jsonb(h) order by h.created_at desc) from (
