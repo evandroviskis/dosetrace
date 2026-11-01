@@ -65,7 +65,7 @@ import SyringeScale from './components/SyringeScale';
 import { startNewVial, vialPastWindow, vialAlertTarget } from '../lib/newVial';
 import NewVialPrompt from './components/NewVialPrompt';
 import { supplyState } from '../lib/supplyLow';
-import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor } from '../lib/vialExpiry';
+import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor, boxDaysLeft } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
@@ -1899,7 +1899,7 @@ export default function TodayScreen() {
           daysLeft = daysUntilExpiry(v.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
         } else if (v.expires_on) {
           // Journey 2026-10-27 (F2): the box date is the last good day (expired from the next day).
-          daysLeft = Math.ceil((new Date(v.expires_on + 'T00:00:00').getTime() + 86400000 - nowMs) / 86400000);
+          daysLeft = boxDaysLeft(v.expires_on, new Date(nowMs));
         }
         if (daysLeft != null && daysLeft <= VIAL_EXPIRY_SOON_DAYS) {
           exp.push({ name: p.compound_id ? t(p.compound_id) : p.name, daysLeft, protocolId: p.id });
