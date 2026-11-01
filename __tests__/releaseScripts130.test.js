@@ -48,7 +48,8 @@ test('Play promote: release name from app.json, production, completed, full roll
 });
 
 test('ASC submit: AFTER_APPROVAL, no phased release created, read-only unless --write/--submit', () => {
-  assert.match(ASC_SRC, /RELEASE_TYPE = 'AFTER_APPROVAL'/);
+  // AFTER_APPROVAL by default; --manual (founder 2026-11-01) holds the approved version for a manual release.
+  assert.match(ASC_SRC, /RELEASE_TYPE = process\.argv\.includes\('--manual'\) \? 'MANUAL' : 'AFTER_APPROVAL'/);
   assert.match(ASC_SRC, /attributes: \{ platform: 'IOS', versionString: VERSION, releaseType: RELEASE_TYPE \}/);
   assert.match(ASC_SRC, /releaseType: RELEASE_TYPE, earliestReleaseDate: null/);
   assert.doesNotMatch(ASC_SRC, /'POST', '\/v1\/appStoreVersionPhasedReleases'/, 'never creates a phased release');

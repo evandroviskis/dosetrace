@@ -28,7 +28,9 @@ if (!BUILD_VERSION || !/^\d+$/.test(BUILD_VERSION)) {
 }
 const SUBMIT = process.argv.includes('--submit');
 const WRITE = SUBMIT || process.argv.includes('--write');
-const RELEASE_TYPE = 'AFTER_APPROVAL';
+// --manual (founder 2026-11-01, 1.3.1): the version waits for a manual release after approval, so the founder can check
+// the same binary on his iPhone (Early Birds) first. Default stays AFTER_APPROVAL.
+const RELEASE_TYPE = process.argv.includes('--manual') ? 'MANUAL' : 'AFTER_APPROVAL';
 const p8 = require('./ascKey.cjs').readKey();
 
 // What's New from release-notes/<version>.json (made from the "ios" block of
