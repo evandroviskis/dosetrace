@@ -100,3 +100,13 @@ test('DV-112: the words in 6 languages (pt as in the picture)', () => {
     assert.match(translations[l].settings_sub_plan, /\{premium\}[\s\S]*\{plan\}/, l);
   }
 });
+
+test('DV-112: a billing problem wins over "cancelled" — RevenueCat may report willRenew false while a payment fails', () => {
+  const { subscriptionStatusFrom, subscriptionCard } = require('../lib/subscriptionStatus');
+  const billing = live({ willRenew: false, billingIssueDetectedAt: '2027-10-12T16:00:00Z' });
+  assert.equal(subscriptionStatusFrom(billing).state, 'billing');
+  assert.equal(subscriptionStatusFrom({ ...billing, unsubscribeDetectedAt: '2027-10-12T17:00:00Z' }).state, 'billing');
+  const line = subscriptionCard(subscriptionStatusFrom(billing), tOf('pt'), () => '12 de out. de 2027').line;
+  assert.equal(line, translations.pt.settings_sub_billing.replace('{date}', '12 de out. de 2027'));
+  assert.doesNotMatch(line, /Cancelada/);
+});
