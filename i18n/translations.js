@@ -513,6 +513,8 @@ export const translations = {
     protocols_restart_dup_body: "You already have an active {name} protocol. Resuming creates another one, with duplicate reminders.",
     protocols_restart_dup_go: "Resume anyway",
     curve_ended_marker: 'ended',
+    curve_ended_on: 'ended {date}', // curve picker/legend: two runs of one compound ({date}: the app's short date)
+    curve_started_on: 'started {date}',
     protocols_deleted_ago: 'Deleted {days}d ago',
     protocols_deleted_today: 'Deleted today',
     protocols_restore: 'Restore',
@@ -3195,6 +3197,8 @@ export const translations = {
     protocols_restart_dup_body: "Ya tienes un protocolo activo de {name}. Reanudar crea otro, con recordatorios duplicados.",
     protocols_restart_dup_go: "Reanudar de todos modos",
     curve_ended_marker: 'finalizado',
+    curve_ended_on: 'finalizado el {date}', // curve picker/legend: two runs of one compound ({date}: the app's short date)
+    curve_started_on: 'iniciado el {date}',
     protocols_deleted_ago: 'Eliminado hace {days}d',
     protocols_deleted_today: 'Eliminado hoy',
     protocols_restore: 'Restaurar',
@@ -5877,6 +5881,8 @@ export const translations = {
     protocols_restart_dup_body: "Você já tem um protocolo ativo de {name}. Retomar cria outro, com lembretes duplicados.",
     protocols_restart_dup_go: "Retomar mesmo assim",
     curve_ended_marker: 'encerrado',
+    curve_ended_on: 'encerrado em {date}', // curve picker/legend: two runs of one compound ({date}: the app's short date)
+    curve_started_on: 'iniciado em {date}',
     protocols_deleted_ago: 'Excluído há {days}d',
     protocols_deleted_today: 'Excluído hoje',
     protocols_restore: 'Restaurar',
@@ -8558,6 +8564,8 @@ export const translations = {
     protocols_restart_dup_body: "Vous avez déjà un protocole actif de {name}. Le reprendre en crée un autre, avec des rappels en double.",
     protocols_restart_dup_go: "Reprendre quand même",
     curve_ended_marker: 'terminé',
+    curve_ended_on: 'terminé le {date}', // curve picker/legend: two runs of one compound ({date}: the app's short date)
+    curve_started_on: 'commencé le {date}',
     protocols_deleted_ago: 'Supprimé il y a {days} j',
     protocols_deleted_today: 'Supprimé aujourd’hui',
     protocols_restore: 'Restaurer',
@@ -11239,6 +11247,8 @@ export const translations = {
     protocols_restart_dup_body: "Du hast schon ein aktives Protokoll für {name}. Fortsetzen legt ein zweites an, mit doppelten Erinnerungen.",
     protocols_restart_dup_go: "Trotzdem fortsetzen",
     curve_ended_marker: 'beendet',
+    curve_ended_on: 'beendet am {date}', // curve picker/legend: two runs of one compound ({date}: the app's short date)
+    curve_started_on: 'begonnen am {date}',
     protocols_deleted_ago: 'Vor {days} T. gelöscht',
     protocols_deleted_today: 'Heute gelöscht',
     protocols_restore: 'Wiederherstellen',
@@ -13921,6 +13931,8 @@ export const translations = {
     protocols_restart_dup_body: "Hai già un protocollo attivo di {name}. Riprenderlo ne crea un altro, con promemoria doppi.",
     protocols_restart_dup_go: "Riprendi comunque",
     curve_ended_marker: 'terminato',
+    curve_ended_on: 'terminato il {date}', // curve picker/legend: two runs of one compound ({date}: the app's short date)
+    curve_started_on: 'iniziato il {date}',
     protocols_deleted_ago: 'Eliminato {days}g fa',
     protocols_deleted_today: 'Eliminato oggi',
     protocols_restore: 'Ripristina',

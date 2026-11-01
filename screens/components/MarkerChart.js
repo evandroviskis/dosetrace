@@ -25,7 +25,7 @@ import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
 import { formatDate } from '../../lib/localeFormat';
 import { chartPoints, labNumberText } from '../../lib/labValue';
-import { unitSeries, dateDomain, dateX, labelledIndexes } from '../../lib/markerChart';
+import { unitSeries, dateDomain, dateX, distinctDates, labelPlan, labelPos } from '../../lib/markerChart';
 
 const H_ONE = 170;    // drawing height of the one chart (prototype 326 × 170)
 const H_SMALL = 128;  // each small chart when the marker has several units (picture: ~3/4 height)
@@ -62,9 +62,11 @@ export default function MarkerChart({ points, unit, language = 'en', width }) {
       lo -= pad; hi += pad;
       const Y = (v) => BOTTOM - ((v - lo) / (hi - lo)) * (BOTTOM - TOP);
       const xy = s.points.map(p => ({ x: dateX(p.date, from, to, L, R), y: Y(p.value), value: p.value, qualifier: p.qualifier, date: p.date }));
-      // Many readings: label the newest, then every point far enough from the last label.
-      const labelled = labelledIndexes(xy.map(p => p.x), MIN_LABEL_GAP);
-      return { unit: s.unit, H, xy, guides: [TOP, (TOP + BOTTOM) / 2, BOTTOM], labelled };
+      // Every point keeps its label, also when two readings share a date (one above, one under its
+      // point, the date once); many dates: the newest, then every date far enough from the last label.
+      const plan = labelPlan(xy.map(p => ({ x: p.x, y: p.y })), MIN_LABEL_GAP);
+      // A line only joins readings of 2+ different days (one day: its points, never a vertical line).
+      return { unit: s.unit, H, xy, guides: [TOP, (TOP + BOTTOM) / 2, BOTTOM], plan, line: distinctDates(s.points) >= 2 };
     });
   }, [drawn, unit, W]);
 
@@ -82,7 +84,7 @@ export default function MarkerChart({ points, unit, language = 'en', width }) {
             {c.guides.map((y, i) => (
               <Line key={`g${i}`} x1={SIDE} x2={W - SIDE} y1={y} y2={y} stroke={colors.line} strokeWidth={1} strokeDasharray="2 3" />
             ))}
-            {c.xy.length > 1 && (
+            {c.line && (
               <Polyline
                 points={c.xy.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}
                 fill="none"
@@ -95,12 +97,17 @@ export default function MarkerChart({ points, unit, language = 'en', width }) {
             {c.xy.map((p, i) => (
               <Circle key={`p${i}`} cx={p.x} cy={p.y} r={4.5} fill={colors.data} />
             ))}
-            {c.xy.map((p, i) => (c.labelled.has(i) ? (
-              <SvgText key={`v${i}`} x={p.x} y={p.y - 10} textAnchor="middle" fontFamily={MONO['500']} fontSize={11} fill={colors.ink}>
-                {labNumberText(p, language)}
-              </SvgText>
-            ) : null))}
-            {c.xy.map((p, i) => (c.labelled.has(i) ? (
+            {c.xy.map((p, i) => {
+              if (!c.plan[i].value) return null;
+              // A-203: the number as the readings list writes it, with its sign ("< 0,01").
+              const at = labelPos(p, c.plan[i].value);
+              return (
+                <SvgText key={`v${i}`} x={at.x} y={at.y} textAnchor={at.anchor} fontFamily={MONO['500']} fontSize={11} fill={colors.ink}>
+                  {labNumberText(p, language)}
+                </SvgText>
+              );
+            })}
+            {c.xy.map((p, i) => (c.plan[i].date ? (
               <SvgText key={`d${i}`} x={p.x} y={c.H - 8} textAnchor="middle" fontSize={11} fill={colors.ink3}>
                 {shortDate(p.date, language)}
               </SvgText>

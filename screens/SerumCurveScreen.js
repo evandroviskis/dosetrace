@@ -27,11 +27,10 @@ import { AnimatedNumber, clamp01, eOutQuad, eInOutSine, eOutCubic, invInOutSine,
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getHistoryProtocols, getBiomarkers, getLogsSince } from '../lib/database';
-import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { parseDecimal } from '../lib/doseMath';
 import {
-  STEP_HOURS, matchName, seriesName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
+  STEP_HOURS, matchName, seriesName, compoundName, curveLabels, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, displayScale, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
@@ -358,9 +357,8 @@ export default function SerumCurveScreen({ embedded = false }) {
     // past only (lib/schedule stops at the end), named "· ended".
     const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(userId)), t);
     const { iu, noData, noDose, oral } = split;
-    const protocols = split.active.map((p) => (isEnded(p)
-      ? { ...p, __label: `${seriesName(p, t)} · ${t('curve_ended_marker')}` }
-      : p));
+    // Same-named rows (two runs of one compound) carry their own dates (lib/serumModel curveLabels).
+    const protocols = curveLabels(split.active, { t, language });
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(userId) || [];
     const labDates = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
@@ -541,6 +539,7 @@ export default function SerumCurveScreen({ embedded = false }) {
         id: p.id,
         p,
         name: seriesName(p, t),
+        compound: compoundName(p, t),
         color: displayColor(p.color) || colors.data,
         fromBlend: !!p.__blend,
         entry,
@@ -833,8 +832,10 @@ export default function SerumCurveScreen({ embedded = false }) {
   const isFastNote = (ser) => !(ser.entry.substance && ser.entry.hours >= 24) && ser.entry.hours < STEP_HOURS;
   // Founder 2026-11-01 (option A): a compound with no human study is named under the chart, with where its
   // estimate comes from; in a chart in days, why its line falls to zero within hours (lib/curveEvidence).
-  const noStudy = model && model.max > 0 ? noStudyWarning(model.series, { hourMode, t }) : null;
-  const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote).map((ser) => ({ id: ser.id, text: t('curve_fast_note').replace('{names}', ser.name) })) : [];
+  const noStudy = model ? noStudyWarning(model.series, { hourMode, t }) : null; // also on an empty chart (no dose in the window)
+  const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote)
+    .filter((ser, i, all) => all.findIndex((o) => o.compound === ser.compound) === i) // a compound once, by its own name
+    .map((ser) => ({ id: ser.id, text: t('curve_fast_note').replace('{names}', ser.compound) })) : [];
 
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
 

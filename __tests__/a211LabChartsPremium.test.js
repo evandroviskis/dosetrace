@@ -13,12 +13,12 @@ const body = read('screens/BodyScreen.js');
 const detail = body.slice(body.indexOf('function renderMarkerDetail('), body.indexOf('function renderScanUsage('));
 
 test('A-211: the marker chart draws only for Premium', () => {
-  assert.match(detail, /chartCount >= 2 && premium === true \? \(\s*<MarkerChart /);
+  assert.match(detail, /chartable && premium === true \? \(\s*<MarkerChart /);
   assert.equal((body.match(/<MarkerChart /g) || []).length, 1, 'the chart is drawn in one place only');
 });
 
 test('A-211: a free account sees the locked chart tile, which opens the labs preview (not the Paywall)', () => {
-  assert.match(detail, /chartCount >= 2 && premium === false \? \(\s*<TouchableOpacity[^>]*onPress=\{\(\) => setPreviewKey\('labs'\)\}/);
+  assert.match(detail, /chartable && premium === false \? \(\s*<TouchableOpacity[^>]*onPress=\{\(\) => setPreviewKey\('labs'\)\}/);
   const tile = detail.slice(detail.indexOf("premium === false ? ("), detail.indexOf("premium === false ? (") + 1200);
   assert.doesNotMatch(tile, /Paywall/);
   assert.match(tile, /t\('pw_prev_labs_title'\)/);
@@ -28,7 +28,7 @@ test('A-211: a free account sees the locked chart tile, which opens the labs pre
 
 test('A-211: the latest value, the "add another test" line and every reading stay free', () => {
   assert.match(detail, /labNumberText\(markerDetail\.latest, language\)/);
-  assert.match(detail, /chartCount === 1 \? \(\s*<Text style=\{s\.sec\}>\{t\('blood_need_more'\)\}/);
+  assert.match(detail, /!chartable && chartCount >= 1 \? \(\s*<Text style=\{s\.sec\}>\{t\('blood_need_more'\)\}/);
   assert.match(detail, /markerDetail\.points\.slice\(\)\.reverse\(\)\.map\(/);
 });
 
