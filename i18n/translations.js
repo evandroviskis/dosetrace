@@ -1702,7 +1702,7 @@ export const translations = {
     pw_free_sync: 'Cloud backup & sync',
     pw_prem_scan_full: "Lab, vaccine & vial scans — photo or PDF, any language",
     pw_prem_pdf: 'PDF export for your doctor',
-    pw_prem_reality: 'Reality check & progress tracking',
+    pw_prem_reality: "Reality-check results", // DV-186 / AD-64: only the result is Premium
     paywall_feat_2: 'Cloud backup — never lose your data',
     paywall_feat_3: 'Multi-device sync',
     paywall_feat_4: 'Unlimited protocols',
@@ -2608,7 +2608,7 @@ export const translations = {
     ap_label_quota: "This month's label scans are used up. You can type it instead.",
     ap_err_offline: "I can't connect right now. You can continue in the form — everything you answered is kept.",
     ap_err_service: "The AI isn't available right now. You can continue in the form — everything you answered is kept.",
-    ap_err_quota: "You've used AI help {limit} times this week. It is available again on {date}. You can still fill in the form yourself.",
+    ap_err_quota: "You've used AI help {limit} times in the last 7 days. It is available again on {date}. You can still fill in the form yourself.", // DV-192: a rolling 7 days
     ap_err_quota_nodate: "You've used AI help {limit} times this week. You can still fill in the form yourself.",
     ap_syr_title: "Syringe size",
     ap_syr_group_insulin: "Insulin syringes · marked in units",
@@ -4335,7 +4335,7 @@ export const translations = {
     pw_free_sync: 'Copia y sincronización en la nube',
     pw_prem_scan_full: "Escaneos de análisis, vacunas y viales: foto o PDF, cualquier idioma",
     pw_prem_pdf: 'Exportar PDF para tu médico',
-    pw_prem_reality: 'Tus cifras reales y tu progreso',
+    pw_prem_reality: "Resultado de tus cifras reales", // DV-186 / AD-64: only the result is Premium
     paywall_feat_2: 'Copia de seguridad en la nube: nunca pierdas tus datos',
     paywall_feat_3: 'Sincronización entre dispositivos',
     paywall_feat_4: 'Protocolos ilimitados',
@@ -5241,7 +5241,7 @@ export const translations = {
     ap_label_quota: 'Ya has usado las lecturas de etiqueta de este mes. Puedes escribirlo.',
     ap_err_offline: 'No puedo conectarme ahora. Puedes seguir en el formulario: todo lo que has respondido se conserva.',
     ap_err_service: 'La IA no está disponible ahora. Puedes seguir en el formulario: todo lo que has respondido se conserva.',
-    ap_err_quota: "Has usado la ayuda de la IA {limit} veces esta semana. Vuelve a estar disponible el {date}. Puedes seguir rellenando el formulario tú mismo.",
+    ap_err_quota: "Has usado la ayuda de la IA {limit} veces en los últimos 7 días. Vuelve a estar disponible el {date}. Puedes seguir rellenando el formulario tú mismo.", // DV-192: a rolling 7 days
     ap_err_quota_nodate: "Has usado la ayuda de la IA {limit} veces esta semana. Puedes seguir rellenando el formulario tú mismo.",
     ap_syr_title: "Tamaño de jeringa",
     ap_syr_group_insulin: "Jeringas de insulina · marcadas en unidades",
@@ -6968,7 +6968,7 @@ export const translations = {
     pw_free_sync: 'Backup e sincronização na nuvem',
     pw_prem_scan_full: "Leituras de exames, vacinas e frascos — foto ou PDF, qualquer idioma",
     pw_prem_pdf: 'Exportação em PDF para seu médico',
-    pw_prem_reality: 'Seus números reais e seu progresso',
+    pw_prem_reality: "Resultado dos seus números reais", // DV-186 / AD-64: only the result is Premium
     paywall_feat_2: 'Backup em nuvem — nunca perca seus dados',
     paywall_feat_3: 'Sincronização em vários dispositivos',
     paywall_feat_4: 'Protocolos ilimitados',
@@ -7874,7 +7874,7 @@ export const translations = {
     ap_label_quota: "As leituras de rótulo deste mês acabaram. Você pode digitar.",
     ap_err_offline: "Não consigo me conectar agora. Você pode continuar no formulário — tudo o que você respondeu fica guardado.",
     ap_err_service: "A IA não está disponível agora. Você pode continuar no formulário — tudo o que você respondeu fica guardado.",
-    ap_err_quota: "Você usou a ajuda da IA {limit} vezes nesta semana. Ela volta a ficar disponível em {date}. Você ainda pode preencher o formulário.",
+    ap_err_quota: "Você usou a ajuda da IA {limit} vezes nos últimos 7 dias. Ela volta a ficar disponível em {date}. Você ainda pode preencher o formulário.", // DV-192: a rolling 7 days
     ap_err_quota_nodate: "Você usou a ajuda da IA {limit} vezes nesta semana. Você ainda pode preencher o formulário.",
     ap_syr_title: "Tamanho da seringa",
     ap_syr_group_insulin: "Seringas de insulina · marcadas em unidades",
@@ -9600,7 +9600,7 @@ export const translations = {
     pw_free_sync: 'Sauvegarde et synchro cloud',
     pw_prem_scan_full: 'Scans d’analyses, vaccins et flacons — photo ou PDF, toutes langues',
     pw_prem_pdf: 'Export PDF pour votre médecin',
-    pw_prem_reality: 'Vos vrais chiffres et votre progression',
+    pw_prem_reality: "Résultat de vos vrais chiffres", // DV-186 / AD-64: only the result is Premium
     paywall_feat_2: 'Sauvegarde cloud — ne perdez jamais vos données',
     paywall_feat_3: 'Synchronisation multi-appareils',
     paywall_feat_4: 'Protocoles illimités',
@@ -10506,7 +10506,7 @@ export const translations = {
     ap_label_quota: "Les lectures d'étiquette de ce mois sont épuisées. Vous pouvez l'écrire.",
     ap_err_offline: "Je ne peux pas me connecter pour l'instant. Vous pouvez continuer dans le formulaire — tout ce que vous avez répondu est conservé.",
     ap_err_service: "L'IA n'est pas disponible pour l'instant. Vous pouvez continuer dans le formulaire — tout ce que vous avez répondu est conservé.",
-    ap_err_quota: "Vous avez utilisé l'aide de l'IA {limit} fois cette semaine. Elle sera de nouveau disponible le {date}. Vous pouvez toujours remplir le formulaire vous-même.",
+    ap_err_quota: "Vous avez utilisé l'aide de l'IA {limit} fois au cours des 7 derniers jours. Elle sera de nouveau disponible le {date}. Vous pouvez toujours remplir le formulaire vous-même.", // DV-192: a rolling 7 days
     ap_err_quota_nodate: "Vous avez utilisé l'aide de l'IA {limit} fois cette semaine. Vous pouvez toujours remplir le formulaire vous-même.",
     ap_syr_title: "Taille de la seringue",
     ap_syr_group_insulin: "Seringues à insuline · graduées en unités",
@@ -12232,7 +12232,7 @@ export const translations = {
     pw_free_sync: 'Cloud-Backup & Sync',
     pw_prem_scan_full: 'Labor-, Impf- & Fläschchen-Scans – Foto oder PDF, jede Sprache',
     pw_prem_pdf: 'PDF-Export für deinen Arzt',
-    pw_prem_reality: 'Deine echten Zahlen & dein Fortschritt',
+    pw_prem_reality: "Ergebnis deiner echten Zahlen", // DV-186 / AD-64: only the result is Premium
     paywall_feat_2: 'Cloud-Backup – deine Daten gehen nie verloren',
     paywall_feat_3: 'Synchronisierung auf mehreren Geräten',
     paywall_feat_4: 'Unbegrenzte Protokolle',
@@ -13138,7 +13138,7 @@ export const translations = {
     ap_label_quota: "Die Etikett-Scans dieses Monats sind aufgebraucht. Du kannst es stattdessen eintippen.",
     ap_err_offline: "Ich kann gerade keine Verbindung herstellen. Du kannst im Formular weitermachen – alles, was du geantwortet hast, bleibt erhalten.",
     ap_err_service: "Die KI ist gerade nicht verfügbar. Du kannst im Formular weitermachen – alles, was du geantwortet hast, bleibt erhalten.",
-    ap_err_quota: "Du hast die KI-Hilfe diese Woche {limit}-mal genutzt. Ab {date} ist sie wieder verfügbar. Das Formular kannst du weiterhin selbst ausfüllen.",
+    ap_err_quota: "Du hast die KI-Hilfe in den letzten 7 Tagen {limit}-mal genutzt. Ab {date} ist sie wieder verfügbar. Das Formular kannst du weiterhin selbst ausfüllen.", // DV-192: a rolling 7 days
     ap_err_quota_nodate: "Du hast die KI-Hilfe diese Woche {limit}-mal genutzt. Das Formular kannst du weiterhin selbst ausfüllen.",
     ap_syr_title: "Spritzengröße",
     ap_syr_group_insulin: "Insulinspritzen · in Einheiten markiert",
@@ -14865,7 +14865,7 @@ export const translations = {
     pw_free_sync: 'Backup e sincronizzazione cloud',
     pw_prem_scan_full: "Scansioni di analisi, vaccini e flaconi — foto o PDF, qualsiasi lingua",
     pw_prem_pdf: 'Esportazione PDF per il tuo medico',
-    pw_prem_reality: 'I tuoi numeri reali e i tuoi progressi',
+    pw_prem_reality: "Risultato dei tuoi numeri reali", // DV-186 / AD-64: only the result is Premium
     paywall_feat_2: 'Backup cloud — non perderai mai i tuoi dati',
     paywall_feat_3: 'Sincronizzazione multi-dispositivo',
     paywall_feat_4: 'Protocolli illimitati',
@@ -15771,7 +15771,7 @@ export const translations = {
     ap_label_quota: 'Hai esaurito le scansioni di etichette di questo mese. Puoi scriverlo tu.',
     ap_err_offline: "Non riesco a connettermi adesso. Puoi continuare nel modulo: tutto quello che hai risposto resta.",
     ap_err_service: "L'IA non è disponibile adesso. Puoi continuare nel modulo: tutto quello che hai risposto resta.",
-    ap_err_quota: "Hai usato l'aiuto dell'IA {limit} volte questa settimana. Torna disponibile il {date}. Puoi comunque compilare il modulo da solo.",
+    ap_err_quota: "Hai usato l'aiuto dell'IA {limit} volte negli ultimi 7 giorni. Torna disponibile il {date}. Puoi comunque compilare il modulo da solo.", // DV-192: a rolling 7 days
     ap_err_quota_nodate: "Hai usato l'aiuto dell'IA {limit} volte questa settimana. Puoi comunque compilare il modulo da solo.",
     ap_syr_title: "Dimensione della siringa",
     ap_syr_group_insulin: "Siringhe da insulina · graduate in unità",
