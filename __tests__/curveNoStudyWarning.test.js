@@ -50,7 +50,7 @@ test('the warning: names, basis, plural, and the days clause only in a mixed cha
 
 test('wired under the chart, attention colour with the warning triangle', () => {
   const src = read('screens/SerumCurveScreen.js');
-  assert.match(src, /const noStudy = model && model\.max > 0 \? noStudyWarning\(model\.series, \{ hourMode, t \}\) : null;/);
+  assert.match(src, /const noStudy = model \? noStudyWarning\(model\.series, \{ hourMode, t \}\) : null;/);
   assert.match(src, /<FeatureIcon name="warning" size=\{16\} color=\{colors\.attention\} \/>/);
   assert.ok(src.indexOf('{noStudy ? (') < src.indexOf('<View style={s.legendKeys}>'), 'between the axis and the legend keys');
 });

@@ -834,7 +834,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const isFastNote = (ser) => !(ser.entry.substance && ser.entry.hours >= 24) && ser.entry.hours < STEP_HOURS;
   // Founder 2026-11-01 (option A): a compound with no human study is named under the chart, with where its
   // estimate comes from; in a chart in days, why its line falls to zero within hours (lib/curveEvidence).
-  const noStudy = model && model.max > 0 ? noStudyWarning(model.series, { hourMode, t }) : null;
+  const noStudy = model ? noStudyWarning(model.series, { hourMode, t }) : null; // also on an empty chart (no dose in the window)
   const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote)
     .filter((ser, i, all) => all.findIndex((o) => o.compound === ser.compound) === i) // a compound once, by its own name
     .map((ser) => ({ id: ser.id, text: t('curve_fast_note').replace('{names}', ser.compound) })) : [];
