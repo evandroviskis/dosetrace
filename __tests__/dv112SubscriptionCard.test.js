@@ -18,7 +18,7 @@ const live = (o = {}) => ({ reachable: true, premium: true, expiresAt: UNTIL, st
 
 test('DV-112: the store answer → plan and state', () => {
   const { subscriptionStatusFrom } = require('../lib/subscriptionStatus');
-  assert.deepEqual(subscriptionStatusFrom(live()), { plan: 'annual', state: 'renews', until: UNTIL });
+  assert.deepEqual(subscriptionStatusFrom(live()), { plan: 'annual', state: 'renews', until: UNTIL, store: 'APP_STORE' });
   assert.equal(subscriptionStatusFrom(live({ productId: 'monthly' })).plan, 'monthly');
   assert.equal(subscriptionStatusFrom(live({ productId: 'yearly:yearly-base', store: 'PLAY_STORE' })).plan, 'annual'); // Play: product:base plan
   assert.equal(subscriptionStatusFrom(live({ periodType: 'TRIAL' })).state, 'trial');
@@ -26,11 +26,11 @@ test('DV-112: the store answer → plan and state', () => {
   assert.equal(subscriptionStatusFrom(live({ willRenew: false })).state, 'cancelled');
   assert.equal(subscriptionStatusFrom(live({ periodType: 'TRIAL', willRenew: false })).state, 'cancelled', 'a cancelled trial ends: it says so');
   assert.equal(subscriptionStatusFrom(live({ billingIssueDetectedAt: '2027-10-12T16:00:00Z' })).state, 'billing');
-  assert.deepEqual(subscriptionStatusFrom(live({ productId: 'lifetime', expiresAt: null })), { plan: 'lifetime', state: 'lifetime', until: null });
+  assert.deepEqual(subscriptionStatusFrom(live({ productId: 'lifetime', expiresAt: null })), { plan: 'lifetime', state: 'lifetime', until: null, store: 'APP_STORE' });
   // A grant from the team (RevenueCat promotional): access until a date, never "Cancelada".
-  assert.deepEqual(subscriptionStatusFrom(live({ store: 'PROMOTIONAL', productId: 'rc_promo_DoseTrace Pro_monthly', willRenew: false })), { plan: 'promo', state: 'access', until: UNTIL });
+  assert.deepEqual(subscriptionStatusFrom(live({ store: 'PROMOTIONAL', productId: 'rc_promo_DoseTrace Pro_monthly', willRenew: false })), { plan: 'promo', state: 'access', until: UNTIL, store: 'PROMOTIONAL' });
   // Nothing known about the plan (a team account, an offline read): no line, never a made-up one.
-  assert.deepEqual(subscriptionStatusFrom(live({ productId: null, expiresAt: null, store: null })), { plan: null, state: null, until: null });
+  assert.deepEqual(subscriptionStatusFrom(live({ productId: null, expiresAt: null, store: null })), { plan: null, state: null, until: null, store: null });
   assert.equal(subscriptionStatusFrom({ reachable: false }), null);
   assert.equal(subscriptionStatusFrom(live({ premium: false })), null);
   assert.equal(subscriptionStatusFrom(null), null);
@@ -40,13 +40,13 @@ test('DV-112: the card words (pt as in the picture: "Premium Anual" / "Renova em
   const { subscriptionStatusFrom, subscriptionCard } = require('../lib/subscriptionStatus');
   const t = tOf('pt');
   const fmt = () => '12 de out. de 2027';
-  assert.deepEqual(subscriptionCard(subscriptionStatusFrom(live()), t, fmt), { name: 'Premium Anual', line: 'Renova em 12 de out. de 2027', manage: true });
+  assert.deepEqual(subscriptionCard(subscriptionStatusFrom(live()), t, fmt), { name: 'Premium Anual', line: 'Renova em 12 de out. de 2027', manage: true, elsewhere: null });
   assert.equal(subscriptionCard(subscriptionStatusFrom(live({ productId: 'monthly' })), t, fmt).name, 'Premium Mensal');
   assert.equal(subscriptionCard(subscriptionStatusFrom(live({ periodType: 'TRIAL' })), t, fmt).line, 'Teste grátis até 12 de out. de 2027');
   assert.equal(subscriptionCard(subscriptionStatusFrom(live({ willRenew: false })), t, fmt).line, 'Cancelada · acesso até 12 de out. de 2027');
-  assert.deepEqual(subscriptionCard(subscriptionStatusFrom(live({ productId: 'lifetime', expiresAt: null })), t, fmt), { name: 'Premium vitalício', line: null, manage: false });
-  assert.deepEqual(subscriptionCard(subscriptionStatusFrom(live({ store: 'PROMOTIONAL', productId: 'rc_promo_x', willRenew: false })), t, fmt), { name: 'Premium', line: 'Acesso até 12 de out. de 2027', manage: false });
-  assert.deepEqual(subscriptionCard(null, t, fmt), { name: 'Premium', line: null, manage: true });
+  assert.deepEqual(subscriptionCard(subscriptionStatusFrom(live({ productId: 'lifetime', expiresAt: null })), t, fmt), { name: 'Premium vitalício', line: null, manage: false, elsewhere: null });
+  assert.deepEqual(subscriptionCard(subscriptionStatusFrom(live({ store: 'PROMOTIONAL', productId: 'rc_promo_x', willRenew: false })), t, fmt), { name: 'Premium', line: 'Acesso até 12 de out. de 2027', manage: false, elsewhere: null });
+  assert.deepEqual(subscriptionCard(null, t, fmt), { name: 'Premium', line: null, manage: true, elsewhere: null });
   assert.ok(subscriptionCard(subscriptionStatusFrom(live({ billingIssueDetectedAt: 'x' })), t, fmt).line);
 });
 
@@ -67,7 +67,7 @@ test('DV-112: Settings — the subscriber card under the profile, the free card 
   // Premium: the card with plan + state, Manage (when it applies) and Restore.
   assert.match(fn, /if \(premium\) return renderSubscriptionCard\(\);/);
   const sub = src.slice(src.indexOf('function renderSubscriptionCard('), src.indexOf('function renderPremiumCard('));
-  assert.match(sub, /subscriptionCard\(subStatus, t, \(iso\) => formatDate\(new Date\(iso\), language, 'dayMonthYear'\)\)/);
+  assert.match(sub, /subscriptionCard\(subStatus, t, \(iso\) => formatDate\(new Date\(iso\), language, 'dayMonthYear'\), Platform\.OS\)/);
   assert.match(sub, /card\.manage && \(/);
   assert.match(sub, /openURL\(manageSubscriptionsUrl\(Platform\.OS\)\)/);
   assert.match(sub, /t\('settings_manage_subscription'\)/);

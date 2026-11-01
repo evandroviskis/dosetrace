@@ -974,7 +974,7 @@ export default function SettingsScreen({ navigation }) {
   // store, "Gerenciar assinatura" (the store's own subscriptions page; not for lifetime or a team
   // grant) and "Restaurar compras". Rows like the group cards' (theme tokens, both themes).
   function renderSubscriptionCard() {
-    const card = subscriptionCard(subStatus, t, (iso) => formatDate(new Date(iso), language, 'dayMonthYear'));
+    const card = subscriptionCard(subStatus, t, (iso) => formatDate(new Date(iso), language, 'dayMonthYear'), Platform.OS);
     return (
       <View style={s.subCard}>
         <View style={s.row} accessible>
@@ -989,6 +989,12 @@ export default function SettingsScreen({ navigation }) {
             <RowChevron color={colors.tick} />
           </TouchableOpacity>
         )}
+        {/* DV-112 F4: bought in the other store → where to manage it, instead of a button to the wrong store. */}
+        {card.elsewhere ? (
+          <View style={s.row} accessible>
+            <Text style={[s.rowSub, { flex: 1 }]}>{card.elsewhere}</Text>
+          </View>
+        ) : null}
         <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleRestore} disabled={restoring} accessibilityRole="button" accessibilityState={{ busy: restoring }}>
           <Text style={s.rowLabel}>{t('paywall_restore')}</Text>
           {restoring ? <ActivityIndicator color={colors.ink} /> : <RowChevron color={colors.tick} />}
