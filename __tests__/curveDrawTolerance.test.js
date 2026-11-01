@@ -164,9 +164,14 @@ test('a dose spike still draws its exact top, and the fall samples sit on the pl
   const ls = M.lineSamples(doses, 0.25, entry, ctx, H.amountFraction);
   const d = ls.instants.find((x) => x < now);
   const k = ls.times.indexOf(d);
-  assert.ok(Math.abs(ls.points[k] - M.levelAt(doses, 0.25, entry, d)) < 1e-12, 'the top is the exact level');
+  assert.ok(Math.abs(ls.points[k] - M.levelAt(doses, 0.25, entry, d)) < 1e-12, 'the bottom of the rise is the exact level');
+  // Founder 2026-11-01: the top is 3 min after the dose (He 2022, rats IM), a sample at its exact level.
+  const top = d + entry.tmaxHours * 3600e3;
+  const kt = ls.times.indexOf(top);
+  assert.ok(kt > k, 'the peak moment is a sample');
+  assert.ok(Math.abs(ls.points[kt] - M.levelAt(doses, 0.25, entry, top)) < 1e-12, 'the top is the exact level');
   const pxMs = (nSteps * STEP) / PX;
-  const after = ls.decay.filter((t) => t > d && t < d + 4 * 3600e3);
+  const after = ls.decay.filter((t) => t > top && t < d + 4 * 3600e3);
   assert.ok(after.length >= 3, `${after.length} fall samples in the 4 h after the dose`);
   for (const t of after) assert.ok(Math.abs((t - start) / pxMs - Math.round((t - start) / pxMs)) < 1e-6, 'on a pixel edge');
 });

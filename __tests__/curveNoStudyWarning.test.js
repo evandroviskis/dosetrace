@@ -22,12 +22,18 @@ test('every "estimated" entry says where its estimate comes from', () => {
   for (const [, e] of Object.entries(HALF_LIVES)) if (e.tier !== 'estimated') assert.equal(e.basis, undefined);
 });
 
-test('BPC-157 and PDA stay instant: the 3-minute rise of He 2022 changes the peak by ~7% and would break the sample budget (2026-11-01)', () => {
+// Founder 2026-11-01 (option A): BPC-157 and PDA rise to a peak 3 min after the injection (He 2022, rats IM).
+// Pharmacometrician council 2026-11-01: the entry that kept them instant said the rise changes the peak by
+// "~7%" — computed at the old t½ 0.5 h; at 0.25 h the instant peak overstates it by ~13 % (2^(−0.05/0.25)).
+test('BPC-157 and PDA rise to a peak 3 minutes after the injection (He 2022), the instant peak was ~13 % high', () => {
   for (const n of ['BPC-157', 'Pentadeca Arginate']) {
     const e = getHalfLifeEntry(n);
-    assert.equal(e.tmaxHours, undefined, n);
+    assert.equal(e.tmaxHours, 0.05, n);
+    assert.equal(e.tmaxRange, null, n);
     assert.match(e.source, /peak at 3 min/, n);
   }
+  const decisions = read('docs/decisions.md');
+  assert.match(decisions, /not ~7% but ~13%/, 'the ledger corrects the ~7% figure');
 });
 
 test('the warning: names, basis, plural, and the days clause only in a mixed chart in days', () => {

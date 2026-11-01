@@ -104,11 +104,42 @@ for (const [pastDays, futureDays] of [[3, 7], [30, 7], [90, 30], [365, 90]]) {
   });
 }
 
-test('a compound with a modeled rise adds no dose instants; a fast one keeps them', () => {
+test('a compound with a long modeled rise adds no dose instants; a fast one keeps them', () => {
   for (const l of lines(3, 7)) {
-    if (l.entry.tmaxHours) assert.equal(l.instants.length, 0, l.p.name);
+    if (l.entry.tmaxHours >= M.LONG_RISE_HOURS) assert.equal(l.instants.length, 0, l.p.name);
     else assert.ok(l.instants.length >= 4 * 10, `${l.p.name}: every dose of a short window is a sample`);
   }
+});
+
+// Founder 2026-11-01: BPC-157 and Pentadeca Arginate rise to a peak 3 min after the injection (He 2022). Sampling
+// every dose's peak on top of its instant broke the budget on wide windows (BPC-157 90 + 30: 1,691 samples, budget
+// 1,473; 365 + 90: 4,618, budget 2,813). A rise under QUICK_RISE_HOURS sits inside one plot pixel of any window over
+// 30 days (≥ 2.25 h a pixel): there each pixel keeps the PEAK with the highest level (not the dose instant), and the
+// bottom of the rise is the pixel's dip (curveTroughInstants) — no extra sample per dose. ≤ 30 days: every dose and
+// every peak, as for any short rise.
+test('a 3-minute rise past 30 days: one peak per pixel instead of the dose instant, within the budget (BPC-157, PDA)', () => {
+  assert.equal(M.QUICK_RISE_HOURS, 0.1);
+  for (const [pd, fd] of [[90, 30], [365, 90]]) {
+    const ctx = ctxFor(pd, fd);
+    const end = ctx.start + ctx.nSteps * stepMs;
+    for (const name of ['BPC-157', 'Pentadeca Arginate']) {
+      const p = mk(name, '07:00,11:00,15:00,19:00');
+      const entry = H.getHalfLifeEntry(M.matchName(p));
+      const doses = M.scheduledDoses(p, entry, ctx.start, end, now);
+      const s = M.lineSamples(doses, 1, entry, ctx, H.amountFraction);
+      const peaks = new Set(doses.map((d) => d + entry.tmaxHours * 3600e3));
+      assert.ok(s.instants.length > 0 && s.instants.every((t) => peaks.has(t)), `${name} ${pd}+${fd}: the instants are peaks`);
+      assert.ok(s.times.length <= ctx.nSteps + 1 + 3 * PLOT_PX + 2, `${name} ${pd}+${fd}: ${s.times.length} samples`);
+    }
+  }
+  // ≤ 30 days: every dose instant (the bottom) and every peak
+  const ctx = ctxFor(30, 7);
+  const end = ctx.start + ctx.nSteps * stepMs;
+  const p = mk('BPC-157', '07:00,11:00,15:00,19:00');
+  const entry = H.getHalfLifeEntry(M.matchName(p));
+  const doses = M.scheduledDoses(p, entry, ctx.start, end, now).filter((d) => d >= ctx.start && d + 180e3 <= end);
+  const s = M.lineSamples(doses, 1, entry, ctx, H.amountFraction);
+  for (const d of doses) assert.ok(s.times.includes(d) && s.times.includes(d + 180e3), new Date(d).toString());
 });
 
 test('≤ 30 days: every dose instant is kept; > 30 days: at most one per plot pixel', () => {

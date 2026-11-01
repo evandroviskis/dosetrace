@@ -21,7 +21,29 @@ test('six label Tmax values, each solvable, each still drawn by the hour; source
     assert.equal(isShortHalfLife(e), true, `${n}: still hours`);
     assert.match(e.source, /Tmax/, `${n}: the source names its Tmax`);
   }
-  for (const n of ['BPC-157', 'TB-500', 'GHK-Cu', 'Ipamorelin']) assert.equal(getHalfLifeEntry(n).tmaxHours, undefined, `${n}: no source, instant`);
+  for (const n of ['TB-500', 'GHK-Cu', 'Ipamorelin']) assert.equal(getHalfLifeEntry(n).tmaxHours, undefined, `${n}: no source, instant`);
+});
+
+// Founder 2026-11-01 (curve warning, option A): BPC-157 and Pentadeca Arginate rise to a peak 3 min after the
+// injection (He 2022, PMID 36588717, rats IM) — the only published peak time. At t½ 0.25 h an instant peak
+// overstated the top by ~13 % (2^(−0.05/0.25) = 0.871; the "~7 %" of the earlier entry was computed at 0.5 h).
+test('BPC-157 and PDA: a 3-minute rise (rat IM), solvable, peak 0.871 of the dose, still drawn by the hour', () => {
+  const { amountFraction } = require('../lib/halfLives');
+  for (const n of ['BPC-157', 'Pentadeca Arginate']) {
+    const e = getHalfLifeEntry(n);
+    assert.equal(e.tmaxHours, 0.05, n);
+    assert.equal(e.tmaxRange, null, n);
+    const kr = riseRate(e.hours, e.tmaxHours);
+    assert.ok(kr > 0, `${n}: a rise exists`);
+    const kd = Math.LN2 / e.hours;
+    assert.ok(Math.abs(Math.log(kr / kd) / (kr - kd) - 0.05) < 1e-9, `${n}: the rise peaks at 3 min`);
+    assert.ok(Math.abs(amountFraction(e, 0.05) - Math.pow(2, -0.2)) < 1e-9, `${n}: peak 2^(-0.2)`);
+    for (const dt of [0.03, 0.07]) assert.ok(amountFraction(e, dt) < amountFraction(e, 0.05), `${n}: the peak is the top`);
+    assert.equal(isShortHalfLife(e), true, `${n}: still hours`);
+    assert.match(e.source, /peak at 3 min/, n);
+    assert.match(e.source, /~13%/, n);
+    assert.doesNotMatch(e.source, /~7%|drawn as instant/, n);
+  }
 });
 
 test('the note: minutes under an hour, no range when the label gives none (×6); the short note stays visible', () => {

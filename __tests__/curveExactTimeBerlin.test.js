@@ -35,10 +35,11 @@ test('DV-068 Berlin: tile = screen in the 14 days after the EU clock change, for
   }
 });
 
-test('DV-068 Berlin: BPC-157 dosed 1 h ago reads 0.25 × 2^(−4) mg two days after the change', () => {
+// BPC-157 rises to its peak 3 min after the injection (He 2022; founder 2026-11-01): 1 h on, the model's share.
+test('DV-068 Berlin: BPC-157 dosed 1 h ago reads 0.25 mg × its share 1 h on (≈ 2^(−4)) two days after the change', () => {
   const now = new Date(2026, 9, 27, 11, 30).getTime();
   const v = M.estimatedLevelNow(bpc(), now, { logs: takenAtEverySlot([bpc()], now) }).value;
-  assert.ok(Math.abs(v - 0.015625) <= 1e-12, `level ${v}`);
+  assert.ok(Math.abs(v - 0.25 * H.amountFraction(H.getHalfLifeEntry('BPC-157'), 1)) <= 1e-12, `level ${v}`);
 });
 
 test('A-101b / R14 Berlin: a daily 22:00 dose stays at local 22:00 across 2026-10-25, once per day', () => {

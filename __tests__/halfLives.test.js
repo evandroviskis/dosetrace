@@ -128,9 +128,15 @@ test('absorption: Bateman rise where a published Tmax exists, same area as insta
   let area = 0; for (let t = 0; t < 192 * 30; t += 0.5) area += amountFraction(cyp, t + 0.25) * 0.5;
   near(area, cyp.hours / Math.LN2, 0.005);
   // compounds without a Tmax stay instant
+  const tb = HALF_LIVES['TB-500'];
+  assert.equal(amountFraction(tb, 0), 1);
+  assert.equal(amountFraction(tb, -1), 0);
+  // BPC-157 rises to a peak 3 min after the injection (He 2022, rats IM; founder 2026-11-01): 0 at the instant,
+  // 2^(−0.05/0.25) ≈ 0.871 at the peak — the instant peak overstated it by ~13 % (not ~7 %: that was at t½ 0.5 h)
   const bpc = HALF_LIVES['BPC-157'];
-  assert.equal(amountFraction(bpc, 0), 1);
-  assert.equal(amountFraction(bpc, -1), 0);
+  assert.equal(amountFraction(bpc, 0), 0);
+  near(amountFraction(bpc, 0.05), Math.pow(2, -0.2), 1e-9);
+  assert.ok(Math.abs(1 - Math.pow(2, -0.2) - 0.129) < 0.001);
   // only ester/depot entries with a real published Tmax get the rise
   for (const [k, e] of Object.entries(HALF_LIVES)) if (e.tmaxHours) {
     // 2026-10-27: a label that gives only the median (Byetta, Egrifta) has tmaxRange null — never invented.
