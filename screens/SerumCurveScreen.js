@@ -27,11 +27,10 @@ import { AnimatedNumber, clamp01, eOutQuad, eInOutSine, eOutCubic, invInOutSine,
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { getHistoryProtocols, getBiomarkers, getLogsSince } from '../lib/database';
-import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { parseDecimal } from '../lib/doseMath';
 import {
-  STEP_HOURS, matchName, seriesName, compoundName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
+  STEP_HOURS, matchName, seriesName, compoundName, curveLabels, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, displayScale, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
@@ -358,9 +357,8 @@ export default function SerumCurveScreen({ embedded = false }) {
     // past only (lib/schedule stops at the end), named "· ended".
     const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(userId)), t);
     const { iu, noData, noDose, oral } = split;
-    const protocols = split.active.map((p) => (isEnded(p)
-      ? { ...p, __label: `${seriesName(p, t)} · ${t('curve_ended_marker')}` }
-      : p));
+    // Same-named rows (two runs of one compound) carry their own dates (lib/serumModel curveLabels).
+    const protocols = curveLabels(split.active, { t, language });
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(userId) || [];
     const labDates = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
