@@ -320,7 +320,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (!uid) return;
     // FL-47: closing a day with NO food logged — ask first. Only a confirmed
     // "I ate nothing" makes it a 0-kcal day that counts toward the 7 days in a row.
-    const hasFood = (rows || []).some((r) => r && r.entry_date === dayKey && !isMarker(r));
+    // DV-064: a refused / unparsed / too-old row is not food the run counts — still ask.
+    const hasFood = (rows || []).some((r) => r && r.entry_date === dayKey && !isMarker(r) && (r.parse_status === 'done' || r.parse_status === 'pending'));
     if (!hasFood && !opts.confirmed) {
       alert(t('nutri_close_empty_title'), t('nutri_close_empty_msg'), [
         { text: t('cancel'), style: 'cancel' },
