@@ -31,7 +31,7 @@ import RowChevron from '../../components/RowChevron';
 import { fontFamilyFor } from '../../lib/fonts';
 import { pluralKey } from '../../lib/plural';
 
-const CHECK_DAYS = 21;
+const { REALITY_CHECK_DAYS: CHECK_DAYS } = require('../../lib/realityCheckRules'); // DV-147: one owner
 
 // The card's data: today's food rows (from the earliest of today, the reality check's start and
 // the first free day), the access answer and the check's state. Read on focus and, A-146, again
