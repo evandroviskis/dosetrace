@@ -30,7 +30,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, seriesName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, displayScale, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
+  curveWindowDays, curveTicks, axisLabel, displayScale, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
 import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
@@ -620,6 +620,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const winStart = model ? model.start : curveTimeWindow({ hours: hourMode ? hoursChoice : 0, now, pastDays, futureDays }).start;
   const winEnd = curveTimeWindow({ hours: hourMode ? hoursChoice : 0, now, pastDays, futureDays }).end;
   const readoutISO = readoutDate || todayISO();
+  // DV-158 (DL-35): the wheel and the bloodwork chips stop at the oldest date the window reaches.
+  const oldestReadout = curveOldestReadoutISO(todayISO());
+  const labChips = labDates.filter((d) => d >= oldestReadout);
   // DV-068: today reads at THIS moment (same as the Est. level stat); any other date at its own
   // local noon, exact (doses are no longer on the 6 h grid, so neither is the readout).
   const readoutT = readoutMoment(readoutISO, todayISO(), model ? model.now : now);
@@ -1175,11 +1178,11 @@ export default function SerumCurveScreen({ embedded = false }) {
                 </TouchableOpacity>
               </View>
   
-              {labDates.length > 0 && (
+              {labChips.length > 0 && (
                 <>
                   <Text style={s.foot}>{t('curve_readout_lab_hint')}</Text>
                   <View style={s.chips}>
-                    {labDates.map(d => {
+                    {labChips.map(d => {
                       const on = readoutDate === d;
                       return (
                         <TouchableOpacity
@@ -1278,8 +1281,8 @@ export default function SerumCurveScreen({ embedded = false }) {
       {/* "Other date": the prototype wheel in a DoseTrace bottom sheet (part 19). */}
       <DTPickerSheet visible={showReadoutPicker} title={t('curve_readout_title')} doneLabel={t('curve_done')} onDone={() => { if (!readoutDate) setReadoutDate(todayISO()); setShowReadoutPicker(false); }}>
         <DTWheel
-          columns={dateColumns(readoutISO, new Date(), MONTHS_SHORT[language] || MONTHS_SHORT.en)}
-          onChange={(col, i) => setReadoutDate(dateAfter(readoutISO, new Date(), col, i))}
+          columns={dateColumns(readoutISO, new Date(), MONTHS_SHORT[language] || MONTHS_SHORT.en, { minISO: oldestReadout })}
+          onChange={(col, i) => setReadoutDate(dateAfter(readoutISO, new Date(), col, i, { minISO: oldestReadout }))}
         />
       </DTPickerSheet>
 
