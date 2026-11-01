@@ -5,6 +5,7 @@
 // PENDING_DEVELOPER_RELEASE (approved and waiting); any other state stops without writing.
 //   node scripts/asc-release-version.cjs            → shows the state of the app.json version
 //   node scripts/asc-release-version.cjs --release  → releases it to the App Store
+//   node scripts/asc-release-version.cjs --after-approval → a version in review goes live as soon as Apple approves
 const crypto = require('crypto');
 const fs = require('fs');
 const https = require('https');
@@ -15,6 +16,7 @@ const ISSUER = '69a6de85-8f0f-47e3-e053-5b8c7c11a4d1';
 const APP_ID = '6761788157';
 const VERSION = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8')).expo.version;
 const RELEASE = process.argv.includes('--release');
+const AFTER_APPROVAL = process.argv.includes('--after-approval');
 const p8 = require('./ascKey.cjs').readKey();
 
 const b64 = (b) => Buffer.from(b).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -45,6 +47,19 @@ function request(method, p, body) {
   if (!v) { console.error(`no App Store version ${VERSION}`); process.exit(1); }
   const { appStoreState, releaseType } = v.attributes;
   console.log(`App Store ${VERSION}: state ${appStoreState}, releaseType ${releaseType}`);
+  // --after-approval (founder 2026-11-01, "Trocar para automática"): a version still in review switches
+  // from MANUAL to AFTER_APPROVAL, so Apple releases it the moment it is approved.
+  if (AFTER_APPROVAL) {
+    if (!['WAITING_FOR_REVIEW', 'IN_REVIEW', 'PREPARE_FOR_SUBMISSION'].includes(appStoreState)) {
+      console.error(`not changed: the version is ${appStoreState}`);
+      process.exit(1);
+    }
+    const p = await request('PATCH', `/v1/appStoreVersions/${v.id}`, { data: { type: 'appStoreVersions', id: v.id, attributes: { releaseType: 'AFTER_APPROVAL' } } });
+    if (p.s >= 300) { console.error('release type → HTTP ' + p.s, JSON.stringify(p.b, null, 2)); process.exit(1); }
+    const back = await request('GET', `/v1/appStoreVersions/${v.id}?fields[appStoreVersions]=appStoreState,releaseType`);
+    console.log('read back:', JSON.stringify(back.b.data && back.b.data.attributes));
+    return;
+  }
   if (!RELEASE) return;
   if (appStoreState !== 'PENDING_DEVELOPER_RELEASE') {
     console.error(`not released: the version is ${appStoreState}, not PENDING_DEVELOPER_RELEASE (approved and waiting)`);
