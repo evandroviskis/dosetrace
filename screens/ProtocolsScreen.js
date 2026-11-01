@@ -20,6 +20,8 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser, supabase } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
+import { getOfferings, checkTrialEligibility } from '../lib/purchases';
+import { anyTrial } from '../lib/paywallPlans';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
@@ -2428,13 +2430,25 @@ export default function ProtocolsScreen() {
   // Free tier: up to 5 active protocols; premium unlocks unlimited. The gate
   // uses a FRESH DB count (not the possibly-stale `protocols` state) so a rapid
   // second Add right after a save can't slip an extra protocol through.
-  function promptUpgrade() {
+  // DV-126 (AD-49, DL-82): the trial is claimed only when the store offers it to this person (the paywall's rule);
+  // the answer is waited for at most 2.5 s, then the sheet opens without the trial.
+  async function promptUpgrade() {
+    let trial = false;
+    try {
+      const ask = (async () => {
+        const pkgs = await getOfferings();
+        const ids = (pkgs || []).filter((pk) => pk && (pk.packageType === 'MONTHLY' || pk.packageType === 'ANNUAL') && pk.product).map((pk) => pk.product.identifier);
+        const elig = ids.length ? await checkTrialEligibility(ids).catch(() => null) : null;
+        return anyTrial(pkgs, elig, Platform.OS);
+      })();
+      trial = !!(await Promise.race([ask, new Promise((r) => setTimeout(() => r(false), 2500))]));
+    } catch { trial = false; }
     setScreenSheet({
       title: t('protocols_limit_title'),
-      body: t('protocols_limit_msg'),
+      body: t(trial ? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'),
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
-        { label: t('protocols_limit_upgrade'), kind: 'primary', onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
+        { label: t(trial ? 'protocols_limit_upgrade' : 'protocols_limit_upgrade_notrial'), kind: 'primary', onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
       ],
     });
   }
