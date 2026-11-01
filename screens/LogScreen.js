@@ -179,6 +179,21 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     });
   }
 
+  // DV-243 way back: a row marked "No dose was due" by mistake becomes Taken or Skipped through the
+  // same paths as a Missed row (Taken: recordDoseTaken flips THIS row, the vial moves once; Skipped:
+  // the outcome write). Never deleted here.
+  function openNoDoseEditor(log) {
+    setLogSheet({
+      title: t('log_missed_edit_title'),
+      body: t('log_no_dose_edit_msg').replace('{action}', t('log_no_dose')),
+      buttons: [
+        { label: t('log_mark_taken'), kind: 'primary', onPress: () => setMissedOutcome(log, 'Taken') },
+        { label: t('log_mark_skipped'), kind: 'secondary', onPress: () => setMissedOutcome(log, 'Skipped') },
+        { label: t('cancel'), kind: 'secondary' },
+      ],
+    });
+  }
+
   // S-25 (founder 2026-10-01): a Missed injectable changed to Taken is asked where it
   // was injected first (Skip allowed); Cancel leaves it Missed.
   function setMissedOutcome(log, outcome) {
@@ -703,11 +718,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
           return (
             <TouchableOpacity
               style={[s.row, first && s.rowFirst, last && s.rowLast]}
-              onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : openDoseSheet(log)}
+              onPress={() => log.outcome === 'Missed' ? openMissedEditor(log) : log.outcome === NO_DOSE ? openNoDoseEditor(log) : openDoseSheet(log)}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={`${logName(log)}, ${statusWord(log.outcome)}`}
-              accessibilityHint={log.outcome === 'Missed' ? t('log_missed_edit_title') : undefined}
+              accessibilityHint={log.outcome === 'Missed' || log.outcome === NO_DOSE ? t('log_missed_edit_title') : undefined}
             >
               <View style={[s.rowInner, !first && s.rowSep]}>
                 <View style={s.logInfo}>

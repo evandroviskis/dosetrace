@@ -40,7 +40,8 @@ function styleBlock(name) {
 }
 
 test('every Taken / Skipped row opens the dose sheet; a Missed row keeps its editor', () => {
-  assert.match(src, /onPress=\{\(\) => log\.outcome === 'Missed' \? openMissedEditor\(log\) : openDoseSheet\(log\)\}/);
+  // DV-243: a "no dose" row opens its own way-back sheet (__tests__/dv243NoDoseWayBack.test.js).
+  assert.match(src, /onPress=\{\(\) => log\.outcome === 'Missed' \? openMissedEditor\(log\) : log\.outcome === NO_DOSE \? openNoDoseEditor\(log\) : openDoseSheet\(log\)\}/);
   // no more "only injectables are tappable": every row carries the drawn chevron
   assert.doesNotMatch(src, /const tappable =/);
   assert.doesNotMatch(src, /<Text style=\{s\.chev\}>›<\/Text>/);
