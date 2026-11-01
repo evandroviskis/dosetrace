@@ -43,6 +43,7 @@ import {
 import { requestSync, addSyncListener, isOnlineNow, notifyDataChanged } from '../lib/sync';
 import { endProtocolFully } from '../lib/endProtocolFlow';
 import { offlinePendingAlert } from '../lib/offlineAlert';
+import { calendarDaysSince } from '../lib/localDate';
 import { unsyncedCount } from '../lib/recoveryFlow';
 import { TABLES, getPendingChanges } from '../lib/syncCore';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
@@ -792,8 +793,8 @@ export default function TodayScreen() {
         // The stored value is kept and named when the card is drawn, in the language shown then
         // (lastSiteLanguage.test.js): naming it here froze the name in the language of this read.
         if (!hasSavedSite(l.injection_site)) return;
-        const ms = Date.now() - new Date(l.logged_at).getTime();
-        const daysAgo = Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+        // DV-135: calendar days (a dose at 23:00 yesterday is "1 day" this morning, never "today").
+        const daysAgo = calendarDaysSince(l.logged_at);
         out[pid] = { stored: l.injection_site, daysAgo };
       });
       setLastSiteByProtocol(out);
