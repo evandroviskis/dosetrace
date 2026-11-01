@@ -59,3 +59,36 @@ test('Gate B 4: the flush classifies the same way — 429 / 5xx keep the answer 
     assert.ok(!told.includes('refused'));
   }
 });
+
+// ── Finding 3 (LOW): a save that lands while the written answer is being removed is kept ────────
+test('Gate B 3: an answer saved during the flush clear is never erased (memory and phone)', async () => {
+  const base = memStorage();
+  let release;
+  const held = new Promise((r) => { release = r; });
+  let holdNext = false;
+  const storage = {
+    m: base.m,
+    getItem: base.getItem,
+    setItem: async (k, v) => { if (holdNext) { holdNext = false; await held; } return base.setItem(k, v); },
+    removeItem: async (k) => { if (holdNext) { holdNext = false; await held; } return base.removeItem(k); },
+  };
+  const { gate, writes } = makeGate({ storage });
+  await gate.load();
+  await gate.save('u1', { adult_confirmed_at: 'X', birth_year: 1985 });
+  holdNext = true; // the clear after the write waits
+  const flushing = gate.flush();
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  // Meanwhile the profile gate is answered (offline) and kept.
+  const saving = gate.save('u1', { primary_goal: 'recomp' });
+  release();
+  await saving;
+  assert.equal((await flushing).status, 'written');
+  assert.equal(writes.length, 1);
+  const kept = gate.get('u1');
+  assert.ok(kept && kept.patch.primary_goal === 'recomp', 'the newer answer stays in memory');
+  const raw = storage.m.get(G.KEY);
+  assert.ok(raw && raw.includes('recomp'), 'and on the phone');
+  // It is sent with the next flush.
+  assert.equal((await gate.flush()).status, 'written');
+  assert.equal(writes[1].primary_goal, 'recomp');
+});
