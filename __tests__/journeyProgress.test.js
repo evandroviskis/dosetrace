@@ -150,7 +150,8 @@ test('Part 8: the running card: status, start weight, the 7-day rule, "Your real
   const body = src.slice(a, b);
   for (const k of ["t('cal_rc_sb_progress')", "t('nutri_run_progress')", "t('nutri_check_label')", "t('cal_rc_reset')", "t('cal_rc_stop')"]) assert.ok(body.includes(k), k);
   assert.match(body, /<FoodReminderRow \/>/);
-  assert.ok(body.indexOf('<FoodReminderRow />') < body.indexOf("t('cal_rc_reset')"), 'Start over / Stop come after the reminder');
+  // lastIndexOf: the running card's Start over (DV-058: the closed card above it has its own Começar de novo).
+  assert.ok(body.indexOf('<FoodReminderRow />') < body.lastIndexOf("t('cal_rc_reset')"), 'Start over / Stop come after the reminder');
   // The old phase-2 form is gone (Weight now, Kcal/day you ate, See my actual maintenance).
   assert.doesNotMatch(src, /cal_rc_compute|cal_rc_intake'\)|cal_rc_current_weight/);
   assert.doesNotMatch(src, /<NutritionLogger \/>/, 'the Daily intake fold is replaced by "Your reality check so far"');

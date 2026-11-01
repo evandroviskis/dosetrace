@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
 const { makeDb, makeCloud } = require('./helpers/syncHarness');
 const { loadFn, read, sliceBlock } = require('./helpers/extractFn');
 const { pushPending } = require('../lib/syncCore');
-const { typedIntakePatch, typedIntakeFor } = require('../lib/realityCheckRules');
+const { typedIntakePatch, typedIntakeFor, checkAlert, closedCheckShown } = require('../lib/realityCheckRules');
 const { mergeCalcInputs } = require('../lib/realityCheckStore');
 const babel = require('@babel/core');
 
@@ -121,7 +121,8 @@ function renderCard(state) {
     plugins: [['@babel/plugin-transform-react-jsx', { pragma: 'h', pragmaFrag: 'Frag', runtime: 'classic' }]],
   });
   const h = (type, props, ...children) => ({ type, props: props || {}, children });
-  const own = { h, Frag: 'Frag', stopRealityCheck: STOP, t: (k) => k, s: stub, colors: stub, ...state };
+  // DV-058: the card reads the real state rules (checkAlert, closedCheckShown), never stubs.
+  const own = { h, Frag: 'Frag', stopRealityCheck: STOP, t: (k) => k, s: stub, colors: stub, checkAlert, closedCheckShown, rcInputs: null, ...state };
   const scope = new Proxy(own, {
     has: (o, k) => typeof k === 'string' && ((k in o) || !(k in globalThis)),
     get: (o, k) => (k === Symbol.unscopables ? undefined : (k in o ? o[k] : stub)),

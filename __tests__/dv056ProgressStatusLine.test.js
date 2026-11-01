@@ -10,7 +10,7 @@ const path = require('node:path');
 test('DV-056: the status line follows checkAlert', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/components/CalculatorSection.js'), 'utf8');
   const block = src.slice(src.indexOf('// DV-056: the line follows'), src.indexOf('// DV-056: the line follows') + 1600);
-  assert.match(block, /const st = checkAlert\(outcome, foodRun\);/);
+  assert.match(block, /const st = checkAlert\(outcome, foodRun, \{ result: outcomeResult, canSeeResult: rcAccess\.canSeeResult \}\);/); // DV-058
   assert.match(block, /st && st\.body === 'needs_food' \? t\(pluralKey\('today_alert_rc_needs_food', st\.left, language\)\)\.replace\('\{n\}', String\(st\.left\)\)/);
   assert.match(block, /st && st\.body === 'ready' \? t\('cal_rc_sb_ready'\)/);
   const { translations } = require('../i18n/translations');
