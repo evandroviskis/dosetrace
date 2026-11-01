@@ -1500,6 +1500,7 @@ export const translations = {
     vax_delete_title: "Delete vaccine?",
     vax_delete_body: "This removes {name} from your vaccine journal. It cannot be undone.",
     vax_name_first: "Enter the vaccine name first.",
+    vax_due_before_given: "The next dose can’t be before the date given.",
     blood_upload: '+ Upload',
     blood_uploading: 'Reading your lab report…',
     blood_premium_badge: 'Bloodwork scan — Premium feature',
@@ -1676,9 +1677,9 @@ export const translations = {
     blood_review_found_prefix: 'Found',
     blood_review_found_suffix: 'values',
     blood_review_note: 'Review the extracted values below. Tap Save to add them to your bloodwork history.',
-    blood_error_read: 'Could not read the PDF. Please try a different file.',
+    blood_error_read: "Could not read this report. Try again or choose another one.",
     blood_error_extract: 'Extraction failed',
-    blood_error_extract_sub: 'Could not read lab values from this PDF. Make sure it is a standard lab report and try again.',
+    blood_error_extract_sub: "Could not read lab values from this report. Make sure it is a standard lab report and try again.", // DV-160 (5): a photo too, never "PDF"
     blood_error_service: 'Scan service unavailable',
     blood_error_service_sub: "The lab-reading service is temporarily unavailable. Your file is fine — please try again in a little while.",
 
@@ -4132,6 +4133,7 @@ export const translations = {
     vax_delete_title: "¿Eliminar vacuna?",
     vax_delete_body: "Se eliminará {name} de tu diario de vacunas. No se puede deshacer.",
     vax_name_first: "Primero escribe el nombre de la vacuna.",
+    vax_due_before_given: "La próxima dosis no puede ser antes de la fecha de aplicación.",
     blood_upload: '+ Subir',
     blood_uploading: 'Leyendo tu análisis...',
     blood_premium_badge: 'Escaneo de análisis: función Premium',
@@ -4308,9 +4310,9 @@ export const translations = {
     blood_review_found_prefix: 'Se encontraron',
     blood_review_found_suffix: 'valores',
     blood_review_note: 'Revisa los valores encontrados. Toca Guardar para añadirlos a tu historial.',
-    blood_error_read: 'No pudimos leer el PDF. Prueba con otro archivo.',
+    blood_error_read: "No se pudo leer este análisis. Inténtalo de nuevo o elige otro.",
     blood_error_extract: 'No se pudieron extraer los valores',
-    blood_error_extract_sub: 'No pudimos extraer los valores de este PDF. Asegúrate de que sea un análisis de sangre estándar e inténtalo de nuevo.',
+    blood_error_extract_sub: "No se pudieron leer los valores de este análisis. Comprueba que sea un análisis estándar e inténtalo de nuevo.", // DV-160 (5): a photo too, never "PDF"
     blood_error_service: 'Servicio de escaneo no disponible',
     blood_error_service_sub: "El servicio de lectura de análisis no está disponible por ahora. Tu archivo está bien: inténtalo de nuevo en un rato.",
 
@@ -6764,6 +6766,7 @@ export const translations = {
     vax_delete_title: "Excluir vacina?",
     vax_delete_body: "{name} será removida do seu diário de vacinas. Isso não pode ser desfeito.",
     vax_name_first: "Primeiro, digite o nome da vacina.",
+    vax_due_before_given: "A próxima dose não pode ser antes da data de aplicação.",
     blood_upload: '+ Enviar',
     blood_uploading: 'Lendo seu exame...',
     blood_premium_badge: 'Leitura de exames — recurso Premium',
@@ -6940,9 +6943,9 @@ export const translations = {
     blood_review_found_prefix: 'Encontramos',
     blood_review_found_suffix: 'valores',
     blood_review_note: 'Confira os valores encontrados abaixo. Toque em Salvar para adicionar ao seu histórico.',
-    blood_error_read: 'Não conseguimos ler o PDF. Tente outro arquivo.',
+    blood_error_read: "Não foi possível ler este exame. Tente de novo ou escolha outro.",
     blood_error_extract: 'Não foi possível extrair os valores',
-    blood_error_extract_sub: 'Não conseguimos ler os valores deste PDF. Confira se é um exame de sangue padrão e tente novamente.',
+    blood_error_extract_sub: "Não foi possível ler os valores deste exame. Confira se é um exame padrão e tente novamente.", // DV-160 (5): a photo too, never "PDF"
     blood_error_service: 'Serviço de leitura indisponível',
     blood_error_service_sub: "O serviço de leitura de exames está temporariamente indisponível. Seu arquivo está correto — tente novamente daqui a pouco.",
 
@@ -9395,6 +9398,7 @@ export const translations = {
     vax_delete_title: "Supprimer le vaccin ?",
     vax_delete_body: "{name} sera retiré de votre journal de vaccins. Cette action est irréversible.",
     vax_name_first: "Saisissez d'abord le nom du vaccin.",
+    vax_due_before_given: "La prochaine dose ne peut pas être avant la date d’administration.",
     blood_upload: '+ Importer',
     blood_uploading: 'Lecture de votre bilan en cours...',
     blood_premium_badge: 'Scan d’analyses — fonctionnalité Premium',
@@ -9571,9 +9575,9 @@ export const translations = {
     blood_review_found_prefix: 'Nous avons trouvé',
     blood_review_found_suffix: 'valeurs',
     blood_review_note: "Vérifiez les valeurs trouvées ci-dessous. Touchez Enregistrer pour les ajouter à votre historique.",
-    blood_error_read: 'Impossible de lire le PDF. Essayez avec un autre fichier.',
+    blood_error_read: "Impossible de lire ce bilan. Réessayez ou choisissez-en un autre.",
     blood_error_extract: 'Extraction impossible',
-    blood_error_extract_sub: 'Impossible d\'extraire les valeurs de ce PDF. Vérifiez qu\'il s\'agit d\'un bilan sanguin standard et réessayez.',
+    blood_error_extract_sub: "Impossible de lire les valeurs de ce bilan. Vérifiez qu’il s’agit d’un bilan standard et réessayez.", // DV-160 (5): a photo too, never "PDF"
     blood_error_service: 'Service de lecture indisponible',
     blood_error_service_sub: "Le service de lecture des analyses est momentanément indisponible. Votre fichier est correct — réessayez dans un instant.",
 
@@ -12026,6 +12030,7 @@ export const translations = {
     vax_delete_title: "Impfung löschen?",
     vax_delete_body: "{name} wird aus deinem Impf-Tagebuch entfernt. Das lässt sich nicht rückgängig machen.",
     vax_name_first: "Gib zuerst den Namen der Impfung ein.",
+    vax_due_before_given: "Die nächste Dosis kann nicht vor dem Impfdatum liegen.",
     blood_upload: '+ Hochladen',
     blood_uploading: 'Dein Laborbericht wird gelesen...',
     blood_premium_badge: 'Laborbericht-Scan – Premium-Funktion',
@@ -12202,9 +12207,9 @@ export const translations = {
     blood_review_found_prefix: 'Gefunden',
     blood_review_found_suffix: 'Werte',
     blood_review_note: 'Prüfe die ausgelesenen Werte unten. Tippe auf Speichern, um sie zu deinen Blutwerten hinzuzufügen.',
-    blood_error_read: 'Das PDF konnte nicht gelesen werden. Versuch es bitte mit einer anderen Datei.',
+    blood_error_read: "Dieser Befund konnte nicht gelesen werden. Versuche es erneut oder wähle einen anderen.",
     blood_error_extract: 'Auslesen fehlgeschlagen',
-    blood_error_extract_sub: 'Aus diesem PDF konnten keine Laborwerte ausgelesen werden. Prüfe, ob es ein normaler Laborbericht ist, und versuche es erneut.',
+    blood_error_extract_sub: "Die Werte dieses Befunds konnten nicht gelesen werden. Prüfe, ob es ein üblicher Laborbefund ist, und versuche es erneut.", // DV-160 (5): a photo too, never "PDF"
     blood_error_service: 'Scan-Dienst nicht verfügbar',
     blood_error_service_sub: "Der Dienst zum Auslesen der Laborwerte ist vorübergehend nicht verfügbar. Deine Datei ist in Ordnung – versuche es gleich noch einmal.",
 
@@ -14658,6 +14663,7 @@ export const translations = {
     vax_delete_title: "Eliminare il vaccino?",
     vax_delete_body: "{name} verrà rimosso dal tuo diario dei vaccini. L'operazione non può essere annullata.",
     vax_name_first: "Inserisci prima il nome del vaccino.",
+    vax_due_before_given: "La prossima dose non può essere prima della data di somministrazione.",
     blood_upload: '+ Carica',
     blood_uploading: 'Lettura del referto in corso...',
     blood_premium_badge: 'Scansione analisi — funzione Premium',
@@ -14834,9 +14840,9 @@ export const translations = {
     blood_review_found_prefix: 'Trovati',
     blood_review_found_suffix: 'valori',
     blood_review_note: 'Rivedi i valori estratti qui sotto. Tocca Salva per aggiungerli al tuo storico delle analisi.',
-    blood_error_read: 'Impossibile leggere il PDF. Prova con un altro file.',
+    blood_error_read: "Non è stato possibile leggere questo referto. Riprova o scegline un altro.",
     blood_error_extract: 'Estrazione non riuscita',
-    blood_error_extract_sub: 'Non siamo riusciti a estrarre i valori da questo PDF. Assicurati che sia un referto di analisi standard e riprova.',
+    blood_error_extract_sub: "Non è stato possibile leggere i valori di questo referto. Verifica che sia un referto standard e riprova.", // DV-160 (5): a photo too, never "PDF"
     blood_error_service: 'Servizio di lettura non disponibile',
     blood_error_service_sub: "Il servizio di lettura delle analisi è temporaneamente non disponibile. Il tuo file non ha problemi: riprova tra poco.",
 

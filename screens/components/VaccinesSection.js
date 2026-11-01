@@ -192,6 +192,8 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
       if (result.canceled) return;
       const file = result.assets[0];
+      // DV-160 (1): a file over the limit is refused before it is read into memory.
+      if (file.size != null && file.size > MAX_FILE_BYTES) { notice(scanErrorSheet('big', t), true); return; }
       setUploading(true);
       const base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
       if (base64.length > MAX_FILE_BYTES * 1.4) { setUploading(false); notice(scanErrorSheet('big', t), true); return; }
@@ -227,6 +229,8 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
       // whose administration date couldn't be read are dropped (never dated to
       // today) and reported.
       const saved = await persistVaccines(clean);
+      // DV-160 (4): nobody signed in → say so (it said "0 imported").
+      if (saved == null) { notice(scanErrorSheet('signin', t)); return; }
       const dropped = raw.length - clean.length;
       const lines = [t(pluralKey('vax_imported_body', saved, language)).replace('{count}', String(saved))];
       if (dropped > 0) lines.push(t(pluralKey('vax_imported_dropped', dropped, language)).replace('{count}', String(dropped)));
@@ -242,7 +246,7 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
   // number saved. Dates come from each record's date_given.
   async function persistVaccines(list) {
     const user = await getCachedUser();
-    if (!user) return 0;
+    if (!user) return null; // DV-160 (4): not "0 saved" — nobody to save for
     for (const v of list) {
       insertVaccine({
         user_id: user.id, name: v.name, date_given: v.date_given, next_due: v.next_due, notes: v.notes || null,
@@ -296,6 +300,8 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
   async function save() {
     // MB-21: no name → say so (prototype toast), save nothing.
     if (vaccineNameMissing(name)) { showToast(t('vax_name_first')); return; }
+    // DV-160 (2): the next dose cannot come before the date given.
+    if (nextDue && dateGiven && nextDue < dateGiven) { showToast(t('vax_due_before_given')); return; }
     const user = await getCachedUser();
     if (!user) return;
     // dose_number is an integer column — keep only digits, null if empty/invalid.
@@ -570,7 +576,7 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
             onChange={(col, i) => setDateGiven(wheelAfter(dateGiven || today, new Date(), col, i, { ...GIVEN_RANGE, max: today }))}
           />
         </DTPickerSheet>
-        <DTPickerSheet visible={pickerFor === 'due'} title={t('vax_next_due_opt')} doneLabel={t('done')} onDone={() => { if (!nextDue) setNextDue(today); setPickerFor(null); }}>
+        <DTPickerSheet visible={pickerFor === 'due'} title={t('vax_next_due_opt')} doneLabel={t('done')} onDone={() => { setPickerFor(null); /* DV-160 (3): an untouched wheel writes nothing */ }}>
           <DTWheel
             columns={wheelColumns(nextDue || today, new Date(), monthLabels, DUE_RANGE)}
             onChange={(col, i) => setNextDue(wheelAfter(nextDue || today, new Date(), col, i, DUE_RANGE))}
