@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { daysUntilExpiry, expiryColor, parseDateOnly, DEFAULT_VALID_DAYS } = require('../lib/vialExpiry');
+const { daysUntilExpiry, parseDateOnly, DEFAULT_VALID_DAYS } = require('../lib/vialExpiry');
 
 test('daysUntilExpiry: counts down from the mix date + validity window', () => {
   const now = new Date('2024-06-15T10:00:00');
@@ -32,14 +32,6 @@ test('daysUntilExpiry: null on unusable input', () => {
 test('daysUntilExpiry: accepts full ISO timestamps too', () => {
   const now = new Date('2024-06-15T23:00:00');
   assert.equal(daysUntilExpiry('2024-06-15T08:30:00.000Z', 30, now), 30);
-});
-
-test('expiryColor: red ≤3, amber ≤7, green beyond, stone when unknown', () => {
-  assert.equal(expiryColor(2), '#E24B4A');
-  assert.equal(expiryColor(0), '#E24B4A');
-  assert.equal(expiryColor(5), '#BA7517');
-  assert.equal(expiryColor(20), '#1D9E75');
-  assert.equal(expiryColor(null), '#888780');
 });
 
 test('DEFAULT_VALID_DAYS is 30', () => {

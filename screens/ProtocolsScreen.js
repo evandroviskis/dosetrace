@@ -1230,7 +1230,6 @@ export default function ProtocolsScreen() {
   const [vialMonth, setVialMonth] = useState(new Date().getMonth()); // 0-11
   const [vialDay, setVialDay] = useState(String(new Date().getDate()));
   const [vialValidDays, setVialValidDays] = useState(String(DEFAULT_VALID_DAYS));
-  const [totalDoses, setTotalDoses] = useState('');
   const [skipVial, setSkipVial] = useState(false);
   // RTU vial tracking: bottle volume (ml) + the box's printed expiry (month/year)
   const [vialMl, setVialMl] = useState('');
@@ -1603,7 +1602,7 @@ export default function ProtocolsScreen() {
     setStep(1); setIuInput(''); setIuOpen(false); setShowStartPicker(false);
     compositionForRef.current = null;
     setVialMonth(new Date().getMonth()); setVialDay(String(new Date().getDate()));
-    setTotalDoses(''); setSkipVial(false);
+    setSkipVial(false);
     setVialScanning(false); setVialScanned(false);
     setEditingId(null); setSearchQuery(''); setShowSuggestions(false);
     touchedRef.current = new Set(); setVisitedStep(1);
@@ -2427,7 +2426,7 @@ export default function ProtocolsScreen() {
   }
 
 
-  // Free tier: up to 5 active protocols; premium unlocks unlimited. The gate
+  // Free tier: up to FREE_PROTOCOL_LIMIT (3) active protocols; premium unlocks unlimited. The gate
   // uses a FRESH DB count (not the possibly-stale `protocols` state) so a rapid
   // second Add right after a save can't slip an extra protocol through.
   // DV-126 (AD-49, DL-82): the trial is claimed only when the store offers it to this person (the paywall's rule);

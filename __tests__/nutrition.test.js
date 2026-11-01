@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { dayTotals, rollingAvgKcal, groupByDay } = require('../lib/nutrition');
+const { dayTotals, groupByDay } = require('../lib/nutrition');
 
 test('dayTotals: sums Cal/Carbs/Protein and rounds; ignores junk', () => {
   const t = dayTotals([
@@ -15,31 +15,6 @@ test('dayTotals: sums Cal/Carbs/Protein and rounds; ignores junk', () => {
 test('dayTotals: empty -> zeros', () => {
   assert.deepEqual(dayTotals([]), { kcal: 0, protein_g: 0, carb_g: 0 });
   assert.deepEqual(dayTotals(null), { kcal: 0, protein_g: 0, carb_g: 0 });
-});
-
-test('rollingAvgKcal: averages over LOGGED days only, inside the window', () => {
-  const entries = [
-    { entry_date: '2026-09-10', kcal: 2000 },
-    { entry_date: '2026-09-10', kcal: 200 },  // same day sums to 2200
-    { entry_date: '2026-09-08', kcal: 1800 },
-    { entry_date: '2026-09-01', kcal: 9999 }, // outside a 7-day window ending 09-10
-  ];
-  const r = rollingAvgKcal(entries, '2026-09-10', 7);
-  // window 09-04..09-10: logged days = 09-10 (2200) and 09-08 (1800) → avg 2000
-  assert.equal(r.loggedDays, 2);
-  assert.equal(r.avgKcal, 2000);
-});
-
-test('rollingAvgKcal: an unlogged day is NOT counted as zero', () => {
-  // Only one logged day in the window → the average is that day, not diluted by 6 zeros.
-  const r = rollingAvgKcal([{ entry_date: '2026-09-10', kcal: 1800 }], '2026-09-10', 7);
-  assert.equal(r.avgKcal, 1800);
-  assert.equal(r.loggedDays, 1);
-});
-
-test('rollingAvgKcal: no logged days in window -> null', () => {
-  assert.equal(rollingAvgKcal([{ entry_date: '2026-08-01', kcal: 2000 }], '2026-09-10', 7), null);
-  assert.equal(rollingAvgKcal([], '2026-09-10', 7), null);
 });
 
 test('groupByDay: groups entries per day, newest first, with per-day totals', () => {
@@ -86,19 +61,8 @@ test('splitByDay: a multi-day catch-up becomes one entry per day eaten', () => {
 });
 
 // ── FL-3: "not recorded" days ──
-const { unloggedCheckDays, closedDays, notRecordedDays, isMarker } = require('../lib/nutrition');
+const { closedDays, notRecordedDays, isMarker } = require('../lib/nutrition');
 const NR = (d, id) => ({ id, entry_date: d, source: 'not_recorded', kcal: 0, parse_status: 'done', raw_text: '' });
-
-test('unloggedCheckDays: past days of the check with nothing logged, newest first, with their marks', () => {
-  const e = [{ entry_date: '2026-09-01', kcal: 2000 }, NR('2026-09-03', 7), { entry_date: '2026-09-06', kcal: 300 }];
-  assert.deepEqual(unloggedCheckDays(e, '2026-09-01', '2026-09-06'), [
-    { date: '2026-09-05', notRecorded: false, markerIds: [] },
-    { date: '2026-09-04', notRecorded: false, markerIds: [] },
-    { date: '2026-09-03', notRecorded: true, markerIds: [7] },
-    { date: '2026-09-02', notRecorded: false, markerIds: [] },
-  ]);
-  assert.deepEqual(unloggedCheckDays(e, '2026-09-06', '2026-09-06'), [], 'today is never offered');
-});
 
 test('markers: day_closed and not_recorded rows are markers, not food', () => {
   assert.equal(isMarker({ source: 'day_closed' }), true);

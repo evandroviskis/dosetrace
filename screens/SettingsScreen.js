@@ -159,10 +159,6 @@ const MONTH_KEYS = [
   'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
 
-const BIRTH_YEARS = [];
-const _thisYear = new Date().getFullYear();
-for (let y = _thisYear - 18; y >= _thisYear - 90; y--) BIRTH_YEARS.push(y);
-
 // The Settings groups in screen order (founder-approved Graduated prototype, settingsScreen():
 // Preferences, Notifications, Data & privacy, Support): the phone's group cards and, on a wide
 // window (S-26 BK-7), the left page's list. Each card shows its name and a one-line summary of

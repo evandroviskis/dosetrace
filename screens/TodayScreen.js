@@ -35,7 +35,7 @@ import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
   getActiveProtocols, getActiveVials, getVialById, getTodayLogs, getTakenLogsSince, getLogsSince,
   deleteDoseLog, updateDoseLog, updateVial, insertVial, updateProtocol,
-  getProtocolById, hardDeleteOldProtocols, endProtocol, endProtocolAtLastDose, getHistoryProtocols, deactivateVialsByProtocol,
+  getProtocolById, hardDeleteOldProtocols, endProtocolAtLastDose, getHistoryProtocols, deactivateVialsByProtocol,
   markProtocolStillGoing, setProtocolPlannedEnd, continueProtocolCourse,
   getBiomarkers,
   getDB, getLocalDataUserId, withImmediateTransaction,
@@ -67,7 +67,7 @@ import SyringeScale from './components/SyringeScale';
 import { startNewVial, vialPastWindow, vialAlertTarget } from '../lib/newVial';
 import NewVialPrompt from './components/NewVialPrompt';
 import { supplyState, vialCapacity } from '../lib/supplyLow';
-import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor, boxDaysLeft } from '../lib/vialExpiry';
+import { DEFAULT_VALID_DAYS, daysUntilExpiry, boxDaysLeft } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
@@ -252,7 +252,6 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
   const [streak, setStreak] = useState(0);
-  const [monthConsistency, setMonthAdherence] = useState(0);
   const [weekDots, setWeekDots] = useState([]);
   // A-120: the alert inputs are read together (lib/todayAlertsLoad) and set in ONE update, so the
   // alerts box is drawn once with all of them. rcNow: where the open reality check stands
@@ -403,7 +402,6 @@ export default function TodayScreen() {
   const [, setPageTick] = useState(0);
   const [, setNoteTick] = useState(0); // A-115: a note draft typed on the right page re-renders it
   const pageLift = useKeyboardLift(); // A-136 (9): the right page's note above the keyboard
-  const undoRecordsRef = useRef(new Map()); // logId → the undo record of a dose written here
   const logPopupOpenRef = useRef(false); // the embedded Dose log's site editor is open
   const logPopupWaiterRef = useRef(null); // the embedded Log's editor, waiting for Today's popup
   const vialDeferredRef = useRef(false); // the vial prompt waits for the embedded Log's editor
@@ -592,12 +590,10 @@ export default function TodayScreen() {
     } catch { /* keep the last rows */ }
   }
 
-  // The undo record of a dose Today just wrote, kept for the dose page's Undo (BK-16).
+  // A dose Today just wrote gets its own Undo on the dose page (BK-16). A-78: a skipped row logged,
+  // undone and logged again is the same row id — its new write is no longer marked undone.
   function keepUndo(record) {
     if (record && record.logId != null) {
-      undoRecordsRef.current.set(record.logId, record);
-      // A-78: a skipped row logged, undone and logged again is the same row id — its new
-      // write gets its own Undo (the old record was replaced above).
       undoneIdsRef.current.delete(record.logId);
     }
   }
@@ -974,7 +970,7 @@ export default function TodayScreen() {
     // A-30: only doses logged in the app (declared history before a protocol was added never counts).
     const logs = loggedOnly(getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [], activeProtocols);
     if (activeProtocols.length === 0) {
-      setStreak(0); setMonthAdherence(0); setWeekDots([]); return;
+      setStreak(0); setWeekDots([]); return;
     }
 
     // Track counts per day per protocol (multi-dose aware)
@@ -1014,20 +1010,6 @@ export default function TodayScreen() {
       else break;
     }
     setStreak(streakCount);
-
-    // Adherence over days doses were actually due. Today only counts once
-    // complete, so a still-in-progress day doesn't drag the number down.
-    let dueDays = 0, completeDays = 0;
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      if (dueOn(d).length === 0) continue;
-      const complete = isDayComplete(d);
-      if (i === 0 && !complete) continue;
-      dueDays++;
-      if (complete) completeDays++;
-    }
-    setMonthAdherence(dueDays > 0 ? Math.round((completeDays / dueDays) * 100) : 0);
 
     const dots = [];
     for (let i = 6; i >= 0; i--) {

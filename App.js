@@ -586,7 +586,7 @@ export default function App() {
   // How the auth screen opens: Create account (from the last onboarding step, with the
   // consent box ticked by the four confirmations just made) or Sign in (from the welcome
   // screen). undefined = a returning signed-out user (AuthScreen decides from the stash).
-  const [authEntry, setAuthEntry] = useState({ mode: undefined, consent: false });
+  const [authEntry, setAuthEntry] = useState({ mode: undefined });
   // Whether the first-launch intro flow has been completed. null = not resolved
   // yet; the loading gate below waits for it, so we never flash the welcome
   // screen before the intro (or vice-versa) on first frame.
@@ -706,7 +706,7 @@ export default function App() {
   // DV-242: the two choices of the cross-account sheet.
   const onAccountSave = () => {
     resolveAccountAsk('save', guardDeps(), { lastAsk: lastAskRef.current })
-      .then(() => setAuthEntry({ mode: 'signin', consent: false }))
+      .then(() => setAuthEntry({ mode: 'signin' }))
       .catch(() => {});
   };
   // Re-verification 2: "Try again" on the owner-unreadable sheet runs the guard once more (it asks
@@ -991,7 +991,7 @@ export default function App() {
     Promise.all([hasSeenOnboarding(), loadOnboarding(), loadSignInChoice()])
       .then(([seen, stash, choice]) => {
         const e = startEntry({ seen, stash, choice });
-        if (e.mode) setAuthEntry({ mode: e.mode, consent: false });
+        if (e.mode) setAuthEntry({ mode: e.mode });
         setSeenOnboarding(e.seen);
       })
       .catch(() => setSeenOnboarding(true));
@@ -1066,7 +1066,7 @@ export default function App() {
         // Older wipe marker dropped (G2); deleted:<this account> finishes the deletion, once (H1).
         try { if ((await markerOnSignIn(wipeDeps(), { sessionUserId: session.user.id })) === 'deleted') return; } catch { /* next start */ }
         // A new sign-in starts clean: no leftover auth entry or typed address (Gate B).
-        setAuthEntry({ mode: undefined, consent: false });
+        setAuthEntry({ mode: undefined });
         forgetSignInChoice().catch(() => {}); // DV-163: signed in — the remembered choice has done its job
         clearAuthDraft();
         // Discard any stale intentional-sign-out flag so it can NEVER survive a
@@ -1196,14 +1196,14 @@ export default function App() {
   const finishOnboarding = (mode) => {
     markSeenOnboarding().catch(() => {});
     if (mode === 'signin') rememberSignInChoice().catch(() => {});
-    setAuthEntry({ mode: mode === 'signin' ? 'signin' : 'create', consent: false });
+    setAuthEntry({ mode: mode === 'signin' ? 'signin' : 'create' });
     setSeenOnboarding(true);
   };
   // Back from the auth screen: the onboarding reopens from the stash at the step the user
   // left, with every value kept (PA-62; it used to restart at the welcome screen, empty).
   const backToOnboarding = () => {
     forgetSignInChoice().catch(() => {}); // DV-163: back to the onboarding — the choice is withdrawn
-    setAuthEntry({ mode: undefined, consent: false });
+    setAuthEntry({ mode: undefined });
     setSeenOnboarding(false);
   };
 

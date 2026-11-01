@@ -162,7 +162,7 @@ test('PA-30 / PA-40: the 8 steps; both buttons of "Never miss a dose" go to Crea
   assert.match(ONB, /onPress=\{\(\) => toAuth\('create'\)\}[\s\S]{0,120}ob_not_now/);
   assert.match(ONB, /onPress=\{\(\) => toAuth\('signin'\)\}[\s\S]{0,120}onboarding_already_have_account/);
   assert.doesNotMatch(ONB, /'ready'|ob_ready_sub|ob_create_account/, 'the "You\'re all set" step is gone');
-  assert.match(APP, /setAuthEntry\(\{ mode: mode === 'signin' \? 'signin' : 'create', consent: false \}\)/);
+  assert.match(APP, /setAuthEntry\(\{ mode: mode === 'signin' \? 'signin' : 'create' \}\)/);
   assert.match(APP, /initialMode=\{authEntry\.mode\} \/>/);
 });
 
