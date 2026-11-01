@@ -39,7 +39,7 @@ import { getActiveProtocols, getHistoryProtocols, getLogsSince, getCalcSnapshots
 import { progressTile } from '../lib/progressTile';
 import { formatDate, formatNumber, formatInt, unitText } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
-import { defaultCurveLevel, levelLabel, CURVE_LOG_LOOKBACK_DAYS } from '../lib/serumModel';
+import { defaultCurveLevel, levelLabel, CURVE_LOG_LOOKBACK_DAYS, curveHistoryProtocols } from '../lib/serumModel';
 import { loadCurveView } from '../lib/curveViewStore';
 import { MONO } from '../lib/fonts';
 import { displayColor } from '../lib/protocolColors';
@@ -123,7 +123,8 @@ export default function JourneyScreen() {
     const savedView = await loadCurveView(user.id);
     if (!isAlive()) return;
     try {
-      const next = defaultCurveLevel(getActiveProtocols(user.id), Date.now(), undefined, savedView, curveLevelData(user.id));
+      // DV-067 (AD-18): the curve's own list (active + ended runs), so a remembered ended run is the tile's too.
+      const next = defaultCurveLevel(curveHistoryProtocols(getHistoryProtocols(user.id)), Date.now(), undefined, savedView, curveLevelData(user.id));
       // The same compound, value and unit → no state change (a reload is not a re-render).
       setLevel((prev) => (sameCurveLevel(prev, next) ? prev : next));
     } catch { setLevel(null); }

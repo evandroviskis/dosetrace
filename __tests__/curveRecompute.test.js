@@ -53,7 +53,7 @@ test('PK-16: the Curve screen rebuilds the lines from the Dose log it re-reads o
 
 test('PK-16: the Journey tile reads the Dose log and the history protocols on focus and after a sync', () => {
   const src = read('screens', 'JourneyScreen.js');
-  assert.match(src, /defaultCurveLevel\(getActiveProtocols\(user\.id\), Date\.now\(\), undefined, savedView, curveLevelData\(user\.id\)\)/);
+  assert.match(src, /defaultCurveLevel\(curveHistoryProtocols\(getHistoryProtocols\(user\.id\)\), Date\.now\(\), undefined, savedView, curveLevelData\(user\.id\)\)/);
   assert.match(src, /getLogsSince\(userId, new Date\(Date\.now\(\) - CURVE_LOG_LOOKBACK_DAYS \* 24 \* 3600 \* 1000\)\.toISOString\(\)\)/);
   assert.match(src, /history: getHistoryProtocols\(userId\)/);
   assert.match(src, /curveReloadOnSync\(addSyncListener, \(\) => \{ if \(premium === true\) loadLevel\(\)/);
