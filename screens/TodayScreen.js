@@ -89,7 +89,7 @@ import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
 import useKeyboardLift from '../components/useKeyboardLift';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { DTSheet, VialCells, EndDateStep } from './components/ProtocolParts';
-import { cardSlot, cardPlan, dosePageKey } from '../lib/dosePageState';
+import { cardSlot, cardPlan, caughtUpPlan, dosePageKey } from '../lib/dosePageState';
 import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
 import { undoBarRuns, enqueueVialPrompt, nextVialPrompt } from '../lib/undoBar';
@@ -1799,7 +1799,12 @@ export default function TodayScreen() {
     const d = new Date(at); d.setHours(0, 0, 0, 0);
     return Math.round((d - startOfToday) / 86400000);
   };
-  const todayCards = dailyOrder.filter(p => bucketDay(p) <= 0);
+  // DV-129 (DL-12, AD-79 item 12, option A): a skip counts as resolved — a card whose every slot of
+  // today is Taken or Skipped leaves the list, and its skipped lines go inside the caught-up card
+  // (lib/dosePageState caughtUpPlan). nextDoseAt counts Taken only, so it cannot decide this alone.
+  const caught = caughtUpPlan({ cards: dailyOrder.filter(p => bucketDay(p) <= 0), logs: todayRows, nowMs: Date.now() });
+  const todayCards = caught.open;
+  const caughtSkipped = caught.skipped;
   // A-134: Tomorrow / Next 5 days are dose slots (lib/schedule upcomingAgenda): Tomorrow lists
   // every dose due tomorrow, also a daily dose still open today (prototype foldRow 'tom'), and
   // the counts are doses (DL-11, DV-037). Past day 6 only "N more later" (the Protocols tab).
@@ -1807,8 +1812,8 @@ export default function TodayScreen() {
   const tomorrowCards = agenda.tomorrow;
   const next5Cards = agenda.next5;
   const laterCount = agenda.laterCount;
-  // Doses were due today and all handled → show a positive "all done" note
-  // instead of an empty Today section.
+  // Doses were due today and all handled (taken or skipped) → show a positive "all done" note
+  // instead of an empty Today section; a skipped dose's line sits inside it (DV-129).
   const allDoneToday = todayCards.length === 0 && totalCount > 0;
 
   // ── Today alerts ─────────────────────────────────────────────
@@ -2584,10 +2589,35 @@ export default function TodayScreen() {
             </View>
             {todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))}
             {todayCards.length === 0 && allDoneToday && (
-              // Part 13 (prototype caught()): the ok check beside the line.
+              // Part 13 (prototype caught()): the ok check beside the line. DV-129 (option A): each
+              // dose skipped today sits under it — name · "Skipped — you can still log it" and its
+              // Mark taken, which logs exactly that skipped row (as the card's own skipped line did).
               <View style={s.doneCard}>
-                <CheckMark size={22} color={colors.ok} />
-                <Text style={s.doneText}>{t('today_all_done')}</Text>
+                <View style={s.doneRow}>
+                  <CheckMark size={22} color={colors.ok} />
+                  <Text style={s.doneText}>{t('today_all_done')}</Text>
+                </View>
+                {caughtSkipped.map((sp) => {
+                  const pr = sp.protocol;
+                  const skTime = (pr.doses_per_day || 1) > 1 && Number.isFinite(sp.slot.slotMs)
+                    ? formatTimeAMPM(new Date(sp.slot.slotMs).toTimeString().slice(0, 5)) : null;
+                  const prName = pr.compound_id ? t(pr.compound_id) : pr.name;
+                  return (
+                    <View key={`csk-${pr.id}-${sp.slot.flipRowId}`} style={s.doneSkip}>
+                      <Text style={s.doneSkipText}><Text style={s.doneSkipName}>{prName}</Text>{' · '}{skTime ? `${skTime} · ` : ''}{t('today_skipped_today')}</Text>
+                      {sp.slot.canTake && (
+                        <TouchableOpacity
+                          style={s.skipLineBtn}
+                          onPress={() => { lightHaptic(); handleTake(sp.protocol, null, 0, { slot: sp.slot }); }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${t('today_mark_taken')}, ${prName}${skTime ? `, ${skTime}` : ''}`}
+                        >
+                          <Text style={s.skipLineBtnText}>{t('today_mark_taken')}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             )}
             {takenNames.length > 0 && (takenOpen ? (
@@ -3047,7 +3077,12 @@ const todayV21Styles = (c) => ({
   doseBtnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch', paddingHorizontal: 12, gap: 6 },
   doseBtnLabel: { flexShrink: 1, textAlign: 'center' }, // council 2026-10-28: the row never limited the text, so it could not shrink or wrap
   doseBtnPrimaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
-  doneCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16 },
+  doneCard: { gap: 12, backgroundColor: c.raised, borderRadius: 24, paddingHorizontal: 18, paddingVertical: 16 },
+  doneRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // DV-129: a skipped dose inside the caught-up card (picture .line: hairline on top, text in ink2).
+  doneSkip: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12 },
+  doneSkipText: { flex: 1, fontSize: 15, color: c.ink2 },
+  doneSkipName: { fontWeight: '700', color: c.ink },
   doneText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   takenLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 6, paddingVertical: 4 },
   takenMark: { marginTop: 1 },
