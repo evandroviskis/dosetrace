@@ -402,6 +402,12 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     else leaveSheetThen(() => { releasePopup(); markRowTaken(log, null); });
   }
 
+  // DV-243 F2: a Skipped row marked "No dose was due" — the Missed sheet's own write (the same row's
+  // outcome becomes NoDose; nothing deleted), after the dose sheet has left.
+  function noDoseFromSheet(log) {
+    leaveSheetThen(() => { releasePopup(); setMissedOutcome(log, NO_DOSE); });
+  }
+
   // "Delete this dose" → the Graduated confirm. The body says what really happens to the
   // supply (the same plan the write uses).
   function askDelete(log) {
@@ -838,6 +844,15 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   <Text style={s.takeBtnText}>{t('log_mark_taken')}</Text>
                 </TouchableOpacity>
               )}
+              {/* DV-243 F2: a Skipped row (a 1.3.0 user's way out of a false Missed) can become "no dose" too. */}
+              {shownSheet.outcome === 'Skipped' && (
+                <Text style={s.noDoseNote}>{t('log_skipped_no_dose').replace('{action}', t('log_no_dose'))}</Text>
+              )}
+              {shownSheet.outcome === 'Skipped' && (
+                <TouchableOpacity style={s.noDoseBtn} onPress={() => noDoseFromSheet(shownSheet)} accessibilityRole="button">
+                  <Text style={s.noDoseBtnText}>{t('log_no_dose')}</Text>
+                </TouchableOpacity>
+              )}
               {/* DV-243: a "no dose" mark is never deleted (the scan would write the Missed row back). */}
               {shownSheet.outcome !== NO_DOSE && (
                 <TouchableOpacity style={s.dangerBtn} onPress={() => askDelete(shownSheet)} accessibilityRole="button">
@@ -955,5 +970,9 @@ const makeStyles = (c) => StyleSheet.create({
   // A-50: a skipped dose's "Mark complete" (the primary action, ink).
   takeBtn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   takeBtnText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+  // DV-243 F2: a Skipped row's "No dose was due" (DTSheet's secondary button) and its one line.
+  noDoseNote: { fontSize: 14, lineHeight: 20, color: c.ink2 },
+  noDoseBtn: { minHeight: 52, borderRadius: 26, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
+  noDoseBtnText: { fontSize: 17, fontWeight: '600', color: c.ink },
   dangerBtnText: { fontSize: 17, fontWeight: '600', color: c.risk },
 });
