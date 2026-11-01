@@ -76,6 +76,7 @@ import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages'
 import { useTeamMessages } from '../lib/useTeamMessages';
 import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
 import { supplyState } from '../lib/supplyLow';
+import { birthMonthIndex } from '../lib/profileName';
 import { sexChangeNoteShown } from '../lib/sexAtBirth';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
@@ -457,7 +458,9 @@ export default function SettingsScreen({ navigation }) {
       if (editProfileOpen.current) return;
       setDisplayName(user.user_metadata?.display_name || '');
       setGender(user.user_metadata?.gender || '');
-      setBirthMonth(user.user_metadata?.birth_month != null ? user.user_metadata.birth_month - 1 : null); // stored 1-based → 0-11 index
+      setBirthMonth(birthMonthIndex(user.user_metadata?.birth_month)); // stored 1-based → 0-11; an old 0 = January
+      // Founder 2026-10-31: an old 0-based January is rewritten as 1 (merge write, outside the auth callback).
+      if (String(user.user_metadata?.birth_month) === '0') supabase.auth.updateUser({ data: { birth_month: 1 } }).catch(() => {});
       setBirthYear(user.user_metadata?.birth_year ?? null);
       setBirthYearText(user.user_metadata?.birth_year != null ? String(user.user_metadata.birth_year) : '');
       setCountry(user.user_metadata?.country || '');
