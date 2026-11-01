@@ -73,8 +73,9 @@ test('GB3-8: the deletion note on Android points to account.apple.com, not the i
 });
 
 test('GB3-10: Download my data on a new phone first brings the account\'s records down', () => {
-  const scr = read('screens', 'AgeConfirmScreen.js');
-  assert.match(scr, /if \(isLocalDBEmpty\(user\.id\)\) await fullImportFromCloud\(\)\.catch\(\(\) => \{\}\);/);
+  // DV-086: the import-if-empty moved into the one export function (Settings and the 18+ sheet).
+  const lib = read('lib', 'accountActions.js');
+  assert.match(lib, /if \(isLocalDBEmpty\(user\.id\)\) await fullImportFromCloud\(\)\.catch\(\(\) => \{\}\);/);
 });
 
 test('GB3-12: the Android Apple button: 43% type (22 pt on 52), the busy look, German as on iOS ("Mit Apple fortfahren")', () => {

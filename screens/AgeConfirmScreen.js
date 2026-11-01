@@ -24,7 +24,6 @@ import { getBillingStore } from '../lib/entitlement';
 import { deleteAccountSheet } from './SettingsScreen';
 import { runSignOut } from '../lib/settingsSignOut';
 import { createBusyGuard } from '../lib/busyGuard';
-import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
 import FeatureIcon from '../components/FeatureIcon';
 import { DTSheet, DTPickerSheet, DTWheel } from './components/ProtocolParts';
 import FoldChevron from '../components/FoldChevron';
@@ -88,8 +87,7 @@ export default function AgeConfirmScreen({ session }) {
     if (busy || !user) return;
     setBusy('export');
     try {
-      // A new phone may not have the account's records yet: bring them down first.
-      if (isLocalDBEmpty(user.id)) await fullImportFromCloud().catch(() => {});
+      // DV-086: exportMyData brings the records down first when the phone has none.
       const r = await exportMyData(user, t('settings_export_title'));
       if (r.saved) ok(t('settings_export_title'), t('settings_export_done'), 'check');
     } catch {
