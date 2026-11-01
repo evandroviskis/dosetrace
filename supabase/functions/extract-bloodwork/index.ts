@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { lookupEntitlement, withScanBudget, scanUsageReply } from './quota.ts';
+import { lookupEntitlement, withScanBudget, scanUsageReply, scanUsable } from './quota.ts';
 import type { ScanStore } from './quota.ts';
 
 const corsHeaders = {
@@ -87,7 +87,9 @@ fences, no prose, no explanations:
 
 {
   "vaccines": [
-    { "name": "Vaccine name", "date_given": "YYYY-MM-DD", "next_due": "YYYY-MM-DD or null", "notes": "string" }
+    { "name": "Vaccine name", "date_given": "YYYY-MM-DD", "next_due": "YYYY-MM-DD or null",
+      "manufacturer": "string or null", "batch_lot": "string or null", "dose_number": 1,
+      "provider": "string or null", "location": "string or null", "notes": "string" }
   ]
 }
 
@@ -102,8 +104,14 @@ Rules:
   If a dose has no readable administration date, omit that entry entirely.
 - "next_due" is the next-dose or booster-due date ONLY if it is explicitly printed;
   otherwise null. Never infer, schedule, or recommend a date.
-- "notes" holds brief printed extras for that dose (lot/batch number, manufacturer or
-  brand, dose number, injection site). Empty string if none.
+- "manufacturer": the manufacturer or brand printed for that dose; null if none.
+- "batch_lot": the lot / batch number printed for that dose; null if none.
+- "dose_number": the dose number printed (1st, 2nd, booster as 3…) as an integer; null if none.
+- "provider": the clinic, pharmacy or health service printed for that dose — never a person's name;
+  null if none.
+- "location": the city or country where it was given, if printed — never a street address; null if none.
+- "notes" holds other brief printed extras for that dose (e.g. injection site). Empty string if none.
+- Transcribe only what is printed: never guess, complete or infer any of these fields.
 - Do NOT include patient identifiers, physician names, or addresses.
 - Do NOT wrap the JSON in code fences or add any commentary.
 `;
@@ -294,6 +302,8 @@ Deno.serve(async (req) => {
     } : null;
 
     // The paid work: one AI call. Returns the final Response (200 = a scan was delivered).
+    // DV-078: `usable` says whether the 200 carries anything the app can keep (scanUsable).
+    let usable = false;
     const runExtraction = async (): Promise<Response> => {
     // Call the Anthropic API server-side — the key never ships to the device
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
@@ -377,6 +387,7 @@ Deno.serve(async (req) => {
       payload = { report_date: parsed.report_date ?? null, markers: parsed.markers };
     }
 
+    usable = scanUsable(kind, payload);
     return jsonResponse(payload, 200);
     };
 
@@ -398,7 +409,7 @@ Deno.serve(async (req) => {
       },
       work: async () => {
         const response = await runExtraction();
-        return { ok: response.status === 200, response };
+        return { ok: response.status === 200 && usable, response };
       },
     });
     if (outcome.status === 'refused') {

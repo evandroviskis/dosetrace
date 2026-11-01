@@ -176,3 +176,21 @@ export function scanUsageReply({ count, now }: { count: number | null; now: Date
   const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   return { status: 200, body: { used: count, renews_on: next.toISOString().slice(0, 10) } };
 }
+
+// DV-078 (AD-23: a failed extraction is not counted): a 200 with nothing the app can keep is a failed
+// scan too. The same rule as the app (lib/bodyScan validateExtraction / validateVaccine): a marker needs a
+// name and a result (a number, or a result in words — A-203); a vaccine a name and an ISO date given; a
+// vial label at least one field read.
+export function scanUsable(kind: string, payload: any): boolean {
+  const filled = (v: unknown) => (typeof v === 'number' && Number.isFinite(v)) || (typeof v === 'string' && v.trim() !== '');
+  if (kind === 'vaccines') {
+    const list = Array.isArray(payload?.vaccines) ? payload.vaccines : [];
+    return list.some((v: any) => v && typeof v.name === 'string' && v.name.trim() && typeof v.date_given === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.date_given));
+  }
+  if (kind === 'vial') {
+    const v = payload?.vial || {};
+    return [v.compound_name, v.amount, v.concentration, v.volume_ml].some(filled);
+  }
+  const list = Array.isArray(payload?.markers) ? payload.markers : [];
+  return list.some((m: any) => m && typeof m.marker === 'string' && m.marker.trim() && (filled(m.value) || filled(m.value_text)));
+}
