@@ -33,6 +33,12 @@ class DtExactAlarmModule : Module() {
       }
       ctx.registerComponentCallbacks(cb)
       foldCallbacks = cb
+      appContext.currentActivity?.let { ModalEscGuard.install(it) }
+    }
+
+    // A-195: a hardware Esc asks before a Modal closes (ModalEscGuard).
+    OnActivityEntersForeground {
+      appContext.currentActivity?.let { ModalEscGuard.install(it) }
     }
 
     OnDestroy {
