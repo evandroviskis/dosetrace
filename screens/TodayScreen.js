@@ -66,7 +66,7 @@ import TodayTracker from './components/TodayTracker';
 import SyringeScale from './components/SyringeScale';
 import { startNewVial, vialPastWindow, vialAlertTarget } from '../lib/newVial';
 import NewVialPrompt from './components/NewVialPrompt';
-import { supplyState } from '../lib/supplyLow';
+import { supplyState, vialCapacity } from '../lib/supplyLow';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, expiryColor, boxDaysLeft } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
@@ -2324,9 +2324,7 @@ export default function TodayScreen() {
           </View>
         )}
         {p.type === 'recon' && vial && (() => {
-          const capacity = (vial.total_doses && vial.total_doses > 0)
-            ? vial.total_doses
-            : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
+          const capacity = vialCapacity(vial, p); // DV-121: the one owner (lib/supplyLow)
           const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
           const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
           // A-132 screen 2 = A: past its window → "+ New vial", same type as "+ Add vial".
