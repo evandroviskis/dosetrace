@@ -905,6 +905,7 @@ export default function BodyScreen({ navigation, route }) {
         colValue: t('export_col_value'), colUnit: t('export_col_unit'),
         colVaccine: t('vax_name_label'), colGiven: t('vax_date_given'),
         colNextDue: t('vax_next_due'), colNotes: t('vax_notes'),
+        colManufacturer: t('vax_manufacturer'), colDose: t('vax_dose_number'), colLot: t('vax_batch_lot'), colProvider: t('vax_provider'), colLocation: t('vax_location'),
         noLabs: t('export_no_labs'), noVaccines: t('export_no_vaccines'),
       };
       const dateStr = localeDate(new Date(), language, 'long');
