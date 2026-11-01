@@ -164,7 +164,8 @@ test('PO-25: after Save or Delete everything that reads weigh-ins refreshes (sna
   const src = read('screens/components/CalculatorSection.js');
   for (const fn of ['saveWeighInEdit', 'deleteWeighInNow']) {
     const body = src.match(new RegExp(`function ${fn}\\(\\) \\{[\\s\\S]*?\\n  \\}\\n`))[0];
-    assert.match(body, /setSnapshots\(getCalcSnapshots\(uid\)\.map\(snapRowToUI\)\)/, fn);
+    // DV-062: Delete reads the rows once (setSnapshots(rows)) to pick the weight that replaces a deleted one
+    assert.match(body, /setSnapshots\(getCalcSnapshots\(uid\)\.map\(snapRowToUI\)\)|const rows = getCalcSnapshots\(uid\)\.map\(snapRowToUI\);\n    setSnapshots\(rows\)/, fn);
     assert.match(body, /requestSync\?\.\(\)/, fn);
     assert.match(body, /calcChanged\(\)/, fn);
   }

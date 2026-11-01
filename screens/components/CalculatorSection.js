@@ -28,7 +28,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { numbersWeight } from '../../lib/numbersWeight';
+import { numbersWeight, afterWeighInDelete } from '../../lib/numbersWeight';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import Modal from '../../components/PresenceModal';
 import { useWindowSize } from '../../lib/windowSize';
@@ -82,7 +82,7 @@ import { sexTapAction } from '../../lib/sexAtBirth';
 import { FoodReminderRow } from './NutritionLogger';
 import { intakeRun, MIN_RUN_DAYS, checkSoFar } from '../../lib/nutrition';
 import { exampleValues, activityParts, targetTicks } from '../../lib/progressFormat';
-import { weighInFormValues, readWeighInForm, weighInActions, checkStartPatch, startWeighInChoice } from '../../lib/weighInEdit';
+import { weighInValuesOk, weighInFormValues, readWeighInForm, weighInActions, checkStartPatch, startWeighInChoice } from '../../lib/weighInEdit';
 import { formatDate, formatNumber, formatInt, decimalText, inputNumber, MONTHS_SHORT } from '../../lib/localeFormat';
 import useColumnWidth from '../../components/useColumnWidth';
 import { parseMeasure, savedFieldText, canonicalDecimal } from '../../lib/doseMath';
@@ -513,7 +513,13 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // write per save, merged by day.
   const hasWeighIns = snapshots.some(x => x.weightKg != null);
   const weightFocusRef = useRef(null); // the field's text when it was entered
+  // DV-065: a value outside the weigh-in ranges shows the one-line message under its field.
+  const [weightBad, setWeightBad] = useState(false);
+  const [wiBad, setWiBad] = useState(false);
+  const [bfBad, setBfBad] = useState(false);
+  const [rcBad, setRcBad] = useState(false);
   function onWeightChange(v) {
+    setWeightBad(false);
     setWeightField(v);
     if (!hasWeighIns) setWeightNow(v);
   }
@@ -536,6 +542,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const old = num(weight);
     const kg = typed == null ? null : toKg(typed);
     const text = weightField;
+    if (kg != null && !weighInValuesOk({ weightKg: kg })) { const back = hasWeighIns ? weight : (entered || ''); if (!hasWeighIns) setWeightNow(back); setWeightField(back); setWeightBad(true); return; }
     const d = weightEditAsk({ rows: getCalcSnapshots(uid), oldWeightKg: old == null ? null : toKg(old), newWeightKg: kg, todayISO: todayISO() });
     if (d.kind === 'first') {
       // PO-17: no weigh-in yet — a weight the user changed here becomes the first one.
@@ -618,6 +625,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const bfv = num(wiBf);
     const wc = num(wiWaist);
     const waistCmNew = wc == null ? null : (unit === 'imperial' ? inToCm(wc) : wc);
+    if (!weighInValuesOk({ weightKg, bodyFatPct: bfv, waistCm: waistCmNew })) { setWiBad(true); return; }
     const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
     upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg, bodyFatPct: bfv, waistCm: waistCmNew }));
     requestSync?.();
@@ -699,6 +707,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (w == null || !bfDate) return;
     const weightKg = unit === 'imperial' ? lbToKg(w) : w;
     const bfv = num(bfBodyFat);
+    if (!weighInValuesOk({ weightKg, bodyFatPct: bfv })) { setBfBad(true); return; }
     // Merge against a FRESH DB read, not React state — a stale/empty in-memory
     // snapshots array would null out an existing same-date snapshot's other fields.
     const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === bfDate) || null;
@@ -746,7 +755,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (!uid || !weEdit) return;
     deleteCalcSnapshot(uid, weEdit.date, rcStart);
     requestSync?.();
-    setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+    const rows = getCalcSnapshots(uid).map(snapRowToUI);
+    setSnapshots(rows);
+    // DV-062: the weigh-in Your numbers came from is gone — the newest one left becomes the weight.
+    const next = afterWeighInDelete({ weightAt, deletedDate: weEdit.date, snapshots: rows });
+    if (next) {
+      const v = inputNumber(unit === 'imperial' ? kgToLb(next.weightKg) : next.weightKg, language);
+      setWeight(v);
+      setWeightField(v);
+      setWeightAt(next.date);
+    }
     calcChanged();
     closeWeighInEdit();
   }
@@ -930,6 +948,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   async function startRealityCheck() {
     const kg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
     if (kg == null) return;
+    if (!weighInValuesOk({ weightKg: kg })) { setRcBad(true); return; }
     const date = rcStartDate && validStartDate(rcStartDate, todayISO()) ? rcStartDate : todayISO();
     const uid = userIdRef.current;
     const existing = uid ? (getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null) : null;
@@ -1403,6 +1422,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_weight')} ({wUnit})</Text>
           <TextInput style={s.input} value={weightField} onChangeText={onWeightChange} {...pageLift.fieldProps('weight', { next: 'height', onFocus: () => { weightFocusRef.current = weightField; } })} onEndEditing={commitWeightField} keyboardType="decimal-pad" placeholder={eg(ex.weight)} placeholderTextColor={colors.ink3} />
+          {weightBad ? <Text style={s.tnote}>{t('cal_wi_invalid')}</Text> : null}
         </View>
         <View style={s.fldHalf}>
           <Text style={s.fieldLab}>{t('cal_height')} ({hUnit})</Text>
@@ -1728,17 +1748,18 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         <View style={s.fieldRow}>
           <View style={s.fldHalf}>
             <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
-            <TextInput style={s.input} value={wiWeight} onChangeText={setWiWeight} keyboardType="decimal-pad" placeholder={fmtW(currentWeightKg) || '—'} placeholderTextColor={colors.ink3} />
+            <TextInput style={s.input} value={wiWeight} onChangeText={(v) => { setWiWeight(v); setWiBad(false); }} keyboardType="decimal-pad" placeholder={fmtW(currentWeightKg) || '—'} placeholderTextColor={colors.ink3} />
           </View>
           <View style={s.fldHalf}>
             <Text style={s.fieldLab}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
-            <TextInput style={s.input} value={wiBf} onChangeText={setWiBf} keyboardType="decimal-pad" placeholder={currentBF != null ? decimalText(Math.round(currentBF * 10) / 10, language) : '—'} placeholderTextColor={colors.ink3} />
+            <TextInput style={s.input} value={wiBf} onChangeText={(v) => { setWiBf(v); setWiBad(false); }} keyboardType="decimal-pad" placeholder={currentBF != null ? decimalText(Math.round(currentBF * 10) / 10, language) : '—'} placeholderTextColor={colors.ink3} />
           </View>
         </View>
         <View style={s.fld}>
           <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
-          <TextInput style={s.input} value={wiWaist} onChangeText={setWiWaist} keyboardType="decimal-pad" placeholder={waist || '—'} placeholderTextColor={colors.ink3} />
+          <TextInput style={s.input} value={wiWaist} onChangeText={(v) => { setWiWaist(v); setWiBad(false); }} keyboardType="decimal-pad" placeholder={waist || '—'} placeholderTextColor={colors.ink3} />
         </View>
+        {wiBad ? <Text style={s.tnote}>{t('cal_wi_invalid')}</Text> : null}
         <Text style={s.foot2}>{t('cal_log_today_note')}</Text>
         <TouchableOpacity style={[s.btnP, !wiCanSave && s.btnDim]} onPress={saveTodayWeighIn} disabled={!wiCanSave} accessibilityRole="button" accessibilityState={{ disabled: !wiCanSave }}>
           <Text style={s.btnPText}>{t('save')}</Text>
@@ -1770,8 +1791,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         </View>
         <View style={s.fld}>
           <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
-          <TextInput style={s.input} value={rcThen} onChangeText={setRcThen} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+          <TextInput style={s.input} value={rcThen} onChangeText={(v) => { setRcThen(v); setRcBad(false); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
         </View>
+        {rcBad ? <Text style={s.tnote}>{t('cal_wi_invalid')}</Text> : null}
         <TouchableOpacity style={[s.btnP, num(rcThen) == null && s.btnDim]} onPress={startRealityCheck} disabled={num(rcThen) == null} accessibilityRole="button">
           <Text style={s.btnPText}>{t('cal_rc_start_btn')}</Text>
         </TouchableOpacity>
@@ -1871,13 +1893,14 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         <View style={s.fieldRow}>
           <View style={s.fldHalf}>
             <Text style={s.fieldLab}>{t('cal_snap_weight')} ({wUnit})</Text>
-            <TextInput style={s.input} value={bfWeight} onChangeText={setBfWeight} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+            <TextInput style={s.input} value={bfWeight} onChangeText={(v) => { setBfWeight(v); setBfBad(false); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
           </View>
           <View style={s.fldHalf}>
             <Text style={s.fieldLab}>{t('cal_snap_bodyfat')} (%) · {t('cal_tgt_optional')}</Text>
-            <TextInput style={s.input} value={bfBodyFat} onChangeText={setBfBodyFat} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
+            <TextInput style={s.input} value={bfBodyFat} onChangeText={(v) => { setBfBodyFat(v); setBfBad(false); }} keyboardType="decimal-pad" placeholder="—" placeholderTextColor={colors.ink3} />
           </View>
         </View>
+        {bfBad ? <Text style={s.tnote}>{t('cal_wi_invalid')}</Text> : null}
         <TouchableOpacity style={s.btnP} onPress={saveBackfillWeighIn} accessibilityRole="button">
           {bfMsg ? (
             <View style={s.savedRow}>
