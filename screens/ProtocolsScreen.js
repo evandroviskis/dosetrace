@@ -79,7 +79,7 @@ import { applyVialEdit, showsEditVialButton, editMixDate, mixDateError } from '.
 import NewVialPrompt, { EditVialPrompt } from './components/NewVialPrompt';
 import DoseFixSheet from './components/DoseFixSheet';
 import { deletedAgoText } from '../lib/localDate';
-import { getMissedWatermark } from '../lib/doseActions';
+import { getMissedWatermark, scheduleSinceNow } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
 import { DEFAULT_VALID_DAYS, daysUntilExpiry, boxDaysLeft } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
@@ -1399,7 +1399,8 @@ export default function ProtocolsScreen() {
       let tzSinceMs = null;
       let zoneHistory = null;
       try { ({ tzSinceMs, zoneHistory } = await getMissedWatermark()); } catch { /* best effort */ }
-      setPendingYest(pendingFromYesterday({ protocols: data || [], logs: logs.filter((l) => new Date(l.logged_at) >= since), nowMs: Date.now(), tzSinceMs, zoneHistory }));
+      const scheduleSince = await scheduleSinceNow(user.id); // DV-246: as Today
+      setPendingYest(pendingFromYesterday({ protocols: data || [], logs: logs.filter((l) => new Date(l.logged_at) >= since), nowMs: Date.now(), tzSinceMs, zoneHistory, scheduleSince }));
       setLastLog(lastCompleteLog(logs));
     } catch { /* keep the last counts */ }
     // Active vial per protocol (latest first from the query) for the vial-age sort.

@@ -48,7 +48,7 @@ import { calendarDaysSince } from '../lib/localDate';
 import { SITE_HISTORY_DAYS } from '../lib/bodySites';
 import { unsyncedCount } from '../lib/recoveryFlow';
 import { TABLES, getPendingChanges } from '../lib/syncCore';
-import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged, scheduleSinceNow } from '../lib/doseActions';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake, takeRefusal } from '../lib/markTaken';
 import { loggedOnly } from '../lib/declared';
@@ -871,7 +871,9 @@ export default function TodayScreen() {
       let tzSinceMs = null;
       let zoneHistory = null;
       try { ({ tzSinceMs, zoneHistory } = await getMissedWatermark()); } catch { /* best-effort */ }
-      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now(), tzSinceMs, zoneHistory }));
+      // DV-246: never a slot from before this phone knew the current schedule (the Missed scan's floor).
+      const scheduleSince = await scheduleSinceNow(user.id);
+      setPendingYest(pendingFromYesterday({ protocols: getActiveProtocols(user.id) || [], logs, nowMs: Date.now(), tzSinceMs, zoneHistory, scheduleSince }));
     } catch { setPendingYest([]); }
     fetchPageLogs(); // BK-19: the dose page follows every write and undo (book layout only)
   }
