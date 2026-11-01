@@ -83,3 +83,15 @@ test('BPC-157 and PDA: half-life 15 min (0.25 h), sourced', () => {
     assert.match(e.source, /15(\.2)? min/, n);
   }
 });
+
+// Pharmacometrician council 2026-11-01: comments and test titles still gave BPC-157 the old half-life of half an hour.
+test('no comment or test title presents 0.5 h as BPC-157\'s half-life', () => {
+  const files = ['lib/serumModel.js', 'lib/curveSampling.js', 'lib/halfLives.js', 'screens/SerumCurveScreen.js',
+    ...fs.readdirSync(path.join(__dirname)).filter((f) => f.endsWith('.test.js')).map((f) => `__tests__/${f}`)];
+  const stale = [];
+  for (const f of files) {
+    const flat = read(f).replace(/\n\s*\/\/\s*/g, ' ');
+    if (/BPC-157[^.;\n]{0,24}t½\s*0[.,]5\s*h/.test(flat)) stale.push(f);
+  }
+  assert.deepEqual(stale, []);
+});
