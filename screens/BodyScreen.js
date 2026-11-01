@@ -40,6 +40,7 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { MONO } from '../lib/fonts';
 import Svg, { Path } from 'react-native-svg';
 import MarkerChart from './components/MarkerChart';
+import { hasTimeChart } from '../lib/markerChart';
 import VaccinesSection from './components/VaccinesSection';
 import VaccinePage from './components/VaccinePage';
 import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel } from './components/ProtocolParts';
@@ -1164,6 +1165,9 @@ export default function BodyScreen({ navigation, route }) {
     const latestText = labValueText(markerDetail.latest, language);
     const latestWords = isWordResult(markerDetail.latest);
     const chartCount = chartPoints(markerDetail.points).length;
+    // A chart shows change over time: only with readings on 2+ different days in one unit; readings of
+    // one day only (two results of one test) show the "add another test" line instead (lib/markerChart).
+    const chartable = hasTimeChart(chartPoints(markerDetail.points), markerDetail.unit);
     return (
       /* ONE MARKER (prototype markerScreen): the latest value as the number, the
          user's readings charted (no ranges, no good/bad colors), every reading. */
@@ -1202,9 +1206,9 @@ export default function BodyScreen({ navigation, route }) {
               all words shows no chart and no "need more" line — only its readings below. */}
           {/* A-211 (DV-108 / AD-24 = B2): the chart is Premium; a free account gets a tile that opens
               the animated labs preview first (A-208). Nothing while the plan is still unknown. */}
-          {chartCount >= 2 && premium === true ? (
+          {chartable && premium === true ? (
             <MarkerChart points={markerDetail.points} unit={markerDetail.unit} language={language} width={chartWidth} />
-          ) : chartCount >= 2 && premium === false ? (
+          ) : chartable && premium === false ? (
             <TouchableOpacity style={s.chartLock} onPress={() => setPreviewKey('labs')} accessibilityRole="button">
               <FeatureIcon name="calc_bars" size={28} color={colors.ink2} />
               <View style={s.grow}>
@@ -1212,7 +1216,7 @@ export default function BodyScreen({ navigation, route }) {
                 <Text style={s.sec}>{t('cal_rc_sb_locked')}</Text>
               </View>
             </TouchableOpacity>
-          ) : chartCount === 1 ? (
+          ) : !chartable && chartCount >= 1 ? (
             <Text style={s.sec}>{t('blood_need_more')}</Text>
           ) : null}
         </View>
