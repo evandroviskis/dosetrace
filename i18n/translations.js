@@ -486,7 +486,7 @@ export const translations = {
     protocols_ended_on: 'Ended {date}',
     protocols_restart: 'Restart',
     protocols_restart_title: "Resume {name}?",
-    protocols_restart_body: 'A new run starts today with zero doses taken; the previous run stays in your history. Will you start a new one or keep using the same one?',
+    protocols_restart_body: "A new run starts today; the previous run stays in your history. Will you start a new one or keep using the same one?", // DV-024: the same container keeps its count
     protocols_restart_body_plain: "A new run starts today with zero doses taken; the previous run stays in your history.",
     protocols_restart_new_vial_btn: "New vial",
     protocols_restart_same_vial: "Keep using the same vial",
@@ -3120,7 +3120,7 @@ export const translations = {
     protocols_ended_on: 'Finalizado el {date}',
     protocols_restart: 'Reanudar',
     protocols_restart_title: "¿Reanudar {name}?",
-    protocols_restart_body: "Hoy empieza un nuevo ciclo con cero dosis tomadas; el anterior queda en tu historial. ¿Usarás uno nuevo o seguirás con el mismo?",
+    protocols_restart_body: "Hoy empieza un nuevo ciclo; el anterior queda en tu historial. ¿Usarás uno nuevo o seguirás con el mismo?", // DV-024: the same container keeps its count
     protocols_restart_body_plain: "Hoy empieza un nuevo ciclo con cero dosis tomadas; el anterior queda en tu historial.",
     protocols_restart_new_vial_btn: "Vial nuevo",
     protocols_restart_same_vial: "Seguir con el mismo vial",
@@ -5754,7 +5754,7 @@ export const translations = {
     protocols_ended_on: 'Encerrado em {date}',
     protocols_restart: 'Retomar',
     protocols_restart_title: "Retomar {name}?",
-    protocols_restart_body: "Um novo ciclo começa hoje, com zero doses tomadas; o ciclo anterior fica no histórico. Vai usar um novo ou continuar com o mesmo?",
+    protocols_restart_body: "Um novo ciclo começa hoje; o ciclo anterior fica no histórico. Vai usar um novo ou continuar com o mesmo?", // DV-024: the same container keeps its count
     protocols_restart_body_plain: "Um novo ciclo começa hoje, com zero doses tomadas; o ciclo anterior fica no histórico.",
     protocols_restart_new_vial_btn: "Frasco novo",
     protocols_restart_same_vial: 'Continuar com o mesmo frasco',
@@ -8387,7 +8387,7 @@ export const translations = {
     protocols_ended_on: 'Terminé le {date}',
     protocols_restart: 'Reprendre',
     protocols_restart_title: "Reprendre {name} ?",
-    protocols_restart_body: "Un nouveau cycle commence aujourd'hui avec zéro dose prise ; le précédent reste dans votre historique. Utiliserez-vous un nouveau flacon ou le même ?",
+    protocols_restart_body: "Un nouveau cycle commence aujourd’hui ; le précédent reste dans votre historique. Utiliserez-vous un nouveau flacon ou le même ?", // DV-024: the same container keeps its count
     protocols_restart_body_plain: "Un nouveau cycle commence aujourd'hui avec zéro dose prise ; le précédent reste dans votre historique.",
     protocols_restart_new_vial_btn: "Nouveau flacon",
     protocols_restart_same_vial: "Garder le même flacon",
@@ -11020,7 +11020,7 @@ export const translations = {
     protocols_ended_on: 'Beendet am {date}',
     protocols_restart: 'Fortsetzen',
     protocols_restart_title: "{name} fortsetzen?",
-    protocols_restart_body: "Heute beginnt ein neuer Durchgang mit null genommenen Dosen; der vorherige bleibt in deinem Verlauf. Nimmst du ein neues oder weiter das gleiche?",
+    protocols_restart_body: "Heute beginnt ein neuer Durchgang; der vorherige bleibt in deinem Verlauf. Nimmst du ein neues oder weiter das gleiche?", // DV-024: the same container keeps its count
     protocols_restart_body_plain: "Heute beginnt ein neuer Durchgang mit null genommenen Dosen; der vorherige bleibt in deinem Verlauf.",
     protocols_restart_new_vial_btn: "Neues Fläschchen",
     protocols_restart_same_vial: "Gleiches Fläschchen weiter",
@@ -13654,7 +13654,7 @@ export const translations = {
     protocols_ended_on: 'Terminato il {date}',
     protocols_restart: 'Riprendi',
     protocols_restart_title: "Riprendere {name}?",
-    protocols_restart_body: "Oggi inizia un nuovo ciclo con zero dosi prese; il precedente resta nella cronologia. Ne userai uno nuovo o continuerai con lo stesso?",
+    protocols_restart_body: "Oggi inizia un nuovo ciclo; il precedente resta nella cronologia. Ne userai uno nuovo o continuerai con lo stesso?", // DV-024: the same container keeps its count
     protocols_restart_body_plain: "Oggi inizia un nuovo ciclo con zero dosi prese; il precedente resta nella cronologia.",
     protocols_restart_new_vial_btn: "Nuovo flacone",
     protocols_restart_same_vial: "Continua con lo stesso flacone",
