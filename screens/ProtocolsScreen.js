@@ -1870,7 +1870,7 @@ export default function ProtocolsScreen() {
       const asset = result.assets[0];
       // Vial-photo errors reuse "Couldn't read that label" (approved 2026-09-29).
       if (!asset?.base64) return fail(t('vial_scan_error'), t('vial_scan_error_sub'));
-      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) return fail(t('error'), t('blood_error_file_too_large'));
+      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) return fail(t('error'), t('scan_photo_too_large'));
       const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
       setVialScanning(true);
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {

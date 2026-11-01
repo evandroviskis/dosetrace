@@ -535,7 +535,7 @@ export default function BodyScreen({ navigation, route }) {
       const asset = result.assets[0];
       const base64 = asset?.base64;
       if (!base64) { notice(scanErrorSheet('read', t), true); return; }
-      if (base64.length > MAX_FILE_BYTES * 1.4) { notice(scanErrorSheet('big', t), true); return; }
+      if (base64.length > MAX_FILE_BYTES * 1.4) { notice(scanErrorSheet('bigPhoto', t), true); return; }
       const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
 
       setUploading(true);

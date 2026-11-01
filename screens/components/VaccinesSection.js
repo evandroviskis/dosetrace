@@ -177,7 +177,7 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
       if (result.canceled) return;
       const asset = result.assets[0];
       if (!asset?.base64) { notice(scanErrorSheet('read', t), true); return; }
-      if (asset.base64.length > MAX_FILE_BYTES * 1.4) { notice(scanErrorSheet('big', t), true); return; }
+      if (asset.base64.length > MAX_FILE_BYTES * 1.4) { notice(scanErrorSheet('bigPhoto', t), true); return; }
       const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
       setUploading(true);
       await extractVaccines({ image_base64: asset.base64, media_type: mediaType });
