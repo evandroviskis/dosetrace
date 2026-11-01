@@ -45,6 +45,7 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { outcomeCounts } from '../lib/declared';
 import { logListState } from '../lib/firstLoad';
+import { localISO } from '../lib/localDate';
 
 const WEEKDAY_KEYS = ['today_sun', 'today_mon', 'today_tue', 'today_wed', 'today_thu', 'today_fri', 'today_sat'];
 const INJECTABLE = ['recon', 'rtu'];
@@ -216,8 +217,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   }
   function dayKeyOf(ms) {
     const d = new Date(ms);
-    const p = (n) => (n < 10 ? '0' + n : '' + n);
-    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    return localISO(d);
   }
 
   function writeOutcome(logId, fields) {

@@ -107,6 +107,7 @@ test('L-26: the notification action closes the evening\'s own day (even after mi
   const closed = []; let notified = null, synced = 0;
   const fromNotif = loadFn('lib/notificationActions.js', 'async function closeFoodDayFromNotification(', 'closeFoodDayFromNotification', {
     foodReminderDay,
+    localISO: require('../lib/localDate').localISO,
     closeFoodDay: async (k) => { closed.push(k); return true; },
     notifyDataChanged: (k) => { notified = k; },
     AppState: { currentState: 'active' },

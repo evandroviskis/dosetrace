@@ -43,6 +43,7 @@ function loadModule(over = {}, shared = {}) {
     getProtocolById: (id) => ({ id, name: 'Testosterone', type: 'oral', active: 1 }),
     recordDoseTaken: (id) => { log.push(['write', id, background]); return { logId: 7, protocol: { name: 'Testosterone', type: 'oral' }, dayKey: `${TODAY}` }; },
     notificationTakeTarget, parseDoseId, foodReminderDay,
+    localISO: require('../lib/localDate').localISO,
     needsSiteQuestion: () => false,
     newQuestion: (q) => q,
     saveQuestion: async () => {},

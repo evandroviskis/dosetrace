@@ -158,9 +158,9 @@ import { nextTodayQuestion } from '../lib/protocolEnd';
 import CheckMark from '../components/CheckMark';
 import { pluralKey } from '../lib/plural';
 import { protocolDisplayName } from '../lib/protocolName';
+import { localISO } from '../lib/localDate';
 
-const pad2 = (n) => (n < 10 ? '0' + n : '' + n);
-const localDayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const localDayKey = (ms) => { const d = new Date(ms); return localISO(d); };
 
 const WEEKDAY_KEYS = ['today_sun','today_mon','today_tue','today_wed','today_thu','today_fri','today_sat'];
 

@@ -92,6 +92,7 @@ test('FX-7: the notification action marks taken through recordDoseTaken (behavio
     AsyncStorage: {},
     insertDoseLog: () => { throw new Error('no own write path'); },
     updateVial: () => { throw new Error('no own write path'); },
+    localISO: require('../lib/localDate').localISO,
   };
   const markTaken = loadFn('lib/notificationActions.js', 'async function markTaken(', 'markTaken', deps);
   await markTaken({ id: 'dose-2-x', data: { protocolId: 2 } });
