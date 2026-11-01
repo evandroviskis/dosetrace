@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
 
     // A table that was never created surfaces as 42P01 (Postgres "relation does
     // not exist") OR PGRST205 (PostgREST "not found in schema cache", e.g.
-    // notification_preferences, which actually lives in user_metadata). Both mean
+    // a table not yet created on this project). Both mean
     // there is nothing to delete there — tolerate them so cleanup never blocks
     // the account deletion.
     const tableMissing = (e) => e && (e.code === '42P01' || e.code === 'PGRST205');
@@ -143,8 +143,9 @@ Deno.serve(async (req) => {
       'lab_prefs',
       'ai_food_usage',
       'ai_scan_usage',
+      // DV-011 (DL-93): the assistant's use ledger is named (it cascades too).
+      'ai_assistant_usage',
       'reminders',
-      'notification_preferences',
       'analytics_events',
       'referral_codes',
       'apple_tokens',
@@ -153,9 +154,8 @@ Deno.serve(async (req) => {
       // (not reliant on the cascade) and so cleanup runs even if the auth delete
       // is retried against an already-detached row.
       'push_tokens',
-      // Per-user reminder-send ledger (server push); cascades too, listed for the
-      // same provable-erasure reason. Tolerated if the table doesn't exist yet.
-      'notification_sends',
+      // DV-011: the per-user app-release push ledger; listed for the same provable-erasure reason.
+      'app_release_pushes',
       // A-163 messages from the DoseTrace team; cascades too (user_id → auth.users), listed
       // for the same provable-erasure reason. Tolerated if the table doesn't exist yet.
       'team_messages',
@@ -184,6 +184,20 @@ Deno.serve(async (req) => {
       console.error('[delete-user] failed on referrals:', referralsError.code, referralsError.message);
       return new Response(
         JSON.stringify({ error: `Failed to delete referrals: ${referralsError.message}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // DV-011: the profile row is keyed by id (the core tables cascade from it); deleted by name, after
+    // every other row of the user (referrals included), so erasure never relies on the cascade.
+    const { error: profileError } = await adminClient
+      .from('profiles')
+      .delete()
+      .eq('id', user.id);
+    if (profileError && !tableMissing(profileError)) {
+      console.error('[delete-user] failed on profiles:', profileError.code, profileError.message);
+      return new Response(
+        JSON.stringify({ error: `Failed to delete profiles: ${profileError.message}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
