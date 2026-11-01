@@ -31,7 +31,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, seriesName, compoundName, curveLabels, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, displayScale, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
+  curveWindowDays, curveTicks, axisLabel, displayScale, curveDrawMax, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
 import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
@@ -275,7 +275,7 @@ function backLabelFor(navigation, t) {
 // no back row, no top safe-area edge (the tab screen has it), the chart sized to the page.
 // As a pushed screen it moves onto the Journey right page when the window unfolds (BK-10).
 export default function SerumCurveScreen({ embedded = false }) {
-  const { t, language } = useLanguage();
+  const { t, language, timeFormat } = useLanguage();
   const du = t('unit_day_short');
   const hu = t('unit_hour_short');
   // Levels and dates in the app language ("3,5 mg", "19 de out."; lib/localeFormat).
@@ -358,7 +358,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(userId)), t);
     const { iu, noData, noDose, oral } = split;
     // Same-named rows (two runs of one compound) carry their own dates (lib/serumModel curveLabels).
-    const protocols = curveLabels(split.active, { t, language });
+    const protocols = curveLabels(split.active, { t, language, timeFormat });
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(userId) || [];
     const labDates = [...new Set(marks.map(m => m.report_date).filter(Boolean))].sort().reverse();
@@ -586,6 +586,9 @@ export default function SerumCurveScreen({ embedded = false }) {
     // (taller) combined totals — so every line is directly comparable.
     let max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
+    // Under a thousandth of the display unit in the whole window (an old dose's tail): nothing to draw — the
+    // empty-chart state, never an axis of "0,000000" (lib/serumModel curveDrawMax).
+    max = curveDrawMax(max, displayScale(series[0] ? series[0].unit : 'mg', series.map((ser) => ser.doseMg)).factor);
     // Exact position of this moment (fractional step) — the Now marker and dots
     // sit here, at the same exact level the numbers show.
     const nowF = Math.min(nSteps, (now - start) / stepMs);
@@ -883,7 +886,7 @@ export default function SerumCurveScreen({ embedded = false }) {
             accessibilityLabel={t('curve_choose_title')}
           >
             {model && model.series.map(ser => <View key={ser.id} style={[s.dot, { backgroundColor: ser.color }]} />)}
-            <Text style={s.pickText} numberOfLines={1}>{buttonLabel}</Text>
+            <Text style={s.pickText} numberOfLines={2}>{buttonLabel}</Text>
             <Svg width={18} height={18} viewBox="0 0 24 24">
               <Path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke={colors.ink3} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
@@ -932,7 +935,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 {model && model.series.map(ser => (
                   <View key={`h-${ser.id}`} style={s.heroMultiRow}>
                     <View style={[s.dot, { backgroundColor: ser.color }]} />
-                    <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
+                    <Text style={s.readoutName} numberOfLines={2}>{ser.name}</Text>
                     <Text style={s.readoutVal}>{levelText(serLevel(ser, ser.nowLevel))}</Text>
                   </View>
                 ))}
@@ -1146,7 +1149,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <View key={ser.id} style={s.legendRow}>
                   <View style={[s.dot, { backgroundColor: ser.color }]} />
                   <View style={s.legendNameCol}>
-                    <Text style={s.legendName} numberOfLines={1}>{ser.name}</Text>
+                    <Text style={s.legendName} numberOfLines={2}>{ser.name}</Text>
                     <Text style={[s.legendTier, { color: tierCfg[ser.entry.tier].fg }]} numberOfLines={1}>
                       {tierCfg[ser.entry.tier].label}
                     </Text>
@@ -1233,7 +1236,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   {model && model.series.map(ser => (
                     <View key={`ro-${ser.id}`} style={s.readoutRow}>
                       <View style={[s.dot, { backgroundColor: ser.color }]} />
-                      <Text style={s.readoutName} numberOfLines={2}>{ser.name} · {readoutShort}</Text>
+                      <Text style={s.readoutName} numberOfLines={3}>{ser.name} · {readoutShort}</Text>
                       <Text style={s.readoutVal}>{readoutT < model.start ? '—' : levelText(serLevel(ser, readoutLevel(ser, readoutT)))}</Text>
                     </View>
                   ))}
@@ -1340,7 +1343,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   >
                     <View style={[s.dot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                     <View style={s.optionMain}>
-                      <Text style={s.optionName} numberOfLines={1}>{seriesName(p, t)}</Text>
+                      <Text style={s.optionName} numberOfLines={2}>{seriesName(p, t)}</Text>
                       <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours, language, du)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ` · ${unitText('IU', language)}` : ''}</Text>
                     </View>
                     {on ? <CheckMark size={22} color={colors.ink} /> : <View style={{ width: 22 }} />}

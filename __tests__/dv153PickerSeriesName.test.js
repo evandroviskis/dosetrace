@@ -22,8 +22,8 @@ test('DV-153: two blends with BPC-157 give distinct picker names', () => {
 
 test('DV-153: the picker and the chart read the same name, with no second ended marker', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /<Text style=\{s\.optionName\} numberOfLines=\{1\}>\{seriesName\(p, t\)\}<\/Text>/);
+  assert.match(src, /<Text style=\{s\.optionName\} numberOfLines=\{2\}>\{seriesName\(p, t\)\}<\/Text>/);
   assert.match(src, /name: seriesName\(p, t\),/);
   // The ended marker is set once, in lib/serumModel curveLabels (same-named rows carry their dates).
-  assert.match(src, /const protocols = curveLabels\(split\.active, \{ t, language \}\);/);
+  assert.match(src, /const protocols = curveLabels\(split\.active, \{ t, language, timeFormat \}\);/);
 });
