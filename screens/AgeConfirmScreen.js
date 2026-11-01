@@ -10,7 +10,7 @@
  * says why and stays here — it can be tried again.
  */
 import { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
@@ -20,6 +20,8 @@ import { friendlyError } from '../lib/friendlyError';
 import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
+import { getBillingStore } from '../lib/entitlement';
+import { deleteAccountSheet } from './SettingsScreen';
 import { runSignOut } from '../lib/settingsSignOut';
 import { createBusyGuard } from '../lib/busyGuard';
 import { isLocalDBEmpty, fullImportFromCloud } from '../lib/sync';
@@ -97,13 +99,12 @@ export default function AgeConfirmScreen({ session }) {
   }
 
   // The existing two-step delete, as DoseTrace sheets: warn, then the last chance.
-  function askDelete() {
-    setSheet({
-      icon: 'warning',
-      title: t('settings_delete'),
-      body: t('settings_delete_permanent_msg'),
-      buttons: [{ label: t('cancel'), kind: 'secondary' }, { label: t('settings_delete_confirm'), kind: 'danger', onPress: askDeleteFinal }],
-    });
+  // DV-087 (DL-60, AD-79 item 6): the same first sheet as Settings — a store subscription that will renew adds
+  // that deleting does not cancel it and the store's page (Manage subscription).
+  async function askDelete() {
+    let store = null;
+    try { store = await getBillingStore(); } catch { store = null; }
+    setSheet({ icon: 'warning', ...deleteAccountSheet({ t, store, platform: Platform.OS, onConfirm: askDeleteFinal, openUrl: (u) => Linking.openURL(u) }) });
   }
   function askDeleteFinal() {
     setSheet({

@@ -50,7 +50,8 @@ test('PA-104: not confirmed → only export, delete (the existing two-step flow)
   const scr = read('screens', 'AgeConfirmScreen.js');
   assert.match(scr, /exportMyData\(/, 'the existing export');
   assert.match(scr, /requestAccountDeletion\(\)/, 'the existing delete (delete-user)');
-  assert.match(scr, /settings_delete_permanent_msg[\s\S]{0,600}settings_delete_final_msg/, 'the two confirmations, in order');
+  // DV-087: the first confirmation is Settings' deleteAccountSheet (settings_delete_permanent_msg + the billing line), then the last chance.
+  assert.match(scr, /deleteAccountSheet\(\{ t, store, platform: Platform\.OS, onConfirm: askDeleteFinal[\s\S]{0,600}settings_delete_final_msg/, 'the two confirmations, in order');
   assert.match(scr, /signOutIntended\(/); // A-119: through the one flow (signOutIntended(opts), force on "Sign out anyway")
   assert.doesNotMatch(scr.slice(0, scr.indexOf('function askDelete')), /requestAccountDeletion\(\)/, 'deletion only behind the confirmations');
   assert.doesNotMatch(read('App.js'), /requestAccountDeletion|delete-user/, 'the app never deletes on its own');

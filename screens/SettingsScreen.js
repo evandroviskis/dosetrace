@@ -100,7 +100,7 @@ function manageSubscriptionsUrl(os) {
 // it, where to cancel in THAT store, and "Manage subscription", which opens its page and leaves
 // the sheet up. No store subscription (free, promotional, Lifetime, cancelled, unknown): as before.
 // Guideline 2.3.10: the iOS app never names Google Play, so on iOS a Play subscription shows nothing.
-function deleteAccountSheet({ t, store, platform, onConfirm, openUrl }) {
+export function deleteAccountSheet({ t, store, platform, onConfirm, openUrl }) {
   const os = store === 'APP_STORE' ? 'ios' : store === 'PLAY_STORE' && platform !== 'ios' ? 'android' : null;
   const sheet = {
     title: t('settings_delete'),
