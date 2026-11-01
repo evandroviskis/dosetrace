@@ -54,6 +54,7 @@ import SerumCurveScreen from './SerumCurveScreen';
 import { pluralKey } from '../lib/plural';
 import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
+import { errorSheet, errorTitle } from '../lib/errorSheet';
 import { scanResult, parseLabInput, labValueText, labNumberText, labInputText, chartPoints, isWordResult } from '../lib/labValue';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
 import { fetchScanUsage, scanUsageLine, scanUsageShown } from '../lib/scanUsage';
@@ -429,7 +430,7 @@ export default function BodyScreen({ navigation, route }) {
   // (offline too) — or, while the cloud table is not there yet, as 1.3.1 did (one operation on the
   // fresh user_metadata, only that key) — through lib/labPrefs. A failed save undoes only this change
   // and says so.
-  function saveFailed() { notice({ title: t('error'), body: t('error_save_failed') }); }
+  function saveFailed() { notice({ title: errorTitle(t, 'save'), body: t('error_save_failed') }); } // DV-233
   async function toggleFavorite(marker) {
     const on = !isFavorite(favorites, marker);
     setFavorites(prev => setFavorite(prev, marker, on));
@@ -727,7 +728,7 @@ export default function BodyScreen({ navigation, route }) {
     // (value null); a plain number clears the sign and the words. Empty → the same notice as before.
     const parsed = parseLabInput(mValue, language);
     if (!mName.trim() || !parsed) {
-      setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_edit_invalid'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setValueSheet(errorSheet(t, 'save', t('blood_edit_invalid'))); // DV-233; the typed name and value stay
       return;
     }
     const { value, qualifier, value_text } = parsed;
@@ -740,14 +741,14 @@ export default function BodyScreen({ navigation, route }) {
         const userId = mEdit.card.markers?.[0]?.user_id || (await getCachedUser())?.id;
         const added = addBiomarkerToReport(userId, mEdit.card, { marker: mName.trim(), value, qualifier, value_text, unit: mUnit.trim() });
         if (!added) {
-          setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_add_value_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+          setValueSheet(errorSheet(t, 'save', t('blood_add_value_failed')));
           return;
         }
         requestSync();
         setMEdit(null);
         fetchReports();
       } catch {
-        setValueSheet({ icon: 'warning', title: t('error'), body: t('blood_add_value_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+        setValueSheet(errorSheet(t, 'save', t('blood_add_value_failed')));
       } finally { savingRef.current = false; }
       return;
     }
@@ -931,7 +932,8 @@ export default function BodyScreen({ navigation, route }) {
         });
         // Confirm the native module exists BEFORE requiring expo-print, whose
         // top-level requireNativeModule('ExpoPrint') would otherwise throw.
-        if (!hasNativeModule('ExpoPrint')) { setExporting(false); notice(scanErrorSheet('build', t)); return; }
+        // DV-233: an export that needs a newer app says so (the scan's line spoke of photos and PDFs).
+        if (!hasNativeModule('ExpoPrint')) { setExporting(false); notice({ title: errorTitle(t, 'version'), body: t('export_needs_build') }); return; }
         const Print = require('expo-print');
         const res = await Print.printToFileAsync({ html });
         uri = await moveIntoSharedFile(FileSystem, res.uri, RECORDS_PDF_NAME);
@@ -942,7 +944,7 @@ export default function BodyScreen({ navigation, route }) {
         await Sharing.shareAsync(uri, { mimeType: mime, dialogTitle: t('export_records') });
       }
     } catch (e) {
-      notice({ title: t('error'), body: t('export_error') }, true);
+      notice({ title: errorTitle(t, 'file'), body: t('export_error') }, true); // DV-233
     }
     setExporting(false);
   }

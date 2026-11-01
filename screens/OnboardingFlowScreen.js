@@ -25,6 +25,7 @@ import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { PRIVACY_URL } from '../lib/legalLinks';
 import { friendlyError } from '../lib/friendlyError';
+import { errorSheet } from '../lib/errorSheet';
 import { answerGate } from '../lib/pendingGateStore';
 import { PROFILE_ACTIVITY } from '../lib/activityLevels';
 import { activityParts } from '../lib/progressFormat';
@@ -287,7 +288,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     const r = await answerGate({ userId: session.user.id, patch: data, write: () => supabase.auth.updateUser({ data }) });
     setSaving(false);
     if (r.status === 'failed') {
-      setSheet({ icon: 'alert', title: t('error'), body: friendlyError(r.error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setSheet(errorSheet(t, 'save', friendlyError(r.error, t, 'error_save_failed'))); // DV-233
       return;
     }
     clearOnboarding().catch(() => {}); // written into the account (or kept for it on this phone, DV-114): gone from the stash
@@ -303,7 +304,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     await runSignOut({
       signOut: (opts) => signOutIntended(opts),
       guard: signOutGuard,
-      onFailed: () => setSheet({ icon: 'alert', title: t('settings_signout_failed_title'), body: t('settings_signout_failed_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }),
+      onFailed: () => setSheet(errorSheet(t, 'signout', t('settings_signout_failed_body'))), // DV-233
       onBlocked: (r, anyway) => setSheet(signOutSheet({ t, language, timeFormat, offline: r.offline, summary: r.summary, lastBackup: r.lastBackup, onAnyway: anyway, onStay: () => {} })),
     });
   }

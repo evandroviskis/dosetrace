@@ -13,6 +13,7 @@ import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, exchangeAuthCodeFromUrl, isProfileComplete, takeAccountGone, probeAccountGone, noteSessionUser } from './lib/supabase';
 import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, ownerBlocksSync, OWNER_KEY } from './lib/accountGuard';
+import { errorSheet } from './lib/errorSheet';
 import { clearAIConsent } from './lib/aiConsent';
 import { clearAnalyticsQueue } from './lib/analytics';
 import { clearTeamMessages } from './lib/teamMessages';
@@ -357,8 +358,9 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
       : linkFailed
         ? (linkFailed === 'signout_failed'
           // The reset-link account switch could not sign the other account out: "Couldn't sign out".
-          ? { icon: 'alert', title: t('settings_signout_failed_title'), body: t('settings_signout_failed_body'), buttons: [{ label: t('ok'), kind: 'primary' }] }
-          : { icon: 'alert', title: t('auth_link_failed_title'), body: t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : 'auth_link_failed_msg'), buttons: [{ label: t('ok'), kind: 'primary' }] })
+          // DV-233: error sheets — the warning triangle (lib/errorSheet); the switch question above keeps its glyph.
+          ? errorSheet(t, 'signout', t('settings_signout_failed_body'))
+          : errorSheet(t, 'link', t(linkFailed === 'confirm' ? 'auth_confirm_link_failed_msg' : 'auth_link_failed_msg')))
         : null;
   // Closing a sheet only hides it; the buttons carry the actions (DTSheet runs them after).
   const closeLinkSheet = () => {

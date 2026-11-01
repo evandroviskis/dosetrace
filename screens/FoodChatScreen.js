@@ -51,6 +51,7 @@ import { FoodDemo } from './components/NutritionLogger';
 
 import { formatDate } from '../lib/localeFormat';
 import { pluralKey } from '../lib/plural';
+import { ERROR_ICON, errorTitle } from '../lib/errorSheet';
 // Per-device conveniences (not user data): today's asked questions (+ the one on
 // screen) and the unsent draft (FL-36, per user).
 const ASKED_KEY = 'dosetrace_food_asked';
@@ -243,7 +244,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   // buttons: [{ text, style: 'cancel' | 'destructive' | undefined, onPress }]. Two buttons sit in
   // a row with Cancel first; three stack with Cancel last. The risk colour marks a destructive
   // choice; a tap outside or Android back = Cancel.
-  function alert(title, msg, buttons) {
+  // icon: a FeatureIcon name — an error passes ERROR_ICON, the warning triangle (DV-233).
+  function alert(title, msg, buttons, icon) {
     setAlertOpen(true);
     const list = buttons && buttons.length ? buttons : [{ text: t('ok') }];
     const cancel = list.filter((b) => b.style === 'cancel');
@@ -251,7 +253,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const ordered = list.length > 2 ? [...rest, ...cancel] : [...cancel, ...rest];
     const lastAction = rest[rest.length - 1];
     setChatSheet({
-      icon: title === t('error') ? 'warning' : undefined,
+      icon,
       title,
       body: msg,
       buttons: ordered.map((b) => ({
@@ -339,7 +341,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       return;
     }
     const ok = await closeFoodDay(dayKey, uid);
-    if (!ok) { alert(t('error'), t('error_save_failed')); return; }
+    if (!ok) { alert(errorTitle(t, 'save'), t('error_save_failed'), null, ERROR_ICON); return; } // DV-233
     if (opts.ateNothing) markAteNothing(uid, dayKey); // marker: durable + synced ('ate_nothing')
     const open = openFollowup(rows);
     if (open) { updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); clearDraft(fuDraftKey(open)); } // stays an estimate

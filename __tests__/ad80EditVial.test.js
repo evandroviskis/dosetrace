@@ -311,7 +311,7 @@ test('EV-3 (review): an empty day, or no month, is "missing", not "invalid"; Feb
   assert.deepEqual(VE.editMixDate(9, '13', OCT20), { date: '2026-10-13' });
   const t = (k) => k;
   assert.deepEqual(VE.mixDateError('empty', t), { title: 'vial_edit_day_empty_title', body: 'vial_edit_day_empty_body' });
-  assert.deepEqual(VE.mixDateError('invalid', t), { title: 'error', body: 'today_invalid_date' });
+  assert.deepEqual(VE.mixDateError('invalid', t), { title: 'today_invalid_date', body: 'vial_edit_invalid_body' }); // DV-233
   const db = makeDb(); const a = app(db); const { tirz, tv } = seed(db);
   const before = vialRow(db, tv);
   assert.deepEqual(VE.applyVialEdit(protoRow(db, tirz), before, { month: 9, day: '', validDays: '28', dosesUsed: '2' }, OCT20, a), { error: 'empty' });

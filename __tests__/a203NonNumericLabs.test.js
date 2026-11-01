@@ -222,6 +222,7 @@ function saveFn(state, calls) {
     language: state.language || 'pt',
     parseLabInput: L.parseLabInput, parseMeasure: require('../lib/doseMath').parseMeasure,
     setValueSheet: (x) => calls.sheet.push(x), t: (k) => k,
+    errorSheet: require('../lib/errorSheet').errorSheet, // DV-233
     savingRef: { current: false },
     getCachedUser: async () => ({ id: USER }),
     addBiomarkerToReport: (u, card, row) => { calls.added.push(row); return 1; },

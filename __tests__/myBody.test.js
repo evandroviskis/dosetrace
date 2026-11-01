@@ -224,7 +224,7 @@ test('MB-17: Edit value is a bottom sheet; Test date opens its own wheel sheet t
   // A-203 (NN-4): the field is read by lib/labValue parseLabInput (parseMeasure in the app language,
   // plus a leading sign or words); the empty check and its notice are unchanged.
   assert.match(save, /const parsed = parseLabInput\(mValue, language\);/);
-  assert.match(save, /setValueSheet\(\{ icon: 'warning', title: t\('error'\), body: t\('blood_edit_invalid'\)/);
+  assert.match(save, /setValueSheet\(errorSheet\(t, 'save', t\('blood_edit_invalid'\)\)\)/); // DV-233
   const { wheelAfter, wheelColumns } = require('../lib/bodyDates');
   const now = new Date(2026, 9, 3, 12);
   assert.equal(wheelAfter('2026-10-01', now, 1, 29, { back: 30, ahead: 0, max: '2026-10-03' }), '2026-10-03', 'Oct 30 → today');
@@ -243,7 +243,7 @@ test('MB-19: the export sheet hugs its content, rows say only "N readings", and 
   const exp = fnCode(BODY, 'doExport');
   assert.match(exp, /setTimeout\(\(\) => setPreviewKey\('pdf'\), 300\);/);
   assert.match(BODY, /<DTSheet config=\{exportModalOpen \? exportSheet : null\} onClose=\{\(\) => setExportSheet\(null\)\} \/>/);
-  assert.match(exp, /notice\(\{ title: t\('error'\), body: t\('export_error'\) \}, true\)/);
+  assert.match(exp, /notice\(\{ title: errorTitle\(t, 'file'\), body: t\('export_error'\) \}, true\)/); // DV-233
 });
 
 // ── Parts 16–20: the Vaccine journal ──────────────────────────────────────────────────────

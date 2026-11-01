@@ -30,6 +30,7 @@ import CheckMark from '../components/CheckMark';
 import AuthField from '../components/AuthField';
 import LegalModal from '../components/LegalModal';
 import { DTSheet } from './components/ProtocolParts';
+import { errorSheet as errorSheetConfig, ERROR_ICON, errorTitle } from '../lib/errorSheet';
 
 
 // Back arrow (Graduated): a drawn monoline chevron in ink, never a font glyph.
@@ -186,7 +187,10 @@ export default function AuthScreen({ onBack, initialMode }) {
   }, []);
 
   const isSignIn = mode !== 'create';
-  const errorSheet = (body, title) => setSheet({ icon: 'alert', title: title || t('error'), body, buttons: [{ label: t('ok'), kind: 'primary' }] });
+  // DV-233: the warning triangle and a title that says what happened (lib/errorSheet). `kind`
+  // defaults to the screen's mode: "Couldn't sign in" / "Couldn't create your account". The typed
+  // address and password stay in their fields (the sheet only shows a message).
+  const errorSheet = (body, kind) => setSheet(errorSheetConfig(t, kind || (isSignIn ? 'signin' : 'create'), body));
 
   // Apple / Google: from Create account the consent box decides what a NEW account records
   // (PA-59). If the sign-in is cancelled or fails, the stash goes back to how it was.
@@ -222,12 +226,12 @@ export default function AuthScreen({ onBack, initialMode }) {
     if (busyRef.current) return;
     busyRef.current = true;
     const trimmed = email.trim();
-    if (!trimmed) { busyRef.current = false; errorSheet(t('forgot_password_enter_email')); return; }
+    if (!trimmed) { busyRef.current = false; errorSheet(t('forgot_password_enter_email'), 'sendLink'); return; }
     setLoading(true);
     const { error } = await sendPasswordReset(trimmed);
     busyRef.current = false;
     setLoading(false);
-    if (error) errorSheet(authErrorMessage(error, t, 'reset_request'));
+    if (error) errorSheet(authErrorMessage(error, t, 'reset_request'), 'sendLink');
     else setSheet(forgotPasswordSheet({ t, email: trimmed, appleShown: appleButtonShown(appleWeb) }));
   }
 
@@ -238,7 +242,7 @@ export default function AuthScreen({ onBack, initialMode }) {
     if (resendCooldown > 0) return;
     const addr = email.trim();
     const { error } = await supabase.auth.resend({ type: 'signup', email: addr, options: { emailRedirectTo: emailConfirmRedirectUrl() } });
-    if (error) { errorSheet(authErrorMessage(error, t, 'signup')); return; }
+    if (error) { errorSheet(authErrorMessage(error, t, 'signup'), 'sendLink'); return; }
     setSheet({ icon: 'check', title: t('signup_resent'), body: t('onboarding_confirm_msg').replace('{email}', addr), buttons: [{ label: t('ok'), kind: 'primary' }] });
     setResendCooldown(30);
     if (cooldownTimer.current) clearInterval(cooldownTimer.current);
@@ -264,8 +268,8 @@ export default function AuthScreen({ onBack, initialMode }) {
         if (isNotConfirmed(result.error)) {
           // Never confirmed: offer the link again right here (PA-58).
           setSheet({
-            icon: 'mail',
-            title: t('error'),
+            icon: ERROR_ICON, // DV-233: an error sheet — the triangle and "Couldn't sign in"
+            title: errorTitle(t, 'signin'),
             body: t('auth_email_not_confirmed'),
             buttons: [{ label: t('ok'), kind: 'secondary' }, { label: t('signup_resend'), kind: 'primary', onPress: handleResend }],
           });
@@ -291,7 +295,7 @@ export default function AuthScreen({ onBack, initialMode }) {
     if (next === 'error') { errorSheet(authErrorMessage(result && result.error, t, 'signup')); return; }
     if (next === 'exists') {
       // Explain and stay on Create account with the address kept (prototype create_taken).
-      errorSheet(t('signup_email_exists_msg'), t('signup_email_exists_title'));
+      errorSheet(t('signup_email_exists_msg'), 'emailExists');
       setPassword('');
       return;
     }

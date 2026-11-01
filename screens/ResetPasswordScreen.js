@@ -29,6 +29,7 @@ import { saveRecoveryPassword, discardPendingRecovery } from '../lib/recoveryLin
 import AuthField from '../components/AuthField';
 import useKeyboardLift from '../components/useKeyboardLift';
 import { DTSheet } from './components/ProtocolParts';
+import { errorSheet as errorSheetConfig } from '../lib/errorSheet';
 
 // recovery: the link's pending session (lib/recoveryLink). The account the app may be signed
 // in to is untouched until the new password is saved (PA-76).
@@ -44,7 +45,8 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
   const [loading, setLoading] = useState(false);
   const [sheet, setSheet] = useState(null);
 
-  const errorSheet = (body) => setSheet({ icon: 'alert', title: t('error'), body, buttons: [{ label: t('ok'), kind: 'primary' }] });
+  // DV-233: the warning triangle and "Couldn't save" (lib/errorSheet); both typed passwords stay.
+  const errorSheet = (body) => setSheet(errorSheetConfig(t, 'save', body));
 
   async function save() {
     if (loading) return;
@@ -56,7 +58,7 @@ export default function ResetPasswordScreen({ recovery, onDone }) {
     if (res.error) {
       if (res.terminal) {
         // The link's session is gone (used, expired, account removed): say so, then leave.
-        setSheet({ icon: 'alert', title: t('error'), body: t('reset_pw_link_expired'), done: true, buttons: [{ label: t('ok'), kind: 'primary' }] });
+        setSheet(errorSheetConfig(t, 'link', t('reset_pw_link_expired'), { done: true })); // "This link didn't work"
         return;
       }
       errorSheet(authErrorMessage(res.error, t, 'reset'));

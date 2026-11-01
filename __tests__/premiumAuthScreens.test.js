@@ -120,7 +120,9 @@ test('PA-50 / PA-51: Create account and Sign in views per the prototype (eye, ex
 });
 
 test('PA-53 / PA-58: email exists stays on Create with the address; not-confirmed offers Resend', () => {
-  assert.match(AUTH, /next === 'exists'[\s\S]{0,300}signup_email_exists_title/);
+  // DV-233: through the error-sheet helper; its 'emailExists' title is signup_email_exists_title.
+  assert.match(AUTH, /next === 'exists'[\s\S]{0,300}errorSheet\(t\('signup_email_exists_msg'\), 'emailExists'\)/);
+  assert.equal(require('../lib/errorSheet').ERROR_TITLE_KEYS.emailExists, 'signup_email_exists_title');
   const exists = AUTH.slice(AUTH.indexOf("next === 'exists'"), AUTH.indexOf("next === 'exists'") + 400);
   assert.doesNotMatch(exists, /setMode|switchMode|setIsSignIn/, 'no jump to Sign in');
   assert.match(AUTH, /isNotConfirmed\(result\.error\)[\s\S]{0,400}signup_resend[\s\S]{0,60}onPress: handleResend/);

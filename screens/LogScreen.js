@@ -25,6 +25,7 @@ import { planDeleteDose, rememberDeleted, doseDayKind } from '../lib/deleteDose'
 import { syncAllNotifications, cancelTodaysDoseReminders } from '../lib/notifications';
 import { handledSlotIndexes } from '../lib/notificationPlan';
 import { friendlyError } from '../lib/friendlyError';
+import { errorSheet } from '../lib/errorSheet';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate } from '../lib/localeFormat';
 import { hasPremium } from '../lib/entitlement';
@@ -453,7 +454,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       fetchLogs();
       if (embedded && onChanged) onChanged(); // BK-19: Today's left page follows
     } catch (err) {
-      setLogSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setLogSheet(errorSheet(t, 'save', friendlyError(err, t, 'error_save_failed'))); // DV-233
     }
   }
 
