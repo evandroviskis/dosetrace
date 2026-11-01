@@ -58,6 +58,7 @@ import { updateFlow } from '../lib/updateRuntime';
 import { reminderChecks, scheduleState, blockingCount, setupRowState } from '../lib/reminderHealth';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
+import { errorSheet as errorSheetConfig, ERROR_ICON, errorTitle } from '../lib/errorSheet';
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
@@ -321,7 +322,8 @@ export default function SettingsScreen({ navigation }) {
   const pendingShare = useRef(null);
   const tornDown = useRef(false);
   const notice = (title, body, icon) => setSheet({ icon, title, body, buttons: [{ label: t('ok'), kind: 'primary' }] });
-  const errorSheet = (body) => notice(t('error'), body, 'warning');
+  // DV-233: the warning triangle and a title that says what happened (lib/errorSheet kinds).
+  const errorSheet = (body, kind) => notice(errorTitle(t, kind), body, ERROR_ICON);
   // After the server deleted the account, the phone is cleared and signed out exactly once,
   // however the Apple note is closed (Done, the scrim or Android back), as on the 18+ sheet.
   const runTeardown = () => {
@@ -529,7 +531,7 @@ export default function SettingsScreen({ navigation }) {
     try { ({ error } = await supabase.auth.updateUser({ data: { [key]: val } })); } catch (e) { error = e; }
     if (error) {
       setter(!val);
-      errorSheet(friendlyError(error, t, 'error_save_failed'));
+      errorSheet(friendlyError(error, t, 'error_save_failed'), 'save');
       return;
     }
     // Re-sync all notifications to respect the new preference
@@ -553,7 +555,7 @@ export default function SettingsScreen({ navigation }) {
     try { ({ error } = await supabase.auth.updateUser({ data: { version_news: val } })); } catch (e) { error = e; }
     if (error) {
       setVersionNews(!val);
-      errorSheet(friendlyError(error, t, 'error_save_failed'));
+      errorSheet(friendlyError(error, t, 'error_save_failed'), 'save');
       return;
     }
     updateFlow().noteSettingsAnswer(user && user.id, val).catch(() => {});
@@ -574,7 +576,7 @@ export default function SettingsScreen({ navigation }) {
     try { ({ error } = await supabase.auth.updateUser({ data: { analytics_opt_in: val } })); } catch (e) { error = e; }
     if (error) {
       setAnalyticsEnabled(analyticsSaved.current);
-      errorSheet(friendlyError(error, t, 'error_save_failed'));
+      errorSheet(friendlyError(error, t, 'error_save_failed'), 'save');
     } else {
       analyticsSaved.current = val;
       if (val) await noteAnalyticsChoice(user && user.id, true);
@@ -631,7 +633,7 @@ export default function SettingsScreen({ navigation }) {
       setEditProfileOpen(false);
       fetchUser();
     } catch (e) {
-      setEditSheet({ icon: 'warning', title: t('error'), body: friendlyError(e, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setEditSheet(errorSheetConfig(t, 'save', friendlyError(e, t, 'error_save_failed'))); // DV-233
     } finally {
       savingProfile.current = false;
     }
@@ -645,7 +647,7 @@ export default function SettingsScreen({ navigation }) {
       const r = await exportMyData(user, t('settings_export_title'));
       if (r.saved) notice(t('settings_export_title'), t('settings_export_done'), 'check');
     } catch (e) {
-      errorSheet(t('settings_export_error'));
+      errorSheet(t('settings_export_error'), 'file');
     }
     setExporting(false);
   }
@@ -757,7 +759,7 @@ export default function SettingsScreen({ navigation }) {
       setReportUnsync(unsyncNotice ? { sinceMs: unsyncSinceMs, never: unsyncNotice.never } : null);
       setReportPreview(report);
     } catch (e) {
-      errorSheet(friendlyError(e, t));
+      errorSheet(friendlyError(e, t), 'report');
     }
     setExporting(false);
   }
@@ -849,9 +851,9 @@ export default function SettingsScreen({ navigation }) {
       // The one delete (lib/accountActions → delete-user: ALL of the user's data rows first,
       // then the auth account), shared with the 18+ confirmation sheet.
       const result = await requestAccountDeletion();
-      if (result.noSession) { errorSheet(t('error_no_session')); return; }
+      if (result.noSession) { errorSheet(t('error_no_session'), 'session'); return; }
       if (result.syncBusy) { setSheet(deleteSyncBusySheet(t)); return; } // 2: not "offline"
-      if (result.offline) { errorSheet(t('settings_delete_offline')); return; }
+      if (result.offline) { errorSheet(t('settings_delete_offline'), 'deleteAccount'); return; }
       // A-119 OD-10: this phone is no longer the account's; nothing was deleted and screen 2 takes over.
       if (result.replaced) { setSheet(null); return; }
       // Gate B M4: this phone's own takeover is not confirmed yet — nothing was deleted; say so.
@@ -873,7 +875,7 @@ export default function SettingsScreen({ navigation }) {
       }
       runTeardown();
     } catch (e) {
-      errorSheet(friendlyError(e, t, 'error_deletion_failed'));
+      errorSheet(friendlyError(e, t, 'error_deletion_failed'), 'deleteAccount');
     }
   }
 

@@ -28,6 +28,7 @@ test('UN-8 no share sheet on the phone (saved): the Settings "done" words; a fai
   assert.equal(saved.icon, 'check');
   assert.equal(saved.buttons.length, 1);
   const failed = await requiredExport({ user, t, exportMyData: async () => { throw new Error('disk full'); } });
+  assert.equal(failed.title, '[err_title_file]', 'DV-233: says what happened');
   assert.equal(failed.body, '[settings_export_error]');
   assert.equal(failed.icon, 'warning');
   assert.equal(failed.buttons.length, 1);

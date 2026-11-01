@@ -13,6 +13,7 @@ const { loadFn } = require('./helpers/extractFn');
 const { runSignOut } = require('../lib/settingsSignOut');
 const { createBusyGuard } = require('../lib/busyGuard');
 const { signOutSheet } = require('../lib/deviceCopy');
+const { errorSheet } = require('../lib/errorSheet'); // DV-233: the screens' error sheet
 
 const ROOT = path.join(__dirname, '..');
 function load(results, guard = createBusyGuard()) {
@@ -20,7 +21,7 @@ function load(results, guard = createBusyGuard()) {
   const calls = [];
   const list = Array.isArray(results) ? [...results] : [results];
   const fn = loadFn('screens/OnboardingFlowScreen.js', '  async function handleSignOut() {', 'handleSignOut', {
-    signOutGuard: guard, runSignOut, signOutSheet, t: (k) => k, language: 'en', timeFormat: 'auto',
+    signOutGuard: guard, runSignOut, signOutSheet, errorSheet, t: (k) => k, language: 'en', timeFormat: 'auto',
     signOutIntended: async (opts) => { calls.push(opts && opts.force ? 'force' : 'signOutIntended'); const r = list.length > 1 ? list.shift() : list[0]; if (r instanceof Error) throw r; return r; },
     setSheet: (s) => shown.push(s),
   });
@@ -52,6 +53,7 @@ test('signed out: nothing shown; offline: the connection words; failed or thrown
     await f.fn();
     assert.equal(f.shown[0].title, 'settings_signout_failed_title');
     assert.equal(f.shown[0].body, 'settings_signout_failed_body');
+    assert.equal(f.shown[0].icon, 'warning', 'DV-233: the warning triangle');
   }
 });
 

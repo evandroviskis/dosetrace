@@ -118,7 +118,7 @@ for (const [where, open] of WINDOWS) {
       const { fn, calls } = open(OCT26);
       await fn({ month, day });
       assert.equal(calls.started.length, 0);
-      assert.equal(calls.sheets[0].body, 'today_invalid_date');
+      assert.equal(calls.sheets[0].body, 'vial_edit_invalid_body'); // DV-233: title today_invalid_date
     }
   });
 }
@@ -193,7 +193,7 @@ test('NV-form: Feb 31 shows the invalid-date message (never silently Feb 28), no
     await fn();
     assert.deepEqual(calls.protocols, [], `${m}/${d}: no protocol`);
     assert.deepEqual(calls.vials, []);
-    assert.equal(calls.sheets[0].body, 'today_invalid_date');
+    assert.equal(calls.sheets[0].body, 'vial_edit_invalid_body'); // DV-233: title today_invalid_date
     assert.deepEqual(calls.steps, [5]);
   }
 });

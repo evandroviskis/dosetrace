@@ -48,12 +48,16 @@ test('part 21: AI consent is a DoseTrace sheet with the spark, the policy link, 
   assert.match(PARTS, /linkText: \{ fontSize: 17, color: c\.ink, textDecorationLine: 'underline', textDecorationColor: c\.tick \}/);
 });
 
-test('part 21: Not signed in and the save error are DoseTrace sheets (warning icon, Error, OK)', () => {
+// DV-233: the title says what happened ("Your session has ended" / "Couldn't save"), never "Error";
+// the sheet itself (warning triangle, OK) comes from lib/errorSheet.
+test('part 21: Not signed in and the save error are DoseTrace sheets (warning icon, a title that says what happened, OK)', () => {
   const save = fnBody(SCREEN, 'saveProtocol');
-  assert.match(save, /wizError\(t\('protocols_not_signed_in'\)\)/);
-  assert.match(save, /wizError\(friendlyError\(err, t, 'error_save_failed'\)\)/);
+  assert.match(save, /wizError\('session', t\('protocols_not_signed_in'\)\)/);
+  assert.match(save, /wizError\('save', friendlyError\(err, t, 'error_save_failed'\)\)/);
   const err = fnBody(SCREEN, 'wizError');
-  assert.match(err, /icon: 'warning', title: t\('error'\), body, buttons: \[\{ label: t\('ok'\), kind: 'primary' \}\]/);
+  assert.match(err, /setWizSheet\(errorSheet\(t, kind, body\)\)/);
+  const { errorSheet } = require('../lib/errorSheet');
+  assert.deepEqual(errorSheet((k) => k, 'save', 'b'), { icon: 'warning', title: 'err_title_save', body: 'b', buttons: [{ label: 'ok', kind: 'primary' }] });
 });
 
 test("part 21: Let's double-check has no icon and reads OK; Missing name and notices read OK", () => {

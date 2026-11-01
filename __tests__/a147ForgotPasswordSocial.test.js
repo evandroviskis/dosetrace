@@ -100,7 +100,7 @@ test('FP-4: all 6 languages carry the three strings; Portuguese stays formal', (
 test('FP-5: AuthScreen shows this sheet after the reset request; no auth call changed', () => {
   const fn = AUTH.slice(AUTH.indexOf('async function handleForgotPassword'), AUTH.indexOf('// Resend the signup confirmation'));
   assert.match(fn, /const \{ error \} = await sendPasswordReset\(trimmed\);/, 'the reset request is the same call');
-  assert.match(fn, /if \(error\) errorSheet\(authErrorMessage\(error, t, 'reset_request'\)\);/);
+  assert.match(fn, /if \(error\) errorSheet\(authErrorMessage\(error, t, 'reset_request'\), 'sendLink'\);/); // DV-233: "Couldn't send the link"
   assert.match(fn, /else setSheet\(forgotPasswordSheet\(\{ t, email: trimmed, appleShown: appleButtonShown\(appleWeb\) \}\)\);/);
   assert.doesNotMatch(AUTH, /forgot_password_sent_title/);
   // The sentence reads the same two conditions the Apple button checks, so they never disagree.

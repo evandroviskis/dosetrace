@@ -39,6 +39,7 @@ import useSheetKeyboard from '../components/useSheetKeyboard';
 import useChosenInView from '../components/useChosenInView';
 import { doseUnitCheck } from '../lib/doseUnitCheck';
 import { friendlyError } from '../lib/friendlyError';
+import { errorSheet, errorTitle } from '../lib/errorSheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getActiveProtocols, insertProtocol, updateProtocol,
@@ -1472,7 +1473,7 @@ export default function ProtocolsScreen() {
     // All or nothing (lib/protocolEnd restartAsNew): a failed write changes nothing and says so.
     let newId = null;
     try { newId = restartEndedProtocol(id, opts); } catch (err) {
-      setScreenSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setScreenSheet(errorSheet(t, 'save', friendlyError(err, t, 'error_save_failed'))); // DV-233
       return;
     }
     const restarted = newId ? getProtocolById(newId) : null;
@@ -1802,9 +1803,9 @@ export default function ProtocolsScreen() {
     else setWizSheet(cfg);
   }
   // Not signed in / Couldn't save (part 21): the DoseTrace sheet with the app's warning
-  // triangle (Q15), never the grey iOS alert.
-  function wizError(body) {
-    setWizSheet({ icon: 'warning', title: t('error'), body, buttons: [{ label: t('ok'), kind: 'primary' }] });
+  // triangle (Q15), never the grey iOS alert. DV-233: the title says what happened.
+  function wizError(kind, body) {
+    setWizSheet(errorSheet(t, kind, body));
   }
 
   async function handleVialScanPress() {
@@ -1853,12 +1854,14 @@ export default function ProtocolsScreen() {
   // resolves { vial } | { error: { title, body }, quota } | null (cancelled). Never throws.
   async function extractVialLabel(fromCamera) {
     const fail = (title, body, extra) => ({ error: { title, body }, ...(extra || {}) });
-    if (!hasNativeModule('ExponentImagePicker')) return fail(t('error'), t('blood_needs_build'));
+    // DV-233: the titles say what happened (lib/errorSheet). A vial label has no PDF route, so the
+    // old-version line offers typing the values instead.
+    if (!hasNativeModule('ExponentImagePicker')) return fail(errorTitle(t, 'version'), t('vial_scan_needs_build'));
     const ImagePicker = require('expo-image-picker');
     try {
       if (fromCamera) {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) return fail(t('error'), t('blood_camera_denied'));
+        if (!perm.granted) return fail(errorTitle(t, 'camera'), t('blood_camera_denied'));
       }
       const opts = { mediaTypes: ['images'], quality: 0.6, base64: true };
       const result = fromCamera
@@ -1868,7 +1871,7 @@ export default function ProtocolsScreen() {
       const asset = result.assets[0];
       // Vial-photo errors reuse "Couldn't read that label" (approved 2026-09-29).
       if (!asset?.base64) return fail(t('vial_scan_error'), t('vial_scan_error_sub'));
-      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) return fail(t('error'), t('scan_photo_too_large'));
+      if (asset.base64.length > MAX_SCAN_BYTES * 1.4) return fail(errorTitle(t, 'photoBig'), t('scan_photo_too_large'));
       const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
       setVialScanning(true);
       const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
@@ -2099,7 +2102,7 @@ export default function ProtocolsScreen() {
     const safeStart = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : todayISO();
     try {
     const user = await getCachedUser();
-    if (!user) { setSaving(false); wizError(t('protocols_not_signed_in')); return; }
+    if (!user) { setSaving(false); wizError('session', t('protocols_not_signed_in')); return; }
 
     if (editingId) {
       // Only what the user changed is written (founder decision 2, 2026-10-02): the form
@@ -2312,7 +2315,7 @@ export default function ProtocolsScreen() {
     return true; // saved (the Dose log link continues only then)
     } catch (err) {
       setSaving(false);
-      wizError(friendlyError(err, t, 'error_save_failed'));
+      wizError('save', friendlyError(err, t, 'error_save_failed'));
     }
   }
 
@@ -2603,7 +2606,7 @@ export default function ProtocolsScreen() {
       fetchProtocols();
       requestSync();
     } catch (err) {
-      setNewVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setNewVialSheet(errorSheet(t, 'save', friendlyError(err, t, 'error_save_failed'))); // DV-233
     }
   }
 
@@ -2632,7 +2635,7 @@ export default function ProtocolsScreen() {
       // last-dose window (the one Today shows), once this one has faded out (one modal at a time).
       if (res.finished && p.type === 'recon') setTimeout(() => openNewVialWindow(p, 'finished'), 450);
     } catch (err) {
-      setEditVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setEditVialSheet(errorSheet(t, 'save', friendlyError(err, t, 'error_save_failed'))); // DV-233
     }
   }
 

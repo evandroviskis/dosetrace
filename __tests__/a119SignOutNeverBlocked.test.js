@@ -15,6 +15,7 @@ const { runSignOut } = require('../lib/settingsSignOut');
 const { createBusyGuard } = require('../lib/busyGuard');
 const { loadFn } = require('./helpers/extractFn');
 const { signOutSheet } = require('../lib/deviceCopy');
+const { errorSheet } = require('../lib/errorSheet'); // DV-233: the screens' error sheet
 
 const ROOT = path.join(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -130,7 +131,7 @@ test('the profile gate: unsent → the sheet with Sign out anyway (forced on tap
   const calls = [];
   const results = [{ blocked: true, offline: true, summary: { count: 1, byKind: { dose: 1 }, from: '2026-10-12', to: '2026-10-12', refused: 0 }, lastBackup: '2026-10-11T10:00:00.000Z' }, { blocked: false }];
   const fn = loadFn('screens/OnboardingFlowScreen.js', '  async function handleSignOut() {', 'handleSignOut', {
-    signOutGuard: createBusyGuard(), runSignOut, signOutSheet, t: (k) => tr.en[k] || k, language: 'en', timeFormat: 'auto',
+    signOutGuard: createBusyGuard(), runSignOut, signOutSheet, errorSheet, t: (k) => tr.en[k] || k, language: 'en', timeFormat: 'auto',
     signOutIntended: async (opts) => { calls.push(opts || {}); return results.shift(); },
     setSheet: (s) => shown.push(s),
   });
@@ -141,9 +142,10 @@ test('the profile gate: unsent → the sheet with Sign out anyway (forced on tap
   assert.deepEqual(calls, [{}, { force: true }]);
   const failed = [];
   const f2 = loadFn('screens/OnboardingFlowScreen.js', '  async function handleSignOut() {', 'handleSignOut', {
-    signOutGuard: createBusyGuard(), runSignOut, signOutSheet, t: (k) => k, language: 'en', timeFormat: 'auto',
+    signOutGuard: createBusyGuard(), runSignOut, signOutSheet, errorSheet, t: (k) => k, language: 'en', timeFormat: 'auto',
     signOutIntended: async () => ({ failed: true }), setSheet: (s) => failed.push(s),
   });
   await f2();
   assert.equal(failed[0].title, 'settings_signout_failed_title');
+  assert.equal(failed[0].icon, 'warning', 'DV-233: the warning triangle');
 });

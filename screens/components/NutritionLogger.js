@@ -18,6 +18,7 @@ import GradSwitch from '../../components/GradSwitch';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase, getCachedUser } from '../../lib/supabase';
 import { friendlyError } from '../../lib/friendlyError';
+import { errorSheet } from '../../lib/errorSheet';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { syncAllNotifications } from '../../lib/notifications';
@@ -101,7 +102,7 @@ export function FoodReminderRow() {
     try { ({ error } = await supabase.auth.updateUser({ data: { food_reminders: val } })); } catch (e) { error = e; }
     if (error) {
       setFoodReminders(!val);
-      setSheet({ icon: 'warning', title: t('error'), body: friendlyError(error, t, 'error_save_failed'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      setSheet(errorSheet(t, 'save', friendlyError(error, t, 'error_save_failed'))); // DV-233
       return;
     }
     syncAllNotifications().catch(() => {});

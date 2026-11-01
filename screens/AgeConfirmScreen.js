@@ -18,6 +18,7 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
+import { ERROR_ICON, errorTitle } from '../lib/errorSheet';
 import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
 import { answerGate } from '../lib/pendingGateStore';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
@@ -65,7 +66,8 @@ export default function AgeConfirmScreen({ session }) {
   const [wheelOpen, setWheelOpen] = useState(false);
   const [wheelIndex, setWheelIndex] = useState(0);
 
-  const ok = (title, body, icon = 'alert', onPress) => setSheet({ icon, title, body, buttons: [{ label: t('ok'), kind: 'primary', onPress }] });
+  // DV-233: a sheet without its own glyph here is an error sheet — the warning triangle.
+  const ok = (title, body, icon = ERROR_ICON, onPress) => setSheet({ icon, title, body, buttons: [{ label: t('ok'), kind: 'primary', onPress }] });
 
   async function confirmAdult() {
     if (busy) return;
@@ -79,7 +81,7 @@ export default function AgeConfirmScreen({ session }) {
     setBusy(null);
     if (r.status === 'failed') {
       // Refused (not offline), or the phone could not keep it: stay here and say why.
-      ok(t('error'), friendlyError(r.error, t, 'error_save_failed'));
+      ok(errorTitle(t, 'age'), friendlyError(r.error, t, 'error_save_failed'));
     }
     // Saved: USER_UPDATED refreshes the session and App.js opens the app. Pending: App.js opens it
     // at once, with the answer laid over the account.
@@ -93,7 +95,7 @@ export default function AgeConfirmScreen({ session }) {
       const r = await exportMyData(user, t('settings_export_title'));
       if (r.saved) ok(t('settings_export_title'), t('settings_export_done'), 'check');
     } catch {
-      ok(t('error'), t('settings_export_error'));
+      ok(errorTitle(t, 'file'), t('settings_export_error'));
     }
     setBusy(null);
   }
@@ -118,10 +120,10 @@ export default function AgeConfirmScreen({ session }) {
     setBusy('delete');
     try {
       const result = await requestAccountDeletion();
-      if (result.noSession) { setBusy(null); ok(t('error'), t('error_no_session')); return; }
+      if (result.noSession) { setBusy(null); ok(errorTitle(t, 'session'), t('error_no_session')); return; }
       // A sync pass still running is not "offline" (Delete account UI, founder 2026-10-17, 2).
       if (result.syncBusy) { setBusy(null); ok(t('settings_delete_syncbusy_title'), t('settings_delete_syncbusy_body'), 'refresh'); return; }
-      if (result.offline) { setBusy(null); ok(t('error'), t('settings_delete_offline')); return; }
+      if (result.offline) { setBusy(null); ok(errorTitle(t, 'deleteAccount'), t('settings_delete_offline')); return; }
       if (result.replaced) { setBusy(null); return; } // A-119 OD-10: screen 2 takes over, nothing was deleted
       if (result.deviceWait) { setBusy(null); ok(t('settings_delete_device_wait_title'), t('settings_delete_device_wait')); return; } // Gate B M4; title: founder 2026-10-20
       if (result.appleManualRevokeNeeded) {
@@ -138,7 +140,7 @@ export default function AgeConfirmScreen({ session }) {
       runTeardown();
     } catch (e) {
       setBusy(null);
-      ok(t('error'), friendlyError(e, t, 'error_deletion_failed'));
+      ok(errorTitle(t, 'deleteAccount'), friendlyError(e, t, 'error_deletion_failed'));
     }
   }
 

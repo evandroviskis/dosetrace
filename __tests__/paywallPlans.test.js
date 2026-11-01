@@ -132,8 +132,8 @@ test('PA-13: restore outcomes: restored / none / failed', () => {
 test('PA-14: every outcome is a DoseTrace sheet with the approved words; cancel says nothing', () => {
   assert.deepEqual(P.outcomeSheet('restored', t), { icon: 'check', title: 'Purchases restored', body: 'Your premium subscription has been restored.', done: true });
   assert.equal(P.outcomeSheet('none', t).title, 'No purchases found');
-  assert.deepEqual(P.outcomeSheet('restore_failed', t), { icon: 'alert', title: 'Error', body: 'Restore failed' });
-  assert.deepEqual(P.outcomeSheet('failed', t), { icon: 'alert', title: 'Error', body: 'Purchase failed' });
+  assert.deepEqual(P.outcomeSheet('restore_failed', t), { icon: 'warning', title: 'err_title_restore', body: 'Restore failed' }); // DV-233
+  assert.deepEqual(P.outcomeSheet('failed', t), { icon: 'warning', title: 'err_title_purchase', body: 'Purchase failed' }); // DV-233
   assert.equal(P.outcomeSheet('pending', t).title, 'Purchase pending');
   assert.equal(P.outcomeSheet('unavailable', t).body, 'Product not available.');
   assert.deepEqual(P.outcomeSheet('premium_already', t), { icon: 'check', title: 'You already have Premium', body: 'Every Premium feature is on.', done: true });

@@ -74,6 +74,7 @@ import { formatTime } from '../lib/timeFormat';
 import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
 import { friendlyError } from '../lib/friendlyError';
+import { errorSheet } from '../lib/errorSheet';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import TeamMessageGate from '../components/TeamMessageGate';
@@ -400,7 +401,8 @@ export default function TodayScreen() {
     todaySheetOpenRef.current = false;
     setTimeout(openNextQuestion, 450); // a site question that waited opens
   }
-  const todayError = (body, delayMs) => showTodaySheet({ icon: 'warning', title: t('error'), body, buttons: okButton() }, delayMs);
+  // DV-233: every Today error is a failed save — the triangle and "Couldn't save" (lib/errorSheet).
+  const todayError = (body, delayMs) => showTodaySheet(errorSheet(t, 'save', body, { buttons: okButton() }), delayMs);
   const [takeNotice, setTakeNotice] = useState(false); // "Not marked as taken" after Cancel / a confirmed back (S-25)
   const [focusNotice, setFocusNotice] = useState(null); // DV-036: "This dose of {name} was already logged at {time}."
 
@@ -1558,7 +1560,7 @@ export default function TodayScreen() {
       fetchProtocols();
       requestSync();
     } catch (err) {
-      setVialSheet({ icon: 'warning', title: t('error'), body: friendlyError(err, t, 'error_save_failed'), buttons: okButton() });
+      setVialSheet(errorSheet(t, 'save', friendlyError(err, t, 'error_save_failed'), { buttons: okButton() })); // DV-233
     }
   }
 

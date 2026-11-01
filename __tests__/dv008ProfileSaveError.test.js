@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 const { loadFn } = require('./helpers/extractFn');
 const { friendlyError } = require('../lib/friendlyError');
 const { normalizeActivityLevel, legacyActivity } = require('../lib/activityLevels');
+const { errorSheet: errorSheetConfig } = require('../lib/errorSheet'); // DV-233
 
 const SETTINGS = 'screens/SettingsScreen.js';
 const t = (k) => k;
@@ -32,7 +33,7 @@ function fakeSupabase(mode, writes) {
 function profile(mode, supabase = null) {
   const out = { writes: [], editSheet: [], closedEdit: 0, closedPicker: 0, refetched: 0 };
   const save = loadFn(SETTINGS, 'async function saveProfile(', 'saveProfile', {
-    t, friendlyError, normalizeActivityLevel, legacyActivity,
+    t, friendlyError, normalizeActivityLevel, legacyActivity, errorSheetConfig,
     supabase: supabase || fakeSupabase(mode, out.writes),
     savingProfile: { current: false },
     // The typed values in Edit profile.
@@ -59,7 +60,7 @@ for (const mode of ['error', 'throw']) {
     assert.equal(out.refetched, 0, 'the old values are never read back over the typed ones');
     assert.equal(out.editSheet.length, 1, 'one error sheet, shown from inside Edit profile');
     const sheet = out.editSheet[0];
-    assert.equal(sheet.title, 'error');
+    assert.equal(sheet.title, 'err_title_save', 'DV-233: "Couldn\'t save", never the generic Error');
     assert.equal(sheet.icon, 'warning');
     assert.equal(sheet.body, 'error_network', 'the app\'s friendly network message');
     assert.deepEqual(sheet.buttons.map((b) => [b.label, b.kind]), [['ok', 'primary']]);
