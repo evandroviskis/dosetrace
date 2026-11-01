@@ -920,7 +920,8 @@ export default function TodayScreen() {
     const res = recordSkipPending(item.protocolId, { dayKey: item.dayKey, slotMs: item.slotMs });
     if (res && res.logId) {
       const timer = null; // armed by the Undo bar effect (lib/undoBar.js)
-      const record = { logId: res.logId, flipped: false, protocolId: item.protocolId, pending: true, vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer, fx: null };
+      // DV-228: the bar says what happened (it fell back to 'Dose registrada' after a skip).
+      const record = { logId: res.logId, flipped: false, protocolId: item.protocolId, pending: true, vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer, fx: null, text: t('log_status_skipped') };
       setUndoData(record);
       keepUndo(record);
     }
@@ -1842,7 +1843,8 @@ export default function TodayScreen() {
       });
     }
     // 0) Offline with changes not backed up yet (A-46 extension). Tapping it tries a sync.
-    if (offlinePending) {
+    // DV-134: its snooze round now works like every other alert's.
+    if (offlinePending && !(alertSnooze.offline_pending && nowMs < alertSnooze.offline_pending)) {
       list.push({
         id: 'offline_pending', iconName: 'repeat', due: false,
         title: t('today_alert_offline_title'),
@@ -1871,10 +1873,12 @@ export default function TodayScreen() {
         const v = vials[p.id];
         if (!v) continue;
         const { remaining: rem, low: isLow } = supplyState(v, p); // the ONE rule (S-05)
-        if (isLow) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem });
+        if (isLow) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem, protocolId: p.id });
       }
       if (low.length) {
         low.sort((a, b) => a.rem - b.rem);
+        // DV-089: one protocol named → its page (as the push and the expiry alert); several → the list.
+        const lowTarget = vialAlertTarget(low);
         list.push({
           id: 'supply_low', iconName: 'syringe', due: true,
           title: t('today_alert_supply_title'),
@@ -1883,7 +1887,7 @@ export default function TodayScreen() {
             : low.length <= 3
               ? t('today_alert_supply_list').replace('{names}', low.map(x => x.name).join(', '))
               : t('today_alert_supply_many').replace('{count}', String(low.length)),
-          onPress: () => navigation.navigate('Protocols'),
+          onPress: () => navigation.navigate(lowTarget.screen, lowTarget.params),
           snoozeId: 'supply_low',
         });
       }

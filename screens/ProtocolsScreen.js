@@ -1448,7 +1448,9 @@ export default function ProtocolsScreen() {
   // Founder 2026-10-07 (council 3 decision 1): Retomar asks which container — a new vial/bottle (full,
   // mixed today) or the same one (moved to the new run unchanged) — and warns first when the same
   // protocol is already active (a second run would double its reminders).
-  function askRestart(p) {
+  async function askRestart(p) {
+    // DV-217: the free limit first — never a question whose answer would then be refused.
+    if (await isOverFreeLimit()) { promptUpgrade(); return; }
     const name = protocolName(p);
     let container = null;
     try { if (getVialsForProtocol(p.id).length > 0) container = 'vial'; } catch { /* none */ } // deleted vials ignored
