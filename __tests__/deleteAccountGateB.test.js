@@ -144,7 +144,8 @@ test('(2) readLiveEntitlement reports the entitlement store, willRenew and the r
     isDevAccount: () => false, ENTITLEMENT_ID: 'DoseTrace Pro',
   });
   // DV-082 (Gate B review 2026-10-31): the answer names the RevenueCat user it is for.
-  assert.deepEqual(await read(), { reachable: true, premium: true, expiresAt: '2026-11-01T00:00:00Z', endedOn: null, store: 'APP_STORE', willRenew: true, renewingStores: ['APP_STORE'], appUserId: 'u1' });
+  // DV-112: plus the plan and its state for Settings' subscription card.
+  assert.deepEqual(await read(), { reachable: true, premium: true, expiresAt: '2026-11-01T00:00:00Z', endedOn: null, store: 'APP_STORE', willRenew: true, renewingStores: ['APP_STORE'], appUserId: 'u1', productId: null, periodType: 'NORMAL', unsubscribeDetectedAt: null, billingIssueDetectedAt: null });
 });
 
 test('(2) getBillingStore asks the live store, never throws', async () => {

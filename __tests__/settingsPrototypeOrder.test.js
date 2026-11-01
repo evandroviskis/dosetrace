@@ -82,7 +82,8 @@ test('phone order: title → profile → Premium → the four group cards → Si
   ], 'phone');
   // Every group is shown (nothing hides a group any more) and Premium stays free-only.
   assert.doesNotMatch(PHONE, /SETTINGS_GROUPS\.filter/);
-  assert.match(region(SET, 'function renderPremiumCard()', 'function renderVersionFooter()'), /if \(premium\) return null;/);
+  // DV-112: the upsell is free-only; in its place a subscriber gets the subscription card.
+  assert.match(region(SET, 'function renderPremiumCard()', 'function renderVersionFooter()'), /if \(premium\) return renderSubscriptionCard\(\);/);
 });
 
 test('a group card = name + summary + a round arrow in one card; the rows open inside the same card', () => {

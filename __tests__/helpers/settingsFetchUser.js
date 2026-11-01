@@ -25,6 +25,8 @@ function settings({ getCachedUser, cap = 60 } = {}) {
   const noop = () => {};
   const deps = {
     getBillingStore: () => Promise.resolve(null), billingLoad: { current: null }, setBillingStore: noop,
+    getSubscriptionStatus: () => Promise.resolve(null), setSubStatus: noop, // DV-112
+
     getCachedUser, setUser: set('user'), aiUse: { load: noop }, aiUseDeps: () => ({}),
     hasPremium: async () => true, setPremium: set('premium'),
     whenAllSettled: (tasks) => whenAllSettled(tasks, { capMs: cap }),

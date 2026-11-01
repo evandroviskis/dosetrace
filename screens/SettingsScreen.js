@@ -42,8 +42,11 @@ import {
   getHistoryProtocols,
   getLogsSince, getTakenLogsSince, getActiveVials as getLocalVials,
 } from '../lib/database';
-import { hasPremium, getBillingStore } from '../lib/entitlement';
+import { hasPremium, getBillingStore, getSubscriptionStatus } from '../lib/entitlement';
 import { usePremiumUpdates } from '../lib/usePremium';
+import { restorePurchases } from '../lib/purchases';
+import { restoreOutcome, outcomeSheet } from '../lib/paywallPlans';
+import { subscriptionCard } from '../lib/subscriptionStatus';
 import { isEnded, reportProtocols } from '../lib/protocolEnd';
 import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
@@ -250,6 +253,16 @@ export default function SettingsScreen({ navigation }) {
   const [premium, setPremium] = useState(first.premium);
   // A-164: a grant/revoke made elsewhere updates the badge and the upgrade card while open.
   usePremiumUpdates(setPremium);
+  // DV-112 (AD-101): the subscription's plan and state from the store (null = not known: no line).
+  const [subStatus, setSubStatus] = useState(null);
+  const [restoring, setRestoring] = useState(false);
+  const restoringRef = useRef(false);
+  useEffect(() => {
+    if (!premium) { setSubStatus(null); return undefined; }
+    let live = true;
+    getSubscriptionStatus().then((st) => { if (live) setSubStatus(st); }).catch(() => {});
+    return () => { live = false; };
+  }, [premium]);
   // Which store bills the Premium (undefined = not answered yet), for the delete sheet (3 C).
   const [billingStore, setBillingStore] = useState(undefined);
   const billingLoad = useRef(null);
@@ -417,6 +430,8 @@ export default function SettingsScreen({ navigation }) {
     const bl = getBillingStore();
     billingLoad.current = bl;
     bl.then(setBillingStore, () => setBillingStore(null));
+    // DV-112: the plan's state again on every visit (a cancel made in the store shows on return).
+    getSubscriptionStatus().then(setSubStatus).catch(() => {});
     const userRead = getCachedUser();
     // Real subscription status once the user is read (non-throwing; defaults to false on failure)
     const premiumRead = userRead.then(() => hasPremium().then(setPremium).catch(() => setPremium(false)));
@@ -919,9 +934,58 @@ export default function SettingsScreen({ navigation }) {
     );
   }
 
-  // Upsell hidden for premium users.
+  // DV-112 (AD-101): "Restaurar compras" in Settings — the paywall's own restore, outcomes and sheets
+  // (lib/paywallPlans restoreOutcome / outcomeSheet); then the badge, the cards and the state follow.
+  async function handleRestore() {
+    if (restoringRef.current) return;
+    restoringRef.current = true;
+    setRestoring(true);
+    let result = null;
+    let premiumNow = false;
+    try {
+      result = await restorePurchases();
+      if (result && result.success) premiumNow = await hasPremium();
+    } catch { result = null; } finally {
+      restoringRef.current = false;
+    }
+    setRestoring(false);
+    const outcome = restoreOutcome(result, premiumNow);
+    if (outcome === 'restored') setPremium(true);
+    getSubscriptionStatus().then(setSubStatus).catch(() => {});
+    const cfg = outcomeSheet(outcome === 'failed' ? 'restore_failed' : outcome, t, Platform.OS);
+    if (cfg) notice(cfg.title, cfg.body, cfg.icon);
+  }
+
+  // DV-112 (picture #dv112, subscriber): right under the profile — the plan and its state from the
+  // store, "Gerenciar assinatura" (the store's own subscriptions page; not for lifetime or a team
+  // grant) and "Restaurar compras". Rows like the group cards' (theme tokens, both themes).
+  function renderSubscriptionCard() {
+    const card = subscriptionCard(subStatus, t, (iso) => formatDate(new Date(iso), language, 'dayMonthYear'));
+    return (
+      <View style={s.subCard}>
+        <View style={s.row} accessible>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.rowLabel, s.subPlan]}>{card.name}</Text>
+            {card.line ? <Text style={s.rowSub}>{card.line}</Text> : null}
+          </View>
+        </View>
+        {card.manage && (
+          <TouchableOpacity style={s.row} onPress={() => Linking.openURL(manageSubscriptionsUrl(Platform.OS)).catch(() => {})} accessibilityRole="button">
+            <Text style={s.rowLabel}>{t('settings_manage_subscription')}</Text>
+            <RowChevron color={colors.tick} />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleRestore} disabled={restoring} accessibilityRole="button" accessibilityState={{ busy: restoring }}>
+          <Text style={s.rowLabel}>{t('paywall_restore')}</Text>
+          {restoring ? <ActivityIndicator color={colors.ink} /> : <RowChevron color={colors.tick} />}
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // The upsell for free users; a Premium subscriber sees the subscription card instead (DV-112).
   function renderPremiumCard() {
-    if (premium) return null;
+    if (premium) return renderSubscriptionCard();
     return (
       <View style={s.premiumCard}>
         <Text style={s.premiumTitle}>{t('settings_premium_title')}</Text>
@@ -943,6 +1007,10 @@ export default function SettingsScreen({ navigation }) {
           onPress={() => navigation.navigate('Paywall', { source: 'settings' })}
         >
           <Text style={s.premiumBtnText}>{t('settings_premium_btn')}</Text>
+        </TouchableOpacity>
+        {/* DV-112 (free): bought before, on another phone — restore it here. */}
+        <TouchableOpacity style={s.premiumBtn2} onPress={handleRestore} disabled={restoring} accessibilityRole="button" accessibilityState={{ busy: restoring }}>
+          {restoring ? <ActivityIndicator color={colors.ink} /> : <Text style={s.premiumBtn2Text}>{t('paywall_restore')}</Text>}
         </TouchableOpacity>
       </View>
     );
@@ -1883,6 +1951,12 @@ const settingsGraduated = (c) => ({
   premiumFeatText: { fontSize: 15, color: c.ink, flex: 1 },
   premiumBtn: { backgroundColor: c.act, minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   premiumBtnText: { color: c.onAct, fontSize: 17, fontWeight: '700' },
+  // DV-112: "Restaurar compras" under "Ver planos" — the secondary (well) button of the sheets.
+  premiumBtn2: { backgroundColor: c.well, minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  premiumBtn2Text: { color: c.ink, fontSize: 17, fontWeight: '600' },
+  // DV-112: the subscriber's card (raised, like the group cards), plan name in semibold.
+  subCard: { marginHorizontal: 16, marginBottom: 8, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
+  subPlan: { fontWeight: '600' },
   group: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
   // Prototype .list (padding 0 16) + .li: rows and their 1 pt dividers sit inside the card margin.
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginHorizontal: 16, paddingHorizontal: 0, minHeight: 60, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.line },

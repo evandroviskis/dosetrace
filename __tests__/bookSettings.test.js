@@ -110,8 +110,8 @@ test('BK-7: every group body, the profile, Premium and the version come from ONE
   for (const action of ["toggleNotificationPref('dose_reminders'", 'onPress={handleSignOut}', 'onPress={handleDeleteAccount}', 'onPress={handleExportData}', 'setShowLanguagePicker(true)', 'onPress={openEditProfile}']) {
     assert.equal(SRC.split(action).length - 1, 1, `${action} wired once`);
   }
-  // Premium stays for free users only.
-  assert.match(region('function renderPremiumCard()', 'function renderVersionFooter()'), /if \(premium\) return null;/);
+  // The upsell stays for free users only; a subscriber sees the subscription card (DV-112).
+  assert.match(region('function renderPremiumCard()', 'function renderVersionFooter()'), /if \(premium\) return renderSubscriptionCard\(\);/);
 });
 
 test('BK-7/BK-8: the left page lists the groups, the open one outlined in ink; the right page is that group, open, under its title', () => {
