@@ -32,7 +32,7 @@ import { requestSync, isOnlineNow, notifyDataChanged } from '../lib/sync';
 import { getFoodLogsSince, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
-  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker,
+  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker, quotaWaitDay,
 } from '../lib/nutrition';
 import { buildThread, withNotice, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
@@ -328,7 +328,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     // FL-47: closing a day with NO food logged — ask first. Only a confirmed
     // "I ate nothing" makes it a 0-kcal day that counts toward the 7 days in a row.
     // DV-064: a refused / unparsed / too-old row is not food the run counts — still ask.
-    const hasFood = (rows || []).some((r) => r && r.entry_date === dayKey && !isMarker(r) && (r.parse_status === 'done' || r.parse_status === 'pending'));
+    // DV-066: an item waiting for tomorrow's read (quota_wait) is food typed that day, like a pending one.
+    const hasFood = (rows || []).some((r) => r && r.entry_date === dayKey && !isMarker(r) && (r.parse_status === 'done' || r.parse_status === 'pending' || !!quotaWaitDay(r.parse_status)));
     if (!hasFood && !opts.confirmed) {
       alert(t('nutri_close_empty_title'), t('nutri_close_empty_msg'), [
         { text: t('cancel'), style: 'cancel' },
@@ -482,9 +483,9 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     askNext(refresh(userId));
   }
 
-  function confirmRemove(rowId, pending) {
+  function confirmRemove(rowId, status) {
     if (inFlight.has(rowId)) return;
-    alert(t('nutri_title'), pending ? t('nutri_offline_saved') : t('nutri_unparsed'), [
+    alert(t('nutri_title'), t(status === 'pending' ? 'nutri_offline_saved' : status === 'quota_wait' ? 'nutri_quota_wait_note' : 'nutri_unparsed'), [
       { text: t('cancel'), style: 'cancel' },
       { text: t('nutri_delete_entry'), style: 'destructive', onPress: () => { deleteFoodLog(rowId); requestSync?.(); refresh(userId); } },
     ]);
@@ -567,12 +568,19 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
         );
       case 'user':
         return (
-          <TouchableOpacity activeOpacity={x.status === 'done' || x.status === 'too_old' ? 1 : 0.7} disabled={x.status === 'done' || x.status === 'too_old'} onPress={() => confirmRemove(x.rowId, x.status === 'pending')} style={s.userWrap}>
+          <TouchableOpacity activeOpacity={x.status === 'done' || x.status === 'too_old' ? 1 : 0.7} disabled={x.status === 'done' || x.status === 'too_old'} onPress={() => confirmRemove(x.rowId, x.status)} style={s.userWrap}>
             <View style={s.user}><Text style={s.userText}>{x.text}</Text></View>
             {/* A row being read right now is not "saved offline" (FL-46). */}
             {x.status === 'pending' && x.rowId !== sendingId && <Text style={s.userNote}>{t(isOnlineNow() === false ? 'nutri_offline_saved' : 'nutri_retry_later')}</Text>}
             {x.status === 'unparsed' && <Text style={[s.userNote, s.userNoteWarn]}>{t('nutri_unparsed')}</Text>}
+            {/* DV-066: the day's reads were used up; read on a later day, the text kept. */}
+            {x.status === 'quota_wait' && <Text style={[s.userNote, s.userNoteWarn]}>{t('nutri_quota_wait_note')}</Text>}
           </TouchableOpacity>
+        );
+      case 'quota_wait':
+        // DV-066 (DL-28): said once per day, under the first item the limit held back.
+        return (
+          <AppBubble><Text style={s.appText}>{t('nutri_quota_wait')}</Text></AppBubble>
         );
       case 'too_old':
         return (

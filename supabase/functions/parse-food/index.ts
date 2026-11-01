@@ -156,10 +156,14 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) return jsonResponse({ error: 'Invalid session', code: 'unauthorized' }, 401);
 
-    let body: { text?: unknown; entry_date?: unknown; lang?: unknown; recent?: unknown; followup?: unknown };
+    let body: { text?: unknown; entry_date?: unknown; local_day?: unknown; lang?: unknown; recent?: unknown; followup?: unknown };
     try { body = await req.json(); } catch { return jsonResponse({ error: 'Invalid JSON body', code: 'bad_request' }, 400); }
 
     const entryDate = isoDay(body?.entry_date);
+    // DV-066 (DL-28): the daily caps count the user's LOCAL DAY OF THE REQUEST (local_day, sent by the app),
+    // never the day of the entry: a meal typed offline on a day whose 25 reads were used is read on a later
+    // day. An app that does not send it (older versions) is counted by entry_date, as before.
+    const quotaDay = isoDay(body?.local_day) ?? entryDate;
     const rawLang = typeof body?.lang === 'string' ? body.lang.slice(0, 2).toLowerCase() : 'en';
     const lang = LANGS.has(rawLang) ? rawLang : 'en'; // only the app's languages reach the prompt
     const followup = body?.followup && typeof body.followup === 'object' ? body.followup as Record<string, unknown> : null;
@@ -181,7 +185,7 @@ Deno.serve(async (req) => {
     }
 
     // Limits (fail open on a counting error). The parse limit counts the user's LOCAL
-    // day via entry_date (FL-22); follow-ups have their own cap (FL-21); a rolling-24h
+    // day of the request (quotaDay, DV-066; FL-22); follow-ups have their own cap (FL-21); a rolling-24h
     // hard ceiling across all kinds stops anyone gaming the client-supplied date.
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     let adminClient: ReturnType<typeof createClient> | null = null;
@@ -190,8 +194,8 @@ Deno.serve(async (req) => {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       const [{ count: hard, error: hardErr }, dayRes] = await Promise.all([
         adminClient.from('ai_food_usage').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', since),
-        entryDate
-          ? adminClient.from('ai_food_usage').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('entry_date', entryDate).eq('kind', kind)
+        quotaDay
+          ? adminClient.from('ai_food_usage').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('entry_date', quotaDay).eq('kind', kind)
           : Promise.resolve({ count: null, error: null }),
       ]);
       if (hardErr || dayRes.error) {
@@ -215,9 +219,10 @@ Deno.serve(async (req) => {
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) return jsonResponse({ error: 'Service not configured', code: 'not_configured' }, 500);
 
-    // Reserve the slot BEFORE the model call so refusals / junk / provider errors count.
+    // Reserve the slot BEFORE the model call so refusals / junk / provider errors count. The usage row's
+    // entry_date column holds the day the read is counted on (quotaDay, DV-066).
     if (adminClient) {
-      const { error: usageErr } = await adminClient.from('ai_food_usage').insert({ user_id: user.id, entry_date: entryDate, kind });
+      const { error: usageErr } = await adminClient.from('ai_food_usage').insert({ user_id: user.id, entry_date: quotaDay, kind });
       if (usageErr) console.error('[parse-food] usage insert failed:', usageErr.code);
     }
 

@@ -8,5 +8,6 @@ const path = require('node:path');
 
 test('DV-064: closeDay asks unless the day has food the run counts (or will)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/FoodChatScreen.js'), 'utf8');
-  assert.match(src, /const hasFood = \(rows \|\| \[\]\)\.some\(\(r\) => r && r\.entry_date === dayKey && !isMarker\(r\) && \(r\.parse_status === 'done' \|\| r\.parse_status === 'pending'\)\);/);
+  // DV-066: an item waiting for the next day's read (quota_wait) will be read, like a pending one.
+  assert.match(src, /const hasFood = \(rows \|\| \[\]\)\.some\(\(r\) => r && r\.entry_date === dayKey && !isMarker\(r\) && \(r\.parse_status === 'done' \|\| r\.parse_status === 'pending' \|\| !!quotaWaitDay\(r\.parse_status\)\)\);/);
 });
