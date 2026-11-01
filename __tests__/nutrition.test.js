@@ -331,16 +331,14 @@ test('periodTotals: today, the last 7 local days and the whole window, each with
 // ── FL-19: rows typed on this device are parsed even after sync gave them a remote_id ──
 const { rowsToReparse, localRowKey } = require('../lib/nutrition');
 
-test('rowsToReparse: this device\'s pending rows are retried after upload; another device\'s are left alone', () => {
+test('rowsToReparse: every pending row of the account is retried, uploaded or not (A-213 replaced "another device\'s are left alone")', () => {
   const mine = { id: 5, created_at: '2026-09-10T08:00:00Z', remote_id: 'r-5', raw_text: 'toast', parse_status: 'pending', source: 'ai' };
   const neverSynced = { id: 6, created_at: '2026-09-10T09:00:00Z', remote_id: null, raw_text: 'eggs', parse_status: 'pending', source: 'ai' };
   const otherDevice = { id: 7, created_at: '2026-09-10T10:00:00Z', remote_id: 'r-7', raw_text: 'rice', parse_status: 'pending', source: 'ai' };
   const done = { id: 8, created_at: 'x', remote_id: 'r-8', raw_text: 'y', parse_status: 'done', source: 'ai' };
   const marker = { id: 9, created_at: 'x', remote_id: null, raw_text: 'z', parse_status: 'pending', source: 'day_closed' };
   const keys = new Set([localRowKey(mine), localRowKey(done)]);
-  assert.deepEqual(rowsToReparse([mine, neverSynced, otherDevice, done, marker], keys).map((r) => r.id), [5, 6]);
-  // a reused local id with a different created_at (after a re-install) is not "mine"
-  assert.deepEqual(rowsToReparse([{ ...otherDevice, id: 5 }], keys).map((r) => r.id), []);
+  assert.deepEqual(rowsToReparse([mine, neverSynced, otherDevice, done, marker], keys).map((r) => r.id), [5, 6, 7]);
 });
 
 // ── FL-2/45: food from more than 7 days ago is not logged ──
