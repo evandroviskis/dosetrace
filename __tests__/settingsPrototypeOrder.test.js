@@ -229,7 +229,7 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
   const make = new Function(
     'restoreProtocolDB', 'getNewestVialForProtocol', 'updateVial', 'getProtocolById', 'afterProtocolChange',
     'fetchProtocols', 'notifyDataChanged', 'requestSync', 'permanentlyDeleteProtocol', 'setScreenSheet', 't', 'protocolName',
-    'T', 'cancelDoseReminder', 'dismissDeliveredDoseReminders', 'setTrashSel', 'isOverFreeLimit',
+    'T', 'cancelDoseReminder', 'dismissDeliveredDoseReminders', 'setTrashSel', 'isOverFreeLimit', 'vialToReopen',
     `${innerFn('restoreProtocol')}\n${innerFn('confirmPermanentDelete')}\n${innerFn('confirmPurge')}\nreturn { restoreProtocol, confirmPermanentDelete };`,
   );
   const f = make(
@@ -244,6 +244,7 @@ test('Protocols: Restore and Delete forever are the functions moved from Setting
     (id) => { calls.push(['dismissBanners', id]); return Promise.resolve(); },
     (v) => calls.push(['setTrashSel', v]),
     async () => false, // under the free limit (A-89)
+    () => true, // DV-022: the newest vial still has doses
   );
   await f.restoreProtocol(7);
   assert.deepEqual(calls, [['restoreDB', 7, { allowActive: true }], ['updateVial', 70, { active: 1 }], ['schedule', 7], ['fetchProtocols'], ['notify', 'protocol'], ['requestSync']]);

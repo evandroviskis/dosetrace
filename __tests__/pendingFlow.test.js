@@ -93,7 +93,8 @@ test('S-17: Undo after Taken restores the vial count it moved', () => {
   const res = d.take({ dayKey: item.dayKey, slotMs: item.slotMs }, MORNING, { id: 3, protocol_id: 7, doses_taken: 4, total_doses: 20 });
   assert.equal(res.vialId, 3);
   const u = d.undo({ logId: res.logId, flipped: false, pending: true, protocolId: proto.id, vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, oralPrevUnitsTaken: null, fx: null });
-  assert.deepEqual(u.vialRestore, { id: 3, doses_taken: 4, active: 1 });
+  // DV-021: the vial was not finished by this dose, so Undo moves only its count (never reopens a vial an End closed).
+  assert.deepEqual(u.vialRestore, { id: 3, doses_taken: 4 });
 });
 
 test('S-17: Skipped on the pending row writes one Skipped at the slot; Undo removes it and the slot is pending again', () => {

@@ -49,7 +49,7 @@ import {
 import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
 import { pastStartAsk, pastStartWrites, editStartAsk, editStartWrites } from '../lib/pastDoses';
-import { tsMs } from '../lib/deleteDose';
+import { tsMs, vialToReopen } from '../lib/deleteDose';
 import { startAfterEnd } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { endProtocolFully } from '../lib/endProtocolFlow';
@@ -1512,7 +1512,8 @@ export default function ProtocolsScreen() {
       return;
     }
     const newestVial = getNewestVialForProtocol(id);
-    if (newestVial) updateVial(newestVial.id, { active: 1 });
+    // DV-022 (DL-20): an empty vial is never put back in use by a Restore.
+    if (newestVial && vialToReopen(newestVial, getProtocolById(id))) updateVial(newestVial.id, { active: 1 });
     const restored = getProtocolById(id);
     if (restored) afterProtocolChange({ saved: restored }).catch(() => {});
     fetchProtocols();
