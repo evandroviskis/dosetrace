@@ -75,7 +75,7 @@ import { friendlyError } from '../lib/friendlyError';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import TeamMessageGate from '../components/TeamMessageGate';
-import { doseStreak, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
+import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
@@ -818,18 +818,9 @@ export default function TodayScreen() {
       const activeProtocols = getActiveProtocols(user.id) || [];
       // A-30: only doses logged in the app.
       const logs = loggedOnly(getTakenLogsSince(user.id, thirtyDaysAgo.toISOString()) || [], activeProtocols);
-      // Group by protocol_id → { dayString: count } (multi-dose aware)
-      const byProtocol = {};
-      logs.forEach(l => {
-        const day = new Date(l.logged_at).toDateString();
-        if (!byProtocol[l.protocol_id]) byProtocol[l.protocol_id] = {};
-        byProtocol[l.protocol_id][day] = (byProtocol[l.protocol_id][day] || 0) + 1;
-      });
-      // Doses taken in a row, never days (founder 2026-10-05: a weekly protocol said "2 days").
-      const streaks = {};
-      const now = new Date();
-      activeProtocols.forEach(p => { streaks[p.id] = doseStreak(p, byProtocol[p.id] || {}, now); });
-      setProtocolStreaks(streaks);
+      // Doses taken in a row, never days (founder 2026-10-05: a weekly protocol said "2 days"); the same
+      // function as the adherence report (DV-032).
+      setProtocolStreaks(reportStreaks(activeProtocols, logs, new Date()));
     } catch { /* ignore */ }
   }
 

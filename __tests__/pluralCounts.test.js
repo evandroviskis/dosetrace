@@ -55,8 +55,8 @@ test('the reported cases read right with 1', () => {
   assert.equal(one('fr', 'protocols_low_supply', { n: 1 }), 'Faible · 1 restante');
   assert.equal(one('pt', 'protocols_low_supply', { n: 1 }), 'Baixo · 1 restante');
   assert.equal(one('pt', 'protocols_vial_days_left', { n: 1 }), '1 dia restante');
-  assert.equal(one('en', 'report_streak_line', { days: 1 }), 'Current streak: 1 day');
-  assert.equal(tr.en.report_streak_line, 'Current streak: {days} days');
+  assert.equal(one('en', 'report_streak_line', { count: 1 }), 'Current streak: 1 dose without a miss');
+  assert.equal(tr.en.report_streak_line, 'Current streak: {count} doses without a miss');
   assert.equal(one('es', 'vax_imported_dropped', { count: 1 }), '1 entrada sin fecha legible se omitió.');
 });
 

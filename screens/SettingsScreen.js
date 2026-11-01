@@ -40,7 +40,7 @@ import useKeyboardLift from '../components/useKeyboardLift';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import {
   getHistoryProtocols,
-  getLogsSince, getActiveVials as getLocalVials,
+  getLogsSince, getTakenLogsSince, getActiveVials as getLocalVials,
 } from '../lib/database';
 import { hasPremium, getBillingStore } from '../lib/entitlement';
 import { usePremiumUpdates } from '../lib/usePremium';
@@ -60,6 +60,8 @@ import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourc
 import { getCalcInputs } from '../lib/realityCheck';
 import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
+import { monthStart } from '../lib/adherenceRings';
+import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
 import { scanMissedDoses, unsyncedState, unrecordedGapsWithMisses } from '../lib/doseActions';
@@ -626,8 +628,8 @@ export default function SettingsScreen({ navigation }) {
     setExporting(true);
     try {
       const now = new Date();
-      const thirtyDaysAgo = new Date(now);
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // DV-033 (DL-02): the report's 30 days are the month ring's window (local midnight 29 days back → now).
+      const thirtyDaysAgo = new Date(monthStart(now.getTime()));
 
       // Missed rows first (the same scan Today and the Dose log run), so the report counts
       // every scheduled dose of the period. Best-effort: the rows already written still count.
@@ -637,9 +639,6 @@ export default function SettingsScreen({ navigation }) {
       // Active protocols and the ended ones with records in the window (A-83: ending never
       // removes doses from the report; lib/protocolEnd reportProtocols).
       const protocols = reportProtocols(getHistoryProtocols(user.id) || [], logs, thirtyDaysAgo.getTime(), now.getTime());
-      // One definition for every protocol and the overall figure (lib/adherenceReport, M2):
-      // complete ÷ (complete + skipped + missed).
-      const stats = adherenceStats({ protocols, logs, sinceMs: thirtyDaysAgo.getTime(), nowMs: now.getTime() });
       const vials = getLocalVials(user.id) || [];
       // A-181 (founder 2026-10-26, option B): doses the A-177 rule still holds back are not counted as
       // missed yet — the report says so (asterisks, a line, "No record since" per protocol), and every
@@ -649,6 +648,9 @@ export default function SettingsScreen({ navigation }) {
       const unsync = await unsyncedState();
       const unsyncNotice = unsync.notice;
       const heldIn = unsyncNotice ? heldByProtocol(unsync.held, thirtyDaysAgo.getTime(), now.getTime()) : {};
+      // One definition for every protocol and the overall figure (lib/adherenceReport, DV-033): Today's
+      // 30-day ring — scheduled doses taken ÷ scheduled doses; a held-back dose leaves the due count (A-181).
+      const stats = adherenceStats({ protocols, logs, sinceMs: thirtyDaysAgo.getTime(), nowMs: now.getTime(), held: heldIn });
       const gaps = await unrecordedGapsWithMisses(reportGaps(await readUnrecordedGaps(AsyncStorage, user.id, now.getTime()), thirtyDaysAgo.getTime(), now.getTime()));
       const unsyncSinceMs = unsyncNotice ? unsyncNotice.sinceMs : null;
       const sinceText = (fmt) => formatDate(new Date(unsyncSinceMs), language, fmt) || '';
@@ -659,23 +661,15 @@ export default function SettingsScreen({ navigation }) {
         return;
       }
 
+      // DV-032 (DL-02): each protocol's streak is its card's — doses in a row over a year (lib/doseStreak);
+      // A-30: doses logged in the app only.
+      const yearAgo = new Date(now.getTime() - STREAK_LOOKBACK_DAYS * 86400000);
+      const streaks = reportStreaks(protocols, loggedOnly(getTakenLogsSince(user.id, yearAgo.toISOString()) || [], protocols), now);
+
       // Build per-protocol stats
       const protocolStats = protocols.map(p => {
-        const pLogs = loggedOnly(logs, [p]).filter(l => l.protocol_id === p.id); // A-30: logged doses only
         const { taken, skipped, missed, adherence } = stats.perProtocol.find(r => r.id === p.id);
-
-        // Calculate streak
-        const takenDays = new Set();
-        pLogs.filter(l => l.outcome === 'Taken').forEach(l => {
-          takenDays.add(new Date(l.logged_at).toDateString());
-        });
-        let streak = 0;
-        for (let i = 0; i <= 30; i++) {
-          const d = new Date(now);
-          d.setDate(d.getDate() - i);
-          if (takenDays.has(d.toDateString())) streak++;
-          else if (i > 0) break;
-        }
+        const streak = streaks[p.id] || 0;
 
         const vial = vials.find(v => v.protocol_id === p.id);
 
@@ -718,7 +712,7 @@ export default function SettingsScreen({ navigation }) {
         report += `  ${t('report_dose_line').replace('{dose}', ps.dose).replace('{frequency}', ps.frequency)}\n`;
         report += `  ${fillPercent(t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{missed}', ps.missed), ps.adherence)}${ps.unrecorded > 0 ? '*' : ''}\n`;
         if (ps.unrecorded > 0) report += `  ${(unsyncNotice.never ? t('report_unrecorded_never') : t('report_unrecorded').replace('{date}', sinceText('dayMonth'))).replace('{n}', ps.unrecorded)}\n`;
-        report += `  ${t(pluralKey('report_streak_line', ps.streak, language)).replace('{days}', ps.streak)}\n`;
+        report += `  ${t(pluralKey('report_streak_line', ps.streak, language)).replace('{count}', ps.streak)}\n`;
         if (ps.vialRemaining !== null) {
           report += `  ${t(pluralKey('report_vial_line', ps.vialRemaining, language)).replace('{count}', ps.vialRemaining)}\n`;
         }

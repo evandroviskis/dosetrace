@@ -39,13 +39,19 @@ function fixture() {
   return { protocols, logs };
 }
 
-test('per protocol: complete ÷ (complete + skipped + missed), missed included', () => {
+// DV-033 (DL-02, 2026-10-31): the counts are the rows; the % is the rings' slots (scheduled doses taken ÷
+// scheduled doses) — __tests__/dv032dv033ReportMatchesToday.test.js proves it equals the 30-day ring.
+const slotPct = (protocols, logs) => { const { slotCounts } = require('../lib/adherenceRings'); const s = slotCounts(protocols, logs, SINCE, NOW); const out = {}; for (const p of protocols) out[p.id] = s[p.id].due ? Math.round((100 * s[p.id].taken) / s[p.id].due) : null; return out; };
+
+test('per protocol: the rows counted (missed included); the % from the scheduled doses', () => {
   const { adherenceStats } = require('../lib/adherenceReport');
-  const r = adherenceStats({ ...fixture(), sinceMs: SINCE, nowMs: NOW });
+  const f = fixture();
+  const r = adherenceStats({ ...f, sinceMs: SINCE, nowMs: NOW });
+  const pct = slotPct(f.protocols, f.logs);
   const bpc = r.perProtocol.find((p) => p.id === 1);
-  assert.deepEqual({ taken: bpc.taken, skipped: bpc.skipped, missed: bpc.missed, adherence: bpc.adherence }, { taken: 4, skipped: 1, missed: 5, adherence: 40 });
+  assert.deepEqual({ taken: bpc.taken, skipped: bpc.skipped, missed: bpc.missed, adherence: bpc.adherence }, { taken: 4, skipped: 1, missed: 5, adherence: pct[1] });
   const zinc = r.perProtocol.find((p) => p.id === 2);
-  assert.deepEqual({ taken: zinc.taken, skipped: zinc.skipped, missed: zinc.missed, adherence: zinc.adherence }, { taken: 2, skipped: 0, missed: 2, adherence: 50 });
+  assert.deepEqual({ taken: zinc.taken, skipped: zinc.skipped, missed: zinc.missed, adherence: zinc.adherence }, { taken: 2, skipped: 0, missed: 2, adherence: pct[2] });
 });
 
 test('no Missed counted before the protocol existed (created_at − 1 h)', () => {
@@ -56,15 +62,19 @@ test('no Missed counted before the protocol existed (created_at − 1 h)', () =>
 
 test('overall uses the same definition and the same protocols (sum of the rows above)', () => {
   const { adherenceStats } = require('../lib/adherenceReport');
-  const r = adherenceStats({ ...fixture(), sinceMs: SINCE, nowMs: NOW });
-  assert.deepEqual(r.overall, { taken: 6, skipped: 1, missed: 7, total: 14, adherence: 43 });
+  const f = fixture();
+  const r = adherenceStats({ ...f, sinceMs: SINCE, nowMs: NOW });
+  const { slotCounts } = require('../lib/adherenceRings');
+  const s = Object.values(slotCounts(f.protocols, f.logs, SINCE, NOW));
+  const overall = Math.round((100 * s.reduce((a, x) => a + x.taken, 0)) / s.reduce((a, x) => a + x.due, 0));
+  assert.deepEqual(r.overall, { taken: 6, skipped: 1, missed: 7, total: 14, adherence: overall });
   const sum = r.perProtocol.reduce((a, p) => a + p.taken + p.skipped + p.missed, 0);
   assert.equal(sum, r.overall.total);
 });
 
 test('a protocol with nothing due in the period has no percentage (never a made-up 0 % or 100 %)', () => {
   const { adherenceStats } = require('../lib/adherenceReport');
-  const r = adherenceStats({ protocols: [{ id: 5, created_at: iso(2026, 10, 3, 8) }], logs: [], sinceMs: SINCE, nowMs: NOW });
+  const r = adherenceStats({ protocols: [{ id: 5, created_at: iso(2026, 10, 3, 8), start_date: '2026-10-04' }], logs: [], sinceMs: SINCE, nowMs: NOW });
   assert.equal(r.perProtocol[0].adherence, null);
   assert.equal(r.overall.adherence, null);
 });
