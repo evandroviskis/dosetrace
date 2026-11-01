@@ -68,14 +68,15 @@ export async function startConversation(store: StartStore, nowMs: number, limit 
 //   turnsDay  → this user's turns in the last 24 hours
 // Any of them undefined = an infrastructure error → allowed (fail open, logged by the caller).
 export function turnAllowed(known: { started?: string | null; turns?: number; turnsDay?: number }, nowMs: number):
-  { ok: true } | { ok: false; code: 'no_conversation' | 'conversation_expired' | 'turn_limit' } {
+  { ok: true } | { ok: false; code: 'no_conversation' | 'conversation_expired' | 'turn_limit' | 'daily_turn_limit' } {
   if (known.started === null) return { ok: false, code: 'no_conversation' };
   if (typeof known.started === 'string') {
     const t = Date.parse(known.started);
     if (Number.isFinite(t) && nowMs - t > CONVERSATION_TTL_MS) return { ok: false, code: 'conversation_expired' };
   }
   if (typeof known.turns === 'number' && known.turns >= TURNS_PER_CONVERSATION) return { ok: false, code: 'turn_limit' };
-  if (typeof known.turnsDay === 'number' && known.turnsDay >= TURNS_PER_DAY) return { ok: false, code: 'turn_limit' };
+  // DV-240 (AD-105): the 24-hour ceiling has its own code, so the app says which cap it is.
+  if (typeof known.turnsDay === 'number' && known.turnsDay >= TURNS_PER_DAY) return { ok: false, code: 'daily_turn_limit' };
   return { ok: true };
 }
 

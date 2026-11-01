@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       if (startRes.error || turnsRes.error || dayRes.error) console.error('[protocol-assistant] turn count failed');
       if (!verdict.ok) {
         if (turnId != null) await admin.from('ai_assistant_usage').delete().eq('id', turnId).then(() => {}, () => {});
-        return json({ error: 'Conversation not available', code: verdict.code }, verdict.code === 'turn_limit' ? 429 : 403);
+        return json({ error: 'Conversation not available', code: verdict.code }, verdict.code === 'turn_limit' || verdict.code === 'daily_turn_limit' ? 429 : 403);
       }
     }
 

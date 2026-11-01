@@ -68,7 +68,7 @@ test('turns: only inside a conversation this user started, under a day old, capp
   assert.deepEqual(B.turnAllowed({ started: null }, NOW), { ok: false, code: 'no_conversation' }, 'skipping start cannot bypass the limit');
   assert.deepEqual(B.turnAllowed({ started: daysAgo(2), turns: 0, turnsDay: 0 }, NOW), { ok: false, code: 'conversation_expired' });
   assert.deepEqual(B.turnAllowed({ started: daysAgo(0.1), turns: 40, turnsDay: 0 }, NOW), { ok: false, code: 'turn_limit' });
-  assert.deepEqual(B.turnAllowed({ started: daysAgo(0.1), turns: 1, turnsDay: 200 }, NOW), { ok: false, code: 'turn_limit' });
+  assert.deepEqual(B.turnAllowed({ started: daysAgo(0.1), turns: 1, turnsDay: 200 }, NOW), { ok: false, code: 'daily_turn_limit' });
   assert.deepEqual(B.turnAllowed({ started: daysAgo(0.1), turns: 1, turnsDay: 1 }, NOW), { ok: true });
   assert.deepEqual(B.turnAllowed({}, NOW), { ok: true }, 'counts unavailable → fail open');
   assert.equal(B.isUuid('6f1c1c3e-2b2a-4c5d-9e8f-0a1b2c3d4e5f'), true);
@@ -105,7 +105,7 @@ test('AP-16: the client never throws and maps failures to app-written notices', 
   assert.equal(assistantErrorKind({ online: false }), 'offline');
   assert.equal(assistantErrorKind({ status: null, code: null }), 'offline');
   assert.equal(assistantErrorKind({ status: 429, code: 'quota_exceeded' }), 'quota');
-  assert.equal(assistantErrorKind({ status: 429, code: 'turn_limit' }), 'service');
+  assert.equal(assistantErrorKind({ status: 429, code: 'turn_limit' }), 'turn_limit'); // DV-240: its own message
   assert.equal(assistantErrorKind({ status: 404, code: null }), 'service', 'not deployed yet');
   assert.equal(assistantErrorKind({ status: 502, code: 'provider_error' }), 'service');
   assert.deepEqual(assistantErrorNotice({ status: 429, code: 'quota_exceeded', limit: 10, resetsAt: '2026-10-08T09:00:00Z' }, () => 'Thu, Oct 8'),
