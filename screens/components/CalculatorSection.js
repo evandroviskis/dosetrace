@@ -55,7 +55,7 @@ import {
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { createScreenSave } from '../../lib/calcInputsSync';
-import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource } from '../../lib/realityCheckRules';
+import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource, checkAlert } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync, notifyDataChanged } from '../../lib/sync';
@@ -1535,10 +1535,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     </TouchableOpacity>
   );
   // In progress: the status line, the start weigh-in, the 7-day rule (or the outcome note).
+  // DV-056: the line follows the check's real state (lib/realityCheckRules checkAlert), as Today's alert.
+  const st = checkAlert(outcome, foodRun);
   const rcStatusLines = rcStart ? (
     <>
       <Text style={[s.body, s.tnum]}>
-        {outcome.state === 'due' ? t('cal_rc_due') : t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}
+        {outcome.state === 'due' ? t('cal_rc_due')
+          : st && st.body === 'needs_food' ? t(pluralKey('today_alert_rc_needs_food', st.left, language)).replace('{n}', String(st.left))
+          : st && st.body === 'ready' ? t('cal_rc_sb_ready')
+          : t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}
       </Text>
       <Text style={[s.sec2, s.tnum]}>
         ①  <Text style={s.mono}>{fmtW(rcStart.weightKg)}{'\u00A0'}{wUnit}</Text> · {fmtShort(rcStart.date)}
