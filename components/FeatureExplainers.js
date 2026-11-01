@@ -17,6 +17,7 @@ import { LIGHT, useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatDate, numberSymbols } from '../lib/localeFormat';
 import { getCachedUser } from '../lib/supabase';
+import { profileMeta } from '../lib/pendingGateStore';
 import { formatTime } from '../lib/timeFormat';
 import { paletteHex } from '../lib/protocolColors';
 import { figureSex, figurePoints, IMG_W, IMG_H } from '../lib/bodySites';
@@ -227,7 +228,7 @@ function SitesFx({ t: tr, c, width, label }) {
   const [sex, setSex] = useState('male');
   useEffect(() => {
     let live = true;
-    getCachedUser().then((u) => { if (live) setSex(figureSex(u?.user_metadata)); }).catch(() => {});
+    getCachedUser().then((u) => { if (live) setSex(figureSex(profileMeta(u))); }).catch(() => {}); // DV-114 Gate B 2
     return () => { live = false; };
   }, []);
   const figW = IMG_W * 0.22, figH = IMG_H * 0.22, oy = 2;

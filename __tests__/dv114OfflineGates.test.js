@@ -66,14 +66,14 @@ test('DV-114: offline confirm → the gate passes, the answer is stored on the p
   const patch = adultConfirmPatch('2026-11-01T13:00:00.000Z', 1985, NOW);
   const r = await G.answerGate({ userId: 'u1', patch, write: async () => ({ error: OFFLINE }), gate: w.gate });
   assert.equal(r.status, 'pending');
-  assert.deepEqual(JSON.parse(w.storage.m.get(G.KEY)).patch, patch, 'kept durably on the phone');
+  assert.deepEqual(JSON.parse(w.storage.m.get(G.KEY)).byUser.u1.patch, patch, 'kept durably on the phone');
   assert.equal(w.writes.length, 0);
-  const seen = G.withPendingAnswer(USER, w.gate.get());
+  const seen = G.withPendingAnswer(USER, w.gate.get('u1'));
   assert.equal(needsAdultConfirmation(seen.user_metadata, NOW), false, 'the 18+ gate passes');
   assert.equal(needsAdultConfirmation(USER.user_metadata, NOW), true, 'without the answer it would not');
   assert.equal(seen.user_metadata.theme, 'dark', 'the rest of the metadata is untouched');
   // Another account on this phone never borrows it.
-  assert.equal(G.withPendingAnswer({ id: 'u2', user_metadata: { birth_year: 2012 } }, w.gate.get()).user_metadata.adult_confirmed_at, undefined);
+  assert.equal(G.withPendingAnswer({ id: 'u2', user_metadata: { birth_year: 2012 } }, w.gate.get('u1')).user_metadata.adult_confirmed_at, undefined);
 });
 
 test('DV-114: back online → written once, merge-only (only the answer\'s keys), then gone from the phone', async () => {
@@ -92,7 +92,7 @@ test('DV-114: back online → written once, merge-only (only the answer\'s keys)
   assert.equal(w.account.theme, 'dark', 'the other keys of the account stay');
   assert.equal(w.account.birth_year, 1985);
   assert.ok(!w.storage.m.has(G.KEY));
-  assert.equal(w.gate.get(), null);
+  assert.equal(w.gate.get('u1'), null);
 });
 
 test('DV-114: restart before online → still passes the gate, still written later', async () => {
@@ -104,7 +104,7 @@ test('DV-114: restart before online → still passes the gate, still written lat
   const second = world({ storage });
   assert.equal(second.gate.isReady(), false);
   await second.gate.load();
-  assert.equal(needsAdultConfirmation(G.withPendingAnswer(USER, second.gate.get()).user_metadata, NOW), false);
+  assert.equal(needsAdultConfirmation(G.withPendingAnswer(USER, second.gate.get('u1')).user_metadata, NOW), false);
   assert.equal((await second.gate.flush()).status, 'offline');
   second.online = true;
   assert.equal((await second.gate.flush()).status, 'written');
@@ -120,10 +120,10 @@ test('DV-114: the profile gate answered offline passes with the answer laid over
   await w.gate.load();
   const patch = { primary_goal: 'recomp', activity_level: 'light', tracking_types: ['peptides'], has_provider: 'no' };
   assert.equal((await G.answerGate({ userId: 'u1', patch, write: async () => ({ error: OFFLINE }), gate: w.gate })).status, 'pending');
-  assert.deepEqual(missingProfileFields(G.withPendingAnswer(user, w.gate.get())), []);
+  assert.deepEqual(missingProfileFields(G.withPendingAnswer(user, w.gate.get('u1'))), []);
   // A second gate answered offline joins the first (one pending answer per account, merged).
   await w.gate.save('u1', { adult_confirmed_at: 'X', birth_year: 1985 });
-  assert.deepEqual(Object.keys(w.gate.get().patch).sort(), ['activity_level', 'adult_confirmed_at', 'birth_year', 'has_provider', 'primary_goal', 'tracking_types']);
+  assert.deepEqual(Object.keys(w.gate.get('u1').patch).sort(), ['activity_level', 'adult_confirmed_at', 'birth_year', 'has_provider', 'primary_goal', 'tracking_types']);
 });
 
 test('DV-114: a refusal (not offline) is said as such and never stored as "saved on this phone"; a refused flush keeps the answer', async () => {
@@ -133,7 +133,7 @@ test('DV-114: a refusal (not offline) is said as such and never stored as "saved
   const r = await G.answerGate({ userId: 'u1', patch: { adult_confirmed_at: 'X', birth_year: 1985 }, write: async () => ({ error: refused }), gate: w.gate });
   assert.equal(r.status, 'failed');
   assert.equal(r.error, refused);
-  assert.equal(w.gate.get(), null, 'nothing kept: the screen says why and stays');
+  assert.equal(w.gate.get('u1'), null, 'nothing kept: the screen says why and stays');
   // Stored offline, later refused by the server: kept (never dropped), and the refusal is told.
   const w2 = world({ refuse: refused });
   await w2.gate.load();
@@ -141,7 +141,7 @@ test('DV-114: a refusal (not offline) is said as such and never stored as "saved
   const told = [];
   w2.gate.subscribe((e) => told.push(e.type));
   assert.equal((await w2.gate.flush()).status, 'refused');
-  assert.ok(w2.gate.get(), 'kept on the phone');
+  assert.ok(w2.gate.get('u1'), 'kept on the phone');
   assert.ok(told.includes('refused'));
   // A phone storage that cannot keep it: never "saved".
   const broken = { getItem: async () => null, setItem: async () => { throw new Error('disk'); }, removeItem: async () => {} };
@@ -152,7 +152,7 @@ test('DV-114: a refusal (not offline) is said as such and never stored as "saved
   const w4 = world({ online: true });
   await w4.gate.load();
   assert.equal((await G.answerGate({ userId: 'u1', patch: { a: 1 }, write: async () => ({ error: null }), gate: w4.gate })).status, 'saved');
-  assert.equal(w4.gate.get(), null);
+  assert.equal(w4.gate.get('u1'), null);
 });
 
 test('DV-114: offline is told apart from a refusal', () => {

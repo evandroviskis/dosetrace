@@ -18,6 +18,6 @@ test('birth month: stored 0 = January, 1–12 as stored, anything else unknown',
   const { formFrom } = require('../lib/onboardingSteps');
   assert.equal(formFrom({ birth_month: 0, birth_year: 1985 }).birthMonth, 0);
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/SettingsScreen.js'), 'utf8');
-  assert.match(src, /setBirthMonth\(birthMonthIndex\(user\.user_metadata\?\.birth_month\)\);/);
+  assert.match(src, /setBirthMonth\(birthMonthIndex\(pm\.birth_month\)\);/); // DV-114 Gate B 2: pm = profileMeta(user)
   assert.match(src, /if \(String\(user\.user_metadata\?\.birth_month\) === '0'\) supabase\.auth\.updateUser\(\{ data: \{ birth_month: 1 \} \}\)\.catch\(\(\) => \{\}\);/);
 });

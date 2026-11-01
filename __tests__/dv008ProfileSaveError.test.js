@@ -44,6 +44,7 @@ function profile(mode, supabase = null) {
     setEditProfileOpen: (v) => { if (v === false) out.closedEdit++; }, // A-169 review: every close goes through it
     setShowCountryPicker: (v) => { if (v === false) out.closedPicker++; },
     fetchUser: () => { out.refetched++; },
+    forgetKeptKeys: async () => {}, // DV-114 Gate B 2: no answer kept on this phone here
   });
   return { out, save };
 }

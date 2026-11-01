@@ -51,11 +51,14 @@ test('DV-113: Edit profile — "O que você usa" between "Sobre você" and "Seus
 test('DV-113: the profile read fills it; Save writes tracking_types in the same merge write; empty is refused', () => {
   const src = read('screens/SettingsScreen.js');
   const load = src.slice(src.indexOf('async function loadUser('), src.indexOf('function setEditProfileOpen('));
-  assert.match(load, /setTrackingTypes\(Array\.isArray\(user\.user_metadata\?\.tracking_types\) \? user\.user_metadata\.tracking_types : \[\]\);/);
+  // DV-114 Gate B 2: read with an answer still kept on this phone laid over the account (profileMeta).
+  assert.match(load, /setTrackingTypes\(Array\.isArray\(pm\.tracking_types\) \? pm\.tracking_types : \[\]\);/);
   const save = src.slice(src.indexOf('async function saveProfile('), src.indexOf('async function handleExportData('));
   assert.match(save, /if \(trackingTypes\.length === 0\) missing\.push\(t\('profile_sec_tracking'\)\);/);
   // updateUser({ data }) merges keys into user_metadata: only the profile's own keys are sent.
-  assert.match(save, /supabase\.auth\.updateUser\(\{\s*data: \{[\s\S]*tracking_types: trackingTypes\.slice\(\),[\s\S]*\},\s*\}\)/);
+  // DV-114 Gate B 2 moved the profile keys into profileData (the same merge write).
+  assert.match(save, /const profileData = \{[\s\S]*tracking_types: trackingTypes\.slice\(\),[\s\S]*\};/);
+  assert.match(save, /supabase\.auth\.updateUser\(\{ data: profileData \}\)/);
   assert.doesNotMatch(save, /user_metadata: /);
 });
 

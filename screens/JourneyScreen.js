@@ -36,6 +36,7 @@ import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
 import { curveReloadOnSync, sameCurveLevel } from '../lib/curveReload';
 import { getCachedUser } from '../lib/supabase';
+import { profileMeta } from '../lib/pendingGateStore';
 import { getActiveProtocols, getHistoryProtocols, getLogsSince, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
 import { formatDate, formatNumber, formatInt, unitText } from '../lib/localeFormat';
@@ -112,7 +113,7 @@ export default function JourneyScreen() {
     const uid = user && user.id;
     let snapshots = [], checks = [];
     try { if (uid) { snapshots = getCalcSnapshots(uid); checks = getRealityChecks(uid); } } catch { /* empty */ }
-    setTile(progressTile({ saved, meta: user && user.user_metadata, snapshots, checks }));
+    setTile(progressTile({ saved, meta: profileMeta(user), snapshots, checks })); // DV-114 Gate B 2
   }, []);
   // Dose accumulation tile: the compound the Curve opens on — the first one the user left
   // selected there (lib/curveView), else the first charted — and its Est. level now, the same

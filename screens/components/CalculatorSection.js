@@ -35,6 +35,7 @@ import { useWindowSize } from '../../lib/windowSize';
 import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useFocusEffect, useNavigation, useIsFocused } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
+import { profileMeta } from '../../lib/pendingGateStore';
 import { hasPremium } from '../../lib/entitlement';
 import { usePremiumUpdates } from '../../lib/usePremium';
 import { realityCheckAccess, mergeWeighIn } from '../../lib/weighInAccess';
@@ -302,7 +303,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     {
       const savedForBody = await getCalcInputs().catch(() => null);
       setRcInputs(savedForBody ? { rcTypedKcal: savedForBody.rcTypedKcal ?? null, rcResultSources: savedForBody.rcResultSources ?? null, rcClosed: savedForBody.rcClosed ?? null } : null);
-      body = profileBodyInputs({ meta: user?.user_metadata, saved: savedForBody, now: new Date() });
+      // DV-114 Gate B 2: the profile with an 18+ / profile answer still kept on this phone laid over it.
+      body = profileBodyInputs({ meta: profileMeta(user), saved: savedForBody, now: new Date() });
       setSex(body.sex);
       setProfileSex(body.profileSex);
       setAgeFromProfile(body.ageFromProfile);
@@ -310,8 +312,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       // m14: ONE activity answer — the profile's level unless the user chose later here. Read
       // on every focus, so a change in Edit profile reaches the daily burn. A different old
       // calculator answer that the profile replaces is kept in the payload (activityBefore).
-      metaRef.current = user?.user_metadata || null;
-      const act = activitySource({ meta: user?.user_metadata, saved: savedForBody });
+      metaRef.current = profileMeta(user);
+      const act = activitySource({ meta: profileMeta(user), saved: savedForBody });
       if (act.multiplier != null) setActivity(act.multiplier);
       if (savedForBody && savedForBody.activitySetAt && !loadedRef.current) setActivitySetAt(savedForBody.activitySetAt);
       if (act.from === 'profile' && savedForBody && savedForBody.activity != null && savedForBody.activityBefore == null
