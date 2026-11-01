@@ -97,6 +97,7 @@ import CheckMark from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
 import LearnBlock from './LearnBlock';
 import useKeyboardLift from '../../components/useKeyboardLift';
+import useClock from '../../components/useClock';
 
 // LOCAL date (journey-review F1): a UTC date shifted check starts/snapshots by a day.
 const todayISO = () => localISO();
@@ -877,16 +878,18 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
 
   // ── Reality check (Premium, or a free user's 7 free days — FL-41) ──
   const rcAllowed = premium || rcFree;
+  // DV-148: the page left open across midnight moves to the new day (day number, food run, outcome).
+  const { dayKey } = useClock();
   const rcAccess = realityCheckAccess({ premium, rcFree, hasOpenCheck: !!rcStart });
   // The check's food-log run (FL-3: 7+ consecutive complete days) and the day list of
   // "Your reality check so far" — the user's own logged food, never a typed guess.
   const foodRun = useMemo(
     () => (rcStart ? intakeRun(foodRows, String(rcStart.date).slice(0, 10), todayISO()) : null),
-    [foodRows, rcStart],
+    [foodRows, rcStart, dayKey],
   );
   const soFar = useMemo(
     () => (rcStart ? checkSoFar(foodRows, String(rcStart.date).slice(0, 10), todayISO()) : null),
-    [foodRows, rcStart],
+    [foodRows, rcStart, dayKey],
   );
   // The date the day-21 weigh-in is due (display only).
   const rcRemindOn = useMemo(() => {
@@ -904,7 +907,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // present: the food run, and the typed value is kept (lib/realityCheckRules checkOutcome).
   const outcome = useMemo(
     () => checkOutcome({ start: rcStart, snapshots, run: foodRun, typedKcal, todayISO: todayISO(), days: REALITY_CHECK_DAYS }),
-    [rcStart, snapshots, foodRun, typedKcal],
+    [rcStart, snapshots, foodRun, typedKcal, dayKey],
   );
   const outcomeResult = useMemo(() => {
     if (outcome.state !== 'ready') return null;

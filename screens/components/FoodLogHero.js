@@ -30,6 +30,7 @@ import FeatureIcon from '../../components/FeatureIcon';
 import RowChevron from '../../components/RowChevron';
 import { fontFamilyFor } from '../../lib/fonts';
 import { pluralKey } from '../../lib/plural';
+import useClock from '../../components/useClock';
 
 const { REALITY_CHECK_DAYS: CHECK_DAYS } = require('../../lib/realityCheckRules'); // DV-147: one owner
 
@@ -97,6 +98,15 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
   // card also reads again when an import / sync finishes or data changes (as Today's dose lists
   // do), debounced; the listener goes away on unmount.
   useEffect(() => reloadOnSync(addSyncListener, () => { if (readRef.current) readRef.current().catch(() => {}); }), []);
+
+  // DV-148: the card left open across midnight reads the new day (the day number, today's food).
+  const { dayKey } = useClock();
+  const dayRef = useRef(dayKey);
+  useEffect(() => {
+    if (dayRef.current === dayKey) return;
+    dayRef.current = dayKey;
+    if (readRef.current) readRef.current().catch(() => {});
+  }, [dayKey]);
 
   if (!state) return null;
   const policy = todayFoodHeroPolicy({ rcStart: state.rcStart, todayISO: state.today, access: state.access, checkDays: CHECK_DAYS });

@@ -20,7 +20,8 @@ import { checkAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES, TAB_SCROLL_PROPS } from '../lib/tabBarStyle';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
+import useClock from '../components/useClock';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
 import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orphanedPending';
@@ -335,6 +336,10 @@ export default function TodayScreen() {
   const stillGoingWaitRef = useRef(false); // A-122: a check is waiting for the first sync
   const courseAskRef = useRef(false); // A-121 SG-17: a dose was logged — ask once its Undo bar has gone
   const focusedRef = useRef(false); // questions open only on Today, never over another tab
+  // DV-148: while Today is in front it re-renders every minute, so a card's Due tag and an alert's
+  // snooze end follow the clock (they read the time at render).
+  const isFocused = useIsFocused();
+  useClock({ everyMinute: true, enabled: isFocused });
   const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
   const takeNoticeT = useRef(null);
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save

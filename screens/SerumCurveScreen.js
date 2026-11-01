@@ -14,7 +14,8 @@ import { axisLabels } from '../lib/curveAxis';
 import { useWindowSize } from '../lib/windowSize';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
+import useClock from '../components/useClock';
 import Svg, { Path, G, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useDerivedValue, useReducedMotion,
@@ -489,11 +490,16 @@ export default function SerumCurveScreen({ embedded = false }) {
     return plotLeft + (i / (n || 1)) * (plotRight - plotLeft);
   };
 
+  // DV-148: while the curve is in front, Now moves every minute (the model below recomputes).
+  const isFocused = useIsFocused();
+  const { minuteKey } = useClock({ everyMinute: true, enabled: isFocused });
+
   // One decay series per selected compound, all on a SHARED time axis and a
   // SHARED vertical scale (max across every selected series) so overlaid curves
   // are directly comparable.
   const model = useMemo(() => {
     const selected = protocols.filter(p => selectedIds.includes(p.id));
+    // DV-148: minuteKey (below) moves Now along while the screen stays open.
     if (!selected.length) return null;
     const now = Date.now();
     // The 6h sampling grid is aligned to 00/06/12/18 local time; DV-068: doses are not
@@ -591,7 +597,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     // The Combined toggle shows whenever a same-substance group exists (also while it is off).
     const hasGroups = Object.values(bySubstance).some(members => members.length >= 2);
     return { series, combined, hasGroups, max, nowIdx, nowF, nSteps, start, now, estBefore, unit: series[0] ? series[0].unit : 'mg' };
-  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight, readoutDate, hourMode, hoursChoice, stepMs]);
+  }, [protocols, selectedIds, t, colors.data, showCombined, futureDays, pastDays, doseLogs, plotLeft, plotRight, readoutDate, hourMode, hoursChoice, stepMs, minuteKey]);
 
   // Part 17 (prototype curveScreen): three grid lines — 0, half the peak, the peak — on an
   // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
