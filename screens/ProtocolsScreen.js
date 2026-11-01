@@ -573,7 +573,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
   const containerUnits = parseDecimal(p.container_units);
   const unitsTaken = parseDecimal(p.units_taken) || 0;
   const unitsLeft = containerUnits > 0 ? Math.max(0, Math.round((containerUnits - unitsTaken) * 100) / 100) : null;
-  const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1) : null;
+  const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1, p.interval_days || 1) : null;
   const reads = [
     { label: t('protocols_serving_dose'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}` },
     unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)}\u00A0${unitWord(unitsLeft)}` } : null,

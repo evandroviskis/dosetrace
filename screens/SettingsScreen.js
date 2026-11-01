@@ -75,6 +75,7 @@ import { createAIUseSwitch } from '../lib/aiUseSwitch';
 import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages';
 import { useTeamMessages } from '../lib/useTeamMessages';
 import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
+import { supplyState } from '../lib/supplyLow';
 import { sexChangeNoteShown } from '../lib/sexAtBirth';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
@@ -690,7 +691,7 @@ export default function SettingsScreen({ navigation }) {
           adherence,
           unrecorded: heldIn[p.id] || 0,
           streak,
-          vialRemaining: vial ? (vial.total_doses || 0) - (vial.doses_taken || 0) : null,
+          vialRemaining: vial ? supplyState(vial, p).remaining : null, // DV-017: the one supply owner
         };
       });
 
