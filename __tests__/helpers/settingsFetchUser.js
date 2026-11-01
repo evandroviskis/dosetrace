@@ -25,6 +25,8 @@ function settings({ getCachedUser, cap = 60 } = {}) {
   const noop = () => {};
   const deps = {
     getBillingStore: () => Promise.resolve(null), billingLoad: { current: null }, setBillingStore: noop,
+    getSubscriptionStatus: () => Promise.resolve(null), setSubStatus: noop, // DV-112
+
     getCachedUser, setUser: set('user'), aiUse: { load: noop }, aiUseDeps: () => ({}),
     hasPremium: async () => true, setPremium: set('premium'),
     whenAllSettled: (tasks) => whenAllSettled(tasks, { capMs: cap }),
@@ -35,7 +37,7 @@ function settings({ getCachedUser, cap = 60 } = {}) {
     setPersistentReminders: noop,
     setDisplayName: set('displayName'), setGender: set('gender'), setBirthMonth: set('birthMonth'),
     setBirthYear: set('birthYear'), setBirthYearText: set('birthYearText'), setCountry: set('country'),
-    setPrimaryGoals: set('primaryGoals'), activitySourceKey: (m) => (m && m.activity_level) || '',
+    setPrimaryGoals: set('primaryGoals'), setTrackingTypes: set('trackingTypes'),activitySourceKey: (m) => (m && m.activity_level) || '',
     birthMonthIndex: require('../../lib/profileName').birthMonthIndex, // founder 2026-10-31: old 0 = January
     supabase: { auth: { updateUser: async () => ({}) } },
     getCalcInputs: async () => null, setActivityLevel: set('activityLevel'), setHasProvider: set('hasProvider'),

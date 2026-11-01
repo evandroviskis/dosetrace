@@ -34,6 +34,8 @@ import {
 } from '../lib/onboardingSteps';
 import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
+import CompoundPills, { compoundPillStyles } from '../components/CompoundPills';
+import { toggleKey } from '../lib/trackingTypes';
 import ReminderSetupList from '../components/ReminderSetupList';
 import { readReminderHealth } from '../lib/notifications';
 import { setupSteps } from '../lib/reminderHealth';
@@ -224,12 +226,6 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
   // Full goal set, shared with the Settings profile editor, alphabetized.
   const GOALS = goalOptions(t);
-  const COMPOUNDS = [
-    { key: 'peptides', label: t('onboarding_compound_peptides'), icon: 'type_vial' },
-    { key: 'hormones', label: t('onboarding_compound_hormones'), icon: 'reconstitution' },
-    { key: 'glp1', label: t('onboarding_compound_glp1'), icon: 'type_glp1' },
-    { key: 'oral', label: t('onboarding_compound_oral'), icon: 'type_capsule' },
-  ];
   const PROVIDERS = [
     { key: 'yes', label: t('profile_provider_yes') },
     { key: 'no', label: t('profile_provider_no') },
@@ -419,17 +415,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                 <Text style={s.title}>{t('onboarding_compound_title')}</Text>
                 <Text style={s.sub}>{t('onboarding_compound_sub')}</Text>
               </View>
-              <View style={s.pillRow}>
-                {COMPOUNDS.map((c) => {
-                  const on = d.tracking.includes(c.key);
-                  return (
-                    <TouchableOpacity key={c.key} style={[s.pill, s.pillIcon, on && s.pillOn]} onPress={() => set('tracking', (p) => (p.includes(c.key) ? p.filter((k) => k !== c.key) : [...p, c.key]))} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
-                      <FeatureIcon name={c.icon} size={20} color={on ? colors.ink : colors.ink2} />
-                      <Text style={[s.pillText, on && s.pillTextOn]}>{c.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              {/* DV-113: the one component, shared with Edit profile. */}
+              <CompoundPills value={d.tracking} onToggle={(key) => set('tracking', (p) => toggleKey(p, key))} t={t} />
             </>
           )}
 
@@ -797,13 +784,8 @@ function makeStyles(colors) {
     featTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
     featDesc: { fontSize: 15, lineHeight: 20, color: c.ink2 },
 
-    // Pills (selection = ink outline on raised)
-    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    pill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 6, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
-    pillIcon: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised },
-    pillText: { fontSize: 13, lineHeight: 18, color: c.ink2 },
-    pillTextOn: { color: c.ink, fontWeight: '600' },
+    // Pills (selection = ink outline on raised) — the one look, shared with Edit profile (DV-113).
+    ...compoundPillStyles(c),
     mGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     mChip: { width: '22%', flexGrow: 1, alignItems: 'center', paddingHorizontal: 4 },
 

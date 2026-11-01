@@ -115,7 +115,9 @@ test('part 8: vial cells, singular/plural, days coloured by deadline (Q9 = B)', 
   assert.match(TODAY, /<VialCells total=\{capacity\} left=\{remaining\} \/>/);
   assert.match(read('screens', 'components', 'ProtocolParts.js'), /const v = vialCells\(total, left\);/, 'one cells geometry for Protocols and Today');
   assert.match(TODAY, /vialRemainingLabel\(remaining, t\)/);
-  assert.match(TODAY, /daysLeft <= 3 \? colors\.risk : daysLeft <= 7 \? colors\.attention : colors\.ok/);
+  // DV-018 colour: the rule lives in one function shared with My Protocols (__tests__/dv018DaysLeftTone.test.js).
+  assert.match(TODAY, /style=\{vialDaysTone\(daysLeft, colors\)\}/);
+  assert.match(read('lib', 'vialExpiry.js'), /days <= 3 \? colors\.risk : days <= 7 \? colors\.attention : colors\.ok/);
   assert.match(style(TODAY, 'vialRow'), /borderTopWidth: 1\b/);
   assert.match(style(TODAY, 'vialRow'), /flexWrap: 'wrap'/);
   assert.match(style(TODAY, 'addVialText'), /fontSize: 17[^}]*textDecorationColor: c\.tick/);

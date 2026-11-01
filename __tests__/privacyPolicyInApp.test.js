@@ -75,7 +75,8 @@ const FACTS = {
 // app's own labels for what it describes, in that language, so the text cannot drift from the
 // screens. Same labels for the website text (English).
 const LABELS = {
-  1: ['settings_tracking_peptides', 'settings_tracking_hormones', 'settings_tracking_glp1', 'settings_tracking_oral'], // the profile lists what you track
+  // The profile lists what you use — onboarding's four options, also in Edit profile (DV-113).
+  1: ['onboarding_compound_peptides', 'onboarding_compound_hormones', 'onboarding_compound_glp1', 'onboarding_compound_oral'],
   7: ['settings_analytics', 'settings_data_privacy'], // the analytics switch, where it lives
   8: ['protocols_recently_deleted', 'settings_delete_forever'], // DL-94: kept until Delete forever
   9: ['settings_export_title'], // "Download my data" exports your records

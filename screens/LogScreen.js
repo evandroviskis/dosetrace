@@ -45,6 +45,7 @@ import { SITE_HISTORY_DAYS } from '../lib/bodySites';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { outcomeCounts } from '../lib/declared';
+import { NO_DOSE } from '../lib/noDose';
 import { logListState } from '../lib/firstLoad';
 import { localISO } from '../lib/localDate';
 
@@ -162,13 +163,17 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // A dose auto-marked "Missed" can be corrected here — the user took it but
   // didn't log it in time. Changing the outcome updates the same row (no new
   // log), so the streak/adherence recompute on the next focus.
+  // DV-243 (AD-97): a third way out, "No dose was due" — the same row becomes a neutral mark (lib/noDose):
+  // nothing deleted, never counted as missed, the scan never writes that slot again.
   function openMissedEditor(log) {
     setLogSheet({
       title: t('log_missed_edit_title'),
       body: t('log_missed_edit_msg'),
+      body2: t('log_missed_edit_no_dose').replace('{action}', t('log_no_dose')),
       buttons: [
         { label: t('log_mark_taken'), kind: 'primary', onPress: () => setMissedOutcome(log, 'Taken') },
         { label: t('log_mark_skipped'), kind: 'secondary', onPress: () => setMissedOutcome(log, 'Skipped') },
+        { label: t('log_no_dose'), kind: 'secondary', onPress: () => setMissedOutcome(log, NO_DOSE) },
         { label: t('cancel'), kind: 'secondary' },
       ],
     });
@@ -512,6 +517,8 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     if (outcome === 'Taken') return colors.ok;
     // Skipped is a neutral fact; red is only for a missed dose (DESIGN.md §2.1, founder 2026-10-01).
     if (outcome === 'Skipped') return colors.ink2;
+    // DV-243: "No dose was due" is a neutral mark, grey (picture #dv243).
+    if (outcome === NO_DOSE) return colors.ink3;
     return colors.risk;
   }
 
@@ -525,6 +532,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   function statusWord(outcome) {
     if (outcome === 'Taken') return t('log_status_taken');
     if (outcome === 'Skipped') return t('log_status_skipped');
+    if (outcome === NO_DOSE) return t('log_no_dose');
     return t('log_status_missed');
   }
 
@@ -814,9 +822,12 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   <Text style={s.takeBtnText}>{t('log_mark_taken')}</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={s.dangerBtn} onPress={() => askDelete(shownSheet)} accessibilityRole="button">
-                <Text style={s.dangerBtnText}>{t('log_delete_dose')}</Text>
-              </TouchableOpacity>
+              {/* DV-243: a "no dose" mark is never deleted (the scan would write the Missed row back). */}
+              {shownSheet.outcome !== NO_DOSE && (
+                <TouchableOpacity style={s.dangerBtn} onPress={() => askDelete(shownSheet)} accessibilityRole="button">
+                  <Text style={s.dangerBtnText}>{t('log_delete_dose')}</Text>
+                </TouchableOpacity>
+              )}
             </Pressable>
           ) : null}
         </Pressable>

@@ -59,6 +59,8 @@ test('DV-247: the write, the sync, the restart and Today use the history', () =>
   // DV-034 moved Today's tracker streak into lib/trackerStreak (Today calls it); the rule is the same.
   assert.match(read('screens/TodayScreen.js'), /trackerStreak\(\{ protocols: activeProtocols, takenLogs: logs, now \}\)/);
   const today = read('lib/trackerStreak.js');
-  assert.match(today, /existedOn\(p, d\) && expectedDosesOn\(scheduleOn\(p, d\), d\) > 0/);
-  assert.match(today, /\(dayData\[p\.id\] \|\| 0\) >= expectedDosesOn\(scheduleOn\(p, d\), d\)/);
+  // DV-243: owedOn = the schedule in force that day minus the slots answered "no dose".
+  assert.match(today, /const owedOn = \(p, d\) => expectedDosesOn\(scheduleOn\(p, d\), d\) - /);
+  assert.match(today, /existedOn\(p, d\) && owedOn\(p, d\) > 0/);
+  assert.match(today, /\(dayData\[p\.id\] \|\| 0\) >= owedOn\(p, d\)/);
 });
