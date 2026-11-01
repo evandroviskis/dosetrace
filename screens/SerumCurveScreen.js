@@ -49,6 +49,7 @@ import { useTheme } from '../lib/theme';
 import { useSheetEdgePad } from '../components/useSheetInset';
 import { MONO, fontFamilyFor } from '../lib/fonts';
 import FeatureIcon from '../components/FeatureIcon';
+import { noStudyWarning } from '../lib/curveEvidence';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { hasPremium } from '../lib/entitlement';
 import { displayColor } from '../lib/protocolColors';
@@ -830,6 +831,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   // The short-compound note (curve_fast_note) shows outside the collapsed model notes (council 2026-10-27).
   // A short compound with a label rise keeps the approved note visible; its rise note stays in the model notes.
   const isFastNote = (ser) => !(ser.entry.substance && ser.entry.hours >= 24) && ser.entry.hours < STEP_HOURS;
+  // Founder 2026-11-01 (option A): a compound with no human study is named under the chart, with where its
+  // estimate comes from; in a chart in days, why its line falls to zero within hours (lib/curveEvidence).
+  const noStudy = model && model.max > 0 ? noStudyWarning(model.series, { hourMode, t }) : null;
   const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote).map((ser) => ({ id: ser.id, text: t('curve_fast_note').replace('{names}', ser.name) })) : [];
 
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
@@ -1069,6 +1073,13 @@ export default function SerumCurveScreen({ embedded = false }) {
                 </Text>
               )}
             </Animated.View>
+
+            {noStudy ? (
+              <View style={s.noStudy}>
+                <FeatureIcon name="warning" size={16} color={colors.attention} />
+                <Text style={s.noStudyText}>{noStudy}</Text>
+              </View>
+            ) : null}
 
             {/* Legend (part 17): estimate · projection · scheduled doses */}
             <View style={s.legendKeys}>
@@ -1426,6 +1437,8 @@ function makeStyles(c) {
     dateBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 50, borderRadius: 14, backgroundColor: c.well, paddingHorizontal: 14 },
     dateBtnText: { fontSize: 17, color: c.ink },
     foot: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+    noStudy: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 12 },
+    noStudyText: { flex: 1, minWidth: 0, fontSize: 13, lineHeight: 18, color: c.attention },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     pill: { flexDirection: 'row', alignItems: 'center', minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line },
     pillOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5 },
