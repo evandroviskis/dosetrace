@@ -60,7 +60,7 @@ import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourc
 import { getCalcInputs } from '../lib/realityCheck';
 import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
-import { monthStart } from '../lib/adherenceRings';
+import { monthStart, slotCounts } from '../lib/adherenceRings';
 import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
@@ -638,7 +638,9 @@ export default function SettingsScreen({ navigation }) {
       const logs = getLogsSince(user.id, thirtyDaysAgo.toISOString()) || [];
       // Active protocols and the ended ones with records in the window (A-83: ending never
       // removes doses from the report; lib/protocolEnd reportProtocols).
-      const protocols = reportProtocols(getHistoryProtocols(user.id) || [], logs, thirtyDaysAgo.getTime(), now.getTime());
+      // DV-033: and every ended one with a scheduled dose in the window (the ring counts it too).
+      const history = getHistoryProtocols(user.id) || [];
+      const protocols = reportProtocols(history, logs, thirtyDaysAgo.getTime(), now.getTime(), slotCounts(history, logs, thirtyDaysAgo.getTime(), now.getTime()));
       const vials = getLocalVials(user.id) || [];
       // A-181 (founder 2026-10-26, option B): doses the A-177 rule still holds back are not counted as
       // missed yet — the report says so (asterisks, a line, "No record since" per protocol), and every

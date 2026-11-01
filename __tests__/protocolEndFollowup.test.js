@@ -119,7 +119,7 @@ test('F2: the 30-day report lists the ended protocols that have records in the w
   assert.deepEqual(E.reportProtocols([active, endedIn, endedOld], logs, since, now).map((p) => p.id), [1, 2]);
   const s = read('screens/SettingsScreen.js');
   assert.doesNotMatch(s, /getActiveProtocols as getLocalProtocols/);
-  assert.match(s, /reportProtocols\(getHistoryProtocols\(user\.id\)/);
+  assert.match(s, /const history = getHistoryProtocols\(user\.id\) \|\| \[\];\s*const protocols = reportProtocols\(history,/); // DV-033: + ended ones with a due dose
   assert.match(s, /protocols_ended_on/, 'an ended protocol says so in the report');
 });
 

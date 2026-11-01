@@ -61,3 +61,25 @@ test('DV-032/033: Settings builds the report from the shared owners, and the str
     }
   }
 });
+
+// Simulator 2026-10-31 (+qa2): the report said 67 % while Today's 30-day ring said 50 % — an ended protocol
+// with a scheduled dose in the window but no record counted in the ring and was left out of the report.
+// The report lists every protocol the ring counts: the active ones and the ended ones with a record OR a
+// scheduled dose in the window.
+test('DV-033: an ended protocol with a due dose and no record is in the report, so the % still matches', () => {
+  const { reportProtocols } = require('../lib/protocolEnd');
+  const { slotCounts } = require('../lib/adherenceRings');
+  const active = { id: 1, interval_days: 1, doses_per_day: 1, start_date: '2026-10-20', created_at: at(10, 20, 8).toISOString(), active: 1, reminder_time: '09:00' };
+  const ended = { id: 2, interval_days: 1, doses_per_day: 1, start_date: '2026-10-20', created_at: at(10, 20, 8).toISOString(), active: 0, ended_at: at(10, 25, 12).toISOString(), reminder_time: '10:00' };
+  const logs = [{ protocol_id: 1, outcome: 'Taken', logged_at: at(10, 30, 9).toISOString() }];
+  const since = monthStart(NOW);
+  const due = slotCounts([active, ended], logs, since, NOW);
+  const listed = reportProtocols([active, ended], logs, since, NOW, due);
+  assert.deepEqual(listed.map((p) => p.id), [1, 2]);
+  const stats = adherenceStats({ protocols: listed, logs, sinceMs: since, nowMs: NOW });
+  assert.equal(stats.overall.adherence, ringPct(adherenceRings({ protocols: [active, ended], logs, nowMs: NOW }).month));
+  // Without slot information the old rule holds (records only).
+  assert.deepEqual(reportProtocols([active, ended], logs, since, NOW).map((p) => p.id), [1]);
+  const src = fs.readFileSync(path.join(__dirname, '..', 'screens/SettingsScreen.js'), 'utf8');
+  assert.match(src, /const history = getHistoryProtocols\(user\.id\) \|\| \[\];\s*const protocols = reportProtocols\(history, logs, thirtyDaysAgo\.getTime\(\), now\.getTime\(\), slotCounts\(history, logs, thirtyDaysAgo\.getTime\(\), now\.getTime\(\)\)\);/);
+});
