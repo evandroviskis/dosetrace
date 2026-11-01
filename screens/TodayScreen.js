@@ -44,6 +44,7 @@ import { requestSync, addSyncListener, isOnlineNow, notifyDataChanged } from '..
 import { endProtocolFully } from '../lib/endProtocolFlow';
 import { offlinePendingAlert } from '../lib/offlineAlert';
 import { calendarDaysSince } from '../lib/localDate';
+import { SITE_HISTORY_DAYS } from '../lib/bodySites';
 import { unsyncedCount } from '../lib/recoveryFlow';
 import { TABLES, getPendingChanges } from '../lib/syncCore';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged } from '../lib/doseActions';
@@ -779,7 +780,7 @@ export default function TodayScreen() {
       const user = await getCachedUser();
       if (!user) return;
       const since = new Date();
-      since.setDate(since.getDate() - 30);
+      since.setDate(since.getDate() - SITE_HISTORY_DAYS);
       const logs = getLogsSince(user.id, since.toISOString()) || [];
       const newest = {};
       for (const l of logs) {
@@ -1276,7 +1277,7 @@ export default function TodayScreen() {
     try {
       const user = await getCachedUser();
       const since = new Date();
-      since.setDate(since.getDate() - 30);
+      since.setDate(since.getDate() - SITE_HISTORY_DAYS);
       const recent = user ? (getLogsSince(user.id, since.toISOString()) || []) : [];
       setBodyMapTarget({ q, protocolId: q.protocolId, recentLogs: recent, initialStored: null, mode: 'ask' });
       setBodyMapVisible(true);

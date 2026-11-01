@@ -40,6 +40,7 @@ import DoseEditSheet from './components/DoseEditSheet';
 import { canEditTime, canEditDose, unitForDoseEdit, vialAfterOneDoseEdit, timeEditFields } from '../lib/doseEdit';
 import { formatNumber } from '../lib/localeFormat';
 import { DTSheet } from './components/ProtocolParts';
+import { SITE_HISTORY_DAYS } from '../lib/bodySites';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { outcomeCounts } from '../lib/declared';
@@ -259,7 +260,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     const user = await getCachedUser();
     if (!user && mode !== 'ask') { releasePopup(); return; }
     const since = new Date();
-    since.setDate(since.getDate() - 30);
+    since.setDate(since.getDate() - SITE_HISTORY_DAYS);
     const recent = user ? (getLogsSince(user.id, since.toISOString()) || []) : [];
     setBodyMapTarget({
       logId: log.id,
