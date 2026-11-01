@@ -89,7 +89,7 @@ import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
 import useKeyboardLift from '../components/useKeyboardLift';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { DTSheet, VialCells, EndDateStep } from './components/ProtocolParts';
-import { cardSlot, cardPlan, caughtUpPlan, dosePageKey } from '../lib/dosePageState';
+import { cardSlot, cardPlan, caughtUpPlan, reminderFocus, dosePageKey } from '../lib/dosePageState';
 import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
 import { undoBarRuns, enqueueVialPrompt, nextVialPrompt } from '../lib/undoBar';
@@ -343,6 +343,7 @@ export default function TodayScreen() {
   useClock({ everyMinute: true, enabled: isFocused });
   const undoneIdsRef = useRef(new Set()); // log ids already undone (never undo twice, never write a site on them)
   const takeNoticeT = useRef(null);
+  const focusNoticeT = useRef(null); // DV-036: the "already logged" toast's timer
   const [takeReset, setTakeReset] = useState({}); // per protocol: bumps to re-mount a TakeButton whose dose did not save
   const resetTake = (protocolId) => setTakeReset(prev => ({ ...prev, [protocolId]: (prev[protocolId] || 0) + 1 }));
   const [undoData, setUndoData] = useState(null);
@@ -398,6 +399,7 @@ export default function TodayScreen() {
   }
   const todayError = (body, delayMs) => showTodaySheet({ icon: 'warning', title: t('error'), body, buttons: okButton() }, delayMs);
   const [takeNotice, setTakeNotice] = useState(false); // "Not marked as taken" after Cancel / a confirmed back (S-25)
+  const [focusNotice, setFocusNotice] = useState(null); // DV-036: "This dose of {name} was already logged at {time}."
 
   // S-26 book layout (BK-16, BK-19, BK-20): the rows the dose page reads (yesterday + today),
   // a revision the embedded Dose log refreshes on, the undo record of every dose Today wrote
@@ -1729,7 +1731,8 @@ export default function TodayScreen() {
     // An oral dose is written now ("today, skip yesterday" writes both rows together).
     const extraDeleteIds = opts.skipYesterday ? skipYesterdayRow(p.id, opts.skipYesterday) : [];
     const write = { tapMs, slotMs: slot.slotMs, flipRowId: slot.flipRowId };
-    const cancelUpTo = Number.isFinite(slot.ti) ? slot.ti + 1 : 0; // that slot's reminders and earlier
+    // That slot's reminders and earlier; DV-036: a reminder's card adds the reminder's own range (ti + 1).
+    const cancelUpTo = Math.max(Number.isFinite(slot.ti) ? slot.ti + 1 : 0, opts.cancelUpTo || 0);
     if (reduceRef.current || !btnRect) { markTaken(p, { extraDeleteIds, write, cancelUpTo }); return; }
     // A-80 (founder: the take animation felt slow): the drop lands in 360 ms and the
     // card / tracker update exactly when it lands, never before.
@@ -2047,14 +2050,46 @@ export default function TodayScreen() {
   const pickedDose = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams && bookParams.protocolId != null
     ? bookParams : null;
   const todayKey = localDayKey(Date.now());
+  // DV-036 (DL-10, AD-79 item 9): a reminder's body tap (a focus without My Protocols' take) —
+  // its own slot open (the focus card takes it as the reminder's button would) or already logged
+  // (a toast says when). lib/dosePageState reminderFocus.
+  const reminderPlan = (() => {
+    if (!notifFocus || notifFocus.take) return null;
+    const p = protocols.find((x) => x.id === notifFocus.protocolId);
+    if (!p) return null;
+    const r = reminderFocus({ protocol: p, logs: todayRows, focus: notifFocus, nowMs: Date.now() });
+    return r ? { ...r, protocol: p } : null;
+  })();
   // A-44: today's dose its reminder named, while it is still open (a dose already logged, or
   // one for another day, is not pulled up). Yesterday's pending slot is highlighted in place.
   const focusCard = (() => {
     if (!notifFocus || (notifFocus.dayKey && notifFocus.dayKey !== todayKey)) return null;
     const p = todayCards.find((x) => x.id === notifFocus.protocolId);
     if (!p) return null;
+    if (!notifFocus.take) return reminderPlan && reminderPlan.kind === 'open' ? p : null;
     return cardPlan({ protocol: p, logs: todayRows, nowMs: Date.now() }).next ? p : null;
   })();
+  // DV-036 (AD-79 item 9, option A): the reminder's dose was already logged (e.g. from the
+  // notification's own button) → the ink toast says so, with the time, for a few seconds. Once per
+  // tap, and only for a row written BEFORE the tap (nonce = the tap's time): a take or skip from the
+  // focus card afterwards never says "already"; a row that arrives a moment late (a sync, the
+  // headless button) still does.
+  const focusNoticeRef = useRef(null);
+  useEffect(() => {
+    if (!ready.doses || !notifFocus || notifFocus.take || focusNoticeRef.current === notifFocus.nonce) return;
+    if (!reminderPlan || reminderPlan.kind !== 'logged') return;
+    if (Number.isFinite(notifFocus.nonce) && Date.parse(reminderPlan.loggedAt) > notifFocus.nonce) return;
+    focusNoticeRef.current = notifFocus.nonce;
+    const pr = reminderPlan.protocol;
+    const name = pr.compound_id ? t(pr.compound_id) : pr.name;
+    const d = new Date(reminderPlan.loggedAt);
+    const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const text = t(reminderPlan.outcome === 'Skipped' ? 'today_focus_already_skipped' : 'today_focus_already_taken')
+      .replace('{name}', name).replace('{time}', formatTimeAMPM(hhmm));
+    clearTimeout(focusNoticeT.current);
+    setFocusNotice(text);
+    focusNoticeT.current = setTimeout(() => setFocusNotice(null), 6000);
+  }, [ready.doses, notifFocus, reminderPlan && reminderPlan.kind]); // eslint-disable-line react-hooks/exhaustive-deps
   const isFocusPend = (item) => !!(notifFocus && notifFocus.dayKey && notifFocus.dayKey !== todayKey
     && item.protocolId === notifFocus.protocolId && (notifFocus.slotMs == null || item.slotMs === notifFocus.slotMs));
   doseFocusOpenRef.current = !!focusCard || (Array.isArray(pendingYest) && pendingYest.some(isFocusPend)); // A-163
@@ -2359,7 +2394,7 @@ export default function TodayScreen() {
               key={`take-${p.id}-${dosesTakenToday}-${takeReset[p.id] || 0}-${cp.next.slotMs != null ? cp.next.slotMs : `i${cp.next.ti}`}`}
               label={nextTime ? t('today_take_time').replace('{time}', nextTime) : t('today_mark_taken')}
               takenLabel={takenLabel}
-              onTake={(rect) => handleTake(p, rect, 0, { slot: cp.next })}
+              onTake={(rect) => handleTake(p, rect, 0, { slot: opts.takeSlot || cp.next, cancelUpTo: opts.cancelUpTo })}
               askFirst={needsSiteQuestion(p.type)}
               s={s}
               colors={colors}
@@ -2460,7 +2495,8 @@ export default function TodayScreen() {
           // A-44: the dose its reminder was about, at the top, highlighted (ink outline).
           <View style={s.block}>
             <View style={s.lab}><Text style={s.labText}>{t('today_notif_focus_title')}</Text></View>
-            {renderDoseCard(focusCard, { highlight: true })}
+            {/* DV-036 (DL-10): a reminder's card takes what the reminder's button would. */}
+            {renderDoseCard(focusCard, { highlight: true, takeSlot: reminderPlan && reminderPlan.kind === 'open' ? reminderPlan.slot : null, cancelUpTo: reminderPlan && reminderPlan.kind === 'open' ? reminderPlan.cancelUpTo : null })}
           </View>
         )}
 
@@ -2705,6 +2741,13 @@ export default function TodayScreen() {
       {takeNotice && !undoData && (
         <View style={toast.takeNoticeBar} accessibilityLiveRegion="polite">
           <Text style={s.takeNoticeText}>{t('today_take_undone')}</Text>
+        </View>
+      )}
+
+      {/* DV-036 (AD-79 item 9, option A): a reminder tap on a dose already logged — the same ink toast. */}
+      {focusNotice && !undoData && !takeNotice && (
+        <View style={toast.takeNoticeBar} accessibilityLiveRegion="polite">
+          <Text style={s.takeNoticeText}>{focusNotice}</Text>
         </View>
       )}
 
