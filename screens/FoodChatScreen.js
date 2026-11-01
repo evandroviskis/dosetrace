@@ -28,7 +28,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { MONO } from '../lib/fonts';
-import { requestSync, isOnlineNow } from '../lib/sync';
+import { requestSync, isOnlineNow, notifyDataChanged } from '../lib/sync';
 import { getFoodLogsSince, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
@@ -112,12 +112,15 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const touch = () => { lastTouch.current = Date.now(); };
 
   // ── Load / refresh ─────────────────────────────────────────────
-  function refresh(uid) {
+  // DV-238: after a write the other screens showing the food log (the Journey hero beside this chat on
+  // the open Fold) hear it — announce = false only for the plain opening.
+  function refresh(uid, announce = true) {
     const id = uid || userId;
     if (!id) return [];
     const r = getFoodLogsSince(id, localDaysAgoISO(366)) || [];
     setRows(r);
     syncAllNotifications().catch(() => {});
+    if (announce) notifyDataChanged('food_logs');
     return r;
   }
 
@@ -137,7 +140,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (!uid) { setLoaded(true); return; }
     // The draft / put-back text survives closing the chat (FL-36).
     try { const d = await AsyncStorage.getItem(draftKey(uid)); if (d) setText((cur) => cur || d); } catch { /* ignore */ }
-    const r = refresh(uid);
+    const r = refresh(uid, false);
     // Resume the question that was on screen (FL-32) only while it still applies: like the
     // prototype, a day question follows a log — never on open when nothing logged today
     // calls for it (founder 2026-10-02).
