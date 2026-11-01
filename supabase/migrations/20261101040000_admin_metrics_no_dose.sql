@@ -1,6 +1,7 @@
 -- Founder 2026-11-01 ("6- ok"): a dose marked "Não houve dose" (app 1.3.1, dose_logs.outcome 'NoDose') is not a
 -- missed dose; the panel's adherence total leaves it out and reports it on its own (no_dose). Function body only,
 -- same grants; identical to supabase_admin_rpcs.sql (__tests__/admAdherenceNoDose.test.js).
+-- STATUS: APPLIED in production 2026-11-01 (founder "Pode aplicar e publicar o painel").
 begin;
 
 create or replace function public.admin_metrics()
