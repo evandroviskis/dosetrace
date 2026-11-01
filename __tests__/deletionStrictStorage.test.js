@@ -30,6 +30,6 @@ test('strict removal is on around the local sign-out and off afterwards (also wh
 
 test('accountActions hands deletion the strict storage', () => {
   const a = fs.readFileSync(path.join(__dirname, '../lib/accountActions.js'), 'utf8');
-  const i = a.indexOf('return finishDeletionCore({');
+  const i = a.indexOf('const r = await finishDeletionCore({'); // DV-114 Gate B 1: the result is kept to forget the kept gate answer
   assert.match(a.slice(i, i + 700), /strictStorage: \{ begin: \(\) => setStrictRemoval\(true\), end: \(\) => setStrictRemoval\(false\) \}/);
 });

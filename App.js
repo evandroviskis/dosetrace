@@ -327,7 +327,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // DV-114 (DL-92): an 18+ or profile answer given offline is kept on this phone (lib/pendingGate) —
   // the gates read the account with that answer laid over it (same account only), so the person goes
   // on into the app; the toast says it goes to the account when the internet is back.
-  const gateAnswer = usePendingGate();
+  const gateAnswer = usePendingGate(session && session.user ? session.user.id : null);
   const gateToast = useGateToast(t);
   const gateUser = session ? withPendingAnswer(session.user, gateAnswer.pending) : null;
   const gated = (u) => !isProfileComplete(u) || needsAdultConfirmation(u && u.user_metadata);

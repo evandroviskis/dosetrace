@@ -91,7 +91,7 @@ test('cold start still holding the deleted account\'s session: wipe and sign out
 
 test('the app wires it: accountActions, both screens show the failure, App passes the session user', () => {
   const a = read('lib/accountActions.js');
-  assert.match(a, /return finishDeletionCore\(\{/);
+  assert.match(a, /const r = await finishDeletionCore\(\{[\s\S]{0,1200}return r;/); // DV-114 Gate B 1: the result is returned after the kept gate answer goes
   assert.match(a, /wipeNow: \(\) => \{ try \{ runRegisteredWipe\(\); \} catch \{ clearLocalDatabase\(\); \} \}/);
   for (const f of ['screens/SettingsScreen.js', 'screens/AgeConfirmScreen.js']) {
     assert.match(read(f), /finishAccountDeletion\(\)\.then\(\(r\) => \{ if \(r && r\.failed\)/, f);
