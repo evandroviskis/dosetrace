@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText } from '../lib/storeText';
@@ -259,7 +260,7 @@ export default function PaywallScreen({ navigation, route }) {
   const rows = comparisonRows(t, { freeFoodDays: FREE_DAYS });
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       <View style={s.nav}>
         <TouchableOpacity onPress={leave} disabled={purchasing || restoring} style={[s.navSide, s.navBack, (purchasing || restoring) && s.busy]} accessibilityRole="button" accessibilityLabel={t('back')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <BackChevron color={colors.ink} />

@@ -5,6 +5,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, AppState, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -63,7 +64,7 @@ export default function ReminderCheckScreen({ navigation, route }) {
     : null;
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       <View style={[s.centered, s.navRow]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityRole="button" hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
           <Back color={colors.ink} />

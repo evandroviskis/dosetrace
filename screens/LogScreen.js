@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Modal from '../components/PresenceModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -659,7 +660,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   );
 
   return (
-    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : undefined}>
+    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : TAB_SCREEN_EDGES}>
       <View style={[s.nav, embedded && s.navEmbedded]}>
         {!embedded && (
           <TouchableOpacity

@@ -14,6 +14,7 @@ import { axisLabels } from '../lib/curveAxis';
 import { useWindowSize } from '../lib/windowSize';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect, useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
 import useClock from '../components/useClock';
 import Svg, { Path, G, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
@@ -849,7 +850,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
 
   return (
-    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : undefined}>
+    <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : TAB_SCREEN_EDGES}>
       {embedded ? <View style={s.navEmbedded} /> : (
         <View style={s.nav}>
           <TouchableOpacity

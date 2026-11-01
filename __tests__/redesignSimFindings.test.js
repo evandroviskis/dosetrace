@@ -21,7 +21,7 @@ test('A-68 / part 21: the full-screen food chat pads the top safe-area inset (it
   const src = read('screens/FoodChatScreen.js');
   const m = src.match(/<SafeAreaView style=\{s\.container\} edges=\{([^}]+)\}/);
   assert.ok(m, 'chat root SafeAreaView found');
-  assert.match(src, /const edges = embedded \? \['left', 'right'\] : \['top', 'left', 'right', 'bottom'\];/);
+  assert.match(src, /const edges = embedded \? \['left', 'right'\] : TAB_SCREEN_EDGES;/);
   const app = read('App.js');
   assert.doesNotMatch(app.match(/<Stack\.Screen name="FoodChat"[^\n]*/)[0], /presentation: 'modal'/, 'not an iOS modal sheet');
 });

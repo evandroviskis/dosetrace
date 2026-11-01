@@ -38,7 +38,9 @@ function topRouteName(navigation) {
 function tabUnderStack(navigation) {
   try {
     const st = navigation.getState();
-    const tabs = st && st.routes ? st.routes.find((r) => r.name === 'MainTabs') : null;
+    // The MainTabs nearest the top: a notification tap can leave two in the stack (senior review 2026-11-01).
+    const below = st && st.routes ? st.routes.slice(0, (typeof st.index === 'number' ? st.index : st.routes.length - 1) + 1) : [];
+    const tabs = below.slice().reverse().find((r) => r.name === 'MainTabs') || null;
     const ts = tabs && tabs.state;
     return ts && ts.routes && ts.routes[ts.index || 0] ? ts.routes[ts.index || 0].name : 'Today';
   } catch { return null; }

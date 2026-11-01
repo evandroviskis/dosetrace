@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import Modal from '../components/PresenceModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay, useReducedMotion } from 'react-native-reanimated';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -743,7 +744,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   // Journey redesign part 21 (founder 2026-10-02): the chat opens full screen on both
   // platforms (it used to be an iOS sheet that started below the status bar, A-68), so it
   // holds the top edge itself. On a book page the Journey tab screen already holds it.
-  const edges = embedded ? ['left', 'right'] : ['top', 'left', 'right', 'bottom'];
+  const edges = embedded ? ['left', 'right'] : TAB_SCREEN_EDGES; // above the glass bar, which clears the system bar
   return (
     <SafeAreaView style={s.container} edges={edges}>
       <View style={s.header}>

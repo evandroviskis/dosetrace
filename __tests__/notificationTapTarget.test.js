@@ -59,7 +59,7 @@ test('App.js routes every tap (listener and launch) through notifTapTarget', () 
   // A-171: the launch tap is routed exactly like the listener's (no age limit).
   assert.match(app, /getLastNotificationResponseAsync\(\)\.then\(\(last\) => \{ if \(last\) routeTap\(last\); \}\)/);
   assert.match(app, /const target = notifTapTarget\(response, Date\.now\(\)\);/);
-  assert.match(app, /nav\.navigate\('Main', \{ screen: target\.screen, params: target\.params \}\);/);
+  assert.match(app, /nav\.navigate\('Main', \{ screen: target\.screen, params: target\.params, pop: true \}\);/);
 });
 
 test('the vial alert carries its protocol; Today, Protocols and Progress act on the target', () => {

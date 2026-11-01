@@ -267,11 +267,11 @@ function MainTabs() {
 // food chat). It sits outside the stack's cards, so it never slides, shrinks or hides; the screens end
 // above it. The chosen tab is the one under the stack; a tap on any tab (the chosen one too) closes the
 // screens opened over the tabs and shows that tab.
-function MainBar({ stackState, navigation }) {
+function MainBar({ stackState, navigation, descriptors: stackDescriptors }) {
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const tabs = tabDefs(t);
-  const bar = mainBarState(stackState, tabs.map((tab) => tab.name));
+  const bar = mainBarState(stackState, tabs.map((tab) => tab.name), stackDescriptors);
   const descriptors = {};
   tabs.forEach((tab) => { descriptors[tab.name] = { options: tabOptions(tab) }; });
   const barNav = {
@@ -281,11 +281,11 @@ function MainBar({ stackState, navigation }) {
   return <GlassTabBar state={bar} descriptors={descriptors} navigation={barNav} insets={insets} />;
 }
 
-function MainStackLayout({ state, navigation, children }) {
+function MainStackLayout({ state, navigation, descriptors, children }) {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>{children}</View>
-      <MainBar stackState={state} navigation={navigation} />
+      <MainBar stackState={state} navigation={navigation} descriptors={descriptors} />
     </View>
   );
 }
@@ -748,7 +748,7 @@ export default function App() {
     const names = (nav.getRootState && nav.getRootState()?.routeNames) || [];
     if (!names.includes('Main')) return;
     pendingNavRef.current = null;
-    nav.navigate('Main', { screen: target.screen, params: target.params });
+    nav.navigate('Main', { screen: target.screen, params: target.params, pop: true });
   }, []);
   // A-135 council (2): the last tab tapped on the opening; applied once, when the real navigator is
   // ready (a notification tap waiting to be routed wins; signed out / a profile to complete drops it).

@@ -19,7 +19,7 @@ test('Part 21: the food chat opens full screen (slides up, swipe down to close),
   assert.match(line[0], /gestureDirection: 'vertical'/);
   // Full screen holds the status bar itself: the top edge is padded on both platforms.
   const chat = read('screens/FoodChatScreen.js');
-  assert.match(chat, /const edges = embedded \? \['left', 'right'\] : \['top', 'left', 'right', 'bottom'\];/);
+  assert.match(chat, /const edges = embedded \? \['left', 'right'\] : TAB_SCREEN_EDGES;/);
 });
 
 test('Part 21: "reading" is three blinking dots (prototype .typing .dots), still on Reduce Motion', () => {

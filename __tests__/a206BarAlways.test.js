@@ -54,7 +54,7 @@ test('never hidden: MainStack draws ONE bar under every screen (tabs and the scr
     assert.match(stack, new RegExp('<Stack.Screen name="' + r + '"'), r + ' opens under the bar');
   }
   const layout = app.slice(app.indexOf('function MainStackLayout('), app.indexOf('\n}\n', app.indexOf('function MainStackLayout(')));
-  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\{children\}<\/View>\s*<MainBar stackState=\{state\} navigation=\{navigation\} \/>/, 'the bar sits outside the cards: it never slides with a screen');
+  assert.match(layout, /<View style=\{\{ flex: 1 \}\}>\{children\}<\/View>\s*<MainBar stackState=\{state\} navigation=\{navigation\} descriptors=\{descriptors\} \/>/, 'the bar sits outside the cards: it never slides with a screen');
   // Nothing hides it: no display none in the bar, no screen sets it.
   assert.doesNotMatch(read('components/GlassTabBar.js'), /display === 'none'|return null/);
   assert.doesNotMatch(read('screens/ProtocolsScreen.js'), /setOptions\(\{ tabBarStyle|display: 'none' \}/);
@@ -145,4 +145,56 @@ test('config: packages pinned; Android never links the native bottom tabs; no pl
   const bp = app.expo.plugins.find((p) => Array.isArray(p) && p[0] === 'expo-build-properties')[1];
   assert.equal(bp.ios.useFrameworks, 'static');
   assert.ok(parseFloat(bp.ios.deploymentTarget) >= 14);
+});
+
+// Senior review 2026-11-01 (B1): a notification tap navigates to MainTabs while a screen is open over
+// the tabs; the stack may then hold two MainTabs. The bar reads the MainTabs nearest the top.
+test('B1: with two MainTabs in the stack the bar follows the upper one; a screen over it still counts', () => {
+  const M = load('lib/mainBar.js', {});
+  const tabs = (i) => ({ index: i, routes: TABS.map((name) => ({ name })) });
+  const two = { index: 2, routes: [{ key: 'a', name: 'MainTabs', state: tabs(2) }, { key: 'b', name: 'SerumCurve' }, { key: 'c', name: 'MainTabs', state: tabs(0) }] };
+  const b = M.mainBarState(two, TABS);
+  assert.equal(b.index, 0, 'Today, the tab on screen');
+  assert.equal(b.overTabs, false);
+  const over = { ...two, index: 3, routes: [...two.routes, { key: 'd', name: 'Log' }] };
+  assert.equal(M.mainBarState(over, TABS).index, 0);
+  assert.equal(M.mainBarState(over, TABS).overTabs, true);
+  // Notification and pending taps go back to the MainTabs already in the stack (no second copy).
+  const app = read('App.js');
+  assert.match(app, /nav\.navigate\('Main', \{ screen: target\.screen, params: target\.params, pop: true \}\);/);
+  // The Fold's unfold move reads the tab under the stack the same way.
+  const bp = read('components/BookPanes.js');
+  assert.doesNotMatch(bp, /routes\.find\(\(r\) => r\.name === 'MainTabs'\)/);
+});
+
+// Senior review 2026-11-01 (B2): Premium during a purchase and the food chat while a message is sent
+// turn their swipe-back off (gestureEnabled false) — the bar must not take the person away either.
+test('B2: a tab tap does nothing while the screen on top holds the person (gestureEnabled false)', () => {
+  const M = load('lib/mainBar.js', {});
+  const st = { index: 1, routes: [{ key: 'a', name: 'MainTabs', state: { index: 2, routes: TABS.map((name) => ({ name })) } }, { key: 'f', name: 'FoodChat' }] };
+  assert.equal(M.mainBarState(st, TABS, { f: { options: { gestureEnabled: false } } }).locked, true);
+  assert.equal(M.mainBarState(st, TABS, { f: { options: { gestureEnabled: true } } }).locked, false);
+  assert.equal(M.mainBarState(st, TABS).locked, false);
+  const calls = [];
+  const nav = { popTo: (...a) => calls.push(a), navigate: (...a) => calls.push(a) };
+  M.mainBarPress(nav, M.mainBarState(st, TABS, { f: { options: { gestureEnabled: false } } }), 'Today');
+  assert.deepEqual(calls, []);
+  const app = read('App.js');
+  assert.match(app, /function MainStackLayout\(\{ state, navigation, descriptors, children \}\)/);
+  assert.match(app, /<MainBar stackState=\{state\} navigation=\{navigation\} descriptors=\{descriptors\} \/>/);
+});
+
+// Senior review 2026-11-01 (B3): the screens opened from a tab now end above the bar, which already
+// clears the home indicator / system bar — a bottom safe-area edge on them added that inset again.
+test('B3: the screens opened over the tabs take no bottom safe-area edge', () => {
+  for (const f of ['screens/LogScreen.js', 'screens/SerumCurveScreen.js', 'screens/PaywallScreen.js', 'screens/FAQScreen.js', 'screens/TeamMessagesScreen.js', 'screens/ReminderCheckScreen.js', 'screens/FoodChatScreen.js', 'screens/ProgressScreen.js']) {
+    const src = read(f);
+    const views = src.match(/<SafeAreaView [^>]*>/g) || [];
+    assert.ok(views.length > 0, f);
+    for (const v of views) {
+      assert.match(v, /edges=/, `${f}: ${v}`);
+      assert.doesNotMatch(v, /'bottom'/, `${f}: ${v}`);
+    }
+    assert.doesNotMatch(src, /const edges = [^\n]*'bottom'/, f);
+  }
 });

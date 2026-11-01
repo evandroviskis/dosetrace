@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText } from '../lib/storeText';
@@ -49,7 +50,7 @@ export default function FAQScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       <View style={[s.centered, s.navRow]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
