@@ -52,6 +52,7 @@ import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, g
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake, takeRefusal } from '../lib/markTaken';
 import { loggedOnly } from '../lib/declared';
+import { noDoseByDay } from '../lib/noDose';
 import { wasDeleted } from '../lib/deleteDose';
 import { planSitePickerAction } from '../lib/sitePickerActions';
 import { needsSiteQuestion, newQuestion, commitOpts, loadQuestions, saveQuestion, dropQuestion, onQuestionsChanged, reminderCancelCount } from '../lib/siteQuestion';
@@ -993,14 +994,17 @@ export default function TodayScreen() {
     // Protocols that existed and expected at least one dose on the given date — DV-247: by the schedule
     // in force that day (lib/scheduleHistory), so an edit never rewrites the past days.
     // Rest days (interval protocols) and pre-creation days never count against the user.
+    // DV-243: slots answered "no dose" (lib/noDose) are not owed.
+    const answered = noDoseByDay(logs);
+    const owedOn = (p, d) => expectedDosesOn(scheduleOn(p, d), d) - ((answered[p.id] || {})[d.toDateString()] || 0);
     function dueOn(d) {
-      return activeProtocols.filter(p => existedOn(p, d) && expectedDosesOn(scheduleOn(p, d), d) > 0);
+      return activeProtocols.filter(p => existedOn(p, d) && owedOn(p, d) > 0);
     }
     function isDayComplete(d) {
       const due = dueOn(d);
       if (due.length === 0) return false;
       const dayData = takenByDay[d.toDateString()] || {};
-      return due.every(p => (dayData[p.id] || 0) >= expectedDosesOn(scheduleOn(p, d), d));
+      return due.every(p => (dayData[p.id] || 0) >= owedOn(p, d));
     }
     function isDayPartial(d) {
       const dayData = takenByDay[d.toDateString()];

@@ -57,6 +57,8 @@ test('DV-247: the write, the sync, the restart and Today use the history', () =>
   assert.match(read('lib/protocolEnd.js'), /'schedule_history', \/\/ DV-247/);
   assert.match(read('supabase/migrations/20261101010000_protocol_schedule_history.sql'), /add column if not exists schedule_history text/);
   const today = read('screens/TodayScreen.js');
-  assert.match(today, /existedOn\(p, d\) && expectedDosesOn\(scheduleOn\(p, d\), d\) > 0/);
-  assert.match(today, /\(dayData\[p\.id\] \|\| 0\) >= expectedDosesOn\(scheduleOn\(p, d\), d\)/);
+  // DV-243: the day's owed doses (owedOn) are the schedule in force that day minus slots answered "no dose".
+  assert.match(today, /const owedOn = \(p, d\) => expectedDosesOn\(scheduleOn\(p, d\), d\) - /);
+  assert.match(today, /existedOn\(p, d\) && owedOn\(p, d\) > 0/);
+  assert.match(today, /\(dayData\[p\.id\] \|\| 0\) >= owedOn\(p, d\)/);
 });
