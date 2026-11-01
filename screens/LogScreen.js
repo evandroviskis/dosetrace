@@ -180,9 +180,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     });
   }
 
-  // DV-243 way back: a row marked "No dose was due" by mistake becomes Taken or Skipped through the
-  // same paths as a Missed row (Taken: recordDoseTaken flips THIS row, the vial moves once; Skipped:
-  // the outcome write). Never deleted here.
+  // DV-243 way back: a row marked "No dose was due" by mistake becomes Taken, Skipped or Missed again
+  // (founder 2026-11-01) through the same paths as a Missed row (Taken: recordDoseTaken flips THIS row,
+  // the vial moves once; Skipped / Missed: the outcome write on the same row). Never deleted here.
   function openNoDoseEditor(log) {
     setLogSheet({
       title: t('log_missed_edit_title'),
@@ -190,6 +190,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       buttons: [
         { label: t('log_mark_taken'), kind: 'primary', onPress: () => setMissedOutcome(log, 'Taken') },
         { label: t('log_mark_skipped'), kind: 'secondary', onPress: () => setMissedOutcome(log, 'Skipped') },
+        { label: t('log_mark_missed'), kind: 'secondary', onPress: () => setMissedOutcome(log, 'Missed') },
         { label: t('cancel'), kind: 'secondary' },
       ],
     });
