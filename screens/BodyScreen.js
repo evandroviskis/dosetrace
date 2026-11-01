@@ -23,7 +23,7 @@ import { formatDate as localeDate, MONTHS_SHORT } from '../lib/localeFormat';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, addBiomarkerToReport, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
-import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries } from '../lib/exportRecords';
+import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries, byReportThenBatch } from '../lib/exportRecords';
 import { markerLabel, markerToSave } from '../lib/markerNames';
 import { isFavorite, setFavorite, setReportTag, dropReportDate } from '../lib/bodyPrefs';
 import { loadLabPrefs, saveLabStar, saveLabTags } from '../lib/labPrefs';
@@ -266,7 +266,7 @@ export default function BodyScreen({ navigation, route }) {
       (byKey[canonicalMarker(row.marker)] ||= []).push(row);
     }
     return Object.entries(byKey).map(([key, rs]) => {
-      const sorted = rs.slice().sort((a, b) => (a.report_date < b.report_date ? -1 : a.report_date > b.report_date ? 1 : 0));
+      const sorted = rs.slice().sort(byReportThenBatch); // DV-074: the same order as the hub and the export
       // A-203: each reading keeps its sign and its words (a word result has value null).
       const points = sorted.map(r => ({ id: r.id, marker: r.marker, date: r.report_date, value: r.value, qualifier: r.qualifier ?? null, value_text: r.value_text ?? null, unit: r.unit }));
       const latest = points[points.length - 1];
