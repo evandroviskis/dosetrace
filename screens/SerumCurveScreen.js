@@ -31,7 +31,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, seriesName, compoundName, curveLabels, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, displayScale, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
+  curveWindowDays, curveTicks, axisLabel, displayScale, curveDrawMax, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
 import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
@@ -586,6 +586,9 @@ export default function SerumCurveScreen({ embedded = false }) {
     // (taller) combined totals — so every line is directly comparable.
     let max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
+    // Under a thousandth of the display unit in the whole window (an old dose's tail): nothing to draw — the
+    // empty-chart state, never an axis of "0,000000" (lib/serumModel curveDrawMax).
+    max = curveDrawMax(max, displayScale(series[0] ? series[0].unit : 'mg', series.map((ser) => ser.doseMg)).factor);
     // Exact position of this moment (fractional step) — the Now marker and dots
     // sit here, at the same exact level the numbers show.
     const nowF = Math.min(nSteps, (now - start) / stepMs);
