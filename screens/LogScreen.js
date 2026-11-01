@@ -194,6 +194,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       res = recordDoseTaken(protocolId, { dayKey: Number.isFinite(atMs) ? dayKeyOf(atMs) : undefined, slotMs: Number.isFinite(atMs) ? atMs : undefined, flipRowId: id, injectionSite: site || null });
     } catch { res = null; }
     if (!res) { writeOutcome(id, site ? { outcome: 'Taken', injection_site: site } : { outcome: 'Taken' }); return; }
+    // DV-227: a day that already holds all its doses — say so (it was a silent no-op).
+    if (res.alreadyLogged) {
+      setLogSheet({ title: t('notif_taken_nothing_title'), body: t('log_take_day_full'), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      return;
+    }
     // Final review 2026-10-20: a take of TODAY cancels its slot and +5/+10 repeats directly (the same
     // cancel Today's take uses), so a repeat due before the queued resync never fires.
     if (Number.isFinite(atMs) && dayKeyOf(atMs) === dayKeyOf(Date.now())) {
