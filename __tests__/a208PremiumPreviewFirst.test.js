@@ -13,7 +13,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 test('A-208 Evolução: the Dose accumulation tile opens the animated preview (serum), not the Paywall', () => {
   const src = read('screens/JourneyScreen.js');
   assert.doesNotMatch(src, /navigation\.navigate\('Paywall', \{ source: 'journey_serum' \}\)/);
-  assert.match(src, /if \(!premium\) \{ setPreviewKey\('serum'\); return; \}/);
+  assert.match(src, /if \(premium === false\) \{ setPreviewKey\('serum'\); return; \}/);
   // S25 + iPhone 2026-10-31: the phone path returned early without the sheet, so nothing opened.
   const sheets = src.match(/\{previewSheet\}/g) || [];
   assert.equal(sheets.length, 2, 'the sheet is mounted on the phone path and on the book');

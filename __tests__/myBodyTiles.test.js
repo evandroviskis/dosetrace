@@ -191,10 +191,10 @@ test('MB2-1: Evolução\'s tile is one shared component; Journey renders the sam
   assert.match(tiles[0].props.onPress, /book \? open\('progress'\) : navigation\.navigate\('Progress'\)/);
   assert.deepEqual(
     (({ icon, iconColor, title, book, selected, tag }) => ({ icon, iconColor, title, book, selected, tag }))(tiles[1].props),
-    { icon: 'curve_loose', iconColor: 'colors.data', title: "t('body_card_dosing_title')", book: 'book', selected: "page === 'curve'", tag: "!premium ? t('paywall_premium') : null" },
+    { icon: 'curve_loose', iconColor: 'colors.data', title: "t('body_card_dosing_title')", book: 'book', selected: "page === 'curve'", tag: "premium === false ? t('paywall_premium') : null" },
   );
   // A-208: free → the animated preview first.
-  assert.match(tiles[1].props.onPress, /if \(!premium\) \{ setPreviewKey\('serum'\); return; \}/);
+  assert.match(tiles[1].props.onPress, /if \(premium === false\) \{ setPreviewKey\('serum'\); return; \}/);
   assert.doesNotMatch(strip(JOURNEY), /style=\{s\.tile\}|tileTop: \{/, 'Journey keeps no copy of the tile');
   assert.match(JOURNEY, /\.\.\.dashTileStyles\(c\)/, 'Journey\'s tile content uses the shared styles');
 });

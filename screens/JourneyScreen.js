@@ -226,10 +226,11 @@ export default function JourneyScreen() {
             icon="curve_loose"
             iconColor={colors.data}
             title={t('body_card_dosing_title')}
-            tag={!premium ? t('paywall_premium') : null}
+            tag={premium === false ? t('paywall_premium') : null}
             onPress={() => {
               // A-208: free users see the animated preview first; its Unlock opens the Paywall.
-              if (!premium) { setPreviewKey('serum'); return; }
+              if (premium === null) return; // DV-154: unknown waits (no tag, no preview for a paying user)
+              if (premium === false) { setPreviewKey('serum'); return; }
               if (book) open('curve'); else navigation.navigate('SerumCurve');
             }}
             book={book}

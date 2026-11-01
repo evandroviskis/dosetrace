@@ -120,7 +120,7 @@ test('BK-5 / BK-11: a free user tapping Dose accumulation gets the animated prev
   const press = src.match(/onPress=\{\(\) => \{\s*\/\/ A-208[^\n]*\n([\s\S]*?)\}\}/);
   assert.ok(press, 'the Curve tile press handler');
   const body = press[1];
-  const prev = body.indexOf("if (!premium) { setPreviewKey('serum'); return; }");
+  const prev = body.indexOf("if (premium === false) { setPreviewKey('serum'); return; }");
   assert.ok(prev >= 0, 'free → the serum preview');
   assert.ok(prev < body.indexOf("open('curve')"), 'the Premium check runs before the book opens the Curve');
   assert.match(src, /navigation\.navigate\('Paywall', \{ source: `journey_\$\{k\}_preview` \}\)/);
