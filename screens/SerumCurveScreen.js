@@ -296,7 +296,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const pickerPad = useSheetEdgePad(32); // A-136 (2): the last row above the Fold's taskbar
-  const [notCharted, setNotCharted] = useState({ iu: [], noData: [], noDose: [] });
+  const [notCharted, setNotCharted] = useState({ iu: [], noData: [], noDose: [], oral: [] });
   const [sourceOpen, setSourceOpen] = useState({}); // per compound id: its half-life source shown
   const [showCombined, setShowCombined] = useState(true);
   const [futureDays, setFutureDays] = useState(7);   // projection horizon
@@ -354,7 +354,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     // A-83: active protocols first, then the ones ended inside the longest past window — their
     // past only (lib/schedule stops at the end), named "· ended".
     const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(userId)), t);
-    const { iu, noData, noDose } = split;
+    const { iu, noData, noDose, oral } = split;
     const protocols = split.active.map((p) => (isEnded(p)
       ? { ...p, __label: `${p.__label || (p.compound_id ? t(p.compound_id) : p.name)} · ${t('curve_ended_marker')}` }
       : p));
@@ -367,7 +367,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     try {
       doseLogs = getLogsSince(userId, new Date(Date.now() - CURVE_LOG_LOOKBACK_DAYS * 24 * 3600 * 1000).toISOString()) || [];
     } catch { doseLogs = []; }
-    return { protocols, notCharted: { iu, noData, noDose }, doseLogs, labDates };
+    return { protocols, notCharted: { iu, noData, noDose, oral }, doseLogs, labDates };
   }
 
   // On focus: the data AND the view exactly as the user left it.
@@ -423,6 +423,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     if (notCharted.noData.length) out.push(t('curve_not_charted').replace('{names}', notCharted.noData.join(', ')));
     if (notCharted.iu.length) out.push(t('curve_not_charted_iu').replace('{names}', notCharted.iu.join(', ')));
     if (notCharted.noDose.length) out.push(t('curve_not_charted_nodose').replace('{names}', notCharted.noDose.join(', ')));
+    if (notCharted.oral && notCharted.oral.length) out.push(t('curve_not_charted_oral').replace('{names}', notCharted.oral.join(', ')));
     return out;
   }
 
