@@ -910,7 +910,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // A check that already has a saved result (saved with the old typed form before this
   // update) is never finished a second time: its saved number is the user's, never rewritten.
   const rcStartISO = rcStart ? String(rcStart.date).slice(0, 10) : null;
-  const checkSaved = !!rcStart && realityLog.some(c => c.date >= rcStartISO);
+  // DV-060: a result belongs to this check only when dated AFTER its start (a new check started on the
+  // previous result's weigh-in day was counted as saved and never finished).
+  const checkSaved = !!rcStart && realityLog.some(c => c.date > rcStartISO);
   const completing = useRef(false);
   useEffect(() => {
     if (!outcomeResult || outcomeResult.status !== 'ok' || !rcAccess.canSeeResult || checkSaved || completing.current) return;
@@ -1048,7 +1050,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const uid = userIdRef.current;
     if (!uid || !rcStart) return;
     const startDay = String(rcStart.date).slice(0, 10);
-    if (getRealityChecks(uid).some(r => r.entry_date >= startDay)) return;
+    if (getRealityChecks(uid).some(r => r.entry_date > startDay)) return; // DV-060: after the start
     const onStart = getCalcSnapshots(uid).find(sn => sn.entry_date === startDay) || null;
     if (!onStart || onStart.weight_kg == null) upsertCalcSnapshot(uid, mergeWeighIn(onStart, { date: startDay, weightKg: rcStart.weightKg }));
     upsertRealityCheck(uid, { entry_date: res.weighIn.date, tdee: Math.round(res.tdee), rate_per_week_kg: res.ratePerWeekKg ?? null });

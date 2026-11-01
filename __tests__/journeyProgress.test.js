@@ -188,10 +188,10 @@ test('Part 10: a ready check is saved once as a result row, then closed; the res
 
 test('Part 10 data safety: a check that already has a saved result (old typed flow) is never overwritten by the automatic finish', () => {
   const src = calc();
-  assert.match(src, /const checkSaved = !!rcStart && realityLog\.some\(c => c\.date >= rcStartISO\);/);
+  assert.match(src, /const checkSaved = !!rcStart && realityLog\.some\(c => c\.date > rcStartISO\);/); // DV-060
   assert.match(src, /if \(!outcomeResult \|\| outcomeResult\.status !== 'ok' \|\| !rcAccess\.canSeeResult \|\| checkSaved \|\| completing\.current\) return;/);
   const fn = src.match(/async function completeRealityCheck\(res\) \{[\s\S]*?\n  \}\n/)[0];
-  assert.match(fn, /if \(getRealityChecks\(uid\)\.some\(r => r\.entry_date >= startDay\)\) return;/, 'a fresh read: never a second result for the same check');
+  assert.match(fn, /if \(getRealityChecks\(uid\)\.some\(r => r\.entry_date > startDay\)\) return;/, 'a fresh read: never a second result for the same check');
   assert.ok(fn.indexOf('getRealityChecks(uid).some') < fn.indexOf('upsertRealityCheck'), 'checked before any write');
   // Such a check shows its saved result and "Weigh in again" (which replaces the start; the old row is stopped, never deleted).
   assert.match(src, /\) : rcStart && !checkSaved \? \(/);

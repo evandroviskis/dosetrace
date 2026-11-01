@@ -179,7 +179,7 @@ test('finishing records the source before the open check closes; a finished resu
   assert.match(fn, /resultSourcePatch\(res\.weighIn\.date, res\.source\)/);
   assert.ok(fn.indexOf('upsertRealityCheck') < fn.indexOf('resultSourcePatch'), 'after the result row');
   assert.ok(fn.indexOf('resultSourcePatch') < fn.indexOf('clearRealityStart'), 'before the check closes');
-  assert.match(fn, /if \(getRealityChecks\(uid\)\.some\(r => r\.entry_date >= startDay\)\) return;/, 'still never a second result');
+  assert.match(fn, /if \(getRealityChecks\(uid\)\.some\(r => r\.entry_date > startDay\)\) return;/, 'still never a second result (DV-060: dated after the start)');
   // The typed sheet is reachable only while the check is open and unsaved.
   assert.match(src, /function openTypedKcal\(\) \{\s*if \(!rcStart \|\| checkSaved\) return;/);
 });
