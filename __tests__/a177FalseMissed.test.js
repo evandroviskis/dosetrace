@@ -257,7 +257,8 @@ test('A-177 guard: only the missed-dose scan writes a Missed outcome', () => {
   const writers = files.filter((f) => /outcome:\s*'Missed'/.test(fs.readFileSync(path.join(root, f), 'utf8')));
   assert.deepEqual(writers, ['lib/doseActions.js']);
   // the only other way back to Missed is Undo of a flip, which restores the scan's own row
-  assert.match(fs.readFileSync(path.join(root, 'lib', 'markTaken.js'), 'utf8'), /restoreOutcome: u\.flippedFrom === 'Skipped' \? 'Skipped' : 'Missed'/);
+  // (DV-243: a flipped "no dose" row is restored as "no dose", never as Missed.)
+  assert.match(fs.readFileSync(path.join(root, 'lib', 'markTaken.js'), 'utf8'), /restoreOutcome: u\.flippedFrom === 'Skipped' \|\| u\.flippedFrom === 'NoDose' \? u\.flippedFrom : 'Missed'/);
 });
 
 // Merge of 1.3.1 into 1.3.2: A-119's takeover rebuild (lib/sync.js rebuildFromCloudNow) reads every
