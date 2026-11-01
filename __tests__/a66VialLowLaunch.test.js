@@ -14,7 +14,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadFn } = require('./helpers/extractFn');
 const plan = require('../lib/notificationPlan');
-const { supplyState } = require('../lib/supplyLow');
+const { supplyState, bottleLowStates } = require('../lib/supplyLow');
 
 const USER = { id: 'u1', user_metadata: {} };
 // Every other day (2026-10-27: low = 7 days of use or the last dose): 3 left = 6 days = low, 4 left = 8 days
@@ -36,7 +36,7 @@ function launch(AS, vials) {
   const fn = loadFn('lib/notifications.js', 'export async function syncVialAlerts(', 'syncVialAlerts', {
     getNotifications: () => N, getCachedUser: async () => USER, cancelByPrefix: async () => {}, restoreSnoozes: async () => {},
     getT: async () => t, getActiveVials: () => vials, loadSnoozes: async () => [], showNamesInNotifications: async () => true,
-    getActiveProtocols: () => PROTOCOLS, protocolDisplayName: (p) => p.name, supplyState, _background: false,
+    getActiveProtocols: () => PROTOCOLS, protocolDisplayName: (p) => p.name, supplyState, bottleLowStates, _background: false,
     AsyncStorage: AS, VIAL_LOW_SENT_KEY: 'dosetrace_vial_low_sent', vialLowToSend: plan.vialLowToSend,
     fill: (s) => s, isOne: (n) => n === 1, scheduleReq: (n, req) => n.scheduleNotificationAsync(req), Platform: { OS: 'ios' },
     capExpiryAlerts: () => [], vialExpiryPlan: () => [], pluralKey: (k) => k, cancelUnwanted: async () => {},

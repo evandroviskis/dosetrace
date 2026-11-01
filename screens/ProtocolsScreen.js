@@ -69,7 +69,7 @@ import { renderText } from '../lib/assistantText';
 import ProtocolAssistant from './components/ProtocolAssistant';
 import FitExplainer from './components/FitExplainer';
 import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
-import { supplyState } from '../lib/supplyLow';
+import { supplyState, bottleState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
@@ -719,7 +719,10 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false, 
   const vialDoseCapacity = supply.capacity != null
     ? supply.capacity
     : dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit });
-  const lowSupply = supply.low;
+  // DV-092 (AD-81): a capsule / tablet bottle gets the same badge (doses left in the bottle).
+  const bottle = p.type === 'oral' ? bottleState(p) : null;
+  const lowSupply = bottle ? bottle.low : supply.low;
+  const lowLeft = bottle ? bottle.remaining : dosesRemaining;
   const past = vialDaysLeft != null && vialDaysLeft <= 0;
   const showCap = isInjectable && vialDoseCapacity != null;
   const showDays = vialDaysLeft != null && !past;
@@ -767,7 +770,7 @@ function ProtocolListCard({ p, vial, onOpen, t, book = false, selected = false, 
       <View style={s.tags}>
         {lowSupply && (
           <View style={[s.otag, s.otagAttn]}>
-            <Text style={[s.otagText, s.otagTextAttn]}>{t(pluralKey('protocols_low_supply', dosesRemaining, language)).replace('{n}', String(dosesRemaining))}</Text>
+            <Text style={[s.otagText, s.otagTextAttn]}>{t(pluralKey('protocols_low_supply', lowLeft, language)).replace('{n}', String(lowLeft))}</Text>
           </View>
         )}
         {past && (
@@ -2979,7 +2982,7 @@ export default function ProtocolsScreen() {
 
       <ScrollView {...TAB_SCROLL_PROPS} {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
         {view === 'heroes' && protocols.length > 0 && (() => {
-          const low = protocols.filter(p => vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low).map(p => (p.compound_id ? t(p.compound_id) : p.name));
+          const low = protocols.filter(p => (p.type === 'oral' ? bottleState(p).low : (vialsByProtocol[p.id] && supplyState(vialsByProtocol[p.id], p).low))).map(p => (p.compound_id ? t(p.compound_id) : p.name));
           // Part 1: the last completed dose under the counts (prototype "Last: TB-500 · Mon 7:42 PM").
           const lastP = lastLog ? protocols.find(p => p.id === lastLog.protocol_id) : null;
           const lastName = lastP ? protocolName(lastP) : (lastLog && protocolDisplayName({ compound_id: lastLog.protocol_compound_id, name: lastLog.protocol_name }, t)) || '';

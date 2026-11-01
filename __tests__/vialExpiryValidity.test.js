@@ -61,5 +61,5 @@ test('journey: box date good through its last day; default validity not quoted; 
   const today = fs.readFileSync(path.join(__dirname, '../screens/TodayScreen.js'), 'utf8');
   assert.match(today, /const daysLeft = vialDaysLeft\(v, p, new Date\(nowMs\)\);/ /* DV-200 / DV-018: the same calendar rule, one owner */);
   const notif = fs.readFileSync(path.join(__dirname, '../lib/notifications.js'), 'utf8');
-  assert.match(notif, /states = vials\.filter\(\(v\) => protocolById\[v\.protocol_id\]\)\.map/);
+  assert.match(notif, /states = \[\.\.\.vials\.filter\(\(v\) => protocolById\[v\.protocol_id\]\)\.map/);
 });

@@ -67,7 +67,7 @@ import TodayTracker from './components/TodayTracker';
 import SyringeScale from './components/SyringeScale';
 import { startNewVial, vialPastWindow, vialAlertTarget } from '../lib/newVial';
 import NewVialPrompt from './components/NewVialPrompt';
-import { supplyState, vialCapacity } from '../lib/supplyLow';
+import { supplyState, vialCapacity, bottleState } from '../lib/supplyLow';
 import { vialDaysLeft } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
@@ -1862,13 +1862,12 @@ export default function TodayScreen() {
         });
       }
     }
-    // 3) Supply low (an active vial with only a few doses left).
+    // 3) Supply low (an active vial, or DV-092 a capsule / tablet bottle, with only a few doses left).
     if (!(alertSnooze.supply_low && nowMs < alertSnooze.supply_low)) {
       const low = [];
       for (const p of protocols) {
         const v = vials[p.id];
-        if (!v) continue;
-        const { remaining: rem, low: isLow } = supplyState(v, p); // the ONE rule (S-05)
+        const { remaining: rem, low: isLow } = p.type === 'oral' ? bottleState(p) : (v ? supplyState(v, p) : {}); // the ONE rule (S-05; DV-092 bottles)
         if (isLow) low.push({ name: p.compound_id ? t(p.compound_id) : p.name, rem, protocolId: p.id });
       }
       if (low.length) {
