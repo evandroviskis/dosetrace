@@ -2,7 +2,7 @@
 -- (20261101000000), so Delete forever kept a protocol's past dose times and intervals in the cloud (AD-67: every
 -- content column is blanked). Same trigger body plus schedule_history; old tombstones are blanked again.
 -- __tests__/dv221PurgeBlanksAll.test.js now reads every column the migrations add to protocols.
--- STATUS: NOT APPLIED (production apply needs the founder go).
+-- STATUS: APPLIED in production 2026-11-01 (founder "3- Pode").
 create or replace function public.protocols_blank_purged()
 returns trigger language plpgsql security invoker set search_path = public, pg_temp as $$
 begin
