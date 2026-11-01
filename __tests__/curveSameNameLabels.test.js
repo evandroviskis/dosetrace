@@ -66,8 +66,8 @@ test('strings in all six languages', () => {
 
 test('wired: the screen labels the charted protocols with curveLabels; picker and legend read seriesName', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /const protocols = curveLabels\(split\.active, \{ t, language \}\);/);
+  assert.match(src, /const protocols = curveLabels\(split\.active, \{ t, language, timeFormat \}\);/);
   assert.ok(!/__label: `\$\{seriesName\(p, t\)\} · \$\{t\('curve_ended_marker'\)\}`/.test(src), 'the old one-size label is gone');
-  assert.match(src, /<Text style=\{s\.optionName\} numberOfLines=\{1\}>\{seriesName\(p, t\)\}<\/Text>/);
+  assert.match(src, /<Text style=\{s\.optionName\} numberOfLines=\{2\}>\{seriesName\(p, t\)\}<\/Text>/);
   assert.match(src, /name: seriesName\(p, t\),/);
 });
