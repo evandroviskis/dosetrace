@@ -306,6 +306,7 @@ export const translations = {
     nutri_hero_cta: 'Log food',
     nutri_hero_empty: 'Nothing logged yet today',
     nutri_hero_today: 'Today: {n} items · ~{kcal} kcal',
+    nutri_hero_week: "Last 7 days: ~{total} kcal · ≈ {avg}/day",
     nutri_hero_today_one: 'Today: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Today is closed · ~{kcal} kcal',
     nutri_hero_day: 'Reality check · day {n} of {total}',
@@ -2941,6 +2942,7 @@ export const translations = {
     nutri_hero_cta: 'Registrar comida',
     nutri_hero_empty: 'Aún no hay nada registrado hoy',
     nutri_hero_today: 'Hoy: {n} alimentos · ~{kcal} kcal',
+    nutri_hero_week: "Últimos 7 días: ~{total} kcal · ≈ {avg}/día",
     nutri_hero_today_one: 'Hoy: {n} alimento · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoy: día cerrado · ~{kcal} kcal',
     nutri_hero_day: 'Tus cifras reales · día {n} de {total}',
@@ -5576,6 +5578,7 @@ export const translations = {
     nutri_hero_cta: 'Registrar comida',
     nutri_hero_empty: 'Nada registrado hoje ainda',
     nutri_hero_today: 'Hoje: {n} itens · ~{kcal} kcal',
+    nutri_hero_week: "Últimos 7 dias: ~{total} kcal · ≈ {avg}/dia",
     nutri_hero_today_one: 'Hoje: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoje está fechado · ~{kcal} kcal',
     nutri_hero_day: 'Seus números reais · dia {n} de {total}',
@@ -8210,6 +8213,7 @@ export const translations = {
     nutri_hero_cta: 'Noter un repas',
     nutri_hero_empty: "Rien de noté aujourd'hui",
     nutri_hero_today: "Aujourd'hui : {n} éléments · ~{kcal} kcal",
+    nutri_hero_week: "7 derniers jours : ~{total} kcal · ≈ {avg}/jour",
     nutri_hero_today_one: "Aujourd'hui : {n} élément · ~{kcal} kcal", // singular (lib/plural.js)
     nutri_hero_closed: 'Journée clôturée · ~{kcal} kcal',
     nutri_hero_day: 'Vos vrais chiffres · jour {n} sur {total}',
@@ -10844,6 +10848,7 @@ export const translations = {
     nutri_hero_cta: 'Essen eintragen',
     nutri_hero_empty: 'Heute noch nichts eingetragen',
     nutri_hero_today: 'Heute: {n} Einträge · ~{kcal} kcal',
+    nutri_hero_week: "Letzte 7 Tage: ~{total} kcal · ≈ {avg}/Tag",
     nutri_hero_today_one: 'Heute: {n} Eintrag · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Heute abgeschlossen · ~{kcal} kcal',
     nutri_hero_day: 'Deine echten Zahlen · Tag {n} von {total}',
@@ -13479,6 +13484,7 @@ export const translations = {
     nutri_hero_cta: 'Registra un pasto',
     nutri_hero_empty: 'Ancora niente registrato oggi',
     nutri_hero_today: 'Oggi: {n} voci · ~{kcal} kcal',
+    nutri_hero_week: "Ultimi 7 giorni: ~{total} kcal · ≈ {avg}/giorno",
     nutri_hero_today_one: 'Oggi: {n} voce · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Giornata chiusa · ~{kcal} kcal',
     nutri_hero_day: 'I tuoi numeri reali · giorno {n} di {total}',

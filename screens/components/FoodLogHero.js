@@ -20,7 +20,8 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { getFoodLogsSince } from '../../lib/database';
 import { addSyncListener } from '../../lib/sync';
-import { todayFoodHeroPolicy, todaySummary } from '../../lib/foodThread';
+import { todayFoodHeroPolicy, todaySummary, weekSummary, shiftDay } from '../../lib/foodThread';
+import { formatInt } from '../../lib/localeFormat';
 import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
 import { catchUpFood, loadFoodAccess } from '../../lib/foodLogActions';
 import { readCheckNow } from '../../lib/realityCheckNow';
@@ -42,11 +43,12 @@ async function readFoodCard() {
   const uid = user?.id || null;
   const today = localISO();
   const { access, rcStart } = await loadFoodAccess(uid);
-  const since = [today, rcStart && rcStart.date ? String(rcStart.date).slice(0, 10) : null, access.freeFrom].filter(Boolean).sort()[0];
+  // DV-232: also the 6 days before today, for the week line under the day's total.
+  const since = [shiftDay(today, -6), today, rcStart && rcStart.date ? String(rcStart.date).slice(0, 10) : null, access.freeFrom].filter(Boolean).sort()[0];
   const rows = uid ? (getFoodLogsSince(uid, since) || []) : [];
   // Founder 2026-10-09: after the weigh-in the line says so (never "time to weigh in" again).
   const now = await readCheckNow().catch(() => null);
-  return { uid, state: { access, rcStart, today, rows, sum: todaySummary(rows, today), checkState: now ? now.outcome.state : null } };
+  return { uid, state: { access, rcStart, today, rows, sum: todaySummary(rows, today), week: weekSummary(rows, today), checkState: now ? now.outcome.state : null } };
 }
 
 // A-146: reload on the sync events that bring data (the ones Today's dose lists use). A burst
@@ -130,8 +132,12 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
     : null;
   const { items, kcal, closed } = state.sum;
   const todayLine = closed
-    ? t('nutri_hero_closed').replace('{kcal}', String(kcal))
-    : items > 0 ? t(pluralKey('nutri_hero_today', items, language)).replace('{n}', String(items)).replace('{kcal}', String(kcal)) : t('nutri_hero_empty');
+    ? t('nutri_hero_closed').replace('{kcal}', formatInt(kcal, language))
+    : items > 0 ? t(pluralKey('nutri_hero_today', items, language)).replace('{n}', String(items)).replace('{kcal}', formatInt(kcal, language)) : t('nutri_hero_empty');
+  // DV-232 (AD-107 A): the last 7 days under the day's total, averaged over the days with food.
+  const weekLine = !locked && state.week && state.week.kcal > 0
+    ? t('nutri_hero_week').replace('{total}', formatInt(state.week.kcal, language)).replace('{avg}', formatInt(state.week.avgKcal, language))
+    : null;
 
   return (
     <View style={variant === 'today' && s.cardToday}>
@@ -140,7 +146,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
       activeOpacity={0.8}
       onPress={openFood}
       accessibilityRole="button"
-      accessibilityLabel={`${t('nutri_ai_badge')}. ${checkLine ? checkLine + '. ' : ''}${todayLine}`}
+      accessibilityLabel={`${t('nutri_ai_badge')}. ${checkLine ? checkLine + '. ' : ''}${todayLine}${weekLine ? '. ' + weekLine : ''}`}
     >
       {/* Redesign (Graduated, approved 2026-09-29): the whole card opens the food chat;
           the day's line is the headline, the reality check under it; no tinted box. */}
@@ -157,6 +163,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
         <RowChevron color={colors.tick} />
       </View>
       <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
+      {weekLine ? <Text style={s.check}>{weekLine}</Text> : null}
       {checkLine && <Text style={s.check}>{checkLine}</Text>}
       {locked && <View style={s.cta}><Text style={s.ctaText}>{t('nutri_locked_cta')}</Text></View>}
       {emph && (
