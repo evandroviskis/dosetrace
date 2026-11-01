@@ -23,6 +23,10 @@ export const ROW = {
   hibernation: { icon: 'pause', title: 'rc_hibernation', ok: 'rc_hibernation_ok', warn: 'rc_hibernation_warn', open: 'rc_hibernation_open', fix: 'rc_fix_turn_off' },
   refresh: { icon: 'refresh', title: 'rc_refresh', ok: 'rc_refresh_ok', warn: 'rc_refresh_warn', fix: 'rc_fix_adjust' },
   deep_sleep: { icon: 'moon', title: 'rc_deep_sleep', open: 'rc_deep_sleep_sub', fix: 'rc_fix_open' },
+  // DV-098 (picture rodada2 #dv098): the categories of the other reminder kinds switched on, named as
+  // Android names them (the channel names); off = red with "Turn on".
+  channel_checkin: { icon: 'food', title: 'notif_channel_checkin', ok: 'rc_channel_on_android', block: 'rc_channel_block', fix: 'rc_fix_turn_on' },
+  channel_vial: { icon: 'type_vial', title: 'notif_channel_vials', ok: 'rc_channel_on_android', block: 'rc_channel_block', fix: 'rc_fix_turn_on' },
 };
 
 // health: lib/notifications readReminderHealth(); setup: Android lists (setupSteps), iPhone the
