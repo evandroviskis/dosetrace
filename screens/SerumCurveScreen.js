@@ -579,16 +579,22 @@ export default function SerumCurveScreen({ embedded = false }) {
         // Point by point; no second pass when no member has dose instants (lib/serumModel).
         const { points, pre, xs } = combinedLine(members, ctx, amountFraction);
         const nowLevel = members.reduce((sum, m) => sum + m.nowLevel, 0);
-        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), points, pre, xs, nowLevel };
+        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), memberDoses: members.map(m => m.doseMg), points, pre, xs, nowLevel };
       });
 
     // Shared vertical scale spans the individual series and, when shown, the
     // (taller) combined totals — so every line is directly comparable.
     let max = series.reduce((m, ser) => Math.max(m, ...ser.points), 0);
     if (showCombined) max = combined.reduce((m, c) => Math.max(m, ...c.points), max);
-    // Under a thousandth of the display unit in the whole window (an old dose's tail): nothing to draw — the
-    // empty-chart state, never an axis of "0,000000" (lib/serumModel curveDrawMax).
-    max = curveDrawMax(max, displayScale(series[0] ? series[0].unit : 'mg', series.map((ser) => ser.doseMg)).factor);
+    // Every line under a thousandth of ITS OWN display unit in the whole window (an old dose's tail): nothing to
+    // draw — the empty-chart state, never an axis of "0,000000" (lib/serumModel curveDrawMax; council 2026-11-01:
+    // judged per line, so a 0.5 mcg BPC-157 line still draws beside an mg compound).
+    const lineFactor = (doses) => displayScale(series[0] ? series[0].unit : 'mg', doses).factor;
+    const drawLines = [
+      ...series.map((ser) => ({ max: Math.max(0, ...ser.points), factor: lineFactor([ser.doseMg]) })),
+      ...combined.map((c) => ({ max: Math.max(0, ...c.points), factor: lineFactor(c.memberDoses) })),
+    ];
+    max = curveDrawMax(max, lineFactor(series.map((ser) => ser.doseMg)), drawLines);
     // Exact position of this moment (fractional step) — the Now marker and dots
     // sit here, at the same exact level the numbers show.
     const nowF = Math.min(nSteps, (now - start) / stepMs);
