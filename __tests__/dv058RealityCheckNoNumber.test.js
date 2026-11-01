@@ -90,7 +90,7 @@ test('Progress: the status lines, Ver Premium, and the check closing once its ca
   const src = read('screens/components/CalculatorSection.js');
   assert.match(src, /const st = checkAlert\(outcome, foodRun, \{ result: outcomeResult, canSeeResult: rcAccess\.canSeeResult \}\);/);
   assert.match(src, /st && st\.body === 'no_result' \? t\('cal_rc_sb_closed'\)/);
-  assert.match(src, /st && st\.body === 'locked' \? t\('cal_rc_sb_locked'\)/);
+  assert.match(src, /st && st\.body === 'locked' \? t\('cal_rc_sb_ready_locked'\)/);
   // Locked: the Ver Premium button opens the paywall.
   assert.match(src, /st && st\.body === 'locked' \? \(\s*<TouchableOpacity style=\{s\.btnP\} onPress=\{\(\) => navigation\.navigate\('Paywall', \{ source: 'reality_check' \}\)\}/);
   assert.match(src, /t\('nutri_grace_cta'\)/);
@@ -161,7 +161,7 @@ test('Progress, rendered: a free user whose result is ready sees "the result is 
     rcAccess: { canStart: false, canSeeResult: false, canLogWeighIn: true },
   });
   const tx = texts(node);
-  assert.ok(tx.includes('cal_rc_sb_locked'));
+  assert.ok(tx.includes('cal_rc_sb_ready_locked'));
   assert.ok(tx.includes('nutri_grace_cta'), 'Ver Premium');
   assert.ok(!tx.includes('cal_rc_sb_ready'));
   assert.ok(!tx.includes('cal_log_today_weight'), 'the weigh-in is done: the button is Ver Premium');
@@ -170,11 +170,11 @@ test('Progress, rendered: a free user whose result is ready sees "the result is 
 
 test('new lines in all 6 languages', () => {
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
-    for (const k of ['today_alert_rc_locked', 'today_alert_rc_no_result', 'cal_rc_sb_locked', 'cal_rc_sb_closed', 'cal_rc_closed_note', 'nutri_grace_cta', 'cal_rc_reset']) assert.ok(T[l][k], `${l} ${k}`);
+    for (const k of ['today_alert_rc_locked', 'today_alert_rc_no_result', 'cal_rc_sb_ready_locked', 'cal_rc_sb_closed', 'cal_rc_closed_note', 'nutri_grace_cta', 'cal_rc_reset']) assert.ok(T[l][k], `${l} ${k}`);
   }
   assert.equal(T.pt.today_alert_rc_locked, 'Seus números reais estão prontos. O resultado faz parte do Premium — toque para ver.');
   assert.equal(T.pt.today_alert_rc_no_result, 'Seus números reais terminaram sem um resultado — toque para ver o motivo.');
-  assert.equal(T.pt.cal_rc_sb_locked, 'Pronto · o resultado faz parte do Premium');
+  assert.equal(T.pt.cal_rc_sb_ready_locked, 'Pronto · o resultado faz parte do Premium');
   assert.equal(T.pt.cal_rc_sb_closed, 'Encerrada · sem resultado');
   assert.equal(T.pt.cal_rc_closed_note, 'Esta medição foi encerrada. Você pode começar uma nova quando quiser.');
   assert.equal(T.pt.nutri_grace_cta, 'Ver Premium');

@@ -602,7 +602,6 @@ export const translations = {
     profile_data_note: 'This information helps personalize your experience and may be used in aggregate to improve our service. We never share individual data.',
     profile_skip: 'Skip for now',
     profile_edit_title: 'Edit profile',
-    save: 'Save',
 
     // LOG
     log_title: 'Dose log',
@@ -1338,7 +1337,7 @@ export const translations = {
     cal_rc_sb_run: 'Not run yet — tap to start',
     cal_rc_sb_progress: 'In progress · weigh in {date}',
     cal_rc_sb_ready: "Ready · your result is just below",
-    cal_rc_sb_locked: "Ready · the result is part of Premium",
+    cal_rc_sb_ready_locked: "Ready · the result is part of Premium",
     cal_rc_sb_closed: "Closed · no result",
     cal_rc_closed_note: "This check is closed. You can start a new one whenever you like.",
     cal_sb_open_bmr: 'BMR calculator',
@@ -2372,7 +2371,6 @@ export const translations = {
     protocols_compound_label: 'Compound',
     protocols_amount_label: 'Amount',
     protocols_water_label: 'Water',
-    protocols_dose_label: 'Dose',
     protocols_draw_label: 'Draw',
     protocols_frequency_label: 'Frequency',
     protocols_missing_name: 'Missing name',
@@ -3286,7 +3284,6 @@ export const translations = {
     profile_data_note: 'Esta información ayuda a personalizar tu experiencia y puede usarse de forma agregada para mejorar nuestro servicio. Nunca compartimos datos individuales.',
     profile_skip: 'Omitir por ahora',
     profile_edit_title: 'Editar perfil',
-    save: 'Guardar',
 
     // LOG
     log_title: 'Registro de dosis',
@@ -4022,7 +4019,7 @@ export const translations = {
     cal_rc_sb_run: 'Todavía sin medir: toca para empezar',
     cal_rc_sb_progress: 'En curso · pésate el {date}',
     cal_rc_sb_ready: "Listo · tu resultado está justo debajo",
-    cal_rc_sb_locked: "Listo · el resultado es parte de Premium",
+    cal_rc_sb_ready_locked: "Listo · el resultado es parte de Premium",
     cal_rc_sb_closed: "Cerrada · sin resultado",
     cal_rc_closed_note: "Esta medición se cerró. Puedes empezar una nueva cuando quieras.",
     cal_sb_open_bmr: 'Calculadora de TMB',
@@ -5056,7 +5053,6 @@ export const translations = {
     protocols_compound_label: 'Compuesto',
     protocols_amount_label: 'Cantidad',
     protocols_water_label: 'Agua',
-    protocols_dose_label: 'Dosis',
     protocols_draw_label: 'Cargar',
     protocols_frequency_label: 'Frecuencia',
     protocols_missing_name: 'Falta el nombre',
@@ -5970,7 +5966,6 @@ export const translations = {
     profile_data_note: 'Essas informações ajudam a personalizar sua experiência e podem ser usadas de forma agregada para melhorar nosso serviço. Nunca compartilhamos dados individuais.',
     profile_skip: 'Pular por enquanto',
     profile_edit_title: 'Editar perfil',
-    save: 'Salvar',
 
     // LOG
     log_title: 'Registro de doses',
@@ -6706,7 +6701,7 @@ export const translations = {
     cal_rc_sb_run: 'Ainda não medido — toque para começar',
     cal_rc_sb_progress: 'Em andamento · pesagem em {date}',
     cal_rc_sb_ready: "Pronto · seu resultado está logo abaixo",
-    cal_rc_sb_locked: "Pronto · o resultado faz parte do Premium",
+    cal_rc_sb_ready_locked: "Pronto · o resultado faz parte do Premium",
     cal_rc_sb_closed: "Encerrada · sem resultado",
     cal_rc_closed_note: "Esta medição foi encerrada. Você pode começar uma nova quando quiser.",
     cal_sb_open_bmr: 'Calculadora de TMB',
@@ -7740,7 +7735,6 @@ export const translations = {
     protocols_compound_label: 'Composto',
     protocols_amount_label: 'Quantidade',
     protocols_water_label: 'Água',
-    protocols_dose_label: 'Dose',
     protocols_draw_label: 'Aspirar',
     protocols_frequency_label: 'Frequência',
     protocols_missing_name: 'Nome ausente',
@@ -8653,7 +8647,6 @@ export const translations = {
     profile_data_note: 'Ces informations aident à personnaliser votre expérience et peuvent être utilisées de manière agrégée pour améliorer notre service. Nous ne partageons jamais de données individuelles.',
     profile_skip: 'Passer pour le moment',
     profile_edit_title: 'Modifier le profil',
-    save: 'Enregistrer',
 
     // LOG
     log_title: 'Journal des doses',
@@ -9389,7 +9382,7 @@ export const translations = {
     cal_rc_sb_run: "Pas encore mesuré — touchez pour commencer",
     cal_rc_sb_progress: 'En cours · pesez-vous le {date}',
     cal_rc_sb_ready: "C’est prêt · votre résultat est juste en dessous",
-    cal_rc_sb_locked: "C’est prêt · le résultat fait partie de Premium",
+    cal_rc_sb_ready_locked: "C’est prêt · le résultat fait partie de Premium",
     cal_rc_sb_closed: "Terminée · sans résultat",
     cal_rc_closed_note: "Cette mesure est terminée. Vous pouvez en commencer une nouvelle quand vous le souhaitez.",
     cal_sb_open_bmr: 'Métabolisme de base',
@@ -10423,7 +10416,6 @@ export const translations = {
     protocols_compound_label: 'Composé',
     protocols_amount_label: 'Quantité',
     protocols_water_label: 'Eau',
-    protocols_dose_label: 'Dose',
     protocols_draw_label: 'À prélever',
     protocols_frequency_label: 'Fréquence',
     protocols_missing_name: 'Nom manquant',
@@ -11336,7 +11328,6 @@ export const translations = {
     profile_data_note: 'Diese Angaben helfen uns, DoseTrace auf dich abzustimmen, und können in zusammengefasster Form zur Verbesserung unseres Dienstes genutzt werden. Einzelne Daten geben wir niemals weiter.',
     profile_skip: 'Vorerst überspringen',
     profile_edit_title: 'Profil bearbeiten',
-    save: 'Speichern',
 
     // LOG
     log_title: 'Dosisprotokoll',
@@ -12072,7 +12063,7 @@ export const translations = {
     cal_rc_sb_run: 'Noch nicht gemessen – zum Starten tippen',
     cal_rc_sb_progress: 'Läuft · Wiegen am {date}',
     cal_rc_sb_ready: "Fertig · dein Ergebnis steht direkt darunter",
-    cal_rc_sb_locked: "Fertig · das Ergebnis gehört zu Premium",
+    cal_rc_sb_ready_locked: "Fertig · das Ergebnis gehört zu Premium",
     cal_rc_sb_closed: "Beendet · kein Ergebnis",
     cal_rc_closed_note: "Diese Messung ist beendet. Du kannst jederzeit eine neue starten.",
     cal_sb_open_bmr: 'Grundumsatz-Rechner',
@@ -13106,7 +13097,6 @@ export const translations = {
     protocols_compound_label: 'Substanz',
     protocols_amount_label: 'Menge',
     protocols_water_label: 'Wasser',
-    protocols_dose_label: 'Dosis',
     protocols_draw_label: 'Aufziehen',
     protocols_frequency_label: 'Häufigkeit',
     protocols_missing_name: 'Name fehlt',
@@ -14020,7 +14010,6 @@ export const translations = {
     profile_data_note: 'Queste informazioni aiutano a personalizzare la tua esperienza e possono essere utilizzate in forma aggregata per migliorare il nostro servizio. Non condividiamo mai dati individuali.',
     profile_skip: 'Salta per ora',
     profile_edit_title: 'Modifica profilo',
-    save: 'Salva',
 
     // LOG
     log_title: 'Registro delle dosi',
@@ -14756,7 +14745,7 @@ export const translations = {
     cal_rc_sb_run: 'Non ancora misurato — tocca per iniziare',
     cal_rc_sb_progress: 'In corso · pesati il {date}',
     cal_rc_sb_ready: "Pronto · il tuo risultato è qui sotto",
-    cal_rc_sb_locked: "Pronto · il risultato fa parte di Premium",
+    cal_rc_sb_ready_locked: "Pronto · il risultato fa parte di Premium",
     cal_rc_sb_closed: "Chiusa · nessun risultato",
     cal_rc_closed_note: "Questa misurazione è chiusa. Puoi iniziarne una nuova quando vuoi.",
     cal_sb_open_bmr: 'Metabolismo basale',
@@ -15790,7 +15779,6 @@ export const translations = {
     protocols_compound_label: 'Composto',
     protocols_amount_label: 'Quantità',
     protocols_water_label: 'Acqua',
-    protocols_dose_label: 'Dose',
     protocols_draw_label: 'Preleva',
     protocols_frequency_label: 'Frequenza',
     protocols_missing_name: 'Nome mancante',

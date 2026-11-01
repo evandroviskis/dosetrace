@@ -1591,7 +1591,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         {outcome.state === 'due' ? t('cal_rc_due')
           : st && st.body === 'needs_food' ? t(pluralKey('today_alert_rc_needs_food', st.left, language)).replace('{n}', String(st.left))
           : st && st.body === 'no_result' ? t('cal_rc_sb_closed')
-          : st && st.body === 'locked' ? t('cal_rc_sb_locked')
+          : st && st.body === 'locked' ? t('cal_rc_sb_ready_locked')
           : st && st.body === 'ready' ? t('cal_rc_sb_ready')
           : t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}
       </Text>

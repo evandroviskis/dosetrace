@@ -1907,43 +1907,7 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const makeStyles = (c) => StyleSheet.create({
-  ...settingsLegacy(c),
   ...settingsGraduated(c),
-});
-
-const settingsLegacy = (c) => ({
-  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
-  container: { flex: 1, backgroundColor: c.bg },
-  header: { paddingHorizontal: 20, paddingVertical: 20, backgroundColor: c.card },
-  headerTitle: { fontSize: 24, fontWeight: '700', color: c.text },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, margin: 16, padding: 16, backgroundColor: c.card, borderRadius: 14, ...c.shadowSoft },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
-  profileInfo: { flex: 1 },
-  profileEmail: { fontSize: 14, fontWeight: '500', color: c.text, marginBottom: 4 },
-  planBadge: { backgroundColor: c.accentSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start' },
-  planBadgeText: { fontSize: 11, color: c.accentSoftText, fontWeight: '500' },
-  premiumCard: { marginHorizontal: 16, marginBottom: 8, padding: 16, backgroundColor: c.accent, borderRadius: 14 },
-  premiumTitle: { fontSize: 16, fontWeight: '600', color: 'white', marginBottom: 6 },
-  premiumSub: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 14, lineHeight: 18 },
-  premiumFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
-  premiumCheck: { color: '#9FE1CB', fontWeight: '600', fontSize: 13 },
-  premiumFeatText: { fontSize: 12, color: 'rgba(255,255,255,0.9)', flex: 1 },
-  premiumBtn: { backgroundColor: 'white', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  premiumBtnText: { color: '#185FA5', fontSize: 13, fontWeight: '600' },
-  group: { marginHorizontal: 16, backgroundColor: c.card, borderRadius: 14, overflow: 'hidden', ...c.shadowSoft },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
-  rowLabel: { fontSize: 14, color: c.text },
-  rowSub: { fontSize: 11, color: c.textFaint, marginTop: 1 },
-  rowArrow: { fontSize: 18, color: c.textFaint },
-  version: { textAlign: 'center', fontSize: 11, color: c.textFaint, marginTop: 24, lineHeight: 18 },
-  // Theme toggle
-  // Profile enhancements
-  profileName: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: 2 },
-  profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
-  goalBadge: { backgroundColor: c.warningSoft, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-  goalBadgeText: { fontSize: 11, color: c.warningSoftText, fontWeight: '500' },
 });
 
 // Redesign (Graduated, Settings approved 2026-09-29): large title on the ground; the
@@ -1951,6 +1915,13 @@ const settingsLegacy = (c) => ({
 // case (no uppercase letter-spaced labels); the Premium card is a plain card with the
 // one action in ink (no blue block, no hardcoded white).
 const settingsGraduated = (c) => ({
+  // kept from the retired legacy block (2026-11-01 council: its raw colours were dead, every other key overridden)
+  centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  profileInfo: { flex: 1 },
+  premiumFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  rowIcon: { fontSize: 18, width: 28, textAlign: 'center' },
+  profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   container: { flex: 1, backgroundColor: c.ground },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6, backgroundColor: c.ground },
   headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
