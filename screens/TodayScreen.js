@@ -1790,10 +1790,14 @@ export default function TodayScreen() {
       remind.setDate(remind.getDate() + REALITY_CHECK_DAYS);
       const dateDue = nowMs >= remind.getTime();
       // The real state when known (lib/realityCheckRules checkAlert); the date alone otherwise.
-      const a = rcNow ? checkAlert(rcNow.outcome, rcNow.run) : null;
+      // DV-058 (DL-26): a ready check says what Progress will show — the result is Premium (locked), or
+      // the check ended without a number (no_result; it closes once seen on Progress).
+      const a = rcNow ? checkAlert(rcNow.outcome, rcNow.run, rcNow) : null;
       const kind = a ? a.body : (dateDue ? 'due' : 'when');
       const body = kind === 'due' ? t('today_alert_rc_due')
         : kind === 'needs_food' ? t(pluralKey('today_alert_rc_needs_food', a.left, language)).replace('{n}', String(a.left))
+        : kind === 'locked' ? t('today_alert_rc_locked')
+        : kind === 'no_result' ? t('today_alert_rc_no_result')
         : kind === 'ready' ? t('today_alert_rc_ready')
         : t('today_alert_rc_when').replace('{date}', formatDate(remind, language, 'dayMonth'));
       list.push({

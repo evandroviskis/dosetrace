@@ -53,5 +53,6 @@ test("Today's run-complete line fits one line of the card in every language", ()
 });
 
 test('the card still builds the run-complete text from nutri_hero_run_ready', () => {
-  assert.match(HERO, /run\.ok \? t\('nutri_hero_run_ready'\)\.replace\('\{d\}', String\(run\.days\)\)/);
+  // DV-146: Today keeps nutri_hero_run_ready; Journey names the run the result uses.
+  assert.match(HERO, /run\.ok \? t\(variant === 'journey' \? 'nutri_hero_run_ready_journey' : 'nutri_hero_run_ready'\)\.replace\('\{d\}', String\(run\.days\)\)/);
 });

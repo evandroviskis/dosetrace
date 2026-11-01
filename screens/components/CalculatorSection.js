@@ -33,7 +33,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Keyboa
 import Modal from '../../components/PresenceModal';
 import { useWindowSize } from '../../lib/windowSize';
 import Svg, { Path, Rect, Line, Text as SvgText } from 'react-native-svg';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useIsFocused } from '@react-navigation/native';
 import { getCachedUser, supabase } from '../../lib/supabase';
 import { hasPremium } from '../../lib/entitlement';
 import { usePremiumUpdates } from '../../lib/usePremium';
@@ -55,7 +55,7 @@ import {
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { createScreenSave } from '../../lib/calcInputsSync';
-import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource, checkAlert, rcStatusKey } from '../../lib/realityCheckRules';
+import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource, checkAlert, rcStatusKey, closedCheckPatch, closedCheckShown, CLEAR_CLOSED_CHECK } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync, notifyDataChanged } from '../../lib/sync';
@@ -301,7 +301,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     let body = null;
     {
       const savedForBody = await getCalcInputs().catch(() => null);
-      setRcInputs(savedForBody ? { rcTypedKcal: savedForBody.rcTypedKcal ?? null, rcResultSources: savedForBody.rcResultSources ?? null } : null);
+      setRcInputs(savedForBody ? { rcTypedKcal: savedForBody.rcTypedKcal ?? null, rcResultSources: savedForBody.rcResultSources ?? null, rcClosed: savedForBody.rcClosed ?? null } : null);
       body = profileBodyInputs({ meta: user?.user_metadata, saved: savedForBody, now: new Date() });
       setSex(body.sex);
       setProfileSex(body.profileSex);
@@ -998,6 +998,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setRcStartOpen(false);
     clearDraft('progress:rcWeigh');
     await setRealityStart(start);
+    // DV-058: a check closed without a number belongs to that check; the new one replaces its card.
+    setRcInputs(prev => (prev && prev.rcClosed ? mergeCalcInputs(prev, CLEAR_CLOSED_CHECK) : prev));
+    saveCalcInputs(CLEAR_CLOSED_CHECK).catch(() => {});
     calcChanged();
     syncAllNotifications().catch(() => {});
   }
@@ -1077,6 +1080,33 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     syncAllNotifications().catch(() => {});
   }
 
+  // DV-058 / DV-104 (AD-92): a check that ended without a number (implausible / too_short) closes once its
+  // card is seen here (no extra tap). The closed card (start weigh-in + reason) is kept first in the synced
+  // calc_inputs payload, then the open check is stopped the way Stop does it — food logs and weigh-ins are
+  // kept (the start weight stays as the start day's weigh-in, as when a check finishes) — and the reminders
+  // re-plan: the weigh-in reminder, the 8 PM food question and Today's alert stop.
+  async function closeCheckWithoutResult(res) {
+    if (!rcStart || !res || res.status === 'ok') return;
+    const patch = closedCheckPatch(rcStart, res);
+    if (!patch) return;
+    const uid = userIdRef.current;
+    if (uid) {
+      const startDay = String(rcStart.date).slice(0, 10);
+      const onStart = getCalcSnapshots(uid).find(sn => sn.entry_date === startDay) || null;
+      if (!onStart || onStart.weight_kg == null) {
+        upsertCalcSnapshot(uid, mergeWeighIn(onStart, { date: startDay, weightKg: rcStart.weightKg }));
+        requestSync?.();
+        setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
+      }
+    }
+    setRcInputs(prev => mergeCalcInputs(prev, patch));
+    await saveCalcInputs(patch).catch(() => {});
+    setRcStart(null);
+    await clearRealityStart();
+    calcChanged();
+    syncAllNotifications().catch(() => {});
+  }
+
   // Calories typed by hand (founder 2026-10-02): one average per day for the open check,
   // changeable or clearable until the check finishes (a saved result is never rewritten).
   function openTypedKcal() {
@@ -1140,6 +1170,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     focusedRef.current = true;
     if (scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, rcY - 8), animated: true });
   }, [focus, focusKey, loaded, rcY]);
+  // DV-058 / DV-104: seen = the reality-check card drawn (laid out) on the focused Progress screen. A check
+  // without a number then closes, once (never from a page left open in the background across midnight).
+  const isFocused = useIsFocused();
+  const closingRef = useRef(false);
+  useEffect(() => {
+    if (!isFocused || !loaded || rcY == null || !rcStart || !outcomeResult || outcomeResult.status === 'ok' || closingRef.current) return;
+    closingRef.current = true;
+    closeCheckWithoutResult(outcomeResult).catch(() => {}).finally(() => { closingRef.current = false; });
+  }, [isFocused, loaded, rcY, rcStart, outcomeResult]);
 
   // Warning codes from the engine → localized copy.
   const warnText = w => {
@@ -1542,12 +1581,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   );
   // In progress: the status line, the start weigh-in, the 7-day rule (or the outcome note).
   // DV-056: the line follows the check's real state (lib/realityCheckRules checkAlert), as Today's alert.
-  const st = checkAlert(outcome, foodRun);
+  // DV-058 (DL-26): a ready check says what is below — the result is Premium (locked) or there is no number.
+  const st = checkAlert(outcome, foodRun, { result: outcomeResult, canSeeResult: rcAccess.canSeeResult });
   const rcStatusLines = rcStart ? (
     <>
       <Text style={[s.body, s.tnum]}>
         {outcome.state === 'due' ? t('cal_rc_due')
           : st && st.body === 'needs_food' ? t(pluralKey('today_alert_rc_needs_food', st.left, language)).replace('{n}', String(st.left))
+          : st && st.body === 'no_result' ? t('cal_rc_sb_closed')
+          : st && st.body === 'locked' ? t('cal_rc_sb_locked')
           : st && st.body === 'ready' ? t('cal_rc_sb_ready')
           : t('cal_rc_sb_progress').replace('{date}', fmtDate(rcRemindOn))}
       </Text>
@@ -1571,15 +1613,41 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const soFarEmpty = !!soFar && soFar.rows.every(r => r.state !== 'food');
   // The intake the newest result used; none for a result saved before sources were kept.
   const latestSource = realityLog.length ? resultSource(rcInputs, realityLog[realityLog.length - 1].date) : null;
+  // DV-058 / DV-104: the check closed without a number, until a new check or a newer result.
+  const closedCheck = closedCheckShown(rcInputs && rcInputs.rcClosed, { rcStart, realityLog });
+  const closedView = closedCheck ? (
+    // "Encerrada · sem resultado", the start weigh-in, the reason, then Começar de novo (the start sheet);
+    // a free user past the free days gets the explainer row (with its Unlock) instead.
+    <>
+      <Text style={s.body}>{t('cal_rc_sb_closed')}</Text>
+      {closedCheck.weightKg != null ? (
+        <Text style={[s.sec2, s.tnum]}>
+          ①  <Text style={s.mono}>{fmtW(closedCheck.weightKg)}{' '}{wUnit}</Text> · {fmtShort(closedCheck.start)}
+        </Text>
+      ) : null}
+      <Text style={s.sec2}>{t(rcStatusKey(closedCheck))}</Text>
+      <Text style={s.sec2}>{t('cal_rc_closed_note')}</Text>
+      {rcAccess.canStart ? (
+        <TouchableOpacity style={s.btnP} onPress={openRcStart} activeOpacity={0.85} accessibilityRole="button">
+          <Text style={s.btnPText}>{t('cal_rc_reset')}</Text>
+        </TouchableOpacity>
+      ) : howRow}
+    </>
+  ) : null;
   const rcEl = (
     <View key="rc" style={s.card} onLayout={onRcLayout}>
       {rcHead}
-      {!rcAllowed ? (
+      {closedView ? closedView : !rcAllowed ? (
         // Free plan (part 11): explainer first, then Unlock with Premium. A check that is
         // already running keeps its weigh-in (FX-15) and Stop (never behind the paywall).
+        // DV-058: once its result is ready (locked), Ver Premium opens the paywall in place of the weigh-in.
         <>
           {rcStatusLines || <Text style={s.sec2}>{t('cal_rc_sub')}</Text>}
-          {rcStart && rcAccess.canLogWeighIn ? (
+          {st && st.body === 'locked' ? (
+            <TouchableOpacity style={s.btnP} onPress={() => navigation.navigate('Paywall', { source: 'reality_check' })} activeOpacity={0.85} accessibilityRole="button">
+              <Text style={s.btnPText}>{t('nutri_grace_cta')}</Text>
+            </TouchableOpacity>
+          ) : rcStart && rcAccess.canLogWeighIn ? (
             <TouchableOpacity style={s.btnO} onPress={openWeighIn} activeOpacity={0.75} accessibilityRole="button">
               <Text style={s.btnOText}>{t('cal_log_today_weight')}</Text>
             </TouchableOpacity>

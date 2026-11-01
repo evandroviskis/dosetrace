@@ -54,7 +54,7 @@ test('FX-15: the Weigh-ins card (past weigh-in, chart) and Log today\'s weight a
 
 test('FX-15: the locked reality-check card offers the weigh-in of a running check (Log today\'s weight)', () => {
   const src = read('screens', 'components', 'CalculatorSection.js');
-  const i = src.indexOf('{!rcAllowed ? (');
+  const i = src.indexOf('!rcAllowed ? (', src.indexOf('const rcEl = (')); // DV-058: after the closed card
   const j = src.indexOf(') : rcStart && !checkSaved ? (', i);
   assert.ok(i > 0 && j > i, 'the locked branch');
   const lockedPanel = src.slice(i, j);
