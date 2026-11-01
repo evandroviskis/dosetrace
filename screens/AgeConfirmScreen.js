@@ -6,8 +6,9 @@
  * The DoseTrace sheet look, on the ground: confirm → adult_confirmed_at on the account (one key,
  * merge-only; USER_UPDATED then opens the app) and never asked again. Not confirmed → the account
  * stays here with three ways out: download my data (the one export), delete my account (the one
- * two-step delete) and sign out. Nothing is ever deleted automatically. A failed save (offline)
- * says why and stays here — it can be tried again.
+ * two-step delete) and sign out. Nothing is ever deleted automatically. DV-114 (DL-92): offline, the
+ * answer is kept on this phone and goes to the account when the internet is back (lib/pendingGate),
+ * and the app opens; a refused save says why and stays here — it can be tried again.
  */
 import { useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView, Platform, Linking } from 'react-native';
@@ -18,6 +19,7 @@ import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { supabase } from '../lib/supabase';
 import { friendlyError } from '../lib/friendlyError';
 import { adultConfirmPatch, adultYears, storedYear } from '../lib/adultGate';
+import { answerGate } from '../lib/pendingGateStore';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion, signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
 import { getBillingStore } from '../lib/entitlement';
@@ -70,17 +72,17 @@ export default function AgeConfirmScreen({ session }) {
     const patch = adultConfirmPatch(new Date().toISOString(), year);
     if (!patch) return;
     setBusy('confirm');
-    let error = null;
-    try {
-      // One merge-only write: adult_confirmed_at + birth_year, no other key.
-      ({ error } = await supabase.auth.updateUser({ data: patch }));
-    } catch (e) { error = e; }
+    // One merge-only write: adult_confirmed_at + birth_year, no other key.
+    // DV-114 (DL-92): offline, the answer is kept on this phone (lib/pendingGateStore) and goes to the
+    // account when the internet is back; App.js opens the app at once and the toast says so.
+    const r = await answerGate({ userId: user && user.id, patch, write: () => supabase.auth.updateUser({ data: patch }) });
     setBusy(null);
-    if (error) {
-      // Offline or refused: stay here and say why; nothing else happens.
-      ok(t('error'), friendlyError(error, t, 'error_save_failed'));
+    if (r.status === 'failed') {
+      // Refused (not offline), or the phone could not keep it: stay here and say why.
+      ok(t('error'), friendlyError(r.error, t, 'error_save_failed'));
     }
-    // Success: USER_UPDATED refreshes the session and App.js opens the app.
+    // Saved: USER_UPDATED refreshes the session and App.js opens the app. Pending: App.js opens it
+    // at once, with the answer laid over the account.
   }
 
   async function exportData() {
