@@ -455,7 +455,8 @@ test('A-123 F6: an ended protocol is cleaned up up to its end; its end day is le
   const logs = [row('M9', 'Missed', D(9, 8)), row('T9', 'Taken', D(9, 8, 20)), row('M11', 'Missed', D(11, 8)), row('T11', 'Taken', D(11, 8, 20))];
   // The ledger has seen this schedule since day 2 (ending the protocol does not change its slots before the end).
   const scheduleSince = MD.noteSchedules(MD.noteSchedules({}, [proto({ reminder_time: '08:00' })], { userId: USER, nowMs: D(2, 9) }).next, [ended], { userId: USER, nowMs: NOW }).sinceById;
-  assert.equal(scheduleSince[1], D(2, 9), 'ending is not a schedule change');
+  // 2026-11-01 (council): never written after its setup, the schedule counts from the creation (created − 1 h).
+  assert.equal(scheduleSince[1], D(1, 6), 'ending is not a schedule change');
   assert.deepEqual(scanOnce([ended], logs, { scheduleSince }).deleted, ['M9'], 'before the end day: the duplicate goes; on the end day: kept');
 });
 
@@ -463,7 +464,7 @@ test('A-123 F1: the schedule ledger (lib/missedDoses noteSchedules)', () => {
   const a = proto({ updated_at: isoMs(D(12, 9)) }); // an oral dose bumps updated_at every day (units_taken)
   const first = MD.noteSchedules(null, [a], { userId: USER, nowMs: D(3, 9) });
   assert.equal(first.sinceById[1], D(3, 9), 'first seen: since now (updated_at is later)');
-  assert.equal(MD.noteSchedules(null, [proto()], { userId: USER, nowMs: D(3, 9) }).sinceById[1], D(1, 7), 'first seen, never written since day 1: updated_at says so');
+  assert.equal(MD.noteSchedules(null, [proto()], { userId: USER, nowMs: D(3, 9) }).sinceById[1], D(1, 6), 'first seen, never written since its setup on day 1: from the creation (created − 1 h, 2026-11-01)');
   const again = MD.noteSchedules(first.next, [a], { userId: USER, nowMs: D(12, 10) });
   assert.equal(again.sinceById[1], D(3, 9), 'same schedule seen again: still since day 3 although updated_at moved');
   const moved = MD.noteSchedules(again.next, [{ ...a, reminder_time: '21:00' }], { userId: USER, nowMs: D(12, 11) });
