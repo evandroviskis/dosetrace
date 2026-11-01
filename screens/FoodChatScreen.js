@@ -741,7 +741,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             <FeatureIcon name="ai_spark" size={28} color={colors.ink} />
             <Text style={s.lockedTitle}>{t('nutri_locked_title')}</Text>
             <Text style={s.lockedSub}>{t('nutri_locked_sub')}</Text>
-            <TouchableOpacity style={s.cta} onPress={() => navigation.navigate('Paywall')} accessibilityRole="button">
+            <TouchableOpacity style={s.cta} onPress={() => navigation.navigate('Paywall', { source: 'food_chat_locked' })} accessibilityRole="button">
               <Text style={s.ctaText}>{t('nutri_locked_cta')}</Text>
             </TouchableOpacity>
           </View>
