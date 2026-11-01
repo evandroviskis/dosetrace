@@ -30,3 +30,20 @@ test('wired: every number on the curve and the Journey tile goes through the sca
   assert.match(j, /levelLabel\(level\.value \* level\.display\.factor, language\)/);
   assert.match(j, /unitText\(level\.display\.unit, language\)/);
 });
+
+// Pharmacometrician 2026-11-01: with several compounds the axis keeps the shared unit, but each compound's own
+// number (legend, readout rows) uses ITS unit. BPC-157 250 mcg + TB-500 2 mg, 2 h after both doses: BPC reads
+// "16 mcg" (true 15.6 mcg), never "< 0,1 mg"; TB-500 keeps mg. A combined line uses mcg only if all its members do.
+test('mixed selection: each compound\'s number in its own unit', () => {
+  const { seriesLevelText } = require('../lib/serumModel');
+  assert.equal(typeof seriesLevelText, 'function');
+  assert.deepEqual(seriesLevelText(0.0156, 'mg', [0.25], 'pt'), { num: '16', unit: 'mcg' });
+  assert.deepEqual(seriesLevelText(1.0, 'mg', [2], 'pt'), { num: '1,0', unit: 'mg' });
+  assert.deepEqual(seriesLevelText(0.0156, 'mg', [0.25, 2], 'pt'), { num: '< 0,1', unit: 'mg' }, 'a combined line with a 2 mg member stays in mg');
+  assert.deepEqual(seriesLevelText(3, 'IU', [3], 'en'), { num: '3.0', unit: 'IU' });
+  const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
+  // legend rows, the "now" readout rows and the scrub readout rows read per series
+  assert.ok((src.match(/serLevel\(ser, /g) || []).length >= 3, 'per-series rows use serLevel');
+  assert.ok(!/mgLabel\(ser\.nowLevel\)/.test(src), 'no per-series row uses the shared unit');
+  assert.ok(!/mgLabel\(readoutLevel\(ser, readoutT\)\)/.test(src));
+});

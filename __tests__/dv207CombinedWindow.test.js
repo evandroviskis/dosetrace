@@ -7,5 +7,5 @@ const path = require('node:path');
 
 test('DV-207: the Combined readout shows — before the window, like each compound', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /\{readoutT < model\.start \? '—' : mgLabel\(c\.members\.reduce\(/);
+  assert.match(src, /\{readoutT < model\.start \? '—' : levelText\(combLevel\(c, c\.members\.reduce\(/);
 });

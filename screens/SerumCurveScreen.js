@@ -32,7 +32,7 @@ import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '..
 import { parseDecimal } from '../lib/doseMath';
 import {
   STEP_HOURS, matchName, seriesName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, displayScale, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
+  curveWindowDays, curveTicks, axisLabel, displayScale, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
 import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
@@ -603,6 +603,10 @@ export default function SerumCurveScreen({ embedded = false }) {
   // axis whose top is the peak × 1.12, so the highest spike never clips the top edge.
   const disp = displayScale(model ? model.unit : 'mg', model ? model.series.map((ser) => ser.doseMg) : []);
   const dispF = disp.factor;
+  // Pharmacometrician 2026-11-01: each compound's own number in its own unit (250 mcg next to 2 mg reads
+  // "16 mcg", not "< 0,1 mg"); the axis and the peak keep the shared unit.
+  const serLevel = (ser, v) => seriesLevelText(v, model ? model.unit : 'mg', [ser.doseMg], language);
+  const levelText = (x) => x.num + '\u00A0' + unitText(x.unit, language);
   const ticksRaw = curveTicks(model ? model.max * dispF : 0);
   const ticksY = { top: ticksRaw.top / dispF, ticks: ticksRaw.ticks.map((v) => v / dispF) };
   if (model && model.max > 0) plotMax = ticksY.top;
@@ -649,6 +653,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const customDate = !!readoutDate && !upcoming.includes(readoutDate) && !labDates.includes(readoutDate);
   const pickDate = (iso) => setReadoutDate(prev => (prev === iso ? null : iso));
   const seriesById = {};
+  const combLevel = (c, v) => seriesLevelText(v, model ? model.unit : 'mg', c.members.map((mid) => (seriesById[mid] ? seriesById[mid].doseMg : 0)), language);
   if (model) for (const ser of model.series) seriesById[ser.id] = ser;
   // Marker x only when the readout date sits inside the plotted window.
   const readoutInWindow = readoutT >= winStart && readoutT <= winEnd;
@@ -923,7 +928,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   <View key={`h-${ser.id}`} style={s.heroMultiRow}>
                     <View style={[s.dot, { backgroundColor: ser.color }]} />
                     <Text style={s.readoutName} numberOfLines={1}>{ser.name}</Text>
-                    <Text style={s.readoutVal}>{mgLabel(ser.nowLevel)}{'\u00A0'}{unitLbl}</Text>
+                    <Text style={s.readoutVal}>{levelText(serLevel(ser, ser.nowLevel))}</Text>
                   </View>
                 ))}
                 {model && model.series.filter(ser => !hasLoggedDose(ser.p, doseLogs, model.now)).map(ser => (
@@ -1134,7 +1139,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                       {tierCfg[ser.entry.tier].label}
                     </Text>
                   </View>
-                  <Text style={s.legendLevel}>{mgLabel(ser.nowLevel)}<Text style={s.unitInline}> {unitLbl}</Text></Text>
+                  <Text style={s.legendLevel}>{serLevel(ser, ser.nowLevel).num}<Text style={s.unitInline}> {unitText(serLevel(ser, ser.nowLevel).unit, language)}</Text></Text>
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours, language, du)}</Text>
                 </View>
               ))}
@@ -1144,7 +1149,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   <Text style={[s.legendName, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>
                     {t('curve_combined')} · {t(`substance_${c.substance}`)}
                   </Text>
-                  <Text style={[s.legendLevel, { fontWeight: '700' }]}>{mgLabel(c.nowLevel)}<Text style={s.unitInline}> {unitLbl}</Text></Text>
+                  <Text style={[s.legendLevel, { fontWeight: '700' }]}>{combLevel(c, c.nowLevel).num}<Text style={s.unitInline}> {unitText(combLevel(c, c.nowLevel).unit, language)}</Text></Text>
                   <Text style={s.legendHalf}> </Text>
                 </View>
               ))}
@@ -1217,7 +1222,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                     <View key={`ro-${ser.id}`} style={s.readoutRow}>
                       <View style={[s.dot, { backgroundColor: ser.color }]} />
                       <Text style={s.readoutName} numberOfLines={2}>{ser.name} · {readoutShort}</Text>
-                      <Text style={s.readoutVal}>{readoutT < model.start ? '—' : mgLabel(readoutLevel(ser, readoutT))}{'\u00A0'}{unitLbl}</Text>
+                      <Text style={s.readoutVal}>{readoutT < model.start ? '—' : levelText(serLevel(ser, readoutLevel(ser, readoutT)))}</Text>
                     </View>
                   ))}
                   {showCombined && model && model.combined.map(c => (
@@ -1227,7 +1232,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                         {t('curve_combined')} · {t(`substance_${c.substance}`)} · {readoutShort}
                       </Text>
                       <Text style={s.readoutVal}>
-                        {readoutT < model.start ? '—' : mgLabel(c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0))}{'\u00A0'}{unitLbl}
+                        {readoutT < model.start ? '—' : levelText(combLevel(c, c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0)))}
                       </Text>
                     </View>
                   ))}
