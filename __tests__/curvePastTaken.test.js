@@ -72,12 +72,12 @@ test('A-160 under AD-96 B: "Doses in level" counts the logged doses in the past 
   assert.deepEqual(levelDoses, TAKEN_AT);
 });
 
-test('A-160 under AD-96 B: a fast compound counts only the logged doses still ≥ 1 % (BPC-157, t½ 0.5 h)', () => {
+test('A-160 under AD-96 B: a fast compound counts only the logged doses still ≥ 1 % (BPC-157, t½ 0.25 h)', () => {
   const p = { id: 7, type: 'recon', compound_id: 'lyo_bpc_157', name: 'BPC-157', dose: 250, dose_unit: 'mcg', interval_days: 1, doses_per_day: 1, reminder_time: '10:00', start_date: '2026-10-18', created_at: iso(at(18, 6)) };
   const e = entryOf(p);
   const now = at(19, 12);
   const logs = [row(7, 'Taken', at(18, 10)), row(7, 'Taken', at(19, 10, 30)), row(7, 'Skipped', at(19, 11))];
   const plan = M.curvePlan(p, e, M.curveGridStart(now, 3), now + 864e5, now, { logs });
-  // 1.5 h ago → 2^-3 = 12.5 %: in; 26 h ago: out.
+  // 1.5 h ago → ≈ 2^-6 ≈ 1.6 % (t½ 15 min, peak 3 min after the injection; founder 2026-11-01): in; 26 h ago: out.
   assert.equal(M.dosesInLevel(plan.doses, e, now), 1);
 });

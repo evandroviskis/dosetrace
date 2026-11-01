@@ -1,6 +1,6 @@
 'use strict';
 // DV-068 (spec R4: "drawing samples the exact instants"). Without the 6 h snap a dose at 10:30 falls
-// between the 6 h samples; a fast compound (BPC-157, t½ 0.5 h) would draw as a flat line near zero. The
+// between the 6 h samples; a fast compound (BPC-157, t½ 0.25 h) would draw as a flat line near zero. The
 // curve therefore samples the 6 h grid PLUS every dose instant PLUS Now: each dose draws as a vertical
 // jump at its own time, and the solid line ends exactly at the Now dot with the number it shows.
 process.env.TZ = 'America/New_York';
@@ -39,26 +39,31 @@ test('sampleLevelsAt on the plain grid gives exactly the old sampleLevels number
   assert.deepEqual(b, a);
 });
 
-test('a BPC-157 dose at 10:30 draws its full spike at 10:30 (level includes it, "before" excludes it)', () => {
+// Founder 2026-11-01: BPC-157 rises to its peak 3 min after the injection (He 2022, rats IM) — the line starts at the
+// dose (nothing added at the instant) and its top, 2^(−0.05/0.25) ≈ 0.871 of the dose, is a sample at 10:33.
+test('a BPC-157 dose at 10:30 starts its rise at 10:30 and draws its exact peak at 10:33 (He 2022: 3 min)', () => {
   const p = { id: 1, type: 'recon', compound_id: 'lyo_bpc_157', name: 'BPC-157', dose: 250, dose_unit: 'mcg', interval_days: 1, doses_per_day: 1, start_date: '2026-10-01', created_at: '2026-10-01T00:00:00', reminder_time: '10:30' };
   const e = H.getHalfLifeEntry(M.matchName(p));
   const now = new Date(2026, 9, 20, 13, 0).getTime();
   const start = M.curveGridStart(now, 3);
   const nSteps = Math.round((now + 7 * 864e5 - start) / STEP);
   const doses = M.scheduledDoses(p, e, start, now + 7 * 864e5, now);
-  const times = M.curveSampleTimes(start, STEP, nSteps, [doses], now);
-  const { points, pre } = sampleLevelsAt(doses, 0.25, e, times, H.amountFraction);
+  const ls = M.lineSamples(doses, 0.25, e, { start, stepMs: STEP, nSteps, now, plotPx: 330, extraTimes: [] }, H.amountFraction);
+  const { times, points, pre } = ls;
   const i = times.indexOf(new Date(2026, 9, 19, 10, 30).getTime());
-  assert.ok(i > 0);
-  assert.ok(Math.abs(points[i] - 0.25) < 1e-9, `spike ${points[i]}`);
-  assert.ok(pre[i] < 1e-9, 'the line jumps at the dose, it does not ramp in');
+  assert.ok(i > 0, 'the dose instant is a sample (the bottom of the rise)');
+  assert.ok(points[i] < 1e-9 && pre[i] < 1e-9, 'the line starts at the dose, no jump');
+  const j = times.indexOf(new Date(2026, 9, 19, 10, 33).getTime());
+  assert.ok(j > i, 'the peak moment is a sample');
+  const peak = 0.25 * Math.pow(2, -0.2);
+  assert.ok(Math.abs(points[j] - peak) < 1e-9, `peak ${points[j]}`);
   // The Now sample carries the same number as the Est. level.
   const k = times.indexOf(now);
   // AD-96 B: with every planned dose logged as Taken at its slot the Est. level is the planned one.
   const { takenAtEverySlot } = require('./helpers/curveLogs');
   assert.ok(Math.abs(points[k] - M.estimatedLevelNow(p, now, { logs: takenAtEverySlot([p], now) }).value) < 1e-9);
-  // The peak of the drawn curve is a full dose (the scale is set by the real spike).
-  assert.ok(Math.abs(Math.max(...points) - 0.25) < 1e-9);
+  // The peak of the drawn curve is the modeled peak (the scale is set by the real top, not the full dose).
+  assert.ok(Math.abs(Math.max(...points) - peak) < 1e-9);
 });
 
 test('the curve screen draws on these samples: x = the exact time, Now = its exact sample, ticks hollow per log', () => {

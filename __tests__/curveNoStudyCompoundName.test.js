@@ -33,7 +33,7 @@ test('two series of the same compound: named once (singular), also in the days c
   const cyp = { name: 'Testosterona cipionato', compound: 'Testosterona cipionato', entry: getHalfLifeEntry('Testosterone Cypionate') };
   const text = noStudyWarning([a, b, cyp], { hourMode: false, t });
   assert.match(text, /^Não há estudos em humanos que comprovem quanto tempo BPC-157 \(dados de animais\) fica no sangue\./);
-  assert.match(text, /Por isso, neste gráfico, a linha de BPC-157 cai a zero poucas horas depois de cada dose,/);
+  assert.match(text, /A meia-vida estimada de BPC-157 é curta: neste gráfico, a linha cai a zero poucas horas depois de cada dose,/);
   assert.ok(!/encerrado/.test(text), text);
 });
 

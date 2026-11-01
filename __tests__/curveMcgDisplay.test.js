@@ -39,8 +39,18 @@ test('mixed selection: each compound\'s number in its own unit', () => {
   assert.equal(typeof seriesLevelText, 'function');
   assert.deepEqual(seriesLevelText(0.0156, 'mg', [0.25], 'pt'), { num: '16', unit: 'mcg' });
   assert.deepEqual(seriesLevelText(1.0, 'mg', [2], 'pt'), { num: '1,0', unit: 'mg' });
-  assert.deepEqual(seriesLevelText(0.0156, 'mg', [0.25, 2], 'pt'), { num: '< 0,1', unit: 'mg' }, 'a combined line with a 2 mg member stays in mg');
+  assert.deepEqual(seriesLevelText(0.5, 'mg', [0.25, 2], 'pt'), { num: '0,5', unit: 'mg' }, 'a combined line with a 2 mg member stays in mg');
   assert.deepEqual(seriesLevelText(3, 'IU', [3], 'en'), { num: '3.0', unit: 'IU' });
+  // Pharmacometrician council 2026-11-01: the unit came from the dose only, so a 2 mg dose decayed to 40 mcg read
+  // "< 0,1 mg". A number that would print "< 0,1" in mg prints in mcg instead (IU never changes; the axis keeps
+  // the shared unit).
+  assert.deepEqual(seriesLevelText(0.04, 'mg', [2], 'pt'), { num: '40', unit: 'mcg' });
+  assert.deepEqual(seriesLevelText(0.0156, 'mg', [0.25, 2], 'pt'), { num: '16', unit: 'mcg' }, 'a combined line too');
+  assert.deepEqual(seriesLevelText(0.0012, 'mg', [2], 'en'), { num: '1.2', unit: 'mcg' });
+  assert.deepEqual(seriesLevelText(0.05, 'mg', [2], 'pt'), { num: '0,1', unit: 'mg' }, 'from 0.05 mg it prints in mg');
+  assert.deepEqual(seriesLevelText(1e-8, 'mg', [2], 'pt'), { num: '< 0,1', unit: 'mcg' }, 'below 0.05 mcg: "< 0,1 mcg"');
+  assert.deepEqual(seriesLevelText(0, 'mg', [2], 'pt'), { num: '0', unit: 'mg' }, 'zero keeps its unit');
+  assert.deepEqual(seriesLevelText(0.01, 'IU', [3], 'en'), { num: '< 0.1', unit: 'IU' });
   const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
   // legend rows, the "now" readout rows and the scrub readout rows read per series
   assert.ok((src.match(/serLevel\(ser, /g) || []).length >= 3, 'per-series rows use serLevel');
