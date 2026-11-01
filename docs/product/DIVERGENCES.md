@@ -1,5 +1,15 @@
 # DoseTrace — divergence and gap register
 
+## FIXED — test first, in the code (parked-error sweep from 2026-10-31)
+
+Each fix has a failing-then-passing test in `__tests__/` and a commit naming the ID (`git log --grep DV-0xx`). The row below keeps its original text as the record of the defect.
+
+DV-014, DV-017, DV-020, DV-021, DV-022, DV-024, DV-026, DV-027, DV-029, DV-031, DV-039, DV-053, DV-056, DV-057, DV-060, DV-062, DV-063, DV-064, DV-065, DV-067, DV-070, DV-074, DV-076, DV-077, DV-079, DV-081, DV-082, DV-084, DV-086, DV-087, DV-089, DV-101, DV-102, DV-105, DV-108, DV-111, DV-121, DV-126, DV-128, DV-134, DV-135, DV-138, DV-147, DV-153, DV-154, DV-155, DV-160, DV-162, DV-163, DV-169, DV-186, DV-195, DV-197, DV-200, DV-201, DV-203, DV-207, DV-216, DV-217, DV-227, DV-228, DV-236, DV-238, DV-248.
+
+- Partly fixed: DV-192 (the AI quota message; the BMI "healthy range" wording waits for a picture and the founder's text approval).
+- No longer apply: DV-152 (My Body's tile shows no level since MB-4, 2026-10-15), DV-193 (the founder uses "Registro de doses", 2026-10-28), DV-061 (A-212).
+- DV-081: deviation accepted by the founder 2026-10-31 (the zone history stays on the phone; the Missed scan restarts from the sign-in).
+
 ## CLOSED BY DECISION — do not reopen
 
 | ID | Closed by |
