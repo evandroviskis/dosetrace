@@ -30,6 +30,7 @@ import FoodChatScreen from './FoodChatScreen';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
+import { Analytics } from '../lib/analytics';
 import { usePremiumUpdates } from '../lib/usePremium';
 import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
@@ -231,6 +232,8 @@ export default function JourneyScreen() {
             onPress={() => {
               // A-208: free users see the animated preview first; its Unlock opens the Paywall.
               if (premium === null) return; // DV-154: unknown waits (no tag, no preview for a paying user)
+              Analytics.viewed('serum_curve'); // DV-105: the same events as My Body's tile
+              if (premium === false) Analytics.previewSheetViewed('serum_curve');
               if (premium === false) { setPreviewKey('serum'); return; }
               if (book) open('curve'); else navigation.navigate('SerumCurve');
             }}
