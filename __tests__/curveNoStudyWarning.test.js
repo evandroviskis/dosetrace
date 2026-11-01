@@ -54,3 +54,13 @@ test('wired under the chart, attention colour with the warning triangle', () => 
   assert.match(src, /<FeatureIcon name="warning" size=\{16\} color=\{colors\.attention\} \/>/);
   assert.ok(src.indexOf('{noStudy ? (') < src.indexOf('<View style={s.legendKeys}>'), 'between the axis and the legend keys');
 });
+
+// Founder 2026-11-01 ("a meia-vida de 15 min"): BPC-157 uses the only precise measurement, rats IV 15.2 min
+// (He 2022); Pentadeca Arginate, whose value is borrowed from BPC-157 (same sequence), follows.
+test('BPC-157 and PDA: half-life 15 min (0.25 h), sourced', () => {
+  for (const n of ['BPC-157', 'Pentadeca Arginate']) {
+    const e = getHalfLifeEntry(n);
+    assert.equal(e.hours, 0.25, n);
+    assert.match(e.source, /15(\.2)? min/, n);
+  }
+});

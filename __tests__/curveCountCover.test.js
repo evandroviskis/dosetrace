@@ -58,9 +58,9 @@ test('PK-6: a zone change mid-day (UTC−3 → UTC+1) with today\'s dose logged 
     assert.ok(!plan.doses.includes(new Date(2026, 9, 20, 18, 0).getTime()), 'no second dose planned today');
     assert.ok(plan.doses.includes(logged), 'the logged dose keeps its absolute instant (R14)');
     assert.ok(plan.doses.includes(new Date(2026, 9, 21, 18, 0).getTime()), 'tomorrow at 18:00 local');
-    // The level now is that one dose, 1 h ago: 0.25 × 2^-2 mg.
+    // The level now is that one dose, 1 h ago: 0.25 × 2^-4 mg (BPC-157 t½ 15 min, founder 2026-11-01).
     const lv = M.estimatedLevelNow(p, now, { logs }).value;
-    assert.ok(Math.abs(lv - 0.25 * Math.pow(2, -2)) < 1e-12, `level ${lv}`);
+    assert.ok(Math.abs(lv - 0.25 * Math.pow(2, -4)) < 1e-12, `level ${lv}`);
   } finally {
     process.env.TZ = 'America/Sao_Paulo';
   }

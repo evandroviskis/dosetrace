@@ -26,14 +26,14 @@ const near = (a, b, eps = 1e-12) => Math.abs(a - b) <= eps;
 const { takenAtEverySlot } = require('./helpers/curveLogs');
 const takenRow = (ms) => ({ protocol_id: 7, outcome: 'Taken', logged_at: new Date(ms).toISOString(), sync_status: 'synced' });
 
-test('DV-068: BPC-157 (t½ 0.5 h) dosed 1 h ago reads 0.25 × 2^(−2) mg, no snap', () => {
+test('DV-068: BPC-157 (t½ 0.25 h, founder 2026-11-01) dosed 1 h ago reads 0.25 × 2^(−4) mg, no snap', () => {
   const now = new Date(2026, 10, 6, 11, 30).getTime(); // Fri 2026-11-06 11:30, after the US clock change
   const lv = M.estimatedLevelNow(bpc(), now, { logs: takenAtEverySlot([bpc()], now) });
-  assert.ok(near(lv.value, 0.25 * Math.pow(2, -2)), `level ${lv.value}`);
+  assert.ok(near(lv.value, 0.25 * Math.pow(2, -4)), `level ${lv.value}`);
   assert.equal(lv.unit, 'mg');
 });
 
-test('PK-2: a Taken row 1 h ago, BPC-157 250 mcg → 0.25 × 2^(−2) mg, no snap; tile = screen = date estimate across the 2026-11-01 fall back', () => {
+test('PK-2: a Taken row 1 h ago, BPC-157 250 mcg → 0.25 × 2^(−4) mg, no snap; tile = screen = date estimate across the 2026-11-01 fall back', () => {
   // Logged 01:30 EDT, now 01:30 EST: the same wall-clock time, one real hour later (R14: absolute instants).
   const logged = Date.UTC(2026, 10, 1, 5, 30);
   const now = Date.UTC(2026, 10, 1, 6, 30);
@@ -43,7 +43,7 @@ test('PK-2: a Taken row 1 h ago, BPC-157 250 mcg → 0.25 × 2^(−2) mg, no sna
   const e = entryOf(p);
   const doseMg = H.doseInCurveUnit(250, 'mcg', e);
   const data = { logs: [takenRow(logged)] };
-  const want = 0.25 * Math.pow(2, -2);
+  const want = 0.25 * Math.pow(2, -4);
   const tile = M.defaultCurveLevel([p], now, undefined, null, { logs: data.logs, history: [p] }).value;
   const start = M.curveGridStart(now, M.CURVE_DEFAULT_PAST_DAYS);
   const winEnd = now + 7 * 864e5;
@@ -59,13 +59,13 @@ test('PK-2: a Taken row 1 h ago, BPC-157 250 mcg → 0.25 × 2^(−2) mg, no sna
 test('DV-068: a dose 30 min ago is never left out of the level now (no rounding into the future)', () => {
   const now = new Date(2026, 10, 6, 11, 0).getTime();
   const lv = M.estimatedLevelNow(bpc(), now, { logs: takenAtEverySlot([bpc()], now) });
-  assert.ok(near(lv.value, 0.25 * Math.pow(2, -1)), `level ${lv.value}`);
+  assert.ok(near(lv.value, 0.25 * Math.pow(2, -2)), `level ${lv.value}`);
 });
 
 test('PK-3: a Taken row 30 min ago is never left out of the level now', () => {
   const now = new Date(2026, 10, 6, 15, 7, 33).getTime(); // off every grid line
   const lv = M.estimatedLevelNow(bpc(), now, { logs: [takenRow(now - 30 * 60000)] });
-  assert.ok(near(lv.value, 0.25 * Math.pow(2, -1)), `level ${lv.value}`);
+  assert.ok(near(lv.value, 0.25 * Math.pow(2, -2)), `level ${lv.value}`);
   // A row logged this very second counts in full.
   assert.ok(near(M.estimatedLevelNow(bpc(), now, { logs: [takenRow(now)] }).value, 0.25));
 });
@@ -110,10 +110,10 @@ test('DV-069: a daily 22:00 protocol is drawn at 22:00 — at 13:00 today\'s dos
   assert.ok(doses.includes(new Date(2026, 9, 20, 22, 0).getTime()), 'today 22:00 is planned');
   assert.ok(!doses.includes(new Date(2026, 9, 20, 12, 0).getTime()), 'no dose at the old 12:00 grid hour');
   for (const d of doses) assert.equal(new Date(d).getHours(), 22);
-  // Yesterday 22:00 is 15 h ago: 0.25 × 2^(−30); the old 12:00 placement read 0.25 × 2^(−2).
+  // Yesterday 22:00 is 15 h ago: 0.25 × 2^(−60); the old 12:00 placement read 0.25 × 2^(−4).
   const logs = takenAtEverySlot([p], now);
   const lv = M.estimatedLevelNow(p, now, { logs }).value;
-  assert.ok(near(lv, 0.25 * Math.pow(2, -30) + 0.25 * Math.pow(2, -78), 1e-15), `level ${lv}`);
+  assert.ok(near(lv, 0.25 * Math.pow(2, -60) + 0.25 * Math.pow(2, -156), 1e-15), `level ${lv}`);
   // PK-19 under AD-96 B: today's 22:00 is the plan (drawn after Now), not in the level now.
   const plan = M.curvePlan(p, e, M.curveGridStart(now, 3), now + 2 * 864e5, now, { logs });
   assert.ok(plan.doses.includes(new Date(2026, 9, 20, 22, 0).getTime()), 'planned at 22:00');
@@ -161,7 +161,7 @@ test('DV-069 re-review: more doses a day than times stay at the user\'s own time
   assert.deepEqual(curveDay(bpc({ reminder_time: '07:15,19:45', doses_per_day: 2 }), day, now), [at(7, 15), at(19, 45)]);
   // Two doses at one instant draw one double-height spike (that is the plan): 2 × 0.25 mg, 1 h later.
   const p = bpc({ reminder_time: '08:00,08:00', doses_per_day: 2 });
-  assert.ok(Math.abs(M.estimatedLevelNow(p, at(9), { logs: takenAtEverySlot([p], at(9)) }).value - 2 * 0.25 * Math.pow(2, -2)) < 1e-9);
+  assert.ok(Math.abs(M.estimatedLevelNow(p, at(9), { logs: takenAtEverySlot([p], at(9)) }).value - 2 * 0.25 * Math.pow(2, -4)) < 1e-9);
 });
 
 test('DV-069 re-review: 23:59 × 2 keeps both doses; the count matches Today', () => {
