@@ -701,7 +701,7 @@ export const translations = {
     today_alert_remove: 'Remove',
     today_alert_rc_remove_title: 'Remove reminder?',
     today_alert_rc_remove_msg: 'This cancels your reality-check weigh-in reminder.',
-    today_alert_blood_title: 'Bloodwork due',
+    today_alert_blood_title: "Your lab tests", // DV-111 / AD-98: never "due"
     today_alert_blood_body: "It's been {months} months since your last panel",
     today_alert_supply_title: 'Supply low',
     today_alert_supply_one: '{name} — {n} doses left',
@@ -3333,7 +3333,7 @@ export const translations = {
     today_alert_remove: 'Quitar',
     today_alert_rc_remove_title: '¿Quitar recordatorio?',
     today_alert_rc_remove_msg: 'Esto cancela el recordatorio del pesaje para tus cifras reales.',
-    today_alert_blood_title: 'Análisis pendiente',
+    today_alert_blood_title: "Tus análisis", // DV-111 / AD-98: never "due"
     today_alert_blood_body: 'Han pasado {months} meses desde tu último análisis',
     today_alert_supply_title: 'Quedan pocas dosis',
     today_alert_supply_one: '{name}: quedan {n} dosis',
@@ -5965,7 +5965,7 @@ export const translations = {
     today_alert_remove: 'Remover',
     today_alert_rc_remove_title: 'Remover lembrete?',
     today_alert_rc_remove_msg: 'Isso cancela o lembrete da pesagem para seus números reais.',
-    today_alert_blood_title: 'Exame de sangue pendente',
+    today_alert_blood_title: "Seus exames", // DV-111 / AD-98: never "due"
     today_alert_blood_body: 'Já se passaram {months} meses desde seu último exame',
     today_alert_supply_title: 'Estoque baixo',
     today_alert_supply_one: '{name} — restam {n} doses',
@@ -8596,7 +8596,7 @@ export const translations = {
     today_alert_remove: 'Retirer',
     today_alert_rc_remove_title: 'Retirer le rappel ?',
     today_alert_rc_remove_msg: 'Cela annule le rappel de la pesée pour vos vrais chiffres.',
-    today_alert_blood_title: 'Bilan sanguin à faire',
+    today_alert_blood_title: "Vos bilans", // DV-111 / AD-98: never "due"
     today_alert_blood_body: 'Votre dernier bilan remonte à {months} mois',
     today_alert_supply_title: 'Stock faible',
     today_alert_supply_one: '{name} — {n} doses restantes',
@@ -11227,7 +11227,7 @@ export const translations = {
     today_alert_remove: 'Entfernen',
     today_alert_rc_remove_title: 'Erinnerung entfernen?',
     today_alert_rc_remove_msg: 'Damit wird die Erinnerung an die Wägung für deine echten Zahlen gelöscht.',
-    today_alert_blood_title: 'Bluttest fällig',
+    today_alert_blood_title: "Deine Laborwerte", // DV-111 / AD-98: never "due"
     today_alert_blood_body: 'Dein letzter Bluttest ist {months} Monate her',
     today_alert_supply_title: 'Vorrat niedrig',
     today_alert_supply_one: '{name} – {n} Dosen übrig',
@@ -13859,7 +13859,7 @@ export const translations = {
     today_alert_remove: 'Rimuovi',
     today_alert_rc_remove_title: 'Rimuovere il promemoria?',
     today_alert_rc_remove_msg: 'Questo annulla il promemoria della pesata per i tuoi numeri reali.',
-    today_alert_blood_title: 'Esami del sangue da fare',
+    today_alert_blood_title: "Le tue analisi", // DV-111 / AD-98: never "due"
     today_alert_blood_body: 'Sono passati {months} mesi dalle tue ultime analisi',
     today_alert_supply_title: 'Scorta bassa',
     today_alert_supply_one: '{name} — {n} dosi rimaste',
