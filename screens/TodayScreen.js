@@ -1434,8 +1434,11 @@ export default function TodayScreen() {
         const logId = res.logId;
         // BK-16: the dose page's Undo of this Skip goes through applyUndo too. A skip
         // never changes today's Taken count or the supply (todayCount 'none', as the
-        // Pending block's skip); the Undo bar is unchanged (no record shown here).
-        keepUndo({ logId, flipped: false, protocolId: protocol.id, pending: true, extraDeleteIds: [], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null });
+        // Pending block's skip). DV-130 (AD-86): the Undo bar shows after a Skip too, saying what
+        // happened; Undo deletes the Skipped row and the reminders are re-planned.
+        const record = { logId, flipped: false, protocolId: protocol.id, pending: true, extraDeleteIds: [], vialId: null, prevDosesTaken: null, oralPrevUnitsTaken: null, timer: null, fx: null, text: t('log_status_skipped') };
+        keepUndo(record);
+        setUndoData(record);
         fetchPageLogs();
         setSkippedCounts(prev => ({ ...prev, [protocol.id]: (prev[protocol.id] || 0) + 1 }));
         fetchTodayLogs(); // A-78: the card moves to the next open slot and shows this skip's line

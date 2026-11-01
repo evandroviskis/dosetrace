@@ -47,7 +47,7 @@ test('Today Skip: the skipped slot and its repeats are cancelled directly, befor
   let sheet = null;
   const logs = [{ id: 3, protocol_id: 7, outcome: 'Skipped', logged_at: at(20) }];
   const skip = loadFn('screens/TodayScreen.js', 'function skipDose(protocol, slot) {', 'skipDose', {
-    recordSkipToday: () => ({ logId: 3 }), fetchTodayLogs: () => {}, keepUndo: () => {}, fetchPageLogs: () => {},
+    recordSkipToday: () => ({ logId: 3 }), fetchTodayLogs: () => {}, keepUndo: () => {}, setUndoData: () => {}, fetchPageLogs: () => {},
     setSkippedCounts: () => {}, Analytics: { doseLogged: () => {} }, setTimeout: () => {}, checkStillGoingWhenSynced: () => {},
     requestSync: () => {}, todayError: () => {}, friendlyError: () => '', t: (k) => k,
     skipSheetOpenRef: { current: false }, setSkipAsk: (s) => { sheet = s; }, protocolDisplayName: (p) => p.name,
