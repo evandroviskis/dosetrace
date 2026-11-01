@@ -94,7 +94,8 @@ as $$
                     (select count(*) from public.biomarkers b join real r on r.id = b.user_id) biomarkers,
                     (select count(*) from public.vaccines v join real r on r.id = v.user_id) vaccines),
   adherence as (select count(*) filter (where l.outcome = 'Taken') taken, count(*) filter (where l.outcome = 'Missed') missed,
-                       count(*) filter (where l.outcome = 'Skipped') skipped, count(*) total
+                       count(*) filter (where l.outcome = 'Skipped') skipped, count(*) filter (where l.outcome = 'NoDose') no_dose,
+                       count(*) filter (where l.outcome is distinct from 'NoDose') total
                   from public.dose_logs l join real r on r.id = l.user_id),
   top_biomarkers as (select b.marker as k, count(*) n from public.biomarkers b join real r on r.id = b.user_id group by 1 order by 2 desc limit 12)
   select jsonb_build_object(
