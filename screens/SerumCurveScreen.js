@@ -29,7 +29,7 @@ import { isEnded } from '../lib/protocolEnd';
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { parseDecimal } from '../lib/doseMath';
 import {
-  STEP_HOURS, matchName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
+  STEP_HOURS, matchName, seriesName, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
   curveWindowDays, curveTicks, axisLabel, displayScale, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, levelOnDate, dosesInLevel,
   hasLoggedDose, nowLabelLines, nowLabelPlacement,
 } from '../lib/serumModel';
@@ -356,7 +356,7 @@ export default function SerumCurveScreen({ embedded = false }) {
     const split = splitCurveProtocols(curveHistoryProtocols(getHistoryProtocols(userId)), t);
     const { iu, noData, noDose, oral } = split;
     const protocols = split.active.map((p) => (isEnded(p)
-      ? { ...p, __label: `${p.__label || (p.compound_id ? t(p.compound_id) : p.name)} · ${t('curve_ended_marker')}` }
+      ? { ...p, __label: `${seriesName(p, t)} · ${t('curve_ended_marker')}` }
       : p));
     // Distinct blood-exam dates (most recent first) to cross-reference against.
     const marks = getBiomarkers(userId) || [];
@@ -532,7 +532,7 @@ export default function SerumCurveScreen({ embedded = false }) {
       return {
         id: p.id,
         p,
-        name: p.__label || (p.compound_id ? t(p.compound_id) : p.name),
+        name: seriesName(p, t),
         color: displayColor(p.color) || colors.data,
         fromBlend: !!p.__blend,
         entry,
@@ -1309,7 +1309,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   >
                     <View style={[s.dot, { backgroundColor: displayColor(p.color) || colors.data }]} />
                     <View style={s.optionMain}>
-                      <Text style={s.optionName} numberOfLines={1}>{p.compound_id ? t(p.compound_id) : p.name}{isEnded(p) ? ` · ${t('curve_ended_marker')}` : ''}</Text>
+                      <Text style={s.optionName} numberOfLines={1}>{seriesName(p, t)}</Text>
                       <Text style={s.optionSub}>t½ {halfLifeLabel(entry.hours, language, du)} · {tierCfg[entry.tier].label}{curveUnit(entry) === 'IU' ? ` · ${unitText('IU', language)}` : ''}</Text>
                     </View>
                     {on ? <CheckMark size={22} color={colors.ink} /> : <View style={{ width: 22 }} />}
