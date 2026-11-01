@@ -55,7 +55,7 @@ import {
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { createScreenSave } from '../../lib/calcInputsSync';
-import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource, checkAlert } from '../../lib/realityCheckRules';
+import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource, checkAlert, rcStatusKey } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestSync, notifyDataChanged } from '../../lib/sync';
@@ -1555,7 +1555,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         ①  <Text style={s.mono}>{fmtW(rcStart.weightKg)}{'\u00A0'}{wUnit}</Text> · {fmtShort(rcStart.date)}
       </Text>
       {outcomeResult && outcomeResult.status !== 'ok' ? (
-        <Text style={s.sec2}>{t(`cal_rc_${outcomeResult.status}`)}</Text>
+        <Text style={s.sec2}>{t(rcStatusKey(outcomeResult))}</Text>
       ) : foodRun && foodRun.ok ? (
         <>
           <Text style={[s.sec2, s.tnum]}>{t('nutri_run_summary').replace('{avg}', fmtInt(foodRun.avgKcal)).replace('{d}', String(foodRun.days))}</Text>

@@ -90,7 +90,8 @@ test('realityCheckTDEE: gaining weight puts maintenance below intake', () => {
 
 test('realityCheckTDEE guards: short window, maintenance, implausible', () => {
   assert.equal(realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: 1, days: 10 }).status, 'too_short');
-  assert.equal(realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: 0.1, days: 28 }).status, 'maintenance');
+  // AD-92 (DV-104): a weight change under 0.2 kg is a result — the daily burn is the average eaten.
+  assert.deepEqual(realityCheckTDEE({ avgDailyCalories: 2000, weightChangeKg: 0.1, days: 28 }), { status: 'ok', tdee: 2000, maintenance: true });
   // Big reported loss with very low intake → implausibly low TDEE (under-reporting)
   const imp = realityCheckTDEE({ avgDailyCalories: 300, weightChangeKg: 0.3, days: 28 });
   assert.equal(imp.status, 'implausible');

@@ -103,7 +103,6 @@ const OLD = [
   ["es","body_card_vax_desc","os: fechas, la fecha de la próxima dosis y notas, siempre listos para una clínica"],
   ["es","body_tile_lab_latest","último el {date}"],
   ["es","notif_food_body","¿Comiste algo hoy qu"],
-  ["es","cal_rc_maintenance","peso apenas cambió: eso es prá"],
   ["es","cal_tgt_backfill_hint","¿Ya empezaste? Añade un p"],
   ["es","vax_scan_error_sub","Algo salió mal al leer"],
   ["es","vial_scan_review","Rellenamos estos campos con la etiqueta de tu vial. Revisa cada valor antes de guardar: la app leyó la etiqueta, no la verificó."],
