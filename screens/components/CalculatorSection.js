@@ -582,6 +582,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setWeightField(text);
     clearDraft('progress:numbersWeight');
     calcChanged();
+    syncAllNotifications().catch(() => {}); // DV-057: the day-21 reminder follows the weigh-ins
   }
 
   // Switching units must CONVERT the values already typed, not just relabel
@@ -639,6 +640,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setWiWeight(''); setWiBf(''); setWiWaist('');
     clearDraft('progress:todayWeigh');
     calcChanged();
+    syncAllNotifications().catch(() => {}); // DV-057: the day-21 reminder follows the weigh-ins
     setWiOpen(false);
   }
 
@@ -716,6 +718,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
     calcChanged();
+    syncAllNotifications().catch(() => {}); // DV-057: the day-21 reminder follows the weigh-ins
     setBfWeight(''); setBfBodyFat(''); setBfDate(todayISO());
     setBfMsg(true); setTimeout(() => setBfMsg(false), 2500);
   }
@@ -749,6 +752,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     requestSync?.();
     setSnapshots(getCalcSnapshots(uid).map(snapRowToUI));
     calcChanged();
+    syncAllNotifications().catch(() => {}); // DV-057: the day-21 reminder follows the weigh-ins
     closeWeighInEdit();
   }
   function deleteWeighInNow() {
@@ -767,6 +771,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       setWeightAt(next.date);
     }
     calcChanged();
+    syncAllNotifications().catch(() => {}); // DV-057: the day-21 reminder follows the weigh-ins
     closeWeighInEdit();
   }
   function confirmDeleteWeighIn() {
