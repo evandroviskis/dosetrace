@@ -76,6 +76,7 @@ import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
 import TeamMessageGate from '../components/TeamMessageGate';
 import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
+import { onVialPromptRequest } from '../lib/vialPromptRequests';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
@@ -427,6 +428,14 @@ export default function TodayScreen() {
   // A-141 (5): a vial prompt waiting behind the Undo bar opens once the bar has closed.
   useEffect(() => { undoDataRef.current = undoData; }, [undoData]);
   useEffect(() => { if (!undoData) releasePendingVial(); }, [undoData]);
+  // DV-038: a vial finished in another screen (the Dose log's Missed → Complete) joins this queue, so the
+  // "All doses logged" prompt has one owner (lib/vialPromptRequests).
+  const vialRequestRef = useRef(null);
+  vialRequestRef.current = ({ protocol, logId }) => {
+    queueVialPrompt(protocol, logId);
+    if (!undoDataRef.current) releasePendingVial();
+  };
+  useEffect(() => onVialPromptRequest((item) => vialRequestRef.current(item)), []);
   // A-121 SG-17: the course-end question right after the cycle's last dose (oral too), once the take's
   // Undo bar has closed (an undone dose is then no longer there to count).
   useEffect(() => { if (!undoData) askCourseEndAfterLog(); }, [undoData]);

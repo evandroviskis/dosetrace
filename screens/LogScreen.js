@@ -17,6 +17,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { protocolDisplayName } from '../lib/protocolName';
 import { getAllLogs, getLogsSince, getTodayLogs, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
 import { scanMissedDoses, recordDoseTaken, unsyncedState } from '../lib/doseActions';
+import { requestVialPrompt } from '../lib/vialPromptRequests';
 import { requestSync, forceSync, addSyncListener } from '../lib/sync';
 import { pluralKey } from '../lib/plural';
 import { summarizeStored, describeStored } from '../lib/injectionSites';
@@ -186,16 +187,18 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
 
   // A Missed or Skipped row becomes complete (A-50): Today's own path (lib/doseActions
   // recordDoseTaken with the row named, A-78), so it is the same row, the vial or bottle moves
-  // once and a past day keeps the row's time. A paused or deleted protocol: the plain flip.
+  // once and a past day keeps the row's time. DV-204: an ended protocol's row too (pastEnded) — no
+  // plain flip any more (it skipped the cap and the bottle). DV-038: a vial this finishes asks Today's
+  // "All doses logged" prompt (its one owner, lib/vialPromptRequests).
   function markRowTaken(row, site) {
     const id = row.logId != null ? row.logId : row.id;
     const protocolId = row.protocolId != null ? row.protocolId : row.protocol_id;
     const atMs = Date.parse(row.loggedAt || row.logged_at);
     let res = null;
     try {
-      res = recordDoseTaken(protocolId, { dayKey: Number.isFinite(atMs) ? dayKeyOf(atMs) : undefined, slotMs: Number.isFinite(atMs) ? atMs : undefined, flipRowId: id, injectionSite: site || null });
+      res = recordDoseTaken(protocolId, { dayKey: Number.isFinite(atMs) ? dayKeyOf(atMs) : undefined, slotMs: Number.isFinite(atMs) ? atMs : undefined, flipRowId: id, injectionSite: site || null, pastEnded: true });
     } catch { res = null; }
-    if (!res) { writeOutcome(id, site ? { outcome: 'Taken', injection_site: site } : { outcome: 'Taken' }); return; }
+    if (!res) { fetchLogs(); return; } // the protocol is gone (deleted elsewhere): nothing to write
     // DV-227: a day that already holds all its doses — say so (it was a silent no-op).
     if (res.alreadyLogged) {
       setLogSheet({ title: t('notif_taken_nothing_title'), body: t('log_take_day_full'), buttons: [{ label: t('ok'), kind: 'primary' }] });
@@ -210,6 +213,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         if (handled.size) cancelTodaysDoseReminders(protocolId, Math.max(...handled) + 1).catch(() => {});
       } catch { /* the resync below still re-plans */ }
     }
+    if (res.vialFinished) requestVialPrompt({ protocol: res.protocol, logId: res.logId });
     syncAllNotifications().catch(() => {}); // test build 3 council item 2: the slot is handled now
     requestSync();
     fetchLogs();
