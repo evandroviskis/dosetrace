@@ -37,8 +37,11 @@ test('GB2-2 / GB2-8: a link is deduped in memory at once; it is remembered only 
 
 test('GB2-3: a finished onboarding that was not confirmed in this run reopens on Before we begin, not on Create account', () => {
   const app = read('App.js');
-  assert.match(app, /Promise\.all\(\[hasSeenOnboarding\(\), loadOnboarding\(\)\]\)/);
-  assert.match(app, /setSeenOnboarding\(!!seen && !hasAnswers\(stash\)\)/);
+  // DV-163 (DL-59): the same rule through startEntry — answers without a remembered Sign in reopen the onboarding.
+  assert.match(app, /Promise\.all\(\[hasSeenOnboarding\(\), loadOnboarding\(\), loadSignInChoice\(\)\]\)/);
+  assert.match(app, /const e = startEntry\(\{ seen, stash, choice \}\);/);
+  const { startEntry } = require('../lib/pendingProfile');
+  assert.equal(startEntry({ seen: true, stash: { display_name: 'Evo' }, choice: null }).seen, false);
 });
 
 test('GB2-4: Wrong address? Go back signs up again WITH the answers', () => {

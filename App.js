@@ -34,8 +34,8 @@ import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
 import { createBusyGuard } from './lib/busyGuard';
 import { signOutIntended, exportMyData } from './lib/accountActions';
 import { createRequiredExport } from './lib/requiredExport';
-import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding } from './lib/onboardingStore';
-import { hasAnswers } from './lib/pendingProfile';
+import { hasSeenOnboarding, markSeenOnboarding, clearSeenOnboarding, applyPendingProfile, clearOnboarding, discardStashNow, endStashFreshness, loadOnboarding, rememberSignInChoice, forgetSignInChoice, loadSignInChoice } from './lib/onboardingStore';
+import { hasAnswers, startEntry } from './lib/pendingProfile';
 import { clearAuthDraft } from './lib/authDraft';
 import { openRecoveryLink, loadPendingRecovery, discardPendingRecovery, signOutCurrentForRecovery, savePendingRecovery } from './lib/recoveryLink';
 import { completeLocalSignOut } from './lib/signOutCore';
@@ -987,8 +987,13 @@ export default function App() {
     // Create account) reopens on "Before we begin", never straight on Create account, so the
     // person at the screen confirms and keeps their answers (Gate B re-review). Only matters
     // with no session.
-    Promise.all([hasSeenOnboarding(), loadOnboarding()])
-      .then(([seen, stash]) => setSeenOnboarding(!!seen && !hasAnswers(stash)))
+    // DV-163 / DL-59: "Sign in" chosen before is remembered — a restart opens Sign in, not the onboarding.
+    Promise.all([hasSeenOnboarding(), loadOnboarding(), loadSignInChoice()])
+      .then(([seen, stash, choice]) => {
+        const e = startEntry({ seen, stash, choice });
+        if (e.mode) setAuthEntry({ mode: e.mode, consent: false });
+        setSeenOnboarding(e.seen);
+      })
       .catch(() => setSeenOnboarding(true));
 
     supabase.auth.getSession().then(async ({ data: { session: firstSession } }) => {
@@ -1062,6 +1067,7 @@ export default function App() {
         try { if ((await markerOnSignIn(wipeDeps(), { sessionUserId: session.user.id })) === 'deleted') return; } catch { /* next start */ }
         // A new sign-in starts clean: no leftover auth entry or typed address (Gate B).
         setAuthEntry({ mode: undefined, consent: false });
+        forgetSignInChoice().catch(() => {}); // DV-163: signed in — the remembered choice has done its job
         clearAuthDraft();
         // Discard any stale intentional-sign-out flag so it can NEVER survive a
         // login boundary (a set-but-never-consumed flag would wrongly wipe on the
@@ -1189,12 +1195,14 @@ export default function App() {
   // so the consent box starts ticked), 'signin' from the welcome screen.
   const finishOnboarding = (mode) => {
     markSeenOnboarding().catch(() => {});
+    if (mode === 'signin') rememberSignInChoice().catch(() => {});
     setAuthEntry({ mode: mode === 'signin' ? 'signin' : 'create', consent: false });
     setSeenOnboarding(true);
   };
   // Back from the auth screen: the onboarding reopens from the stash at the step the user
   // left, with every value kept (PA-62; it used to restart at the welcome screen, empty).
   const backToOnboarding = () => {
+    forgetSignInChoice().catch(() => {}); // DV-163: back to the onboarding — the choice is withdrawn
     setAuthEntry({ mode: undefined, consent: false });
     setSeenOnboarding(false);
   };
