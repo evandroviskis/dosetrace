@@ -52,8 +52,16 @@ test('the warning: names, basis, plural, and the days clause only in a mixed cha
     'Não há estudos em humanos que comprovem quanto tempo BPC-157 (dados de animais) fica no sangue. Os valores desta curva são estimativas e podem não refletir o seu caso.');
   const mixed = noStudyWarning([bpc, tb, cyp], { hourMode: false, t });
   assert.match(mixed, /^Não há estudos em humanos que comprovem quanto tempo BPC-157 \(dados de animais\) e TB-500 \(dados de um composto parecido\) ficam no sangue\./);
-  assert.match(mixed, /Por isso, neste gráfico, as linhas de BPC-157 e TB-500 caem a zero poucas horas depois de cada dose, enquanto as dos outros compostos caem ao longo de dias ou semanas\./);
-  assert.ok(!/Testosterona/.test(mixed.split('Por isso')[0]), 'the studied compound is not named as unstudied');
+  // Pharmacometrician council 2026-11-01: the fast drop comes from the short estimated half-life, not from the missing
+  // study — the days sentence names that cause and never opens with a 'that is why' after the no-study sentence.
+  assert.match(mixed, /As meias-vidas estimadas de BPC-157 e TB-500 são curtas: neste gráfico, as linhas caem a zero poucas horas depois de cada dose, enquanto as dos outros compostos caem ao longo de dias ou semanas\.$/);
+  assert.ok(!/Testosterona/.test(mixed.split('As meias-vidas')[0]), 'the studied compound is not named as unstudied');
+  assert.equal(translations.pt.curve_nostudy_days_one, 'A meia-vida estimada de {names} é curta: neste gráfico, a linha cai a zero poucas horas depois de cada dose, enquanto as dos outros compostos caem ao longo de dias ou semanas.');
+  const CAUSE = { en: /^The estimated half-li(fe|ves) of \{names\} (is|are) short: /, es: /^La(s)? vida(s)? media(s)? estimada(s)? de \{names\} (es|son) corta(s)?: /, pt: /^As? mei(a|as)-vidas? estimadas? de \{names\} (é|são) curtas?: /, fr: /^L(a|es) demi-vies? estimées? de \{names\} (est|sont) courtes? : /, de: /^Die geschätzten? Halbwertszeit(en)? von \{names\} (ist|sind) kurz: /, it: /^L(’emivita stimata|e emivite stimate) di \{names\} (è breve|sono brevi): / };
+  for (const l of Object.keys(CAUSE)) for (const k of ['curve_nostudy_days_one', 'curve_nostudy_days_many']) {
+    assert.match(translations[l][k], CAUSE[l], `${l} ${k}`);
+    assert.doesNotMatch(translations[l][k], /That is why|Por eso|Por isso|C’est pourquoi|Deshalb|Per questo/, `${l} ${k}`);
+  }
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
     for (const k of ['curve_nostudy_one', 'curve_nostudy_many', 'curve_nostudy_days_one', 'curve_nostudy_days_many', 'curve_basis_animal', 'curve_basis_analog', 'curve_basis_none', 'curve_basis_thin']) assert.ok(translations[l][k], `${l} ${k}`);
   }
