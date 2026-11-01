@@ -68,7 +68,7 @@ import SyringeScale from './components/SyringeScale';
 import { startNewVial, vialPastWindow, vialAlertTarget } from '../lib/newVial';
 import NewVialPrompt from './components/NewVialPrompt';
 import { supplyState, vialCapacity } from '../lib/supplyLow';
-import { DEFAULT_VALID_DAYS, daysUntilExpiry, boxDaysLeft } from '../lib/vialExpiry';
+import { vialDaysLeft } from '../lib/vialExpiry';
 import { formatTime } from '../lib/timeFormat';
 import { formatDate, fillDate, decimalText, unitText, MONTHS_SHORT } from '../lib/localeFormat';
 import useColumnWidth from '../components/useColumnWidth';
@@ -1894,13 +1894,8 @@ export default function TodayScreen() {
       for (const p of protocols) {
         const v = vials[p.id];
         if (!v) continue;
-        let daysLeft = null;
-        if (p.type === 'recon') {
-          daysLeft = daysUntilExpiry(v.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
-        } else if (v.expires_on) {
-          // Journey 2026-10-27 (F2): the box date is the last good day (expired from the next day).
-          daysLeft = boxDaysLeft(v.expires_on, new Date(nowMs));
-        }
+        // DV-018: the one owner (lib/vialExpiry vialDaysLeft; a box date is good through that day).
+        const daysLeft = vialDaysLeft(v, p, new Date(nowMs));
         if (daysLeft != null && daysLeft <= VIAL_EXPIRY_SOON_DAYS) {
           exp.push({ name: p.compound_id ? t(p.compound_id) : p.name, daysLeft, protocolId: p.id });
         }
@@ -2320,7 +2315,7 @@ export default function TodayScreen() {
         {p.type === 'recon' && vial && (() => {
           const capacity = vialCapacity(vial, p); // DV-121: the one owner (lib/supplyLow)
           const remaining = capacity ? Math.max(0, capacity - (vial.doses_taken || 0)) : null;
-          const daysLeft = daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
+          const daysLeft = vialDaysLeft(vial, p, new Date()); // DV-018: the one owner
           // A-132 screen 2 = A: past its window → "+ New vial", same type as "+ Add vial".
           const pastWindow = vialPastWindow(p, vial, new Date());
           return (

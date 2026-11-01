@@ -59,7 +59,7 @@ test('journey: box date good through its last day; default validity not quoted; 
   const unset = vialExpiryPlan({ vials: [{ id: 'v', protocol_id: 1, mixed_on: '2026-11-01' }], protocolsById: { 1: { id: 1, type: 'recon', vial_valid_days: null } }, nowMs: new Date(2026, 10, 2).getTime() });
   assert.equal(unset[0].validDays, null, 'the default is not the person\'s');
   const today = fs.readFileSync(path.join(__dirname, '../screens/TodayScreen.js'), 'utf8');
-  assert.match(today, /daysLeft = boxDaysLeft\(v\.expires_on, new Date\(nowMs\)\);/ /* DV-200: the same calendar rule, one owner */);
+  assert.match(today, /const daysLeft = vialDaysLeft\(v, p, new Date\(nowMs\)\);/ /* DV-200 / DV-018: the same calendar rule, one owner */);
   const notif = fs.readFileSync(path.join(__dirname, '../lib/notifications.js'), 'utf8');
   assert.match(notif, /states = vials\.filter\(\(v\) => protocolById\[v\.protocol_id\]\)\.map/);
 });

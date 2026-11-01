@@ -17,7 +17,7 @@ test('DV-200: the expiry day still counts as a good day (1), the next day is pas
 
 test('DV-200: Protocols and Today both read it', () => {
   const ps = fs.readFileSync(path.join(__dirname, '..', 'screens/ProtocolsScreen.js'), 'utf8');
-  assert.match(ps, /return boxDaysLeft\(vial\.expires_on, new Date\(\)\);/);
+  assert.match(ps, /return vialDaysLeft\(vial, p, new Date\(\)\);/); // DV-018: through the one owner (boxDaysLeft inside)
   const td = fs.readFileSync(path.join(__dirname, '..', 'screens/TodayScreen.js'), 'utf8');
-  assert.match(td, /daysLeft = boxDaysLeft\(v\.expires_on, new Date\(nowMs\)\);/);
+  assert.match(td, /const daysLeft = vialDaysLeft\(v, p, new Date\(nowMs\)\);/); // DV-018
 });

@@ -81,7 +81,7 @@ import DoseFixSheet from './components/DoseFixSheet';
 import { deletedAgoText } from '../lib/localDate';
 import { getMissedWatermark, scheduleSinceNow } from '../lib/doseActions';
 import { historyQuestion, outcomeCounts } from '../lib/declared';
-import { DEFAULT_VALID_DAYS, daysUntilExpiry, boxDaysLeft } from '../lib/vialExpiry';
+import { DEFAULT_VALID_DAYS, vialDaysLeft } from '../lib/vialExpiry';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
@@ -218,9 +218,7 @@ function oralFormLabel(form, t) {
 // Days left on the active vial. Recon: from the mix date + validity window. RTU: the
 // box date the user entered (vial.expires_on). null when unknown.
 function vialDaysLeftFor(p, vial) {
-  if (!vial) return null;
-  if (p.type === 'recon') return daysUntilExpiry(vial.mixed_on, p.vial_valid_days || DEFAULT_VALID_DAYS, new Date());
-  return boxDaysLeft(vial.expires_on, new Date());
+  return vialDaysLeft(vial, p, new Date()); // DV-018: the one owner (lib/vialExpiry)
 }
 
 // Supply words only (DESIGN.md §2.5): ≤3 days risk, ≤7 attention, else the plain caption.
