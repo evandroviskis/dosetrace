@@ -23,3 +23,24 @@ test('DV-221: the purge trigger blanks every content column, identity stays', ()
   assert.match(fn, /new\.interval_days := 1; new\.doses_per_day := 1; new\.concentration_unit := 'mg'; new\.divisible := null; new\.dose_history := null;/);
   assert.match(sql, /update public\.protocols set name = name where purged_at is not null;/, 'old tombstones are blanked too');
 });
+
+// Council 2026-11-01 (backend): schedule_history (DV-247, 20261101010000) arrived after the trigger, so Delete
+// forever kept a protocol's old dose times and intervals in the cloud. The newest definition of the trigger must
+// blank every column any migration adds to protocols (read from the migrations, not a fixed list).
+test('DV-221 / DV-247: the newest purge trigger blanks every column any migration adds to protocols', () => {
+  const MIG_DIR = path.join(__dirname, '..', 'supabase', 'migrations');
+  const files = fs.readdirSync(MIG_DIR).filter((x) => x.endsWith('.sql')).sort();
+  let fn = '';
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(MIG_DIR, f), 'utf8');
+    const i = src.indexOf('create or replace function public.protocols_blank_purged()');
+    if (i >= 0) fn = src.slice(i, src.indexOf('$;', i));
+  }
+  const added = new Set();
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(MIG_DIR, f), 'utf8');
+    for (const m of src.matchAll(/alter table (?:public\.)?protocols\s+add column (?:if not exists )?([a-z_]+)/gi)) added.add(m[1]);
+  }
+  assert.ok(added.has('schedule_history'));
+  for (const c of [...added, ...LIVE].filter((x) => !IDENTITY.includes(x))) assert.match(fn, new RegExp(`new\\.${c} := `), c);
+});
