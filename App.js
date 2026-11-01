@@ -879,8 +879,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Initialize local SQLite database
-    initDatabase();
+    // Initialize local SQLite database. A lock held by a background task (its own connection) must never
+    // crash the start: one retry after the lock is gone (Fold 2026-11-01, "database is locked").
+    try { initDatabase(); } catch (e) { setTimeout(() => { try { initDatabase(); } catch (e2) { /* the next open tries again */ } }, 1500); }
 
     // Initialize notification handler AFTER app mount (lazy-loaded, safe)
     initNotifications();
