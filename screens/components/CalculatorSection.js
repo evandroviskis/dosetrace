@@ -228,7 +228,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     setPremium(pro);
     // Not before load() knows the user: loadFoodAccess(null) would lock the free week (Gate B review).
     if (!userIdRef.current) return;
-    loadFoodAccess(userIdRef.current).then((r) => setRcFree(!!r.access.canLog)).catch(() => {});
+    // DV-101 (AD-14): the reality check's free access is the free days only — never a lapsed payer's grace week.
+    loadFoodAccess(userIdRef.current).then((r) => setRcFree(!!(r.access.canLog && r.access.mode === 'trial'))).catch(() => {});
   });
 
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -238,7 +239,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const user = await getCachedUser();
     const uid = user?.id || null;
     // Free users get the reality check (and food log) for 7 days too (FL-41).
-    try { setRcFree(!!(await loadFoodAccess(uid)).access.canLog); } catch { setRcFree(false); }
+    try { const a = (await loadFoodAccess(uid)).access; setRcFree(!!(a.canLog && a.mode === 'trial')); } catch { setRcFree(false); } // DV-101
     // Set EVERY load (not only the first) so a save can never no-op because the
     // session wasn't ready on the first focus.
     if (uid) userIdRef.current = uid;
@@ -1071,7 +1072,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // Calories typed by hand (founder 2026-10-02): one average per day for the open check,
   // changeable or clearable until the check finishes (a saved result is never rewritten).
   function openTypedKcal() {
-    if (!rcStart || checkSaved) return;
+    if (!rcStart || checkSaved || !premium) return; // DV-102 (AD-15): Premium only
     if (!kcalText && typedKcal != null) setKcalText(String(typedKcal));
     setKcalOpen(true);
   }
@@ -1574,9 +1575,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         // Part 8: in progress — no fold to open; Start over / Stop always in view.
         <>
           {rcStatusLines}
-          <TouchableOpacity onPress={openTypedKcal} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
-            <Text style={s.linkU}>{typedKcal != null ? t('cal_rc_kcal_change') : t('cal_rc_kcal_link')}</Text>
-          </TouchableOpacity>
+          {premium ? (
+            <TouchableOpacity onPress={openTypedKcal} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
+              <Text style={s.linkU}>{typedKcal != null ? t('cal_rc_kcal_change') : t('cal_rc_kcal_link')}</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity style={s.foldRow} activeOpacity={0.7} onPress={() => setSoFarOpen(o => !o)} accessibilityRole="button" accessibilityState={{ expanded: soFarOpen }}>
             <Text style={[s.body, s.grow]}>{t('nutri_check_label')}</Text>
             <FoldChevron open={soFarOpen} color={colors.ink3} />

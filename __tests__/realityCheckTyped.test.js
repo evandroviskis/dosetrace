@@ -181,7 +181,7 @@ test('finishing records the source before the open check closes; a finished resu
   assert.ok(fn.indexOf('resultSourcePatch') < fn.indexOf('clearRealityStart'), 'before the check closes');
   assert.match(fn, /if \(getRealityChecks\(uid\)\.some\(r => r\.entry_date > startDay\)\) return;/, 'still never a second result (DV-060: dated after the start)');
   // The typed sheet is reachable only while the check is open and unsaved.
-  assert.match(src, /function openTypedKcal\(\) \{\s*if \(!rcStart \|\| checkSaved\) return;/);
+  assert.match(src, /function openTypedKcal\(\) \{\s*if \(!rcStart \|\| checkSaved \|\| !premium\) return;/); // DV-102: Premium only
 });
 
 test('new strings exist in all 6 languages', () => {
