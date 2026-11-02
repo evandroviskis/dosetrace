@@ -170,6 +170,31 @@ async function fetchGooglePlay() {
  * Units for first-install product types are downloads; type 7* are updates.
  * Revenue stays with RevenueCat (a free app reports $0 proceeds here anyway).
  */
+// Apple daily-report cache (admin_apple_days; founder 2026-11-02, live Apple fell to "timeout after 9 s").
+// A closed UTC day never changes: the server keeps every day it has read and asks Apple only for the rest.
+// Read failures fall back to asking Apple for every day; a failed write never fails the source.
+const APPLE_NO_REPORT_AFTER_DAYS = 3; // a 404 for a day this old is "no sales that day", stored as report=false
+async function appleCacheRead(oldestDay) {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  try {
+    const r = await fetch(url + '/rest/v1/admin_apple_days?select=day,downloads,redownloads,updates,report&day=gte.' + oldestDay, { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+    if (!r.ok) return null;
+    const rows = await r.json();
+    if (!Array.isArray(rows)) return null;
+    const m = new Map();
+    for (const row of rows) if (row && typeof row.day === 'string') m.set(row.day.slice(0, 10), row);
+    return m;
+  } catch (e) { return null; }
+}
+async function appleCacheWrite(rows) {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key || !rows.length) return;
+  try {
+    await fetch(url + '/rest/v1/admin_apple_days', { method: 'POST', headers: { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) });
+  } catch (e) { /* best effort */ }
+}
+
 async function fetchApple() {
   const key = (process.env.ASC_PRIVATE_KEY || '').replace(/\\n/g, '\n');
   const issuer = process.env.ASC_ISSUER_ID;
@@ -189,9 +214,11 @@ async function fetchApple() {
     // MV-6: one daily report per full UTC day of the last STORE_DAYS days, in batches (ASC rate limit).
     const days = [];
     for (let b = 1; b <= STORE_DAYS; b++) days.push(ymd(new Date(Date.now() - b * 86400000)));
+    const cached = (await appleCacheRead(days[days.length - 1])) || new Map();
+    const toFetch = days.filter(d => !cached.has(d));
     const reports = [];
-    for (let i = 0; i < days.length; i += ASC_BATCH) {
-      reports.push(...await Promise.all(days.slice(i, i + ASC_BATCH).map(async date => {
+    for (let i = 0; i < toFetch.length; i += ASC_BATCH) {
+      reports.push(...await Promise.all(toFetch.slice(i, i + ASC_BATCH).map(async date => {
         const url = 'https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[version]=1_0&filter[vendorNumber]=' + vendor + '&filter[reportDate]=' + date;
         const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/a-gzip' } });
         if (r.status !== 200) return { date, tsv: null }; // 404 = Apple wrote no report for that day
@@ -200,8 +227,11 @@ async function fetchApple() {
       })));
     }
     const perDay = [];
+    for (const row of cached.values()) if (row.report !== false) perDay.push({ date: row.day.slice(0, 10), downloads: row.downloads | 0, redownloads: row.redownloads | 0, updates: row.updates | 0 });
+    const store = [];
+    const ageDays = date => Math.floor((Date.now() - Date.parse(date + 'T00:00:00Z')) / 86400000);
     for (const { date, tsv } of reports) {
-      if (!tsv) continue;
+      if (!tsv) { if (ageDays(date) >= APPLE_NO_REPORT_AFTER_DAYS) store.push({ day: date, downloads: 0, redownloads: 0, updates: 0, report: false }); continue; }
       const lines = tsv.split(/\r?\n/).filter(Boolean);
       if (lines.length < 2) continue;
       const hdr = lines[0].split('\t');
@@ -217,7 +247,9 @@ async function fetchApple() {
         else if (/^(1|F1)/.test(t)) dl += u;    // 1* / F1 = first installs (downloads)
       }
       perDay.push({ date, downloads: dl, redownloads: re, updates: up });
+      store.push({ day: date, downloads: dl, redownloads: re, updates: up, report: true });
     }
+    await appleCacheWrite(store);
     perDay.sort((a, b) => (a.date < b.date ? -1 : 1));
     const last30 = perDay.filter(d => days.slice(0, 30).includes(d.date)); // the Details cards keep their 30-day window
     const latest = last30[last30.length - 1] || null;
@@ -231,6 +263,8 @@ async function fetchApple() {
         days_with_sales: last30.length,
         latest_day: latest ? latest.date : null,
         latest_day_downloads: latest ? latest.downloads : null,
+        cached_days: cached.size,
+        fetched_days: toFetch.length,
       },
     };
   } catch (e) {

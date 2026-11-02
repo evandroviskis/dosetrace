@@ -903,3 +903,10 @@ grant execute on function public.admin_resend_begin(uuid, uuid, uuid) to service
 -- admin_device_register(p_user_id, p_name) → (device_id, device_key) once; admin_device_revoke(p_id).
 -- Both functions: postgres only (revoked from public, anon, authenticated AND service_role).
 -- ===========================================================================
+
+-- ===========================================================================
+-- Apple daily reports cache (supabase/migrations/20261102100000_admin_apple_days.sql, founder 2026-11-02).
+-- admin_apple_days: day (pk), downloads, redownloads, updates, report (false = Apple had no report for a
+-- day at least 3 days old), fetched_at. RLS on, no policies; service_role may select, insert and update
+-- (no delete). api/adm.js fetchApple reads it first and asks Apple only for the missing days.
+-- ===========================================================================
