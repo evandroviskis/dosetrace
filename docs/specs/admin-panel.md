@@ -305,6 +305,7 @@ checklist-signed: founder 2026-11-02 ("eu aprovo as suas sugestões"; "Concordo 
 | G1 | The mark-as-test confirm shows only Confirmar / Cancelar (the glossary Close button is hidden while actions are present) | [x] admMobile G1 | session |
 | M1 | The phone Theme row names the theme the tap switches to | [x] admMobile M1 | session |
 | L9 | Inside the app the status-bar icons follow the page theme (page reports its theme through the bridge; app paints the bars) | [x] admMobile L9; DT Admin 0.6; S25 proof pending | session |
+| L10 | On the phone every fixed dialog overlay (Premium, Message, Resend, step-up, glossary) pads its top by the status-bar inset | [x] admMobile L10 | session |
 
 ## Auth
 

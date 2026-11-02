@@ -134,3 +134,8 @@ test('L9: the page reports its theme to the app on load and on toggle', () => {
   assert.match(toggle, /tellTheme\(\);rr\(\);/, 'toggle reports before re-rendering');
   assert.match(HTML, /function startPanel\(\)\{LI\.screen='panel';tellTheme\(\);\n\s*load\(\);\}/, 'reported once at start, before the first load');
 });
+
+// S25 walk 2026-11-02: the Message / Premium dialogs opened with their title under the clock inside the app.
+test('L10: on the phone every fixed dialog overlay pads its top by the status-bar inset', () => {
+  assert.match(HTML, /@media\(max-width:699px\)\{[\s\S]*?#prem,#msg,#rsd,#stepup,#gloss\{padding-top:calc\(24px \+ var\(--sat,0px\)\)\}/);
+});
