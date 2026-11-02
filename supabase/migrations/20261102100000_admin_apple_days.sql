@@ -17,3 +17,7 @@ create table if not exists public.admin_apple_days (
 alter table public.admin_apple_days enable row level security;
 revoke all on table public.admin_apple_days from public, anon, authenticated;
 grant select, insert, update on table public.admin_apple_days to service_role;
+
+-- Applied 2026-11-02 (founder "Go, pode aplicar a migração"). The project's default privileges had given
+-- service_role every right; trimmed to select/insert/update (ACL after: service_role=arw).
+revoke delete, truncate, references, trigger on table public.admin_apple_days from service_role;
