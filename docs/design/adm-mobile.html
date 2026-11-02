@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="pt"><head><meta charset="utf-8"><title>Painel no celular — três propostas</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#0B1A2E;--surface:#112440;--surface2:#16304F;--line:#24405F;--ink:#EAF2FB;--muted:#8FA6BD;--accent:#4FA3E8;--good:#2CD3A7;--warn:#E8B54F;--bad:#E8776B}
+.light{--bg:#EEF3F9;--surface:#FFFFFF;--surface2:#F3F7FB;--line:#D6E0EC;--ink:#0C2340;--muted:#5A7085;--accent:#2A78C2;--good:#159A78;--warn:#B5831C;--bad:#CC4B3D}
+body{margin:0;background:#1a1a1a;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#eee;padding:24px}
+h1{font-size:18px;margin:0 0 6px}p.lead{color:#aaa;margin:0 0 18px;max-width:900px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin-bottom:34px}
+.opt{display:flex;flex-direction:column;gap:10px}
+.opt h2{font-size:15px;margin:0;color:#fff}.opt p{margin:0;color:#aaa;font-size:12.5px;max-width:392px;min-height:54px}
+.phones{display:flex;gap:16px}
+.phone{width:390px;height:844px;border-radius:38px;border:8px solid #333;overflow:hidden;background:var(--bg);color:var(--ink);position:relative}
+.scr{height:100%;overflow:hidden;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px}
+.brand{font-weight:800;font-size:17px;display:flex;align-items:center;gap:8px}.brand i{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block}
+.meta{color:var(--muted);font-size:11.5px}
+.stale{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;border:1px solid var(--warn);color:var(--warn);font-size:10.5px;font-weight:700}
+.body{flex:1;overflow:hidden;padding:0 12px 12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px}
+.lbl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.big{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.sub{color:var(--muted);font-size:12px}.up{color:var(--good)}.dn{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.kpi .v{font-size:22px;font-weight:800}
+.seg{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:3px;margin-top:10px}
+.seg span{flex:1;text-align:center;padding:6px 0;border-radius:8px;font-size:12.5px;color:var(--muted)}.seg .on{background:var(--accent);color:#fff;font-weight:700}
+.acc{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-top:10px}
+.acc b{font-size:14px}.acc .sub{margin-top:2px}.chev{color:var(--muted);font-size:18px}
+.tabbar{display:flex;border-top:1px solid var(--line);background:var(--surface);padding:8px 0 14px}
+.tabbar span{flex:1;text-align:center;font-size:11.5px;color:var(--muted)}.tabbar .on{color:var(--accent);font-weight:700}
+.tabbar i{display:block;width:22px;height:22px;margin:0 auto 3px;border-radius:6px;background:currentColor;opacity:.85}
+.search{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--muted);margin-top:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:11.5px;color:var(--muted)}.chip.on{border-color:var(--accent);color:var(--accent)}
+.rowl{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.rowl:last-child{border-bottom:0}
+.rowl .e{font-size:13.5px}.rowl .s{color:var(--muted);font-size:11.5px}.tag{font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}
+.line{height:6px;border-radius:3px;background:var(--surface2);margin-top:6px;overflow:hidden}.line i{display:block;height:100%;background:var(--accent)}
+.fl{display:flex;justify-content:space-between;font-size:12.5px;margin-top:9px}.fl b{font-weight:700}
+.btn{display:inline-block;background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px;font-weight:700;font-size:12.5px}
+.ghost{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:7px 11px;font-size:12.5px;color:var(--ink)}
+.ico{display:inline-block;width:18px;height:18px;border:1.5px solid var(--muted);border-radius:50%;color:var(--muted);font-size:11px;text-align:center;line-height:18px;margin-left:6px}
+.alert{border-left:3px solid var(--warn);padding-left:10px;margin-top:10px;font-size:12.5px}
+.mini{display:flex;align-items:flex-end;gap:3px;height:38px;margin-top:8px}.mini i{flex:1;background:var(--accent);opacity:.8;border-radius:2px 2px 0 0}
+</style></head><body>
+<h1>Painel DoseTrace Admin no celular — três propostas</h1>
+<p class="lead">Hoje a aba Gestão empilha ~40 cards e tabelas numa coluna; no celular dá uma página enorme com a tabela de Fontes de dados, o funil completo e a conciliação abertos de cara. As três propostas abaixo (390 px, escuro e claro) partem do mesmo princípio: <b>ao abrir, o que você precisa em uma tela; o resto fica a um toque</b>. Dados de exemplo.</p>
+
+<!-- ===================== A ===================== -->
+<div class="row"><div class="opt">
+<h2>A — Resumo em uma tela + seções recolhidas</h2>
+<p>Abre com 4 números (clientes reais, novos nos últimos 7 dias, MRR, Premium ativos) e a janela 7/30/90. Funil, Conciliação, Gráficos e Fontes de dados viram linhas recolhidas com um resumo de uma linha; toca para abrir. Barra inferior com três abas: Resumo, Contas, Mais (Detalhes e Fontes de dados). Botão "i" por card em vez do botão "Fonte · período" em cada número.</p>
+<div class="phones">
+<div class="phone"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:14<span class="stale">atualizando…</span></div></div>
+ <div class="body">
+  <div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span></div>
+  <div class="grid2">
+   <div class="kpi"><div class="lbl">Clientes reais</div><div class="v">32</div><div class="sub">todo o histórico</div></div>
+   <div class="kpi"><div class="lbl">Novos · 30 dias</div><div class="v">7 <span class="sub up">+2</span></div><div class="sub">iOS 4 · Android 2</div></div>
+   <div class="kpi"><div class="lbl">MRR</div><div class="v">$49</div><div class="sub">RevenueCat</div></div>
+   <div class="kpi"><div class="lbl">Premium ativos</div><div class="v">6</div><div class="sub">inclui teste</div></div>
+  </div>
+  <div class="acc"><div><b>Funil · 30 dias</b><div class="sub">7 contas → 7 confirmaram → 3 onboarding → 1 protocolo → 1 dose</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Conciliação</b><div class="sub">RevenueCat 119 = 80 anônimos + 33 contas + 6 órfãos ✓</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Downloads nas lojas</b><div class="sub">Apple 12 · Google Play 1 · inclui teste</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Gráfico · novos por dia</b><div class="mini"><i style="height:20%"></i><i style="height:40%"></i><i style="height:10%"></i><i style="height:60%"></i><i style="height:30%"></i><i style="height:100%"></i><i style="height:50%"></i></div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Fontes de dados e regras</b><div class="sub">38 definições · dias UTC · contas de teste excluídas</div></div><span class="chev">›</span></div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Resumo</span><span><i></i>Contas</span><span><i></i>Mais</span></div>
+</div></div>
+<div class="phone light"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:14<span class="stale">atualizando…</span></div></div>
+ <div class="body">
+  <div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span></div>
+  <div class="grid2">
+   <div class="kpi"><div class="lbl">Clientes reais</div><div class="v">32</div><div class="sub">todo o histórico</div></div>
+   <div class="kpi"><div class="lbl">Novos · 30 dias</div><div class="v">7 <span class="sub up">+2</span></div><div class="sub">iOS 4 · Android 2</div></div>
+   <div class="kpi"><div class="lbl">MRR</div><div class="v">$49</div><div class="sub">RevenueCat</div></div>
+   <div class="kpi"><div class="lbl">Premium ativos</div><div class="v">6</div><div class="sub">inclui teste</div></div>
+  </div>
+  <div class="acc"><div><b>Funil · 30 dias</b><div class="sub">7 contas → 7 confirmaram → 3 onboarding → 1 protocolo → 1 dose</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Conciliação</b><div class="sub">RevenueCat 119 = 80 anônimos + 33 contas + 6 órfãos ✓</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Downloads nas lojas</b><div class="sub">Apple 12 · Google Play 1 · inclui teste</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Gráfico · novos por dia</b><div class="mini"><i style="height:20%"></i><i style="height:40%"></i><i style="height:10%"></i><i style="height:60%"></i><i style="height:30%"></i><i style="height:100%"></i><i style="height:50%"></i></div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Fontes de dados e regras</b><div class="sub">38 definições · dias UTC · contas de teste excluídas</div></div><span class="chev">›</span></div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Resumo</span><span><i></i>Contas</span><span><i></i>Mais</span></div>
+</div></div>
+</div></div></div>
+
+<!-- ===================== B ===================== -->
+<div class="row"><div class="opt">
+<h2>B — Ações primeiro: Contas na abertura, números num card que expande</h2>
+<p>Parte da ideia de que você abre o app para agir (Premium, mensagem, teste). Abre direto na lista de contas com busca e filtros em chips; um card "Números" no topo mostra 3 números e expande para o resumo. Cada conta é uma linha compacta; tocar abre o cartão com o menu Opções (já existe). Barra inferior: Contas, Números, Mais.</p>
+<div class="phones">
+<div class="phone"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:14</div></div>
+ <div class="body">
+  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div><span class="lbl">Números · 30 dias</span><div style="font-size:15px;font-weight:700;margin-top:2px">32 reais · 7 novos · MRR $49</div></div><span class="chev">⌄</span></div></div>
+  <div class="search">Buscar por e-mail ou ID</div>
+  <div class="chips"><span class="chip on">Reais 32</span><span class="chip">Teste 87</span><span class="chip">iOS</span><span class="chip">Android</span><span class="chip">Sem onboarding</span><span class="chip">Premium</span></div>
+  <div class="card" style="padding:4px 14px">
+   <div class="rowl"><div><div class="e">leo.example@example.org</div><div class="s">iOS · criada 28/09 · protocolo ativo</div></div><span class="tag">Premium</span></div>
+   <div class="rowl"><div><div class="e">zoe.example@example.org</div><div class="s">Android · criada 01/10 · protocolo ativo</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">adam.example@example.org</div><div class="s">iOS · criada 12/10 · sem onboarding</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">mia.example@example.org</div><div class="s">e-mail · não confirmado</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">annruiz.51171@gmail.com</div><div class="s">Android · não é teste (sua decisão)</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">noah.example@example.org</div><div class="s">iOS · criada 20/10</div></div><span class="tag">free</span></div>
+  </div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Contas</span><span><i></i>Números</span><span><i></i>Mais</span></div>
+</div></div>
+<div class="phone light"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:14</div></div>
+ <div class="body">
+  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><div><span class="lbl">Números · 30 dias</span><div style="font-size:15px;font-weight:700;margin-top:2px">32 reais · 7 novos · MRR $49</div></div><span class="chev">⌄</span></div></div>
+  <div class="search">Buscar por e-mail ou ID</div>
+  <div class="chips"><span class="chip on">Reais 32</span><span class="chip">Teste 87</span><span class="chip">iOS</span><span class="chip">Android</span><span class="chip">Sem onboarding</span><span class="chip">Premium</span></div>
+  <div class="card" style="padding:4px 14px">
+   <div class="rowl"><div><div class="e">leo.example@example.org</div><div class="s">iOS · criada 28/09 · protocolo ativo</div></div><span class="tag">Premium</span></div>
+   <div class="rowl"><div><div class="e">zoe.example@example.org</div><div class="s">Android · criada 01/10 · protocolo ativo</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">adam.example@example.org</div><div class="s">iOS · criada 12/10 · sem onboarding</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">mia.example@example.org</div><div class="s">e-mail · não confirmado</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">annruiz.51171@gmail.com</div><div class="s">Android · não é teste (sua decisão)</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">noah.example@example.org</div><div class="s">iOS · criada 20/10</div></div><span class="tag">free</span></div>
+  </div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Contas</span><span><i></i>Números</span><span><i></i>Mais</span></div>
+</div></div>
+</div></div></div>
+
+<!-- ===================== C ===================== -->
+<div class="row"><div class="opt">
+<h2>C — Um card por pergunta, com alertas no topo</h2>
+<p>Abre com uma faixa de alertas (só aparece quando há algo: fonte fora do ar, conta nova sem onboarding, Premium a vencer) e depois cards que respondem uma pergunta cada, com um número grande, a variação e uma frase: "Quantos clientes reais?", "Quantos chegaram esta semana?", "O RevenueCat bate com o Supabase?", "Quanto entra por mês?". Tocar num card abre a seção completa. Contas e Mais ficam na barra inferior. É o que melhor serve para mostrar a um investidor.</p>
+<div class="phones">
+<div class="phone"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:14</div></div>
+ <div class="body">
+  <div class="alert">Google Play sem relatório há 4 dias · 2 contas novas sem onboarding</div>
+  <div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span></div>
+  <div class="card"><div class="lbl">Quantos clientes reais temos?</div><div class="big">32</div><div class="sub">87 contas de teste excluídas · desde abril</div></div>
+  <div class="card"><div class="lbl">Quantos chegaram nos últimos 30 dias?</div><div class="big">7 <span class="sub up" style="font-size:14px">+2 vs 30 anteriores</span></div><div class="line"><i style="width:57%"></i></div><div class="sub">iOS 4 · Android 2 · desconhecida 1 · 1 já registrou dose</div></div>
+  <div class="card"><div class="lbl">Quanto entra por mês?</div><div class="big">$49 <span class="sub" style="font-size:14px">MRR</span></div><div class="sub">6 assinaturas ativas · inclui compras de teste</div></div>
+  <div class="card"><div class="lbl">O RevenueCat bate com o Supabase?</div><div class="big up" style="font-size:22px">✓ fecha</div><div class="sub">119 IDs = 80 anônimos + 33 contas + 6 prováveis excluídas</div></div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Números</span><span><i></i>Contas</span><span><i></i>Mais</span></div>
+</div></div>
+<div class="phone light"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:14</div></div>
+ <div class="body">
+  <div class="alert">Google Play sem relatório há 4 dias · 2 contas novas sem onboarding</div>
+  <div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span></div>
+  <div class="card"><div class="lbl">Quantos clientes reais temos?</div><div class="big">32</div><div class="sub">87 contas de teste excluídas · desde abril</div></div>
+  <div class="card"><div class="lbl">Quantos chegaram nos últimos 30 dias?</div><div class="big">7 <span class="sub up" style="font-size:14px">+2 vs 30 anteriores</span></div><div class="line"><i style="width:57%"></i></div><div class="sub">iOS 4 · Android 2 · desconhecida 1 · 1 já registrou dose</div></div>
+  <div class="card"><div class="lbl">Quanto entra por mês?</div><div class="big">$49 <span class="sub" style="font-size:14px">MRR</span></div><div class="sub">6 assinaturas ativas · inclui compras de teste</div></div>
+  <div class="card"><div class="lbl">O RevenueCat bate com o Supabase?</div><div class="big up" style="font-size:22px">✓ fecha</div><div class="sub">119 IDs = 80 anônimos + 33 contas + 6 prováveis excluídas</div></div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Números</span><span><i></i>Contas</span><span><i></i>Mais</span></div>
+</div></div>
+</div></div></div>
+</body></html>

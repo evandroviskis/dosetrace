@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt"><head><meta charset="utf-8"><title>Painel no celular — proposta A detalhada</title>
+<style>
+:root{--bg:#0B1A2E;--surface:#112440;--surface2:#16304F;--line:#24405F;--ink:#EAF2FB;--muted:#8FA6BD;--accent:#4FA3E8;--good:#2CD3A7;--warn:#E8B54F;--bad:#E8776B}
+.light{--bg:#EEF3F9;--surface:#FFFFFF;--surface2:#F3F7FB;--line:#D6E0EC;--ink:#0C2340;--muted:#5A7085;--accent:#2A78C2;--good:#159A78;--warn:#B5831C;--bad:#CC4B3D}
+body{margin:0;background:#1a1a1a;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#eee;padding:22px}
+h1{font-size:18px;margin:0 0 4px}p.lead{color:#aaa;margin:0 0 16px;max-width:1000px}
+.rows{display:flex;flex-direction:column;gap:26px}.row{display:flex;gap:14px;align-items:flex-start}
+.cap{width:170px;color:#bbb;font-size:12.5px;padding-top:12px}.cap b{display:block;color:#fff;font-size:14px;margin-bottom:4px}
+.phone{width:390px;height:844px;border-radius:38px;border:8px solid #333;overflow:hidden;background:var(--bg);color:var(--ink);position:relative;flex:none}
+.scr{height:100%;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px}
+.brand{font-weight:800;font-size:17px;display:flex;align-items:center;gap:8px}.brand i{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block}
+.meta{color:var(--muted);font-size:11.5px;display:flex;align-items:center;gap:6px}
+.stale{padding:1px 7px;border-radius:999px;border:1px solid var(--warn);color:var(--warn);font-size:10.5px;font-weight:700}
+.menu{width:30px;height:30px;border:1px solid var(--line);border-radius:9px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;color:var(--ink);font-size:16px}
+.body{flex:1;overflow:hidden;padding:0 12px 12px}
+.alert{border-left:3px solid var(--warn);background:var(--surface);border-radius:0 12px 12px 0;padding:8px 12px;margin-top:8px;font-size:12.5px}
+.seg{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:3px;margin-top:10px}
+.seg span{flex:1;text-align:center;padding:6px 0;border-radius:8px;font-size:12.5px;color:var(--muted)}.seg .on{background:var(--accent);color:#fff;font-weight:700}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;position:relative}
+.kpi .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+.kpi .v{font-size:24px;font-weight:800;line-height:1.1;margin-top:2px}.kpi .sub{color:var(--muted);font-size:11.5px}
+.up{color:var(--good)}
+.i{position:absolute;top:8px;right:10px;width:16px;height:16px;border:1.5px solid var(--muted);border-radius:50%;color:var(--muted);font-size:10px;text-align:center;line-height:16px}
+.acc{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-top:10px}
+.acc b{font-size:14px}.acc .sub{color:var(--muted);font-size:11.5px;margin-top:2px}.chev{color:var(--muted);font-size:18px;margin-left:8px}
+.open{background:var(--surface);border:1px solid var(--accent);border-radius:14px;margin-top:10px;padding:10px 14px}
+.open h3{margin:0;font-size:14px;display:flex;justify-content:space-between}.open h3 span{color:var(--muted);font-weight:400;font-size:12px}
+.li{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)}.li:last-child{border-bottom:0}
+.li .n{font-size:13.5px}.li .s{color:var(--muted);font-size:11.5px;display:block}.li .val{font-weight:800;font-size:16px;text-align:right}.li .val small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+.bar{height:5px;border-radius:3px;background:var(--surface2);margin-top:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.nm{color:var(--warn);font-weight:700;font-size:12.5px}
+.tabbar{display:flex;border-top:1px solid var(--line);background:var(--surface);padding:8px 0 14px}
+.tabbar span{flex:1;text-align:center;font-size:11.5px;color:var(--muted)}.tabbar .on{color:var(--accent);font-weight:700}
+.tabbar i{display:block;width:22px;height:22px;margin:0 auto 3px;border-radius:6px;background:currentColor;opacity:.85}
+.search{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--muted);margin-top:10px;font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{border:1px solid var(--line);border-radius:999px;padding:3px 9px;font-size:11.5px;color:var(--muted)}.chip.on{border-color:var(--accent);color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 14px;margin-top:10px}
+.rowl{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.rowl:last-child{border-bottom:0}
+.rowl .e{font-size:13.5px}.rowl .s{color:var(--muted);font-size:11.5px}.tag{font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}
+.more{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-top:10px;font-size:14px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:14px 16px 24px}
+.sheet .li{padding:11px 0}
+</style></head><body>
+<h1>Proposta A — detalhada, com os números reais de 2026-11-02</h1>
+<p class="lead">Quatro telas do celular (escuro em cima, claro embaixo): a abertura, a mesma tela com o Funil aberto, a aba Contas e a aba Mais. No desktop nada muda; isto vale até 700 px de largura.</p>
+<div class="rows" id="rows"></div>
+<template id="tpl">
+<!-- 1. abertura -->
+<div class="phone THEME"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:07 <span class="stale">atualizando…</span><span class="menu">≡</span></div></div>
+ <div class="body">
+  <div class="alert">Apple sem resposta há 9 s (relatórios em cache) · Google Play: último dia 29/10</div>
+  <div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span></div>
+  <div class="grid2">
+   <div class="kpi"><span class="i">i</span><div class="lbl">Clientes reais</div><div class="v">44</div><div class="sub">todo o histórico · 122 de teste fora</div></div>
+   <div class="kpi"><span class="i">i</span><div class="lbl">Novos · 30 dias</div><div class="v">16 <span class="up" style="font-size:13px">+6</span></div><div class="sub">iOS 10 · Android 4 · ? 2</div></div>
+   <div class="kpi"><span class="i">i</span><div class="lbl">MRR</div><div class="v">$49</div><div class="sub">RevenueCat · inclui teste</div></div>
+   <div class="kpi"><span class="i">i</span><div class="lbl">Ativação · 30 d</div><div class="v">50%</div><div class="sub">8 de 16 registraram dose</div></div>
+  </div>
+  <div class="acc"><div><b>Funil · 30 dias</b><div class="sub">16 contas → 14 confirmaram → 14 onboarding → 9 protocolo → 8 dose</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Conciliação</b><div class="sub">RevenueCat 224 = 165 anônimos + 59 contas + 0 órfãos ✓</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Downloads nas lojas</b><div class="sub">Apple — (sem resposta) · Google Play 2 · inclui teste</div></div><span class="chev">›</span></div>
+  <div class="acc"><div><b>Novos por dia · 90 dias</b><div class="sub">37 no período · pico 30/10</div></div><span class="chev">›</span></div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Resumo</span><span><i></i>Contas</span><span><i></i>Mais</span></div>
+</div></div>
+<!-- 2. funil aberto -->
+<div class="phone THEME"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:07<span class="menu">≡</span></div></div>
+ <div class="body">
+  <div class="seg"><span>7 dias</span><span class="on">30 dias</span><span>90 dias</span></div>
+  <div class="open"><h3>Funil · 30 dias <span>03/10 a 01/11 · UTC · i</span></h3>
+   <div class="li"><div><span class="n">Downloads nas lojas</span><span class="s">Apple sem resposta · Google Play 2 · inclui teste</span></div><div class="val">2<small>Google</small></div></div>
+   <div class="li"><div><span class="n">Contas criadas</span><span class="s">iOS 10 · Android 4 · desconhecida 2</span><div class="bar"><i style="width:100%"></i></div></div><div class="val">16</div></div>
+   <div class="li"><div><span class="n">E-mail confirmado ou login</span><div class="bar"><i style="width:88%"></i></div></div><div class="val">14<small>88%</small></div></div>
+   <div class="li"><div><span class="n">Onboarding concluído</span><div class="bar"><i style="width:88%"></i></div></div><div class="val">14<small>88%</small></div></div>
+   <div class="li"><div><span class="n">Pelo menos 1 protocolo</span><div class="bar"><i style="width:56%"></i></div></div><div class="val">9<small>56%</small></div></div>
+   <div class="li"><div><span class="n">Pelo menos 1 dose</span><div class="bar"><i style="width:50%"></i></div></div><div class="val">8<small>50%</small></div></div>
+   <div class="li"><div><span class="n">Premium (compra na loja)</span></div><div class="val nm">não medido</div></div>
+  </div>
+  <div class="acc"><div><b>Conciliação</b><div class="sub">RevenueCat 224 = 165 anônimos + 59 contas + 0 órfãos ✓</div></div><span class="chev">›</span></div>
+ </div>
+ <div class="tabbar"><span class="on"><i></i>Resumo</span><span><i></i>Contas</span><span><i></i>Mais</span></div>
+</div></div>
+<!-- 3. contas -->
+<div class="phone THEME"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:07<span class="menu">≡</span></div></div>
+ <div class="body">
+  <div class="search">Buscar por e-mail ou ID</div>
+  <div class="chips"><span class="chip on">Reais 44</span><span class="chip">Teste 122</span><span class="chip">iOS</span><span class="chip">Android</span><span class="chip">Sem onboarding</span><span class="chip">Protocolo ativo</span><span class="chip">Ordenar ▾</span></div>
+  <div class="card">
+   <div class="rowl"><div><div class="e">leo.example@example.org</div><div class="s">iOS · 28/09 · protocolo ativo</div></div><span class="tag">Premium</span></div>
+   <div class="rowl"><div><div class="e">zoe.example@example.org</div><div class="s">Android · 01/10 · protocolo ativo</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">adam.example@example.org</div><div class="s">iOS · 12/10 · sem onboarding</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">mia.example@example.org</div><div class="s">e-mail · não confirmado</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">annruiz.51171@gmail.com</div><div class="s">Android · não é teste (sua decisão)</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">noah.example@example.org</div><div class="s">iOS · 20/10</div></div><span class="tag">free</span></div>
+   <div class="rowl"><div><div class="e">ana.example@example.org</div><div class="s">Android · 30/10 · sem onboarding</div></div><span class="tag">free</span></div>
+  </div>
+ </div>
+ <div class="sheet"><div style="font-weight:800">leo.example@example.org <span style="color:var(--muted);font-weight:400;font-size:12px">· Premium até 22/10/2027</span></div>
+  <div class="li"><span class="n">Alterar data de término</span><span class="chev">›</span></div>
+  <div class="li"><span class="n">Retirar Premium</span><span class="chev">›</span></div>
+  <div class="li"><span class="n">Enviar mensagem</span><span class="chev">›</span></div>
+  <div class="li"><span class="n">Copiar ID · Abrir no RevenueCat · Supabase</span><span class="chev">›</span></div>
+  <div class="li"><span class="n">Marcar como teste</span><span class="chev">›</span></div>
+ </div>
+</div></div>
+<!-- 4. mais -->
+<div class="phone THEME"><div class="scr">
+ <div class="top"><div class="brand"><i></i>DoseTrace Admin</div><div class="meta">Atualizado 10:07<span class="menu">≡</span></div></div>
+ <div class="body">
+  <div class="more"><div><b>Detalhes</b><div class="sub" style="color:var(--muted);font-size:11.5px">Totais, comparador, aderência, público, RevenueCat, lojas</div></div><span class="chev">›</span></div>
+  <div class="more"><div><b>Fontes de dados e regras</b><div class="sub" style="color:var(--muted);font-size:11.5px">38 definições, janelas, o que inclui teste</div></div><span class="chev">›</span></div>
+  <div class="more"><div><b>Contas de teste</b><div class="sub" style="color:var(--muted);font-size:11.5px">122 · regra, domínio, lista · desmarcar</div></div><span class="chev">›</span></div>
+  <div class="more"><div><b>Idioma</b><div class="sub" style="color:var(--muted);font-size:11.5px">Português (segue o aparelho)</div></div><span class="chev">›</span></div>
+  <div class="more"><div><b>Tema</b><div class="sub" style="color:var(--muted);font-size:11.5px">Sistema · claro · escuro</div></div><span class="chev">›</span></div>
+  <div class="more"><div><b>Atualizar agora</b><div class="sub" style="color:var(--muted);font-size:11.5px">Última atualização completa 10:07</div></div><span class="chev">›</span></div>
+  <div class="more"><div><b>Sair</b><div class="sub" style="color:var(--muted);font-size:11.5px">hello@dosetrace.io · S25 cadastrado</div></div><span class="chev">›</span></div>
+ </div>
+ <div class="tabbar"><span><i></i>Resumo</span><span><i></i>Contas</span><span class="on"><i></i>Mais</span></div>
+</div></div>
+</template>
+<script>
+var tpl=document.getElementById('tpl').innerHTML;var rows=document.getElementById('rows');
+[['','Tema escuro'],['light','Tema claro']].forEach(function(t){var r=document.createElement('div');r.className='row';r.innerHTML='<div class="cap"><b>'+t[1]+'</b>1 abertura · 2 funil aberto · 3 contas (com o menu Opções) · 4 mais</div>'+tpl.replace(/THEME/g,t[0]);rows.appendChild(r);});
+</script>
+</body></html>
