@@ -78,3 +78,12 @@ test('Mobile i18n: every label of the phone layout exists in 6 languages, Portug
   assert.equal(T.pt.mob_no_answer, 'sem resposta');
   assert.ok(!/dá para|a gente|deu para/i.test(Object.values(T.pt).join(' ')), 'Portuguese stays formal');
 });
+
+// Founder 2026-11-02 (S25): "quando eu vou em Accounts e clico no e-mail, não consigo abrir o menu de Opções".
+// Cause: the Contas click handler bailed out unless the DESKTOP tab variable was "accounts"; on the phone the
+// Accounts tab is MOB.tab === "contas", so a tap on a row did nothing. L5: the handler asks accountsTabOn().
+test('L5: on the phone a tap on an account row selects it (the click and key handlers look at the phone tab, not only the desktop tab)', () => {
+  assert.match(HTML, /function accountsTabOn\(\)\{return isMobile\(\)\?MOB\.tab==='contas':TAB==='accounts';\}/, 'one helper decides whether the accounts list is on screen');
+  assert.match(HTML, /var el=ev\.target;if\(!el\|\|!el\.closest\|\|!accountsTabOn\(\)\)return;/, 'click handler uses it');
+  assert.ok(!/TAB!=='accounts'\)return;/.test(HTML), 'no handler bails out on the desktop tab alone');
+});

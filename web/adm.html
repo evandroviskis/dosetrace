@@ -1764,8 +1764,10 @@
     if(k==='resend'){usCloseMenu();rsOpen();}
   }
   // Clicks in the Contas tab: a row selects its account (not its checkbox); the card's buttons; the menu.
+  // On the phone the Accounts tab is MOB.tab (L5, founder 2026-11-02: the tap on an e-mail did nothing).
+  function accountsTabOn(){return isMobile()?MOB.tab==='contas':TAB==='accounts';}
   app.addEventListener('click',function(ev){
-    var el=ev.target;if(!el||!el.closest||TAB!=='accounts')return;
+    var el=ev.target;if(!el||!el.closest||!accountsTabOn())return;
     var uo=el.closest('[data-uo]');if(uo){if(!uo.disabled)usAction(uo.getAttribute('data-uo'));return;}
     var ub=el.closest('[data-us]');
     if(ub){var a=ub.getAttribute('data-us');if(ub.disabled||!US)return;

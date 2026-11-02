@@ -294,6 +294,11 @@ checklist-signed: founder 2026-11-02 ("eu aprovo as suas sugestões"; "Concordo 
 | DA9 | Page: with `window.DTAdmin` present, `web/adm.html` sends the header on every call and skips the TOTP step after the password; without it, the login is unchanged | [ ] | page test + render |
 | DA10 | App: key in the Keystore behind biometrics, JS bridge, persistent session, one-time registration screen that shows the key once; only dosetrace.io / supabase.co load inside | [ ] | code in `dtadmin/`, device proof |
 | DA11 | Live on both phones: open → biometrics → panel; grant/revoke Premium on the test account with biometrics only; revoking a device cuts its access at once | [ ] | founder + session |
+| DA12 | Inside the app (Android 15 edge-to-edge) the header sits below the status bar and the bottom bar above the gesture bar: the app pushes the system-bar heights as `--sat`/`--sab`; browser unchanged | [x] __tests__/admMobile.test.js DA12; proven on the S25 2026-11-02 11:40 EST (capture) | session |
+| AC1 | Apple daily reports are cached in `admin_apple_days`: cached days are not asked again; only missing days go to Apple; a day with a report and a no-report day at least 3 days old are stored (upsert); a fresh no-report day is retried next time | [x] __tests__/admAppleCache.test.js AC1 | session |
+| AC2 | If the cache cannot be read (or Supabase is not configured) every day is asked as before; a failed write never fails the source | [x] admAppleCache AC2 | session |
+| AC3 | Migration `20261102100000_admin_apple_days.sql`: RLS on, revoked from public/anon/authenticated, service_role select/insert/update only (no delete, no policies) | [x] admAppleCache AC3; live: **not applied** (awaits the founder's go) | session + founder |
+| L5 | On the phone a tap on an account row opens its card and the Opções menu (the Contas click/key handlers look at the phone tab, not only the desktop tab) | [x] admMobile L5; 390 px renders of card, menu, Premium and Message dialogs in both themes 2026-11-02; live: pending | session |
 
 ## Auth
 
