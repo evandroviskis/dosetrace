@@ -2310,7 +2310,9 @@
 
   function load(){
     app.innerHTML='<div class="center">'+t('loading')+'</div>';
-    AUTH.api('GET').then(function(x){
+    // Founder 2026-11-02: never "Loading…" forever — 30 s at most, then the error and a retry button.
+    var slow=new Promise(function(res){setTimeout(function(){res({status:0,timeout:true});},30000);});
+    Promise.race([AUTH.api('GET'),slow]).then(function(x){
       if(x.expired){showExpired();return null;}
       if(x.noauth){showNoauth();return null;}
       if(x.status===0)throw new Error(t('li_err_conn'));
@@ -2328,8 +2330,9 @@
       periods=presets(gran);
       render();
       if(US)usLoad(true);
-    }).catch(function(e){app.innerHTML='<div class="center">'+esc(e.message||e)+'</div>';});
+    }).catch(function(e){app.innerHTML='<div class="center">'+esc(e.message||e)+'<br><button class="btn" style="margin-top:12px" onclick="window.admReload()">'+esc(t('refresh'))+'</button></div>';});
   }
+  window.admReload=function(){load();};
   // 3.1: no token prompt. A stored aal2 session (12 h at most) opens the panel; otherwise the sign-in
   // screen. An open panel turns into "session expired" when the 12 h pass, with no further request.
   AUTH.start().then(function(r){if(r.screen==='panel')startPanel();else{liReset(r.screen);renderLogin();}});

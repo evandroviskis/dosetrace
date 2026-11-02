@@ -66,5 +66,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/adm.js": {
+      "maxDuration": 30
+    }
+  }
 }

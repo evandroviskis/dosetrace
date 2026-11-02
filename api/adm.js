@@ -238,6 +238,21 @@ async function fetchApple() {
   }
 }
 
+// Deadline for one outside source (ms). Vercel kills the function at maxDuration (vercel.json: 30 s), so
+// every source must answer or be dropped well before that. Tests shorten it through ADM_SOURCE_DEADLINE_MS.
+const SOURCE_DEADLINE_MS = 9000;
+function sourceDeadlineMs() { const v = Number(process.env.ADM_SOURCE_DEADLINE_MS); return v > 0 ? v : SOURCE_DEADLINE_MS; }
+// Resolves to the source result, or to { status: "error", message: "timeout after Ns" } when it is late.
+// Records "<label>;dur=<ms>" for the Server-Timing header (durations only, never data).
+function withDeadline(label, promise, timing) {
+  const ms = sourceDeadlineMs();
+  const t0 = Date.now();
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve({ status: "error", message: "timeout after " + Math.round(ms / 1000) + "s" }), ms); });
+  return Promise.race([Promise.resolve(promise).catch((e) => ({ status: "error", message: String(e && e.message || e) })), late])
+    .then((r) => { clearTimeout(timer); if (timing) timing.push(label + ";dur=" + (Date.now() - t0)); return r; });
+}
+
 // ---------------------------------------------------------------------------
 // Management view (docs/specs/admin-panel.md "Phase 2 — Management view").
 // The pure functions below are exported for __tests__/admManagement.test.js.
@@ -247,7 +262,7 @@ const DAY_MS = 86400000;
 const RC_ANON_PREFIX = '$RCAnonymousID';
 const MV_WINDOWS = [7, 30, 90];
 const STORE_DAYS = 91;   // MV-6: store reports fetched for the last 91 full days (covers the 90-day window)
-const ASC_BATCH = 16;    // concurrent ASC sales-report requests per batch
+const ASC_BATCH = 32;    // concurrent ASC sales-report requests per batch (ASC allows far more per hour)
 
 function utcDay(ms) { return new Date(ms).toISOString().slice(0, 10); }
 function addDaysStr(day, n) { return utcDay(Date.parse(day + 'T00:00:00Z') + n * DAY_MS); }
@@ -559,9 +574,15 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // Founder 2026-11-02 ("não carregou nada"): every outside source has a deadline, so one slow store or
+  // RevenueCat call can never hold the whole panel past Vercel's limit; a late source shows "error: timeout".
+  const timing = [];
+  const timed = (label, p) => withDeadline(label, p, timing);
   const [supabase, revenuecat, google_play, apple, rcCustomers] = await Promise.all([
-    fetchSupabase(), fetchRevenueCat(), fetchGooglePlay(), fetchApple(), fetchRevenueCatCustomers(),
+    timed("supabase", fetchSupabase()), timed("revenuecat", fetchRevenueCat()), timed("google_play", fetchGooglePlay()),
+    timed("apple", fetchApple()), timed("rc_customers", fetchRevenueCatCustomers()),
   ]);
+  res.setHeader("Server-Timing", timing.join(", "));
 
   // Management view: built only when admin_accounts answered (Phase 2 SQL applied).
   let management = null;
@@ -582,5 +603,5 @@ module.exports = async (req, res) => {
 Object.assign(module.exports, {
   fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate, matchesTestRule, parseMarkBody,
   isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
-  storeWindow, fetchApple, fetchGooglePlay,
+  storeWindow, fetchApple, fetchGooglePlay, withDeadline, SOURCE_DEADLINE_MS,
 });

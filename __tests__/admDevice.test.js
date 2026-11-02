@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const F = require('./helpers/admAuthFake.js');
+const crypto = require('crypto');
 
 const ROOT = path.join(__dirname, '..');
 const API_DIR = path.join(ROOT, 'api');
@@ -214,4 +215,31 @@ test('DA9 page glue: the page detects window.DTAdmin, hands its deviceKey() to m
   const T = (0, eval)('(' + HTML.match(/<script>\n([\s\S]*?)<\/script>/)[1].match(/var T=(\{[\s\S]*?\n  \});/)[1] + ')');
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].li_err_device, l + ' li_err_device');
   assert.equal(T.pt.li_err_device, 'Este aparelho não está autorizado. Cadastre-o de novo no painel ou peça um novo acesso.');
+});
+
+// ------------------------------------------------------------------ Founder 2026-11-02 ("por que leva tanto tempo… não carregou nada"):
+// every outside source has a deadline; a hanging store or RevenueCat call never blocks the panel.
+test('Deadline: a source that never answers is reported as error "timeout" and the GET still answers 200 with the Supabase data, within the deadline', withEnv(async () => {
+  process.env.ADM_SOURCE_DEADLINE_MS = '120';
+  process.env.ASC_PRIVATE_KEY = crypto.generateKeyPairSync('ec', { namedCurve: 'prime256v1' }).privateKey.export({ type: 'pkcs8', format: 'pem' }); process.env.ASC_ISSUER_ID = 'x'; process.env.ASC_KEY_ID = 'x'; process.env.ASC_VENDOR_NUMBER = '1';
+  process.env.REVENUECAT_API_KEY = 'x'; process.env.REVENUECAT_PROJECT_ID = 'p';
+  try {
+    const t0 = Date.now();
+    const r = await F.call(adm, { headers: F.bearer('admin') }, { data: (u) => {
+      if (u.includes('appstoreconnect') || u.includes('revenuecat')) return new Promise(() => {}); // hangs forever
+      return F.json({ accounts: [], protocols_live: 0 });
+    } });
+    assert.equal(r.code, 200);
+    assert.ok(Date.now() - t0 < 2000, 'answered well before any hung source would');
+    assert.equal(r.json.sources.apple.status, 'error'); assert.match(r.json.sources.apple.message, /timeout/);
+    assert.equal(r.json.sources.revenuecat.status, 'error'); assert.match(r.json.sources.revenuecat.message, /timeout/);
+    assert.equal(r.json.management.rc_status, 'error');
+    assert.ok(r.headers['server-timing'] && /apple;dur=\d+/.test(r.headers['server-timing']), 'Server-Timing header names each source');
+  } finally { delete process.env.ADM_SOURCE_DEADLINE_MS; for (const k of ['ASC_PRIVATE_KEY', 'ASC_ISSUER_ID', 'ASC_KEY_ID', 'ASC_VENDOR_NUMBER', 'REVENUECAT_API_KEY', 'REVENUECAT_PROJECT_ID']) delete process.env[k]; }
+}));
+
+test('Deadline: vercel.json gives api/adm.js a maxDuration above the default 10 s, and the deadline constant leaves room under it', () => {
+  const v = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+  assert.ok(v.functions && v.functions['api/adm.js'] && v.functions['api/adm.js'].maxDuration >= 30);
+  assert.ok(adm.SOURCE_DEADLINE_MS <= 20000 && adm.SOURCE_DEADLINE_MS >= 5000);
 });
