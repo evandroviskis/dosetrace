@@ -25,13 +25,13 @@ CURVA DI ACCUMULO (PREMIUM)
 • Guarda come le dosi che registri si sommano nel tempo su una curva stimata dalle emivite pubblicate — un modello educativo, mai una misura nel sangue
 
 IL TUO CORPO
-• Diario degli esami: fotografa o carica il PDF di un referto di qualsiasi laboratorio, in qualsiasi lingua, e i valori vengono letti per te — li controlli prima di salvare. Segui ogni valore in un grafico.
+• Diario degli esami: fotografa o carica il PDF di un referto di qualsiasi laboratorio, in qualsiasi lingua, e i valori vengono letti per te — li controlli prima di salvare. Segui ogni valore in un grafico (Premium).
 • Vaccini: registrali o scansiona il tuo libretto vaccinale
-• Pesate, stima giornaliera di energia e proteine e «I tuoi numeri reali» in 7 giorni
-• Diario alimentare con IA: racconta cosa hai mangiato con parole tue
+• Pesate, stima giornaliera di energia e proteine e «I tuoi numeri reali» in 7 giorni (gratis per 7 giorni, poi Premium)
+• Diario alimentare con IA: racconta cosa hai mangiato con parole tue (gratis per 7 giorni, poi Premium)
 
 REPORT
-• Un report di costanza di 30 giorni ed esportazione in PDF/CSV di tutto ciò che hai inserito
+• Un report di costanza di 30 giorni ed esportazione in CSV di tutto ciò che hai inserito (PDF: Premium)
 
 SEI LINGUE
 English, Español, Português, Français, Deutsch e Italiano — con date, orari e numeri nel formato della tua zona.

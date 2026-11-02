@@ -25,13 +25,13 @@ CURVA DE ACUMULACIÓN (PREMIUM)
 • Mira cómo se suman con el tiempo las dosis que registras en una curva estimada a partir de vidas medias publicadas: un modelo educativo, nunca una medición en sangre
 
 TU CUERPO
-• Diario de análisis: haz una foto o sube el PDF de un informe de cualquier laboratorio, en cualquier idioma, y se leen los valores por ti; los revisas antes de guardar. Sigue cualquier marcador en un gráfico.
+• Diario de análisis: haz una foto o sube el PDF de un informe de cualquier laboratorio, en cualquier idioma, y se leen los valores por ti; los revisas antes de guardar. Sigue cualquier marcador en un gráfico (Premium).
 • Vacunas: regístralas o escanea tu cartilla de vacunación
-• Pesajes, estimación diaria de energía y proteína, y «Tus cifras reales» en 7 días
-• Registro de comidas con IA: cuéntale lo que comiste con tus palabras
+• Pesajes, estimación diaria de energía y proteína, y «Tus cifras reales» en 7 días (gratis 7 días, luego Premium)
+• Registro de comidas con IA: cuéntale lo que comiste con tus palabras (gratis 7 días, luego Premium)
 
 INFORMES
-• Informe de constancia de 30 días y exportación en PDF/CSV de todo lo que registraste
+• Informe de constancia de 30 días y exportación en CSV de todo lo que registraste (PDF: Premium)
 
 SEIS IDIOMAS
 English, Español, Português, Français, Deutsch e Italiano, con fechas, horas y números en el formato de tu región.

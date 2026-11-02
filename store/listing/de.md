@@ -25,13 +25,13 @@ AKKUMULATIONSKURVE (PREMIUM)
 • Sieh, wie sich deine eingetragenen Dosen über die Zeit summieren – auf einer geschätzten Kurve aus veröffentlichten Halbwertszeiten. Ein Lernmodell, nie eine Blutmessung.
 
 DEIN KÖRPER
-• Labortagebuch: Fotografiere einen Befund oder lade das PDF hoch – aus jedem Labor, in jeder Sprache – und die Werte werden für dich ausgelesen; du prüfst sie vor dem Speichern. Verfolge jeden Wert in einem Diagramm.
+• Labortagebuch: Fotografiere einen Befund oder lade das PDF hoch – aus jedem Labor, in jeder Sprache – und die Werte werden für dich ausgelesen; du prüfst sie vor dem Speichern. Verfolge jeden Wert in einem Diagramm (Premium).
 • Impfungen: eintragen oder deinen Impfpass scannen
-• Wägungen, geschätzter Tagesbedarf an Energie und Protein und „Deine echten Zahlen“ in 7 Tagen
-• KI-Essensprotokoll: erzähl in deinen Worten, was du gegessen hast
+• Wägungen, geschätzter Tagesbedarf an Energie und Protein und „Deine echten Zahlen“ in 7 Tagen (7 Tage gratis, dann Premium)
+• KI-Essensprotokoll: erzähl in deinen Worten, was du gegessen hast (7 Tage gratis, dann Premium)
 
 BERICHTE
-• Ein 30-Tage-Bericht zur Regelmäßigkeit und Export als PDF/CSV von allem, was du eingetragen hast
+• Ein 30-Tage-Bericht zur Regelmäßigkeit und Export als CSV von allem, was du eingetragen hast (PDF: Premium)
 
 SECHS SPRACHEN
 English, Español, Português, Français, Deutsch und Italiano – mit Datum, Uhrzeit und Zahlen im Format deiner Region.

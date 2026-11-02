@@ -25,13 +25,13 @@ CURVA DE ACÚMULO (PREMIUM)
 • Veja como as doses que você registra se somam ao longo do tempo numa curva estimada a partir de meias-vidas publicadas — um modelo educativo, nunca uma medida do sangue
 
 SEU CORPO
-• Diário de exames: tire uma foto ou envie o PDF de um laudo de qualquer laboratório, em qualquer idioma, e os valores são lidos para você — você confere antes de salvar. Veja qualquer marcador num gráfico ao longo do tempo.
+• Diário de exames: tire uma foto ou envie o PDF de um laudo de qualquer laboratório, em qualquer idioma, e os valores são lidos para você — você confere antes de salvar. Veja qualquer marcador num gráfico ao longo do tempo (Premium).
 • Vacinas: registre ou escaneie seu cartão de vacinação
-• Pesagens, estimativa de energia e proteína do dia e "Seus números reais" em 7 dias
-• Registro de comida com IA: conte o que comeu com suas palavras
+• Pesagens, estimativa de energia e proteína do dia e "Seus números reais" em 7 dias (grátis por 7 dias, depois Premium)
+• Registro de comida com IA: conte o que comeu com suas palavras (grátis por 7 dias, depois Premium)
 
 RELATÓRIOS
-• Relatório de constância de 30 dias e exportação em PDF/CSV de tudo o que você registrou
+• Relatório de constância de 30 dias e exportação em CSV de tudo o que você registrou (PDF: Premium)
 
 SEIS IDIOMAS
 English, Español, Português, Français, Deutsch e Italiano — com datas, horários e números no formato da sua região.

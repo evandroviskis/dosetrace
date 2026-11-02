@@ -25,13 +25,13 @@ ESTIMATED LEVELS (PREMIUM)
 • See how the doses you log add up over time on an estimated curve built from published half-lives — an educational model, never a blood measurement
 
 YOUR BODY
-• Lab journal: snap a photo or upload a PDF of a report from any lab, in any language, and the values are read for you — you check them before saving. Chart any marker over time.
+• Lab journal: snap a photo or upload a PDF of a report from any lab, in any language, and the values are read for you — you check them before saving. Chart any marker over time (Premium).
 • Vaccine records: log them or scan your vaccine card
-• Weigh-ins, daily energy and protein estimates, and a 7-day reality check
-• AI food log: tell it what you ate in your own words
+• Weigh-ins, daily energy and protein estimates, and a 7-day reality check (free for 7 days, then Premium)
+• AI food log: tell it what you ate in your own words (free for 7 days, then Premium)
 
 REPORTS
-• A 30-day adherence report and PDF/CSV export of everything you entered
+• A 30-day adherence report and CSV export of everything you entered (PDF export: Premium)
 
 SIX LANGUAGES
 English, Español, Português, Français, Deutsch and Italiano — with your local dates, times and number formats.

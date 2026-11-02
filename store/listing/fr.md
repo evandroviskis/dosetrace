@@ -25,13 +25,13 @@ COURBE D'ACCUMULATION (PREMIUM)
 • Voyez comment les doses que vous enregistrez s'additionnent dans le temps sur une courbe estimée à partir des demi-vies publiées — un modèle pédagogique, jamais une mesure sanguine
 
 VOTRE CORPS
-• Journal d'analyses : prenez en photo ou importez le PDF d'un compte rendu de n'importe quel laboratoire, dans n'importe quelle langue, et les valeurs sont lues pour vous — vous les vérifiez avant d'enregistrer. Suivez chaque marqueur sur un graphique.
+• Journal d'analyses : prenez en photo ou importez le PDF d'un compte rendu de n'importe quel laboratoire, dans n'importe quelle langue, et les valeurs sont lues pour vous — vous les vérifiez avant d'enregistrer. Suivez chaque marqueur sur un graphique (Premium).
 • Vaccins : saisissez-les ou scannez votre carnet de vaccination
-• Pesées, estimation de l'énergie et des protéines du jour, et « Vos vrais chiffres » sur 7 jours
-• Journal alimentaire IA : dites ce que vous avez mangé avec vos mots
+• Pesées, estimation de l'énergie et des protéines du jour, et « Vos vrais chiffres » sur 7 jours (gratuit 7 jours, puis Premium)
+• Journal alimentaire IA : dites ce que vous avez mangé avec vos mots (gratuit 7 jours, puis Premium)
 
 RAPPORTS
-• Un rapport de régularité sur 30 jours et l'export PDF/CSV de tout ce que vous avez saisi
+• Un rapport de régularité sur 30 jours et l'export CSV de tout ce que vous avez saisi (PDF : Premium)
 
 SIX LANGUES
 English, Español, Português, Français, Deutsch et Italiano — avec les dates, heures et nombres au format de votre région.
