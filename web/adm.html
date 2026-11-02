@@ -147,8 +147,8 @@
   /* [mob-css-start] */
   /* Phone layout (founder 2026-11-02, proposal A, docs/design/adm-mobile-a.html). Below 700 px only. */
   @media(max-width:699px){
-    .wrap{padding:12px 12px 92px}
-    .mobtop{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0 6px}
+    .wrap{padding:12px 12px calc(92px + var(--sab,0px))}
+    .mobtop{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(2px + var(--sat,0px)) 0 6px}
     .mobtop .brand{font-size:16px}
     .mobtitle{min-width:0;flex:1}
     .mobmeta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:11.5px;margin-top:1px}
@@ -179,13 +179,13 @@
     .mobli .val{font-weight:800;font-size:16px;text-align:right;white-space:nowrap}.mobli .val small{display:block;color:var(--muted);font-weight:400;font-size:11px}
     .mobli .val .nm{font-size:12.5px}
     .mobli .bar{display:block;width:100%;height:5px}
-    .mobbar{position:fixed;left:0;right:0;bottom:0;display:flex;border-top:1px solid var(--line);background:var(--surface);padding:6px 0 max(10px,env(safe-area-inset-bottom));z-index:50}
+    .mobbar{position:fixed;left:0;right:0;bottom:0;display:flex;border-top:1px solid var(--line);background:var(--surface);padding:6px 0 calc(max(10px,env(safe-area-inset-bottom)) + var(--sab,0px));z-index:50}
     .mobbar button{flex:1;background:none;border:0;border-radius:0;padding:4px 0;color:var(--muted);font-size:11.5px;font-weight:600}
     .mobbar button.on{color:var(--accent);font-weight:800}
     .mobbar button i{display:block;width:22px;height:22px;margin:0 auto 3px;border-radius:7px;background:currentColor;opacity:.85}
     .mobmore{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px;color:var(--ink)}
     .mobmore b{font-size:14px}.mobmore .sub{display:block;color:var(--muted);font-size:11.5px;margin-top:2px;font-weight:400}
-    .mobsheet{position:fixed;left:0;right:0;bottom:0;z-index:80;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:14px 16px max(22px,env(safe-area-inset-bottom));box-shadow:0 -8px 30px var(--scrim)}
+    .mobsheet{position:fixed;left:0;right:0;bottom:0;z-index:80;background:var(--surface);border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:14px 16px calc(max(22px,env(safe-area-inset-bottom)) + var(--sab,0px));box-shadow:0 -8px 30px var(--scrim)}
     .mobscrim{position:fixed;inset:0;background:var(--scrim);z-index:79}
     .mobsheet .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.mobsheet .row:last-child{border-bottom:0}
     .mobback{margin:6px 0 4px}

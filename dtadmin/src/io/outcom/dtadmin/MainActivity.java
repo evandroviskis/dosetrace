@@ -15,6 +15,7 @@ import android.text.InputType;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
@@ -60,11 +61,12 @@ public class MainActivity extends Activity {
     private boolean unlocked = false;
     private long leftAt = 0;
     private boolean prompting = false;
+    private int insetTop = 0, insetBottom = 0; // px, system bars (status + gesture); pushed to the page as --sat/--sab
 
     // ---- the bridge the panel page calls ---------------------------------------------------------
     private final class Bridge {
         @JavascriptInterface public String deviceKey() { return unlocked && deviceKey != null ? deviceKey : ""; }
-        @JavascriptInterface public String appVersion() { return "0.2"; }
+        @JavascriptInterface public String appVersion() { return "0.3"; }
     }
 
     @Override protected void onCreate(Bundle b) {
@@ -77,7 +79,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setSupportZoom(false);
-        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.2");
+        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.3");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.addJavascriptInterface(new Bridge(), "DTAdmin");
@@ -86,6 +88,15 @@ public class MainActivity extends Activity {
                 String h = r.getUrl().getHost();
                 return !(h != null && (h.equals("dosetrace.io") || h.endsWith(".supabase.co")));
             }
+            @Override public void onPageFinished(WebView v, String url) { pushInsets(); }
+        });
+        // Edge-to-edge (Android 15): the page content would sit under the clock and the gesture bar.
+        // Tell the page the system-bar heights so it pads the header and the bottom bar itself (theme colours stay right).
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            android.graphics.Insets sb = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            insetTop = sb.top; insetBottom = sb.bottom;
+            pushInsets();
+            return insets;
         });
         web.setVisibility(View.GONE);
 
@@ -104,6 +115,12 @@ public class MainActivity extends Activity {
         root.addView(gate, new FrameLayout.LayoutParams(-1, -1));
         root.addView(reg, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
+    }
+
+    private void pushInsets() {
+        float d = getResources().getDisplayMetrics().density;
+        int top = Math.round(insetTop / d), bottom = Math.round(insetBottom / d);
+        web.evaluateJavascript("(function(){var s=document.documentElement.style;s.setProperty('--sat','" + top + "px');s.setProperty('--sab','" + bottom + "px');})()", null);
     }
 
     private LinearLayout buildRegistration() {

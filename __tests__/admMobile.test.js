@@ -61,6 +61,11 @@ test('Mobile static: render() branches to renderMobile() below 700 px; bottom ba
   assert.match(SCRIPT, /window\.setMobTab=/); assert.match(SCRIPT, /window\.mobToggle=/);
   assert.match(HTML, /@media\(max-width:699px\)\{[\s\S]*?\.mobbar\{position:fixed;left:0;right:0;bottom:0/, 'fixed bottom bar');
   assert.match(HTML, /\.mobbar[^}]*background:var\(--surface\)/);
+  // DA12: inside the Android app the WebView is drawn under the status and gesture bars; the app sets
+  // --sat/--sab (px) and the header and bottom bar grow by them. Browser: both default to 0.
+  assert.match(HTML, /\.mobtop\{[^}]*padding:calc\(2px \+ var\(--sat,0px\)\) 0 6px/, 'header pads by the status bar inset');
+  assert.match(HTML, /\.mobbar\{[^}]*padding:6px 0 calc\(max\(10px,env\(safe-area-inset-bottom\)\) \+ var\(--sab,0px\)\)/, 'bar pads by the gesture inset');
+  assert.match(HTML, /\.mobsheet\{[^}]*calc\(max\(22px,env\(safe-area-inset-bottom\)\) \+ var\(--sab,0px\)\)/, 'sheet pads by the gesture inset');
   assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(HTML.match(/\/\* \[mob-css-start\] \*\/([\s\S]*?)\/\* \[mob-css-end\] \*\//)[1]), 'mobile CSS uses tokens only');
   // the desktop header, tabs and section nav are still there for wide screens
   assert.match(SCRIPT, /h\+=tabsBar\(\);/); assert.match(SCRIPT, /<nav class="sections">/);
