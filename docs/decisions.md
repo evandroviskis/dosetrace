@@ -1132,3 +1132,4 @@ Pending — founder question (not decided by logic):
 - **Instagram starts from zero: all old posts removed, the app presented as available (no "coming soon")** — 2026-11-02 12:02 EST — source: founder ("Tudo isso aí pode ser removido… Prefiro que esteja tudo a partir do zero como se o aplicativo já estivesse disponível").
 
 - **dosetrace.io shows the app as it is in the stores: the seven store captures with the store headlines x6; the site names the Reality check with the app term** — 2026-11-02 16:54 EST — source: founder "O website ainda está com os screenshots incorretos". Branch site/shots-131 f127879; publishing to main waits for the founder go.
+- **Site published** — 2026-11-02 17:35 EST — source: founder "publica o site". main fast-forwarded to f127879; live page read back (7 new shots, old 404).
