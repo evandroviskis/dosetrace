@@ -1,12 +1,12 @@
 ---
 apple_name: "DoseTrace: Health Journal"
-apple_subtitle: "Peptides, labs. No advice"
+apple_subtitle: "Doses, labs and reminders"
 apple_keywords: "peptide,TRT,GLP-1,injectable,vitamins,bloodwork,labs,vaccine,journal,tracker,reminder,dose,BMR"
 apple_promo: "Your doses, labs and body numbers in one private journal. Reminders that arrive, an honest history and reports for your doctor — in six languages."
 play_title: "DoseTrace: Health Journal"
-play_short: "Private journal for peptides, TRT, labs and vaccines. Reminders. No advice."
+play_short: "Private journal for whatever you take, labs and vaccines. Reminders. No advice."
 ---
-DoseTrace is a private health journal for the routines you already follow — peptides, TRT, GLP-1s, injectables, vitamins and supplements — plus your lab results, vaccines and body numbers. You enter or upload everything; DoseTrace keeps it organized, reminds you on time and turns it into clear charts and reports you can hand to your doctor. It never interprets your data or tells you what to take.
+DoseTrace is a private health journal for the routines you already follow — medications, injectables, vitamins and supplements — plus your lab results, vaccines and body numbers. You enter or upload everything; DoseTrace keeps it organized, reminds you on time and turns it into clear charts and reports you can hand to your doctor. It never interprets your data or tells you what to take.
 
 TODAY, AT A GLANCE
 • Every dose due today, with one tap to mark it complete, skip it or undo it

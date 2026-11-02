@@ -4,9 +4,9 @@ apple_subtitle: "Doses, exames e lembretes"
 apple_keywords: "peptídeo,TRT,GLP-1,injetável,vitaminas,exames,vacina,diário,lembrete,dose,suplemento,proteína"
 apple_promo: "Suas doses, exames e números do corpo num diário privado. Lembretes que chegam, um histórico honesto e relatórios para o seu médico — em seis idiomas."
 play_title: "DoseTrace: Diário de Saúde"
-play_short: "Diário privado de peptídeos, TRT, exames e vacinas. Lembretes. Sem conselhos."
+play_short: "Diário privado do que você usa, exames e vacinas. Lembretes. Sem conselhos."
 ---
-DoseTrace é um diário de saúde privado para as rotinas que você já segue — peptídeos, TRT, GLP-1, injetáveis, vitaminas e suplementos — e também para seus exames, vacinas e números do corpo. Você anota ou envia tudo; o DoseTrace organiza, lembra na hora certa e transforma isso em gráficos e relatórios claros para levar ao seu médico. Ele nunca interpreta seus dados nem diz o que você deve tomar.
+DoseTrace é um diário de saúde privado para as rotinas que você já segue — medicamentos, injetáveis, vitaminas e suplementos — e também para seus exames, vacinas e números do corpo. Você anota ou envia tudo; o DoseTrace organiza, lembra na hora certa e transforma isso em gráficos e relatórios claros para levar ao seu médico. Ele nunca interpreta seus dados nem diz o que você deve tomar.
 
 HOJE, NUM RELANCE
 • Todas as doses do dia, com um toque para marcar como concluída, pular ou desfazer

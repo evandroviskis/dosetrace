@@ -4,9 +4,9 @@ apple_subtitle: "Doses, analyses et rappels"
 apple_keywords: "peptide,TRT,GLP-1,injectable,vitamines,analyses,vaccin,journal,rappel,dose,complément,protéine"
 apple_promo: "Vos doses, analyses et chiffres du corps dans un journal privé. Des rappels qui arrivent, un historique honnête et des rapports pour votre médecin, en six langues."
 play_title: "DoseTrace : journal de santé"
-play_short: "Journal privé : peptides, TRT, analyses, vaccins. Rappels. Aucun conseil."
+play_short: "Journal privé de ce que vous prenez, analyses, vaccins. Rappels. Aucun conseil."
 ---
-DoseTrace est un journal de santé privé pour les routines que vous suivez déjà — peptides, TRT, GLP-1, injectables, vitamines et compléments — ainsi que pour vos analyses, vos vaccins et les chiffres de votre corps. Vous saisissez ou importez tout ; DoseTrace l'organise, vous rappelle à l'heure et en fait des graphiques et des rapports clairs à montrer à votre médecin. Il n'interprète jamais vos données et ne vous dit jamais quoi prendre.
+DoseTrace est un journal de santé privé pour les routines que vous suivez déjà — médicaments, injectables, vitamines et compléments — ainsi que pour vos analyses, vos vaccins et les chiffres de votre corps. Vous saisissez ou importez tout ; DoseTrace l'organise, vous rappelle à l'heure et en fait des graphiques et des rapports clairs à montrer à votre médecin. Il n'interprète jamais vos données et ne vous dit jamais quoi prendre.
 
 AUJOURD'HUI, EN UN COUP D'ŒIL
 • Toutes les doses du jour : un geste pour les marquer comme effectuées, les sauter ou annuler

@@ -4,9 +4,9 @@ apple_subtitle: "Dosi, esami e promemoria"
 apple_keywords: "peptide,TRT,GLP-1,iniettabile,vitamine,esami,analisi,vaccino,diario,promemoria,dose,integratore"
 apple_promo: "Le tue dosi, i tuoi esami e i numeri del corpo in un diario privato. Promemoria che arrivano, una cronologia onesta e report per il tuo medico, in sei lingue."
 play_title: "DoseTrace: diario di salute"
-play_short: "Diario privato per peptidi, TRT, esami e vaccini. Promemoria. Nessun consiglio."
+play_short: "Diario privato di ciò che prendi, esami e vaccini. Promemoria. Nessun consiglio."
 ---
-DoseTrace è un diario di salute privato per le routine che segui già — peptidi, TRT, GLP-1, iniettabili, vitamine e integratori — e anche per i tuoi esami, i vaccini e i numeri del corpo. Inserisci o carichi tutto tu; DoseTrace lo mette in ordine, ti ricorda le dosi all'ora giusta e lo trasforma in grafici e report chiari da portare al tuo medico. Non interpreta mai i tuoi dati e non ti dice mai cosa prendere.
+DoseTrace è un diario di salute privato per le routine che segui già — farmaci, iniettabili, vitamine e integratori — e anche per i tuoi esami, i vaccini e i numeri del corpo. Inserisci o carichi tutto tu; DoseTrace lo mette in ordine, ti ricorda le dosi all'ora giusta e lo trasforma in grafici e report chiari da portare al tuo medico. Non interpreta mai i tuoi dati e non ti dice mai cosa prendere.
 
 OGGI, A COLPO D'OCCHIO
 • Tutte le dosi del giorno, con un tocco per segnarle come completate, saltarle o annullare

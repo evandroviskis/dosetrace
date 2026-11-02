@@ -4,9 +4,9 @@ apple_subtitle: "Dosen, Laborwerte, Erinnerung"
 apple_keywords: "Peptid,TRT,GLP-1,Injektion,Vitamine,Blutwerte,Labor,Impfung,Tagebuch,Erinnerung,Dosis,Protein"
 apple_promo: "Deine Dosen, Laborwerte und Körperzahlen in einem privaten Tagebuch. Erinnerungen, die ankommen, ein ehrlicher Verlauf und Berichte für deine Ärztin – in sechs Sprachen."
 play_title: "DoseTrace: Gesundheitstagebuch"
-play_short: "Privates Tagebuch: Peptide, TRT, Laborwerte, Impfungen. Erinnerungen. Kein Rat."
+play_short: "Privates Tagebuch für alles, was du nimmst: Laborwerte, Impfungen. Kein Rat."
 ---
-DoseTrace ist ein privates Gesundheitstagebuch für die Routinen, denen du schon folgst – Peptide, TRT, GLP-1, Injektionen, Vitamine und Nahrungsergänzung – und für deine Laborwerte, Impfungen und Körperzahlen. Du trägst alles ein oder lädst es hoch; DoseTrace ordnet es, erinnert dich pünktlich und macht daraus klare Diagramme und Berichte für deinen Arzt oder deine Ärztin. Es deutet deine Daten nie und sagt dir nie, was du nehmen sollst.
+DoseTrace ist ein privates Gesundheitstagebuch für die Routinen, denen du schon folgst – Medikamente, Injektionen, Vitamine und Nahrungsergänzung – und für deine Laborwerte, Impfungen und Körperzahlen. Du trägst alles ein oder lädst es hoch; DoseTrace ordnet es, erinnert dich pünktlich und macht daraus klare Diagramme und Berichte für deinen Arzt oder deine Ärztin. Es deutet deine Daten nie und sagt dir nie, was du nehmen sollst.
 
 HEUTE AUF EINEN BLICK
 • Alle fälligen Dosen des Tages – mit einem Tipp als erledigt markieren, auslassen oder rückgängig machen
