@@ -5,4 +5,11 @@
     <string name="bio_subtitle">Confirme sua identidade para abrir o painel</string>
     <string name="bio_negative">Cancelar</string>
     <string name="bio_failed">Não foi possível confirmar sua identidade. Toque para tentar de novo.</string>
+    <string name="reg_title">Cadastrar este aparelho</string>
+    <string name="reg_sub">Cole aqui a chave do aparelho gerada no banco (ela aparece uma única vez). A chave fica guardada no cofre do aparelho, protegida pela sua biometria.</string>
+    <string name="reg_hint">chave do aparelho</string>
+    <string name="reg_save">Salvar</string>
+    <string name="reg_bad">Chave inválida. O formato é id.segredo, como foi mostrado no banco.</string>
+    <string name="reg_store_failed">Não foi possível guardar a chave no cofre do aparelho. Tente de novo após a biometria.</string>
+    <string name="reg_replacing">Trocar a chave deste aparelho: cole a nova chave.</string>
 </resources>

@@ -12,7 +12,7 @@ rm -rf build && mkdir -p build/compiled build/gen build/classes build/dex
 aapt2 compile --dir res -o build/compiled.zip
 aapt2 link -o build/base.apk -I "$ANDROID_JAR" --manifest AndroidManifest.xml --java build/gen build/compiled.zip --auto-add-overlay
 javac --release 11 -classpath "$ANDROID_JAR" -d build/classes $(find src build/gen -name '*.java')
-d8 --release --min-api 29 --lib "$ANDROID_JAR" --output build/dex $(find build/classes -name '*.class')
+d8 --release --min-api 30 --lib "$ANDROID_JAR" --output build/dex $(find build/classes -name '*.class')
 cp build/base.apk build/unsigned.apk
 ( cd build/dex && zip -q ../unsigned.apk classes.dex )
 zipalign -f -p 4 build/unsigned.apk build/aligned.apk
