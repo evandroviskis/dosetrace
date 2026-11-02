@@ -25,3 +25,16 @@ test('every listing marks the lab charts, PDF export, AI food log and reality ch
     assert.ok(s.length <= 4000 + 400, `${l}: body still fits the Play 4000 limit (front matter excluded)`);
   }
 });
+
+// Found by the Promo Council app specialist (2026-11-02): "CSV export of everything you entered" is
+// false. The CSV/PDF on My Body hold lab results and vaccines only (lib/exportRecords.js); everything
+// is only in the free "Download my data" file (lib/accountActions.js exportMyData).
+test('every listing says the CSV holds lab results and vaccines, and the full-data file is separate', () => {
+  const EVERYTHING = { en: /everything you entered/i, es: /todo lo que registraste/i, pt: /tudo o que você registrou/i, fr: /tout ce que vous avez saisi/i, de: /allem, was du eingetragen hast/i, it: /tutto ciò che hai inserito/i };
+  const VACC = { en: /vaccin/i, es: /vacun/i, pt: /vacin/i, fr: /vaccin/i, de: /impf/i, it: /vaccin/i };
+  for (const l of LANGS) {
+    const exportLine = read(l).split('\n').find((x) => /CSV/.test(x));
+    assert.doesNotMatch(exportLine, EVERYTHING[l], `${l}: CSV is not "everything you entered"`);
+    assert.match(exportLine, VACC[l], `${l}: CSV line names the vaccines it holds`);
+  }
+});

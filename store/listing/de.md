@@ -31,7 +31,7 @@ DEIN KÖRPER
 • KI-Essensprotokoll: erzähl in deinen Worten, was du gegessen hast (7 Tage gratis, dann Premium)
 
 BERICHTE
-• Ein 30-Tage-Bericht zur Regelmäßigkeit und Export als CSV von allem, was du eingetragen hast (PDF: Premium)
+• Ein 30-Tage-Bericht zur Regelmäßigkeit, Export deiner Laborwerte und Impfungen als CSV (PDF: Premium) und alle deine Daten als Datei, jederzeit
 
 SECHS SPRACHEN
 English, Español, Português, Français, Deutsch und Italiano – mit Datum, Uhrzeit und Zahlen im Format deiner Region.

@@ -31,7 +31,7 @@ YOUR BODY
 • AI food log: tell it what you ate in your own words (free for 7 days, then Premium)
 
 REPORTS
-• A 30-day adherence report and CSV export of everything you entered (PDF export: Premium)
+• A 30-day adherence report, CSV export of your lab results and vaccines (PDF export: Premium) and all your data as a file, anytime
 
 SIX LANGUAGES
 English, Español, Português, Français, Deutsch and Italiano — with your local dates, times and number formats.

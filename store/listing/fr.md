@@ -31,7 +31,7 @@ VOTRE CORPS
 • Journal alimentaire IA : dites ce que vous avez mangé avec vos mots (gratuit 7 jours, puis Premium)
 
 RAPPORTS
-• Un rapport de régularité sur 30 jours et l'export CSV de tout ce que vous avez saisi (PDF : Premium)
+• Un rapport de régularité sur 30 jours, l'export CSV de vos analyses et vaccins (PDF : Premium) et toutes vos données dans un fichier, à tout moment
 
 SIX LANGUES
 English, Español, Português, Français, Deutsch et Italiano — avec les dates, heures et nombres au format de votre région.

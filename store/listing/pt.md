@@ -31,7 +31,7 @@ SEU CORPO
 • Registro de comida com IA: conte o que comeu com suas palavras (grátis por 7 dias, depois Premium)
 
 RELATÓRIOS
-• Relatório de constância de 30 dias e exportação em CSV de tudo o que você registrou (PDF: Premium)
+• Relatório de constância de 30 dias, exportação em CSV dos seus exames e vacinas (PDF: Premium) e todos os seus dados em um arquivo, quando quiser
 
 SEIS IDIOMAS
 English, Español, Português, Français, Deutsch e Italiano — com datas, horários e números no formato da sua região.

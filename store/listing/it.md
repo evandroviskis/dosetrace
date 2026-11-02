@@ -31,7 +31,7 @@ IL TUO CORPO
 • Diario alimentare con IA: racconta cosa hai mangiato con parole tue (gratis per 7 giorni, poi Premium)
 
 REPORT
-• Un report di costanza di 30 giorni ed esportazione in CSV di tutto ciò che hai inserito (PDF: Premium)
+• Un report di costanza di 30 giorni, esportazione in CSV di esami e vaccini (PDF: Premium) e tutti i tuoi dati in un file, quando vuoi
 
 SEI LINGUE
 English, Español, Português, Français, Deutsch e Italiano — con date, orari e numeri nel formato della tua zona.
