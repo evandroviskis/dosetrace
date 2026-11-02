@@ -243,3 +243,20 @@ test('Deadline: vercel.json gives api/adm.js a maxDuration above the default 10 
   assert.ok(v.functions && v.functions['api/adm.js'] && v.functions['api/adm.js'].maxDuration >= 30);
   assert.ok(adm.SOURCE_DEADLINE_MS <= 20000 && adm.SOURCE_DEADLINE_MS >= 5000);
 });
+
+// ------------------------------------------------------------------ Founder 2026-11-02 ("preciso entrar e já ver os números de cara")
+test('Open-with-last-numbers: the page keeps the last answer in the session store (never plain localStorage in the browser), shows it at once with "updating…", refreshes in the background, toasts when fresh numbers arrive, and keeps the cached numbers if the refresh fails', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
+  assert.match(html, /var ADM_LAST_KEY='dt_adm_last'/);
+  assert.match(html, /ADM_STORE\.setItem\(ADM_LAST_KEY/, 'cache written through the same store as the session');
+  assert.ok(!/localStorage\.setItem\(ADM_LAST_KEY/.test(html) && !/localStorage\.setItem\('dt_adm_last'/.test(html), 'never written to localStorage directly');
+  assert.match(html, /if\(last&&applyPayload\(last\)\)\{FROM_CACHE=true;render\(\);\}/, 'cached numbers render before any request');
+  assert.match(html, /FROM_CACHE\?'<span class="stale">'\+esc\(t\('upd_stale'\)\)/, 'header shows the updating chip on cached numbers');
+  assert.match(html, /toast\(t\('upd_fresh'/); assert.match(html, /toast\(t\('upd_fail'/);
+  assert.match(html, /#adm-toast\{[^}]*background:var\(--surface2\)[^}]*border:1px solid var\(--line\)/, 'toast uses tokens only');
+  assert.match(html, /\.stale\{[^}]*color:var\(--warn\)/);
+  const T = (0, eval)('(' + html.match(/<script>\n([\s\S]*?)<\/script>/)[1].match(/var T=(\{[\s\S]*?\n  \});/)[1] + ')');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['upd_stale', 'upd_fresh', 'upd_fail']) assert.ok(T[l][k], l + ' ' + k);
+  assert.equal(T.pt.upd_fresh, 'Números atualizados às {d}');
+  assert.equal(T.pt.upd_fail, 'Não foi possível atualizar; estes são os números das {d}');
+});
