@@ -41,3 +41,9 @@ aplicativo. A propaganda tem que mencionar o que o aplicativo pode fazer pela pe
 - Store listings exist on both stores (6 languages, real screenshots).
 - Very few real users today; no paid ads yet; budget not decided (ask the founder only if the
   plan depends on it).
+
+## AI presenter rules (founder 2026-11-02: he does not appear on camera at the start)
+- Allowed: his own voice over the app screen recording; a face swap onto a GENERATED or licensed face that is not a real person; a stock avatar speaking for the brand ("DoseTrace lets you...").
+- Never: an avatar speaking as a user ("I use it", "my labs") — FTC 16 CFR 465.2; a real person's face or voice; a muscular/shirtless/transformation presenter (reads as a result) — use an ordinary healthy adult in everyday clothes, phone screen as the hero; Synthesia in ads; Arcads "I tried it" format; avatars on Reddit; lab coats.
+- Disclosure burned in from second 0: "AI-generated presenter. Story and voice: DoseTrace's founder." (face swap) or "AI-generated presenter. Not a real user." (stock avatar), plus caption and the platform AI label (Instagram, TikTok, YouTube). New York GBL 396-b applies.
+- In a face-swap video every "I" line must be literally true for the founder.
