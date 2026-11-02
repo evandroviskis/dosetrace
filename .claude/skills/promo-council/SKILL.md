@@ -35,6 +35,8 @@ personal story —, accounts that exist, past posts and results). The account di
 everything the record already answers and asks the client the rest in ONE round.
 
 ## Step 2 — the meeting (parallel)
+(If a promo-* agent type is not found — new agent files load only when a session starts — dispatch a
+general-purpose agent told to read and act as .claude/agents/<role>.md, read-only.)
 Dispatch the staff in ONE message, background, each with the brief + "judge through your lens
 only; say 'outside my lane' if it does not touch you". Small pieces (one post, one caption):
 promo-copywriter, promo-user, the channel's role. promo-app-expert ALWAYS — after the others,
