@@ -59,6 +59,17 @@ test('OD-7: after the founder\'s cutoff (DL-105 amended) a client of an earlier 
   assert.ok(A);
 });
 
+test('legacy cutoff blocks every 1.3.0 account, also one that never opened 1.3.1 (no account row) — founder 2026-10-26 "não permitir mais acesso à versão antiga"', async () => {
+  const cloud = world();
+  const old = cloud.as(null, { userId: U }); // only ever used 1.3.0: no device registered for the account
+  assert.equal((await old.insert('biomarkers', { user_id: U, marker: 'TSH', value: '1' })).error, null, 'no cutoff yet');
+  cloud.policy.legacyUntil = new Date(Date.now() - 1000).toISOString();
+  const w = await old.insert('biomarkers', { user_id: U, marker: 'TSH', value: '2' });
+  assert.equal(w.error && w.error.code, 'DT002', 'after the cutoff the old version is refused even with no device on the account');
+  const r = await old.fetchAll('biomarkers', U);
+  assert.equal(r.error && r.error.code, 'DT002', 'reads too (never an empty answer it could act on)');
+});
+
 test('OD-17 / DL-105 amended: a write without a device id (1.3.0) keeps working until the founder-set cutoff, also after a device registered; then DT002', async () => {
   const cloud = world();
   const old = cloud.as(null, { userId: U });

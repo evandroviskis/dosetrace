@@ -180,7 +180,7 @@ function makeDeviceCloud(base = makeCloud()) {
     if (!userId) return null;
     if (policy.min && version && versionBelow(version, policy.min)) return err('DT003', 'update_required');
     const a = acc.get(userId);
-    if (!deviceId) return a && !legacyAllowed() ? err('DT002', 'device_required') : null;
+    if (!deviceId) return !legacyAllowed() ? err('DT002', 'device_required') : null;
     if (!a || a.active !== deviceId) return err('DT001', 'device_not_active');
     return null;
   }
