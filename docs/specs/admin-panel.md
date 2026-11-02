@@ -299,6 +299,8 @@ checklist-signed: founder 2026-11-02 ("eu aprovo as suas sugestões"; "Concordo 
 | AC2 | If the cache cannot be read (or Supabase is not configured) every day is asked as before; a failed write never fails the source | [x] admAppleCache AC2 | session |
 | AC3 | Migration `20261102100000_admin_apple_days.sql`: RLS on, revoked from public/anon/authenticated, service_role select/insert/update only (no delete, no policies) | [x] admAppleCache AC3; live: **not applied** (awaits the founder's go) | session + founder |
 | L5 | On the phone a tap on an account row opens its card and the Opções menu (the Contas click/key handlers look at the phone tab, not only the desktop tab) | [x] admMobile L5; 390 px renders of card, menu, Premium and Message dialogs in both themes 2026-11-02; live: pending | session |
+| L6 | Inside the app the full-screen account card pads by the system-bar insets (the "‹ Contas" button no longer sits under the clock) | [x] admMobile L6; S25 proof pending | session |
+| L7 | The phone's Back key closes one layer at a time (dialog → glossary → Opções → card → phone menu → Mais sub-page → Resumo) and only then leaves the app; never the step-up dialog | [x] admMobile L7; DT Admin 0.4 (onBackPressed → DTAdminBack); S25 proof pending | session |
 
 ## Auth
 

@@ -87,3 +87,19 @@ test('L5: on the phone a tap on an account row selects it (the click and key han
   assert.match(HTML, /var el=ev\.target;if\(!el\|\|!el\.closest\|\|!accountsTabOn\(\)\)return;/, 'click handler uses it');
   assert.ok(!/TAB!=='accounts'\)return;/.test(HTML), 'no handler bails out on the desktop tab alone');
 });
+
+// Founder 2026-11-02 (S25 walk): the account card (a fixed full-screen layer on the phone) sat under the clock, and the
+// phone's Back key closed the whole app instead of closing the menu / card / dialog. L6: the card pads by --sat/--sab;
+// L7: the page exposes DTAdminBack(), which the app calls on Back and which closes one layer at a time.
+test('L6: the full-screen account card pads by the system-bar insets inside the app', () => {
+  assert.match(HTML, /\.acc-card\.open\{[^}]*padding:calc\(16px \+ var\(--sat,0px\)\) 16px calc\(16px \+ var\(--sab,0px\)\)\}/);
+});
+test('L7: DTAdminBack closes one layer per press, in order dialog → glossary → Opções menu → card → phone menu → Mais sub-page → back to Resumo, and returns false when there is nothing left to close', () => {
+  const src = HTML.match(/window\.DTAdminBack=function\(\)\{[\s\S]*?\n  \};/);
+  assert.ok(src, 'DTAdminBack defined');
+  const s = src[0];
+  const order = ['PM', 'MS', 'RS', "gloss", 'US&&US.menu', 'if(US)', 'MOB.menu', 'MOB.more', "MOB.tab!=='resumo'", 'return false'];
+  let last = -1;
+  for (const k of order) { const i = s.indexOf(k); assert.ok(i > last, k + ' comes after the previous layer'); last = i; }
+  assert.ok(!/stepup/.test(s), 'Back never dismisses the step-up dialog');
+});

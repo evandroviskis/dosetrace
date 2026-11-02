@@ -88,6 +88,6 @@ test('AC3: the migration creates admin_apple_days with RLS, revokes public/anon/
   assert.match(sql, /alter table public\.admin_apple_days enable row level security/);
   assert.match(sql, /revoke all on table public\.admin_apple_days from public, anon, authenticated/);
   assert.match(sql, /grant select, insert, update on table public\.admin_apple_days to service_role/);
-  assert.ok(!/delete/i.test(sql), 'nothing may delete a cached day');
+  assert.ok(!/grant[^;]*delete/i.test(sql) && /revoke delete, truncate, references, trigger on table public\.admin_apple_days from service_role/.test(sql), 'no role but postgres may delete a cached day');
   assert.ok(!/create policy/i.test(sql), 'no policies: RLS blocks every non-bypassing role');
 });

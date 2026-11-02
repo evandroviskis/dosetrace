@@ -347,7 +347,7 @@
   @media(max-width:999px){
     .acc-split{grid-template-columns:1fr}
     .acc-card{display:none}
-    .acc-card.open{display:block;position:fixed;inset:0;z-index:70;max-height:none;border:0;border-radius:0;background:var(--bg);padding:16px}
+    .acc-card.open{display:block;position:fixed;inset:0;z-index:70;max-height:none;border:0;border-radius:0;background:var(--bg);padding:calc(16px + var(--sat,0px)) 16px calc(16px + var(--sab,0px))}
     .us-top{display:block}
   }
   @media(max-width:640px){
@@ -2475,6 +2475,20 @@
   window.mobMenu=mobMenu;
   window.mobTests=function(){MOB.tab='contas';MOB.more=null;ACCV='tests';SEL={};MSG=null;render();};
   window.mobRefresh=function(){load();};
+  // L7 (founder 2026-11-02): the Android app calls this on the phone's Back key. Closes ONE layer per press and
+  // answers true; false = nothing open, the app may leave. The step-up dialog is never dismissed this way.
+  window.DTAdminBack=function(){
+    if(PM){closePrem();return true;}
+    if(MS){closeMsg();return true;}
+    if(RS){rsClose();return true;}
+    var g=document.getElementById('gloss');if(g&&g.style.display==='flex'){g.style.display='none';return true;}
+    if(US&&US.menu){US.menu=false;render();return true;}
+    if(US){US=null;render();return true;}
+    if(isMobile()&&MOB.menu){mobMenu(false);return true;}
+    if(isMobile()&&MOB.more){MOB.more=null;render();return true;}
+    if(isMobile()&&MOB.tab!=='resumo'){window.setMobTab('resumo');return true;}
+    return false;
+  };
   window.mobSignOut=function(){AUTH.signOut().then(function(){D={};MG=null;liReset('signin');renderLogin();});};
   var MOB_WAS=null;
   window.addEventListener('resize',function(){var m=isMobile();if(MOB_WAS!==null&&m!==MOB_WAS&&D&&D.generated_at)render();MOB_WAS=m;});

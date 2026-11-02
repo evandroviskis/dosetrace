@@ -66,7 +66,7 @@ public class MainActivity extends Activity {
     // ---- the bridge the panel page calls ---------------------------------------------------------
     private final class Bridge {
         @JavascriptInterface public String deviceKey() { return unlocked && deviceKey != null ? deviceKey : ""; }
-        @JavascriptInterface public String appVersion() { return "0.3"; }
+        @JavascriptInterface public String appVersion() { return "0.4"; }
     }
 
     @Override protected void onCreate(Bundle b) {
@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setSupportZoom(false);
-        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.3");
+        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.4");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.addJavascriptInterface(new Bridge(), "DTAdmin");
@@ -255,6 +255,14 @@ public class MainActivity extends Activity {
 
     @Override public void onBackPressed() {
         if (reg.getVisibility() == View.VISIBLE && deviceKey != null) { openPanel(); return; }
-        if (unlocked && web.getVisibility() == View.VISIBLE && web.canGoBack()) web.goBack(); else super.onBackPressed();
+        if (unlocked && web.getVisibility() == View.VISIBLE) {
+            // L7: let the panel close one layer (dialog, menu, card, sub-page); leave only when it says nothing is open.
+            web.evaluateJavascript("(function(){try{return window.DTAdminBack?!!window.DTAdminBack():false;}catch(e){return false;}})()", r -> {
+                if ("true".equals(r)) return;
+                if (web.canGoBack()) web.goBack(); else moveTaskToBack(true);
+            });
+            return;
+        }
+        super.onBackPressed();
     }
 }
