@@ -66,7 +66,16 @@ public class MainActivity extends Activity {
     // ---- the bridge the panel page calls ---------------------------------------------------------
     private final class Bridge {
         @JavascriptInterface public String deviceKey() { return unlocked && deviceKey != null ? deviceKey : ""; }
-        @JavascriptInterface public String appVersion() { return "0.5"; }
+        @JavascriptInterface public String appVersion() { return "0.6"; }
+        // L9: the page says which theme it shows; the status-bar icons follow (dark icons on a light page).
+        @JavascriptInterface public void setTheme(String theme) {
+            final boolean light = "light".equals(theme);
+            runOnUiThread(() -> {
+                android.view.WindowInsetsController c = getWindow().getInsetsController();
+                if (c != null) c.setSystemBarsAppearance(light ? android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS : 0, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+                root.setBackgroundColor(light ? Color.parseColor("#EEF2F7") : Color.parseColor("#0C2340"));
+            });
+        }
         // L8: the panel asks the phone browser to open an https link (RevenueCat, Supabase); nothing else is accepted.
         @JavascriptInterface public void openExternal(String url) {
             try {
@@ -87,7 +96,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setSupportZoom(false);
-        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.5");
+        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.6");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.addJavascriptInterface(new Bridge(), "DTAdmin");

@@ -920,6 +920,8 @@
 
   // ---- theme ----
   function curTheme(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}
+  // L9: inside the Android app the status-bar icons follow the page theme (the app paints them).
+  function tellTheme(){try{if(DT_BRIDGE&&window.DTAdmin&&window.DTAdmin.setTheme)window.DTAdmin.setTheme(curTheme());}catch(e){}}
   (function initTheme(){var th='dark';try{th=localStorage.getItem('dt_adm_theme')||'dark';}catch(e){}if(th==='light')document.documentElement.setAttribute('data-theme','light');})();
   function cc(){var l=curTheme()==='light';return {ink:l?'#0C2340':'#EAF2FB',muted:l?'#5A7085':'#8FA6BD',grid:l?'rgba(0,0,0,.08)':'rgba(255,255,255,.07)'};}
 
@@ -2297,7 +2299,8 @@
   }
   function showExpired(){closeStepUp();liReset('expired');renderLogin();}
   function showNoauth(){closeStepUp();liReset('noauth');renderLogin();}
-  function startPanel(){LI.screen='panel';load();}
+  function startPanel(){LI.screen='panel';tellTheme();
+    load();}
 
   // ---- step-up dialog: a change more than 15 min after the last code asks for a fresh one (AU3)
   var SU_DONE=null;
@@ -2329,7 +2332,7 @@
   // Language and theme controls, shared by the login screens and the panel.
   function bindChrome(rr){
     document.getElementById('lang').onchange=function(){LANG=this.value;try{localStorage.setItem('dt_adm_lang',LANG);}catch(e){}periods=periods.map(function(p){return periodFor(gran,p.start);});rr();};
-    document.getElementById('theme').onclick=function(){var toLight=curTheme()!=='light';if(toLight)document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');try{localStorage.setItem('dt_adm_theme',toLight?'light':'dark');}catch(e){}rr();};
+    document.getElementById('theme').onclick=function(){var toLight=curTheme()!=='light';if(toLight)document.documentElement.setAttribute('data-theme','light');else document.documentElement.removeAttribute('data-theme');try{localStorage.setItem('dt_adm_theme',toLight?'light':'dark');}catch(e){}tellTheme();rr();};
   }
 
   // ---- phone layout (founder 2026-11-02, proposal A approved; picture docs/design/adm-mobile-a.html).
@@ -2442,7 +2445,7 @@
     h+=row("mobMore('sources')",t('mob_more_sources'),t('mob_more_sources_sub',{n:fmt(DEFS.length)}));
     h+=row("mobTests()",t('mob_more_tests'),t('mob_more_tests_sub',{n:fmt(n)}));
     h+='<div class="mobmore"><span><b>'+esc(t('mob_more_lang'))+'</b></span>'+langSelect()+'</div>';
-    h+='<div class="mobmore"><span><b>'+esc(t('mob_more_theme'))+'</b><span class="sub">'+esc(curTheme()==='light'?t('theme_light'):t('theme_dark'))+'</span></span>'+themeBtn()+'</div>';
+    h+='<div class="mobmore"><span><b>'+esc(t('mob_more_theme'))+'</b><span class="sub">'+esc(curTheme()==='dark'?t('theme_light'):t('theme_dark'))+'</span></span>'+themeBtn()+'</div>';
     h+=row("mobRefresh()",t('mob_more_refresh'),t('mob_more_refresh_sub',{d:new Date(D.generated_at||Date.now()).toLocaleString(LANG)}));
     h+=row("mobSignOut()",t('li_signout'),t('mob_more_signout_sub',{e:AUTH.email()}));
     return h;

@@ -120,3 +120,17 @@ test('G1: the glossary Close button is hidden while a confirm dialog shows its o
   const others = HTML.match(/getElementById\('gloss-close'\)\.style\.display=''/g) || [];
   assert.ok(others.length >= 2, 'the two glossary callers restore it');
 });
+
+// S25 walk 2026-11-02 (light theme): the Mais › Tema row said "Switch to dark theme" while dark was on (label
+// inverted, M1), and the clock stayed white on the light page because the app never learned the page theme.
+// L9: the page tells the app its theme (bridge setTheme) on load and on every toggle; the app paints the
+// status-bar icons dark on a light page.
+test('M1: the phone Theme row names the theme the tap switches TO (dark on → "Switch to light theme")', () => {
+  assert.match(HTML, /mob_more_theme'\)\)\+'<\/b><span class="sub">'\+esc\(curTheme\(\)==='dark'\?t\('theme_light'\):t\('theme_dark'\)\)/);
+});
+test('L9: the page reports its theme to the app on load and on toggle', () => {
+  assert.match(HTML, /function tellTheme\(\)\{try\{if\(DT_BRIDGE&&window\.DTAdmin&&window\.DTAdmin\.setTheme\)window\.DTAdmin\.setTheme\(curTheme\(\)\);\}catch\(e\)\{\}\}/);
+  const toggle = HTML.match(/getElementById\('theme'\)\.onclick=function\(\)\{[^\n]*\n/)[0];
+  assert.match(toggle, /tellTheme\(\);rr\(\);/, 'toggle reports before re-rendering');
+  assert.match(HTML, /function startPanel\(\)\{LI\.screen='panel';tellTheme\(\);\n\s*load\(\);\}/, 'reported once at start, before the first load');
+});
