@@ -66,7 +66,15 @@ public class MainActivity extends Activity {
     // ---- the bridge the panel page calls ---------------------------------------------------------
     private final class Bridge {
         @JavascriptInterface public String deviceKey() { return unlocked && deviceKey != null ? deviceKey : ""; }
-        @JavascriptInterface public String appVersion() { return "0.4"; }
+        @JavascriptInterface public String appVersion() { return "0.5"; }
+        // L8: the panel asks the phone browser to open an https link (RevenueCat, Supabase); nothing else is accepted.
+        @JavascriptInterface public void openExternal(String url) {
+            try {
+                final android.net.Uri u = android.net.Uri.parse(url);
+                if (!"https".equals(u.getScheme())) return;
+                runOnUiThread(() -> startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, u)));
+            } catch (Exception e) { /* no browser: nothing happens */ }
+        }
     }
 
     @Override protected void onCreate(Bundle b) {
@@ -79,7 +87,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setSupportZoom(false);
-        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.4");
+        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.5");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.addJavascriptInterface(new Bridge(), "DTAdmin");

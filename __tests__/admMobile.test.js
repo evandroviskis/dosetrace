@@ -103,3 +103,20 @@ test('L7: DTAdminBack closes one layer per press, in order dialog â†’ glossary â
   for (const k of order) { const i = s.indexOf(k); assert.ok(i > last, k + ' comes after the previous layer'); last = i; }
   assert.ok(!/stepup/.test(s), 'Back never dismisses the step-up dialog');
 });
+
+// S25 walk 2026-11-02: "Abrir no RevenueCat/Supabase" did nothing inside the app (a WebView without window
+// support swallows window.open and refuses foreign hosts). L8: on the device the page hands the URL to the
+// app bridge, which opens the phone's browser; in a browser window.open stays. G1: the mark-as-test confirm
+// showed both "Cancelar" and the glossary's generic "Fechar" button.
+test('L8: external links use DTAdmin.openExternal inside the app and window.open in a browser', () => {
+  assert.match(HTML, /function openExternal\(u\)\{if\(DT_BRIDGE&&window\.DTAdmin&&window\.DTAdmin\.openExternal\)\{window\.DTAdmin\.openExternal\(u\);return;\}window\.open\(u,'_blank','noopener,noreferrer'\);\}/);
+  assert.ok(!/if\(k==='rc'\)\{[^\n]*window\.open\(/.test(HTML) && !/if\(k==='sb'\)\{[^\n]*window\.open\(/.test(HTML), 'the menu actions go through openExternal');
+  assert.match(HTML, /if\(k==='rc'\)\{[^\n]*openExternal\(US\.links\.revenuecat\)/);
+  assert.match(HTML, /if\(k==='sb'\)\{[^\n]*openExternal\(US\.links\.supabase\)/);
+});
+test('G1: the glossary Close button is hidden while a confirm dialog shows its own Confirm / Cancel, and shown again for plain glossary text', () => {
+  const mt = HTML.match(/window\.markTests=function\(mark\)\{[\s\S]*?getElementById\('gloss'\)\.style\.display='flex';/)[0];
+  assert.match(mt, /getElementById\('gloss-close'\)\.style\.display='none'/);
+  const others = HTML.match(/getElementById\('gloss-close'\)\.style\.display=''/g) || [];
+  assert.ok(others.length >= 2, 'the two glossary callers restore it');
+});

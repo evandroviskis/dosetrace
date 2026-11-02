@@ -1153,7 +1153,7 @@
         +'<dl><dt>'+esc(t('ds_source'))+'</dt><dd>'+esc(d.src)+'</dd><dt>'+esc(t('ds_def'))+'</dt><dd>'+esc(d.def)+'</dd>'
         +'<dt>'+esc(t('ds_range'))+'</dt><dd>'+esc(d.range)+'</dd><dt>'+esc(t('ds_proven'))+'</dt><dd>'+esc(provenLabel(d))+'</dd></dl></div>';
     }).join('');
-    document.getElementById('gloss-close').textContent=t('close');
+    document.getElementById('gloss-close').textContent=t('close');document.getElementById('gloss-close').style.display='';
     document.getElementById('gloss').style.display='flex';
   };
   function srcBtn(ids){return '<div class="srcrow"><button class="src" onclick="showDef(\''+ids+'\')">'+esc(t('src_btn'))+' <span class="ids">'+esc(ids.replace(/,/g,' · '))+'</span></button></div>';}
@@ -1165,7 +1165,7 @@
     document.getElementById('gloss-t').textContent=ti;
     document.getElementById('gloss-p').textContent=de;
     document.getElementById('gloss-body').innerHTML='';
-    document.getElementById('gloss-close').textContent=t('close');
+    document.getElementById('gloss-close').textContent=t('close');document.getElementById('gloss-close').style.display='';
     document.getElementById('gloss').style.display='flex';
   };
   function iBtn(term){return '<button class="info" onclick="showGloss(\''+term+'\')" title="'+esc(t('close')==='Close'?'What is this?':t('gl_'+term+'_t'))+'">i</button>';}
@@ -1703,7 +1703,7 @@
     document.getElementById('gloss-p').textContent='';
     document.getElementById('gloss-body').innerHTML='<ul class="emails">'+emails.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul>'
       +'<div class="actions"><button class="on" id="gloss-go">'+esc(t('btn_confirm'))+'</button><button onclick="document.getElementById(\'gloss\').style.display=\'none\'">'+esc(t('btn_cancel'))+'</button></div>';
-    document.getElementById('gloss-close').textContent=t('close');
+    document.getElementById('gloss-close').textContent=t('close');document.getElementById('gloss-close').style.display='none';
     document.getElementById('gloss').style.display='flex';
     document.getElementById('gloss-go').onclick=function(){
       document.getElementById('gloss').style.display='none';
@@ -1758,11 +1758,13 @@
     if(k==='grant'||k==='change_end'||k==='revoke'||k==='premium'){usCloseMenu();window.openPremium(id,k==='premium'?null:k);return;}
     if(k==='message'){usCloseMenu();window.openMessage(id);return;}
     if(k==='copy'){usCopy(id).then(function(){if(US&&US.id===id){US.copied=true;render();}},function(){});return;}
-    if(k==='rc'){if(US.links&&US.links.revenuecat)window.open(US.links.revenuecat,'_blank','noopener,noreferrer');usCloseMenu();return;}
-    if(k==='sb'){usCopy(id).catch(function(){});if(US.links&&US.links.supabase)window.open(US.links.supabase,'_blank','noopener,noreferrer');usCloseMenu();return;}
+    if(k==='rc'){if(US.links&&US.links.revenuecat)openExternal(US.links.revenuecat);usCloseMenu();return;}
+    if(k==='sb'){usCopy(id).catch(function(){});if(US.links&&US.links.supabase)openExternal(US.links.supabase);usCloseMenu();return;}
     if(k==='mark'||k==='unmark'){usCloseMenu();SEL={};SEL[US.user.email]=1;window.markTests(k==='mark');SEL=keepSel;return;}
     if(k==='resend'){usCloseMenu();rsOpen();}
   }
+  // L8: inside the Android app window.open is swallowed and foreign hosts are refused; the app bridge opens the phone browser.
+  function openExternal(u){if(DT_BRIDGE&&window.DTAdmin&&window.DTAdmin.openExternal){window.DTAdmin.openExternal(u);return;}window.open(u,'_blank','noopener,noreferrer');}
   // Clicks in the Contas tab: a row selects its account (not its checkbox); the card's buttons; the menu.
   // On the phone the Accounts tab is MOB.tab (L5, founder 2026-11-02: the tap on an e-mail did nothing).
   function accountsTabOn(){return isMobile()?MOB.tab==='contas':TAB==='accounts';}

@@ -301,6 +301,8 @@ checklist-signed: founder 2026-11-02 ("eu aprovo as suas sugestões"; "Concordo 
 | L5 | On the phone a tap on an account row opens its card and the Opções menu (the Contas click/key handlers look at the phone tab, not only the desktop tab) | [x] admMobile L5; 390 px renders of card, menu, Premium and Message dialogs in both themes 2026-11-02; live: pending | session |
 | L6 | Inside the app the full-screen account card pads by the system-bar insets (the "‹ Contas" button no longer sits under the clock) | [x] admMobile L6; S25 proof pending | session |
 | L7 | The phone's Back key closes one layer at a time (dialog → glossary → Opções → card → phone menu → Mais sub-page → Resumo) and only then leaves the app; never the step-up dialog | [x] admMobile L7; DT Admin 0.4 (onBackPressed → DTAdminBack); S25 proof pending | session |
+| L8 | Inside the app "Abrir no RevenueCat / Supabase" open the phone browser (bridge openExternal, https only); in a browser window.open as before | [x] admMobile L8; DT Admin 0.5; S25 proof pending | session |
+| G1 | The mark-as-test confirm shows only Confirmar / Cancelar (the glossary Close button is hidden while actions are present) | [x] admMobile G1 | session |
 
 ## Auth
 
