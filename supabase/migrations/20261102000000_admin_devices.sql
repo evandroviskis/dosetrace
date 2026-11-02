@@ -62,3 +62,8 @@ $$;
 
 revoke execute on function public.admin_device_register(uuid, text) from public, anon, authenticated, service_role;
 revoke execute on function public.admin_device_revoke(uuid) from public, anon, authenticated, service_role;
+
+-- Supabase's default privileges give service_role full rights on a new public table; the panel's server
+-- must only read and stamp last_used_at (DA8), so the defaults are taken back here (applied live 2026-11-02).
+revoke insert, update, delete, truncate, references, trigger on table public.admin_devices from service_role;
+grant select, update (last_used_at) on table public.admin_devices to service_role;

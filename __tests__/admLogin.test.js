@@ -442,12 +442,13 @@ test('AU8 page: sign-out removes the stored session and ends it at Supabase', as
   assert.match(last.headers.Authorization, /^Bearer /);
 });
 
-test('AU8 static: the session lives in sessionStorage only — localStorage holds only language, theme and tab; nothing in the URL', () => {
-  assert.match(HTML, /ADM_STORE=window\.sessionStorage;/);
-  assert.match(HTML, /var AUTH=makeAuth\(\{[^\n]*store:ADM_STORE[^\n]*\}\);/);
+test('AU8 static: in the browser the session lives in sessionStorage only (localStorage holds only language, theme and tab); only inside the DT Admin app (window.DTAdmin bridge, Phase 4) it moves to the app\'s private localStorage; nothing in the URL', () => {
+  assert.match(HTML, /ADM_STORE=DT_BRIDGE\?window\.localStorage:window\.sessionStorage;/);
+  assert.match(HTML, /var AUTH=makeAuth\(\{[^\n]*store:ADM_STORE[\s\S]{0,200}?device:DT_BRIDGE/);
   const lsKeys = [...HTML.matchAll(/localStorage\.setItem\('([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual([...new Set(lsKeys)].sort(), ['dt_adm_lang', 'dt_adm_tab', 'dt_adm_theme']);
-  assert.ok(!/localStorage[^;]*(session|token)/i.test(HTML.replace(/sessionStorage/g, '')), 'no session in localStorage');
+  const noBridge = HTML.replace(/sessionStorage/g, '').replace(/ADM_STORE=DT_BRIDGE\?window\.localStorage:window\.;/, '');
+  assert.ok(!/localStorage[^;]*(session|token)/i.test(noBridge), 'no session in localStorage outside the bridge line');
   assert.match(HTML, /history\.replaceState\(null,'',location\.pathname\)/, 'query and hash are stripped');
   assert.ok(!/[?&](access_token|refresh_token)=/.test(HTML));
   assert.match(HTML, /setInterval\(function\(\)\{if\(AUTH\.expiredNow\(\)\)/, 'an open panel turns into "expired" at 12 h');

@@ -131,3 +131,87 @@ test('DA8 SQL: migration admin_devices — table (id, user_id, name, key_hash un
   assert.ok(!/insert into auth\.users|delete from auth\.users|update auth\.users/i.test(MIG), 'never touches auth.users');
   assert.ok(SQL.includes('admin_devices'), 'the versioned SQL file carries the Phase 4 objects too');
 });
+
+// ------------------------------------------------------------------ DA9: the page with the app's bridge
+const HTML = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
+function authPure() {
+  const m = HTML.match(/\/\/ \[auth-pure-start\]([\s\S]*?)\/\/ \[auth-pure-end\]/);
+  return (0, eval)('(function(){' + m[1] + '\nreturn {makeAuth:makeAuth,jwtClaims:jwtClaims,ADM_SESSION_KEY:ADM_SESSION_KEY};})()');
+}
+const NOW = Date.parse('2026-11-02T12:00:00Z');
+const DEVKEY = F.DEVICES.s25.id + '.' + F.DEVICE_SECRETS.s25;
+// A fake browser for the device case: password grant gives an aal1 session; /api/adm answers 200 when the
+// device header is present (the server waived aal2), otherwise aal2_required.
+function devEnv(o) {
+  o = o || {};
+  const P = authPure();
+  const mem = new Map();
+  if (o.saved) mem.set(P.ADM_SESSION_KEY, JSON.stringify(o.saved));
+  const store = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
+  const calls = [];
+  const json = (b, s) => new Response(b == null ? null : JSON.stringify(b), { status: s || 200, headers: { 'Content-Type': 'application/json' } });
+  const user = () => ({ id: F.USERS.admin.id, email: F.USERS.admin.email, factors: [{ id: 'f-1', factor_type: 'totp', status: 'verified' }] });
+  async function fetch(url, init) {
+    const u = String(url); const method = (init && init.method) || 'GET'; const headers = (init && init.headers) || {};
+    calls.push({ url: u, method, headers });
+    const A = F.SB + '/auth/v1';
+    if (u === A + '/token?grant_type=password') return json({ access_token: F.token('admin', { aal: 'aal1', nowMs: NOW }), refresh_token: 'r1', expires_in: 3600, user: user() });
+    if (u === A + '/token?grant_type=refresh_token') return json({ access_token: F.token('admin', { aal: 'aal1', nowMs: NOW, ageS: 30 * 3600 }), refresh_token: 'r2', expires_in: 3600, user: user() });
+    if (u.startsWith(A + '/logout')) return json(null, 204);
+    if (u === '/api/adm') {
+      const c = P.jwtClaims(String(headers.Authorization || '').replace(/^Bearer /, ''));
+      const dev = headers['X-DT-Device'] || headers['x-dt-device'];
+      if (dev === DEVKEY) return json({ sources: {}, me: { role: 'admin', device: true } });
+      if (dev) return json({ error: 'Unauthorized', code: 'device_unknown' }, 401);
+      if (!c || c.aal !== 'aal2') return json({ error: 'Unauthorized', code: 'aal2_required' }, 401);
+      return json({ sources: {}, me: { role: 'admin', device: false } });
+    }
+    return json({ error: 'unexpected ' + u }, 599);
+  }
+  const auth = P.makeAuth({ fetch, store, now: () => NOW, sbUrl: F.SB, anon: 'anon-key', api: '/api/adm', device: o.device === undefined ? (() => DEVKEY) : o.device });
+  return { P, auth, calls, mem, apiCalls: () => calls.filter((c) => c.url === '/api/adm') };
+}
+
+test('DA9 page: with the app bridge, password → panel straight away (no code screen); the probe and every panel call carry X-DT-Device; the aal1 session is stored; no step-up is ever asked', async () => {
+  const e = devEnv();
+  const s = await e.auth.signIn('boss@x.y', 'pw');
+  assert.equal(s.screen, 'panel');
+  assert.equal(e.apiCalls().length, 1);
+  assert.equal(e.apiCalls()[0].headers['X-DT-Device'], DEVKEY);
+  const saved = JSON.parse(e.mem.get(e.P.ADM_SESSION_KEY));
+  assert.equal(e.P.jwtClaims(saved.access_token).aal, 'aal1');
+  const r = await e.auth.api('GET');
+  assert.equal(r.status, 200);
+  assert.equal(e.apiCalls()[1].headers['X-DT-Device'], DEVKEY);
+  assert.equal(e.auth.needsStepUp(), false);
+  assert.ok(!e.calls.some((c) => c.url.startsWith(F.SB) && (c.headers['X-DT-Device'] || c.headers['x-dt-device'])), 'the device key never goes to Supabase Auth');
+});
+
+test('DA9 page: a saved aal1 session older than 12 h still opens the panel on the device (the server owns the device rule); without the bridge the same session is refused as before', async () => {
+  const saved = { access_token: F.token('admin', { aal: 'aal1', nowMs: NOW, ageS: 20 * 3600 }), refresh_token: 'r0', expires_at: Math.floor(NOW / 1000) + 3000, user: { id: F.USERS.admin.id, email: F.USERS.admin.email }, factor_id: null };
+  const e = devEnv({ saved });
+  assert.equal((await e.auth.start()).screen, 'panel');
+  assert.equal((await e.auth.api('GET')).status, 200);
+  const n = devEnv({ saved, device: null });
+  assert.equal((await n.auth.start()).screen, 'signin', 'browser: an aal1 session is never accepted');
+});
+
+test('DA9 page: a device the server does not know → the sign-in shows an error and nothing is stored; the bridge returning an empty key behaves like no bridge', async () => {
+  const e = devEnv({ device: () => F.DEVICES.s25.id + '.wrong-secret-0123456789abcdef' });
+  const s = await e.auth.signIn('boss@x.y', 'pw');
+  assert.equal(s.screen, 'signin');
+  assert.equal(s.error, 'li_err_device');
+  assert.equal(e.mem.size, 0);
+  const b = devEnv({ device: () => '' });
+  assert.equal((await b.auth.signIn('boss@x.y', 'pw')).screen, 'code');
+});
+
+test('DA9 page glue: the page detects window.DTAdmin, hands its deviceKey() to makeAuth, keeps the session in localStorage only inside the app, and has the error label in 6 languages', () => {
+  assert.match(HTML, /window\.DTAdmin/);
+  assert.match(HTML, /DTAdmin\.deviceKey/);
+  assert.match(HTML, /device:/);
+  assert.match(HTML, /window\.localStorage/);
+  const T = (0, eval)('(' + HTML.match(/<script>\n([\s\S]*?)<\/script>/)[1].match(/var T=(\{[\s\S]*?\n  \});/)[1] + ')');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].li_err_device, l + ' li_err_device');
+  assert.equal(T.pt.li_err_device, 'Este aparelho não está autorizado. Cadastre-o de novo no painel ou peça um novo acesso.');
+});
