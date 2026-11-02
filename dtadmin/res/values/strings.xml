@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DT Admin</string>
+    <string name="bio_title">DT Admin</string>
+    <string name="bio_subtitle">Confirme sua identidade para abrir o painel</string>
+    <string name="bio_negative">Cancelar</string>
+    <string name="bio_failed">Não foi possível confirmar sua identidade. Toque para tentar de novo.</string>
+</resources>

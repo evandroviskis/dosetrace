@@ -23,11 +23,34 @@
  * Nothing here logs; tokens are never echoed.
  */
 
+const crypto = require('crypto');
+
 const ALLOWED_ORIGIN = 'https://dosetrace.io';
 const MAX_SESSION_MS = 12 * 60 * 60 * 1000;
 const STEP_UP_MS = 15 * 60 * 1000;
-const TOKEN_QUERY_KEYS = ['t', 'token', 'admin_token', 'access_token'];
+const TOKEN_QUERY_KEYS = ['t', 'token', 'admin_token', 'access_token', 'device', 'dt_device', 'x-dt-device'];
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Phase 4 (DT Admin app, founder 2026-11-02): "X-DT-Device: <device id>.<secret>". A registered,
+// not revoked device of the SAME allow-listed admin replaces the authenticator: aal2, the 12 h
+// password age and the 15 min step-up are waived for it. The browser never sends this header.
+const DEVICE_HEADER = 'x-dt-device';
+const DEVICE_SECRET_RE = /^[A-Za-z0-9_-]{16,512}$/;
+
+function parseDevice(raw) {
+  const v = String(raw || '').trim();
+  if (!v) return null;
+  const dot = v.indexOf('.');
+  if (dot < 0) return { bad: true };
+  const id = v.slice(0, dot), secret = v.slice(dot + 1);
+  if (!UUID_RE.test(id) || !DEVICE_SECRET_RE.test(secret)) return { bad: true };
+  return { id: id.toLowerCase(), secret };
+}
+
+function hashesEqual(a, b) {
+  const x = Buffer.from(String(a || ''), 'utf8'), y = Buffer.from(String(b || ''), 'utf8');
+  return x.length === y.length && x.length > 0 && crypto.timingSafeEqual(x, y);
+}
 
 function isWrite(req) {
   const m = String((req && req.method) || 'GET').toUpperCase();
@@ -110,16 +133,49 @@ async function checkAdmin(req, opts) {
   }
   if (!role) return refuse(403, 'Forbidden', 'not_allowed');
 
-  if (claims.aal !== 'aal2') return refuse(401, 'Unauthorized', 'aal2_required');
-  const start = sessionStartMs(claims);
-  if (start == null || now - start > MAX_SESSION_MS) return refuse(401, 'Unauthorized', 'session_expired');
+  // Phase 4: a registered device (after the allow-list, so a stranger never triggers a lookup).
+  const devHeader = header(req, DEVICE_HEADER);
+  let device = null;
+  if (devHeader) {
+    const dev = parseDevice(devHeader);
+    if (!dev || dev.bad) return refuse(401, 'Unauthorized', 'device_unknown');
+    let row = null;
+    try {
+      const r = await fetch(`${url}/rest/v1/admin_devices?select=id,user_id,key_hash,revoked_at&id=eq.${encodeURIComponent(dev.id)}`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: 'application/json' },
+      });
+      if (!r.ok) return refuse(503, 'Admin devices unavailable.');
+      const rows = await r.json();
+      row = Array.isArray(rows) && rows[0] ? rows[0] : null;
+    } catch (e) {
+      return refuse(503, 'Admin devices unavailable.');
+    }
+    const hash = crypto.createHash('sha256').update(dev.secret, 'utf8').digest('hex');
+    if (!row || row.revoked_at || row.user_id !== user.id || !hashesEqual(row.key_hash, hash)) return refuse(401, 'Unauthorized', 'device_unknown');
+    device = { id: row.id };
+    try { // best effort, never fails the request
+      await fetch(`${url}/rest/v1/admin_devices?id=eq.${encodeURIComponent(row.id)}`, {
+        method: 'PATCH',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ last_used_at: new Date(now).toISOString() }),
+      });
+    } catch (e) { /* ignored */ }
+  }
+
+  if (!device) {
+    if (claims.aal !== 'aal2') return refuse(401, 'Unauthorized', 'aal2_required');
+    const start = sessionStartMs(claims);
+    if (start == null || now - start > MAX_SESSION_MS) return refuse(401, 'Unauthorized', 'session_expired');
+  }
 
   if (write) {
     if (role !== 'admin') return refuse(403, 'Forbidden', 'role');
-    const totp = lastTotpMs(claims);
-    if (totp == null || now - totp > STEP_UP_MS) return refuse(401, 'Unauthorized', 'step_up_required');
+    if (!device) {
+      const totp = lastTotpMs(claims);
+      if (totp == null || now - totp > STEP_UP_MS) return refuse(401, 'Unauthorized', 'step_up_required');
+    }
   }
-  return { ok: true, write, role, user: { id: user.id, email: user.email || null } };
+  return { ok: true, write, role, user: { id: user.id, email: user.email || null }, device };
 }
 
-module.exports = { checkAdmin, isWrite, sessionStartMs, lastTotpMs, ALLOWED_ORIGIN, MAX_SESSION_MS, STEP_UP_MS };
+module.exports = { checkAdmin, isWrite, sessionStartMs, lastTotpMs, parseDevice, ALLOWED_ORIGIN, MAX_SESSION_MS, STEP_UP_MS, DEVICE_HEADER };

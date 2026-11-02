@@ -273,6 +273,28 @@ Each item gets its own picture and, where it writes, its own rows before code. T
 
 The "Should" items S1–S7 (handoff section 5) come after 3.4, each specced when its turn comes.
 
+### Phase 4 — "DT Admin": the founder's private Android app (founder 2026-11-02)
+
+checklist-signed: founder 2026-11-02 ("eu aprovo as suas sugestões"; "Concordo com a 2, pode registrar e seguir")
+
+**What:** a private Android app, installed only on the founder's S25 and Fold, never on Google Play. Plain Java + WebView of dosetrace.io/adm, built on the Mac with the Android SDK tools only (aapt2, JDK 17, d8, apksigner; no Expo, no Gradle), signed with a local key that stays out of git and out of the Second Brain. Device biometrics on open and when coming back after 5 minutes. Proof of concept installed on the S25 2026-11-02 09:24 EST (package `io.outcom.dtadmin`).
+
+**Second factor on the device = the device key + biometrics, instead of the authenticator (founder 2026-11-02, option 2).** The app holds a random key in the Android Keystore (released only by biometrics) and sends `X-DT-Device: <device id>.<secret>` on every `/api/adm*` call. The server keeps `admin_devices` (id, user_id, name, key_hash = sha256(secret), created_at, last_used_at, revoked_at); for a registered, not revoked device of the SAME allow-listed admin it waives aal2, the 12 h password age and the 15 min TOTP step-up. Everything else is unchanged: allow-list first, role `admin` for writes, Origin check, no credential in a URL, no logging. **The browser keeps the 2026-10-21 rules exactly** (password + authenticator, 12 h, step-up). Devices are registered and revoked by SQL with the founder's go (`admin_device_register` returns the plaintext key once; it is for the `postgres` role only, never the service role); the key never appears in a log or response.
+
+| ID | Criterion | Status | Evidence |
+|---|---|---|---|
+| DA1 | A registered device of the admin with a password-only session reads and writes without TOTP, even past 12 h | [~] | admDevice.test.js "DA1" |
+| DA2 | Unknown id, wrong secret, revoked device or another admin's device → 401 `device_unknown`, no data call, even with aal2 | [~] | "DA2" |
+| DA3 | Malformed header → 401 `device_unknown` before any lookup | [~] | "DA3" |
+| DA4 | Without the header nothing changes (aal2_required / session_expired / step_up_required) | [~] | "DA4" + AU2 |
+| DA5 | Allow-list before the device lookup (stranger → 403); viewer's device reads, write → 403 `role`; foreign Origin → 403 first | [~] | "DA5" |
+| DA6 | Device key in the URL → 401 before any call | [~] | "DA6" |
+| DA7 | `last_used_at` patched once per call (service role), failure never fails the request; the secret never reaches a result | [~] | "DA7" |
+| DA8 | Migration `20261102000000_admin_devices.sql`: table, RLS, service_role select + update(last_used_at) only, `admin_device_register` / `admin_device_revoke` for postgres only, sha256, never touches auth.users | [~] | "DA8" static; live apply on founder go |
+| DA9 | Page: with `window.DTAdmin` present, `web/adm.html` sends the header on every call and skips the TOTP step after the password; without it, the login is unchanged | [ ] | page test + render |
+| DA10 | App: key in the Keystore behind biometrics, JS bridge, persistent session, one-time registration screen that shows the key once; only dosetrace.io / supabase.co load inside | [ ] | code in `dtadmin/`, device proof |
+| DA11 | Live on both phones: open → biometrics → panel; grant/revoke Premium on the test account with biometrics only; revoking a device cuts its access at once | [ ] | founder + session |
+
 ## Auth
 
 Since 3.1 (built 2026-10-21, not yet deployed) the shared admin token is gone. The rules below replace it; rows AU1–AU9 are the contract.

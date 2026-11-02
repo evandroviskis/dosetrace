@@ -26,6 +26,20 @@ function token(who, opts) {
   return b64u({ alg: 'HS256', typ: 'JWT' }) + '.' + b64u(claims) + '.fake-sig';
 }
 
+// Phase 4 (DT Admin app, founder 2026-11-02): registered devices. The header is "<id>.<secret>";
+// the table stores sha256(secret) as hex. Dummy ids and secrets only.
+const crypto = require('crypto');
+const DEVICE_SECRETS = { s25: 'dummy-device-secret-s25-0123456789abcdef', fold: 'dummy-device-secret-fold-0123456789abcdef', dead: 'dummy-device-secret-dead-0123456789abcdef', lookers: 'dummy-device-secret-viewer-0123456789abcdef' };
+const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+const DEVICES = {
+  s25: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', user: 'admin', key_hash: sha256(DEVICE_SECRETS.s25), revoked_at: null },
+  fold: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', user: 'admin', key_hash: sha256(DEVICE_SECRETS.fold), revoked_at: null },
+  dead: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3', user: 'admin', key_hash: sha256(DEVICE_SECRETS.dead), revoked_at: '2026-11-01T00:00:00Z' },
+  lookers: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4', user: 'viewer', key_hash: sha256(DEVICE_SECRETS.lookers), revoked_at: null },
+};
+// The header value a registered device sends; `secret` overrides the real one (wrong key tests).
+function deviceHeader(name, secret) { return { 'x-dt-device': DEVICES[name].id + '.' + (secret == null ? DEVICE_SECRETS[name] : secret) }; }
+
 function json(o, status) { return new Response(JSON.stringify(o), { status: status || 200, headers: { 'Content-Type': 'application/json' } }); }
 
 // The fake Supabase Auth + allow-list answer for a URL, or null when the URL is not an auth call.
@@ -44,6 +58,13 @@ function authAnswer(u, headers, o) {
     const m = u.match(/user_id=eq\.([0-9a-f-]+)/i);
     const hit = Object.values(USERS).find((x) => m && x.id === m[1] && x.role);
     return json(hit ? [{ role: hit.role }] : []);
+  }
+  if (u.startsWith(SB + '/rest/v1/admin_devices')) {
+    if (o.devicesDown) return json({ message: 'relation does not exist' }, 404);
+    if (o._patch) return new Response(null, { status: 204 });
+    const m = u.match(/id=eq\.([0-9a-f-]+)/i);
+    const hit = Object.values(DEVICES).find((d) => m && d.id === m[1]);
+    return json(hit ? [{ id: hit.id, user_id: USERS[hit.user].id, key_hash: hit.key_hash, revoked_at: hit.revoked_at }] : []);
   }
   return null;
 }
@@ -65,7 +86,8 @@ function installFetch(opts) {
     let body = null;
     if (init && init.body) { try { body = JSON.parse(init.body); } catch (e) { body = init.body; } }
     calls.push({ url: u, method: (init && init.method) || 'GET', headers, body });
-    const auth = authAnswer(u, headers, o);
+    const method = String((init && init.method) || 'GET').toUpperCase();
+    const auth = authAnswer(u, headers, Object.assign({}, o, { _patch: method === 'PATCH' && u.startsWith(SB + '/rest/v1/admin_devices') }));
     if (auth) return auth;
     if (o.data) return o.data(u, body, init || {});
     return json({});
@@ -73,7 +95,8 @@ function installFetch(opts) {
   return {
     calls,
     restore() { global.fetch = real; },
-    dataCalls() { return calls.filter((c) => !(c.url === SB + '/auth/v1/user' || c.url.startsWith(SB + '/rest/v1/admin_users'))); },
+    dataCalls() { return calls.filter((c) => !(c.url === SB + '/auth/v1/user' || c.url.startsWith(SB + '/rest/v1/admin_users') || c.url.startsWith(SB + '/rest/v1/admin_devices'))); },
+    deviceCalls() { return calls.filter((c) => c.url.startsWith(SB + '/rest/v1/admin_devices')); },
   };
 }
 
@@ -105,11 +128,11 @@ async function call(handler, req, opts) {
     const query = {};
     new URL(url, 'http://x').searchParams.forEach((v, k) => { query[k] = v; });
     await handler({ method: req.method || 'GET', url, headers: req.headers || {}, query, cookies: {}, body: req.body }, res);
-    return { res, code: res.code, body: res.body, json: res.body ? JSON.parse(res.body) : null, headers: res.headers, calls: f.calls, dataCalls: f.dataCalls() };
+    return { res, code: res.code, body: res.body, json: res.body ? JSON.parse(res.body) : null, headers: res.headers, calls: f.calls, dataCalls: f.dataCalls(), deviceCalls: f.deviceCalls() };
   } finally { f.restore(); }
 }
 
 const ORIGIN = { origin: 'https://dosetrace.io' };
 function bearer(who, opts) { return { authorization: 'Bearer ' + token(who, opts) }; }
 
-module.exports = { authAnswer, withAuth, SB, USERS, token, bearer, installFetch, mkRes, envOn, envOff, call, ORIGIN, json };
+module.exports = { authAnswer, withAuth, SB, USERS, DEVICES, DEVICE_SECRETS, deviceHeader, sha256, token, bearer, installFetch, mkRes, envOn, envOff, call, ORIGIN, json };

@@ -575,7 +575,7 @@ module.exports = async (req, res) => {
     generated_at: new Date().toISOString(),
     sources: { supabase, revenuecat, google_play, apple },
     management,
-    me: { role: auth.role },
+    me: { role: auth.role, device: !!auth.device },
   });
 };
 

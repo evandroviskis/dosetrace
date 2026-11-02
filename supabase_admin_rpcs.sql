@@ -893,3 +893,13 @@ revoke execute on function public.admin_resend_begin(uuid, uuid, uuid) from publ
 grant execute on function public.admin_translate_take(uuid) to service_role;
 grant execute on function public.admin_account_card(uuid) to service_role;
 grant execute on function public.admin_resend_begin(uuid, uuid, uuid) to service_role;
+
+-- ===========================================================================
+-- Phase 4 — "DT Admin" device key (docs/specs/admin-panel.md Phase 4, founder 2026-11-02).
+-- Same objects as supabase/migrations/20261102000000_admin_devices.sql (the migration is the
+-- source; this copy keeps the versioned-SQL rule). NOT applied until the founder's go.
+-- admin_devices: id, user_id, name, key_hash (sha256 hex of the device secret), created_at,
+-- last_used_at, revoked_at. RLS on, no policies; service_role may select and update last_used_at.
+-- admin_device_register(p_user_id, p_name) → (device_id, device_key) once; admin_device_revoke(p_id).
+-- Both functions: postgres only (revoked from public, anon, authenticated AND service_role).
+-- ===========================================================================
