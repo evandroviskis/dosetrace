@@ -9,9 +9,9 @@ que você use a pasta Second Brain como a sua memória"; "sua memória deve ser 
 tem na pasta"). Before every answer, read the relevant Second Brain files (dosetrace/HANDOFF.md,
 01-estado.md, 02-decisoes.md, 90-pendencias.md, ../Instrucoes/00-regras-gerais.md) and confront them with your own
 memory; if they differ, the folder wins and you say so in one line. Never tell the founder you did not
-remember something that is in the folder or in this repo. The Second Brain holds memory in TEXT only (founder
-rule 2026-10-23 20:59): never code, repo copies, images, secrets, tool memories or settings — it points to
-where they live. Hooks in .claude/settings.json inject dosetrace/HANDOFF.md + state at session start and
+remember something that is in the folder or in this repo. Since 2026-11-03 the CODE lives inside the Second Brain too (founder: "Não quero absolutamente nada fora
+do Second Brain"): the app repo is Second Brain/dosetrace/codigo, the admin worktree is
+dosetrace/admin-panel/codigo. The memory notes stay text; never secrets, images or tool settings in them. Hooks in .claude/settings.json inject dosetrace/HANDOFF.md + state at session start and
 after compaction, and a reminder + the matching decisions at every prompt. When state or a decision changes,
 update the file in Second Brain/dosetrace/ (02-decisoes.md etc.) with the real time from date. Never write
 anything at the Second Brain root: it is shared with other projects (founder 2026-10-23 21:30).
