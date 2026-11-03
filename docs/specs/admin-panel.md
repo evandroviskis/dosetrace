@@ -308,6 +308,8 @@ checklist-signed: founder 2026-11-02 ("eu aprovo as suas sugestões"; "Concordo 
 | L10 | On the phone every fixed dialog overlay (Premium, Message, Resend, step-up, glossary) pads its top by the status-bar inset | [x] admMobile L10 | session |
 | DP1 | Adherence and Top biomarkers leave the panel (page: no doughnut, no product section; founder 2026-11-02 answer 6); they return aggregated in a Partners view later | [x] admDetailsPrivacy DP1 | session |
 | DP2 | The API strips adherence and top_biomarkers from the Supabase data before answering | [x] admDetailsPrivacy DP2 | session |
+| UX1 | A tap that closes the Opções menu never also selects the row under it (the card cannot change under the founder) | [x] admMobile U1 (UX review 2026-11-02; seen on the S25) | session |
+| UX2 | A failed background refresh shows a fixed "não atualizado · números das {hora}" chip in the error colour instead of "atualizando…" forever; cleared by the next successful refresh; ×6 | [x] admMobile U2 | session |
 
 ## Auth
 
