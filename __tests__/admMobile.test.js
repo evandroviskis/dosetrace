@@ -57,7 +57,7 @@ test('Mobile static: render() branches to renderMobile() below 700 px; bottom ba
   assert.match(SCRIPT, /function isMobile\(\)\{[^}]*MOB_MAX_W/);
   assert.match(SCRIPT, /function render\(\)\{\s*if\(isMobile\(\)\)\{renderMobile\(\);return;\}/);
   for (const fn of ['renderMobile', 'mobHeader', 'mobResumo', 'mobSection', 'mobFunnelList', 'mobReconList', 'mobStoresList', 'mobMais', 'mobTabbar', 'mobMenu']) assert.match(SCRIPT, new RegExp('function ' + fn + '\\('), fn);
-  assert.match(SCRIPT, /var MOB=\{tab:'resumo',open:\{\}/, 'every section starts collapsed');
+  assert.match(SCRIPT, /var MOB=\{tab:'resumo',open:\{chegam:true\}/, 'every section starts collapsed except the weekly chart (picture approved 2026-11-02)');
   assert.match(SCRIPT, /window\.setMobTab=/); assert.match(SCRIPT, /window\.mobToggle=/);
   assert.match(HTML, /@media\(max-width:699px\)\{[\s\S]*?\.mobbar\{position:fixed;left:0;right:0;bottom:0/, 'fixed bottom bar');
   assert.match(HTML, /\.mobbar[^}]*background:var\(--surface\)/);

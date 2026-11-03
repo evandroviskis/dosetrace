@@ -86,3 +86,64 @@ test('RW5: the admin_annotations migration exists with RLS, revokes and service_
   assert.match(sql, /grant select, insert, delete on table public\.admin_annotations to service_role/);
   assert.ok(!/create policy/i.test(sql));
 });
+
+
+// ---------------- Part B: the page ----------------
+const HTML = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
+const PURE = (() => {
+  const m = HTML.match(/\/\/ \[resumo-pure-start\]([\s\S]*?)\/\/ \[resumo-pure-end\]/);
+  return (0, eval)('(function(){' + m[1] + '\nreturn {funnelSteps:funnelSteps,needsYou:needsYou,weekLabel:weekLabel};})()');
+})();
+
+test('RB1: funnelSteps gives each step its % against the PREVIOUS step (never the base), and needsYou lists real accounts stuck (unconfirmed ≥ 1 day, confirmed + onboarded + no protocol ≥ 2 days) within 14 days, newest first, max 10', () => {
+  const f = PURE.funnelSteps([{ id: 'W1', total: 12 }, { id: 'W2', total: 12 }, { id: 'W3', total: 12 }, { id: 'W4', total: 7 }, { id: 'W5', total: 5 }]);
+  assert.deepEqual(f.map((s) => [s.id, s.total, s.pctPrev]), [['W1', 12, null], ['W2', 12, 100], ['W3', 12, 100], ['W4', 7, 58], ['W5', 5, 71]]);
+  assert.deepEqual(PURE.funnelSteps([{ id: 'W1', total: 0 }, { id: 'W2', total: 0 }]).map((s) => s.pctPrev), [null, null], 'no division by zero');
+  const rows = [
+    { id: 'a', email: 'a@x.y', created: day(2), confirmed: false, onboarded: false, has_active_protocol: false },   // unconfirmed 2 d → resend
+    { id: 'b', email: 'b@x.y', created: day(0), confirmed: false, onboarded: false, has_active_protocol: false },   // today: too young
+    { id: 'c', email: 'c@x.y', created: day(3), confirmed: true, onboarded: true, has_active_protocol: false },     // no protocol 3 d → message
+    { id: 'd', email: 'd@x.y', created: day(1), confirmed: true, onboarded: true, has_active_protocol: false },     // 1 d: not yet
+    { id: 'e', email: 'e@x.y', created: day(5), confirmed: true, onboarded: true, has_active_protocol: true },      // fine
+    { id: 'f', email: 'f@x.y', created: day(20), confirmed: false, onboarded: false, has_active_protocol: false },  // older than 14 d: out
+    { id: 'g', email: 'g@x.y', created: day(4), confirmed: true, onboarded: false, has_active_protocol: false },    // onboarding not done: not this list (yet)
+  ];
+  const ny = PURE.needsYou(rows, NOW);
+  assert.deepEqual(ny.map((x) => [x.id, x.why, x.days, x.action]), [['a', 'unconfirmed', 2, 'resend'], ['c', 'no_protocol', 3, 'message']]);
+  assert.equal(PURE.needsYou(null, NOW).length, 0);
+  const many = []; for (let i = 0; i < 15; i++) many.push({ id: 'm' + i, email: 'm' + i + '@x.y', created: day(2 + (i % 5)), confirmed: false });
+  assert.equal(PURE.needsYou(many, NOW).length, 10);
+  assert.equal(PURE.weekLabel('2026-11-02', 'en'), '2 Nov');
+});
+
+test('RB2: the desktop Summary is organised by question (kpis → chegam → funil/precisa → canais/ficam), the reconciliation lives with the sources, the old funnel table and the daily chart live in Details, and "not measured" is grey', () => {
+  for (const fn of ['secKpis', 'secChegam', 'secFunnelQ', 'secPrecisa', 'secCanais', 'secFicam', 'marksHtml']) assert.match(HTML, new RegExp('function ' + fn + '\\('), fn);
+  assert.match(HTML, /if\(TAB==='mgmt'\)\{\n\s*if\(MG\)\{h\+=secKpis\(\);h\+=secChegam\(\);h\+='<div class="grid two">'\+secFunnelQ\(\)\+secPrecisa\(\)\+'<\/div><div class="grid two">'\+secCanais\(\)\+secFicam\(\)\+'<\/div>';\}/);
+  assert.match(HTML, /h\+=secSources\(\);if\(MG\)h\+=secRecon\(\);/, 'reconciliation after the sources');
+  assert.match(HTML, /h\+=secOverview\(\);if\(MG\)\{h\+=secFunnel\(\);h\+=secCharts\(\);\}/, 'detailed funnel table + daily chart in Details');
+  assert.match(HTML, /\.nm\{color:var\(--muted\);font-weight:700\}/, 'not measured is grey, not a warning');
+  assert.match(HTML, /if\(TAB==='mgmt'\)return \[\['kpis','mob_resumo'\],\['chegam','q_chegam'\],\['funil','q_funil'\],\['precisa','q_precisa'\],\['canais','q_canais'\],\['sources','nav_sources'\]\]/);
+  assert.match(HTML, /makeChart\('c-wk'/, 'weekly bars chart');
+  assert.match(HTML, /window\.nyOpen=function\(id\)/, 'a row of Precisa de você opens the card');
+  assert.match(HTML, /window\.markAdd=function\(\)/, 'marks can be added from the chart card');
+  assert.match(HTML, /ANN=payload\.annotations\|\|\{status:'not_configured'\}/, 'marks come with the payload');
+});
+
+test('RB3: the phone Summary has the same questions as sections (chegam open by default, precisa, funil, canais, ficam, stores) and no reconciliation; Fontes on the phone carries the reconciliation', () => {
+  const m = HTML.match(/function mobResumo\(\)\{[\s\S]*?\n  \}\n/)[0];
+  for (const id of ["'chegam'", "'precisa'", "'funil'", "'canais'", "'ficam'", "'stores'"]) assert.ok(m.includes('mobSection(' + id), id);
+  assert.ok(!m.includes("mobSection('recon'"), 'no reconciliation on the phone Summary');
+  assert.ok(!m.includes("mobSection('chart'"), 'the daily chart left the phone Summary');
+  assert.match(HTML, /var MOB=\{tab:'resumo',open:\{chegam:true\}/, 'chegam starts open');
+  assert.match(HTML, /MOB\.more==='sources'\)\{[^\n]*secSources\(\)\+\(MG\?secRecon\(\):''\)/, 'phone Fontes includes the reconciliation');
+});
+
+test('RB4: the new labels exist in the 6 languages, Portuguese is formal and natural', () => {
+  const Tn = (0, eval)('(' + HTML.match(/<script>\n([\s\S]*?)<\/script>/)[1].match(/var T=(\{[\s\S]*?\n  \});/)[1] + ')');
+  const keys = ['q_chegam', 'q_chegam_sub', 'q_chegam_sent', 'q_funil', 'q_funil_sub', 'q_precisa', 'q_precisa_sub', 'q_precisa_none', 'ny_unconfirmed', 'ny_no_protocol', 'ny_resend', 'ny_message', 'ny_open', 'q_canais', 'q_canais_sub', 'ch_channel', 'ch_visits', 'ch_downloads', 'ch_accounts', 'ch_hours', 'ch_nm_link', 'ch_direct', 'q_ficam', 'q_ficam_sub', 'q_ficam_nm', 'kpi_real', 'kpi_real_delta', 'kpi_paying', 'kpi_paying_sub', 'kpi_of', 'marks_add', 'marks_label_ph', 'marks_none', 'marks_nc', 'marks_del', 'week_this'];
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of keys) assert.ok(Tn[l][k], l + '.' + k);
+  assert.equal(Tn.pt.q_chegam, 'Quantas pessoas reais chegam?');
+  assert.equal(Tn.pt.q_precisa, 'Precisa de você');
+  assert.equal(Tn.pt.ch_nm_link, 'Não medido — links de campanha a partir de 3 nov');
+  assert.ok(!/a gente|dá para/.test(JSON.stringify(Tn.pt)));
+});
