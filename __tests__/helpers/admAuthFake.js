@@ -95,7 +95,7 @@ function installFetch(opts) {
   return {
     calls,
     restore() { global.fetch = real; },
-    dataCalls() { return calls.filter((c) => !(c.url === SB + '/auth/v1/user' || c.url.startsWith(SB + '/rest/v1/admin_users') || c.url.startsWith(SB + '/rest/v1/admin_devices'))); },
+    dataCalls() { return calls.filter((c) => !(c.url === SB + '/auth/v1/user' || c.url.startsWith(SB + '/rest/v1/admin_users') || c.url.startsWith(SB + '/rest/v1/admin_devices') || c.url.startsWith(SB + '/rest/v1/admin_annotations'))); }, // admin tables are not data RPCs
     deviceCalls() { return calls.filter((c) => c.url.startsWith(SB + '/rest/v1/admin_devices')); },
   };
 }

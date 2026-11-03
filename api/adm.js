@@ -421,6 +421,64 @@ function dailyNew(accounts, nowMs, days = 90) {
   return { window, days: out };
 }
 
+// G4 (Resumo por perguntas): new real accounts per ISO week (Monday 00:00 UTC), last `weeks` weeks, current week
+// included; the delta compares the current (partial) week with the previous full one.
+function weeklyNew(accounts, nowMs, weeks = 12) {
+  const thisWeek = isoWeekStart(utcDay(nowMs));
+  const out = [];
+  for (let i = weeks - 1; i >= 0; i--) out.push({ w: addDaysStr(thisWeek, -7 * i), n: 0, ios: 0, android: 0, unknown: 0 });
+  const idx = Object.fromEntries(out.map((r, i) => [r.w, i]));
+  for (const acc of accounts) {
+    if (acc.t || !acc.c) continue;
+    const r = out[idx[isoWeekStart(acc.c)]];
+    if (!r) continue;
+    r.n++;
+    const p = platformOf(acc);
+    if (p === 'ios') r.ios++; else if (p === 'android') r.android++; else r.unknown++;
+  }
+  const this_week = out[out.length - 1].n, prev_week = out.length > 1 ? out[out.length - 2].n : 0;
+  return { weeks: out, this_week, prev_week, delta: this_week - prev_week };
+}
+
+// Campaign marks (admin_annotations). Read with the service key; a missing table is "not_configured" (the
+// migration was not applied yet), never an error that hides the rest of the panel.
+async function fetchAnnotations() {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return { status: 'not_configured' };
+  try {
+    const r = await fetch(url + '/rest/v1/admin_annotations?select=id,day,label,channel&order=day.asc&limit=500', { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+    if (r.status === 404) return { status: 'not_configured' };
+    if (!r.ok) return { status: 'error', message: 'annotations ' + r.status };
+    const rows = await r.json();
+    return { status: 'ok', rows: Array.isArray(rows) ? rows.map((x) => ({ id: x.id, day: String(x.day).slice(0, 10), label: x.label, channel: x.channel || null })) : [] };
+  } catch (e) { return { status: 'error', message: String(e && e.message || e) }; }
+}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// POST { action: 'annotation_add', day, label, channel? } | { action: 'annotation_delete', id } → [code, body]
+async function annotationWrite(body) {
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [503, { error: 'not_configured' }];
+  const b = body && typeof body === 'object' ? body : {};
+  const H = { apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' };
+  if (b.action === 'annotation_add') {
+    const day = typeof b.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.day) && !Number.isNaN(Date.parse(b.day + 'T00:00:00Z')) ? b.day : null;
+    const label = typeof b.label === 'string' ? b.label.trim() : '';
+    const channel = typeof b.channel === 'string' && b.channel.trim() ? b.channel.trim().slice(0, 40) : null;
+    if (!day || !label || label.length > 80) return [400, { error: 'invalid', fields: { day: !!day, label: !!label && label.length <= 80 } }];
+    const r = await fetch(url + '/rest/v1/admin_annotations', { method: 'POST', headers: Object.assign({ Prefer: 'return=representation' }, H), body: JSON.stringify({ day, label, channel }) });
+    if (!r.ok) return [r.status === 404 ? 503 : 502, { error: r.status === 404 ? 'not_configured' : 'insert_failed', status: r.status }];
+    const rows = await r.json();
+    return [200, { ok: true, row: Array.isArray(rows) ? rows[0] : rows }];
+  }
+  if (b.action === 'annotation_delete') {
+    if (!UUID_RE.test(String(b.id || ''))) return [400, { error: 'invalid' }];
+    const r = await fetch(url + '/rest/v1/admin_annotations?id=eq.' + b.id, { method: 'DELETE', headers: H });
+    if (!r.ok) return [502, { error: 'delete_failed', status: r.status }];
+    return [200, { ok: true }];
+  }
+  return [400, { error: 'unknown_action' }];
+}
+
 // G2: weekly signup cohorts (ISO weeks, Monday 00:00 UTC), real only. Cell n = members
 // with >=1 analytics event in week n (a floor: there is no app-open event).
 function isoWeekStart(day) {
@@ -539,6 +597,7 @@ function buildManagement(sb, rc, nowMs, stores) {
     protocols_live: sb.protocols_live == null ? null : Number(sb.protocols_live),
     windows,
     g1: dailyNew(accounts, nowMs, 90),
+    g4: weeklyNew(accounts, nowMs, 12),
     g2: weeklyCohorts(accounts, nowMs, 8),
     rc_status: rc ? rc.status : 'not_configured',
     rc_match_status: rc && rc.match_status ? rc.match_status : null,
@@ -614,7 +673,8 @@ module.exports = async (req, res) => {
   // Panel #016: the only write, now behind the admin session (role admin + step-up, AU6).
   if (auth.write) {
     if (String(req.method || '').toUpperCase() !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
-    const [code, out] = await markTests(req.body, auth.user.id);
+    const act = req.body && req.body.action;
+    const [code, out] = (act === 'annotation_add' || act === 'annotation_delete') ? await annotationWrite(req.body) : await markTests(req.body, auth.user.id);
     res.status(code).json(out);
     return;
   }
@@ -623,9 +683,9 @@ module.exports = async (req, res) => {
   // RevenueCat call can never hold the whole panel past Vercel's limit; a late source shows "error: timeout".
   const timing = [];
   const timed = (label, p) => withDeadline(label, p, timing);
-  const [supabase, revenuecat, google_play, apple, rcCustomers] = await Promise.all([
+  const [supabase, revenuecat, google_play, apple, rcCustomers, annotations] = await Promise.all([
     timed("supabase", fetchSupabase()), timed("revenuecat", fetchRevenueCat()), timed("google_play", fetchGooglePlay()),
-    timed("apple", fetchApple()), timed("rc_customers", fetchRevenueCatCustomers()),
+    timed("apple", fetchApple()), timed("rc_customers", fetchRevenueCatCustomers()), timed("annotations", fetchAnnotations()),
   ]);
   res.setHeader("Server-Timing", timing.join(", "));
 
@@ -641,12 +701,13 @@ module.exports = async (req, res) => {
     generated_at: new Date().toISOString(),
     sources: { supabase: stripHealth(supabase), revenuecat, google_play, apple },
     management,
+    annotations,
     me: { role: auth.role, device: !!auth.device },
   });
 };
 
 Object.assign(module.exports, {
   fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate, matchesTestRule, parseMarkBody,
-  isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
+  isAnonymousRcId, dailyNew, weeklyCohorts, weeklyNew, fetchAnnotations, annotationWrite, buildManagement, fetchRevenueCatCustomers, withRcMatch,
   storeWindow, fetchApple, fetchGooglePlay, withDeadline, SOURCE_DEADLINE_MS, ASC_BATCH,
 });
