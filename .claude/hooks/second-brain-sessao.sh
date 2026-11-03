@@ -8,14 +8,14 @@ SB="$HOME/Desktop/Second Brain"
 # The admin panel worktree is its own conversation with its own folder (founder 2026-10-23 20:21).
 ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
 case "$ROOT" in
-  *dosetrace-admin*) P="dosetrace/admin-panel"; ENTRY="$SB/$P/HANDOFF.md" ;;
+  *dosetrace-admin*|*admin-panel/codigo*) P="dosetrace/admin-panel"; ENTRY="$SB/$P/HANDOFF.md" ;;
   *) P="dosetrace"; ENTRY="$SB/$P/HANDOFF.md" ;;
 esac
 {
   echo "SECOND BRAIN = MEMÓRIA OBRIGATÓRIA (regra do Evandro, 2026-10-23). Pasta: ~/Desktop/Second Brain."
   echo "Antes de cada resposta: confronte o que você lembra com a pasta. Se a memória e a pasta divergem, vale a pasta (e avise)."
   echo
-  [ "$P" = dosetrace ] && "${CLAUDE_PROJECT_DIR:-$HOME/Desktop/dosetrace}/scripts/atraso-entrega.sh" 2>/dev/null && echo
+  [ "$P" = dosetrace ] && "${CLAUDE_PROJECT_DIR:-$HOME/Desktop/Second Brain/dosetrace/codigo}/scripts/atraso-entrega.sh" 2>/dev/null && echo
   [ -f "$ENTRY" ] && head -c 6000 "$ENTRY"
   echo
   echo "=== $P/01-estado.md (início) ==="

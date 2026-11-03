@@ -9,6 +9,8 @@
 
 if [ "$#" -eq 0 ]; then echo "uso: scripts/checar-decisoes.sh <palavra> [palavra…]"; exit 2; fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ADM=0
+case "$ROOT" in *dosetrace-admin*|*admin-panel/codigo*) ADM=1 ;; esac
 SB="$HOME/Desktop/Second Brain"
 MAX="${CHECAR_MAX:-30}"
 
@@ -23,7 +25,7 @@ if [ -d "$SB/dosetrace" ]; then
   # panel is its own conversation (founder 2026-10-23 20:21): the panel worktree searches admin-panel/,
   # the app worktrees search dosetrace/ without admin-panel/.
   case "$ROOT" in
-    *dosetrace-admin*) SBDIR="$SB/dosetrace/admin-panel"; SBNOT="$SB/dosetrace/admin-panel/repositorio/*" ;;
+    *dosetrace-admin*|*admin-panel/codigo*) SBDIR="$SB/dosetrace/admin-panel"; SBNOT="$SB/dosetrace/admin-panel/repositorio/*" ;;
     *) SBDIR="$SB/dosetrace"; SBNOT="$SB/dosetrace/admin-panel/*" ;;
   esac
   while IFS= read -r f; do SBFILES+=("$f"); done < <(find "$SBDIR" -type f -name '*.md' -not -path "$SB/dosetrace/repositorio/*" -not -path "*/codigo/*" -not -path "*/notas-de-trabalho/*" -not -path "*/_to_delete/*" -not -path "*/historico/dosetrace-hybrid/*" -not -path "*/historico/soltos-do-repositorio-principal/*" -not -path "$SBNOT" | sort)
@@ -37,7 +39,7 @@ out="$(
   {
     [ "${#FILES[@]}" -gt 0 ] && grep -i -n -F -H "${ARGS[@]}" "${FILES[@]}" 2>/dev/null | sed "s|^$ROOT/||" | sed 's/^/R\t/'
     [ "${#SBFILES[@]}" -gt 0 ] && grep -i -n -F -H "${ARGS[@]}" "${SBFILES[@]}" 2>/dev/null | sed "s|^$SB/|Second Brain/|" | sed 's/^/S\t/'
-  } | awk -v words="$WORDS" -v max="$MAX" -v adm="$([ "${ROOT#*dosetrace-admin}" != "$ROOT" ] && echo 1 || echo 0)" '
+  } | awk -v words="$WORDS" -v max="$MAX" -v adm="$ADM" '
     BEGIN { n = split(tolower(words), w, " ") }
     {
       kind = substr($0, 1, 1); line = substr($0, 3)

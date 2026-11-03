@@ -1,4 +1,4 @@
-const { PNG } = require('/Users/evandrosantos/Desktop/dosetrace/node_modules/pngjs');
+const { PNG } = require(require('path').join(__dirname, '..', '..', 'node_modules', 'pngjs'));
 const fs = require('fs');
 const [,, src, dst, top] = process.argv;
 const img = PNG.sync.read(fs.readFileSync(src));

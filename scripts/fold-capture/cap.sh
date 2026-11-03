@@ -1,7 +1,7 @@
 #!/bin/bash
 # usage: cap.sh <lang> <name> -> store/screenshots/raw-android/<lang>/<name>.png (status bar cropped) + preview
 D=/private/tmp/claude-501/-Users-evandrosantos-Desktop-dosetrace/471f2548-5ba0-4cd3-9104-9a98d6108669/scratchpad/fold
-OUT=/Users/evandrosantos/Desktop/dosetrace/store/screenshots/raw-android/$1
+OUT="$(cd "$(dirname "$0")/../.." && pwd)/store/screenshots/raw-android/$1"
 mkdir -p "$OUT"
 adb exec-out screencap -p > "$D/cap.raw"
 python3 - "$D/cap.raw" "$D/cap.full.png" <<'PY'
