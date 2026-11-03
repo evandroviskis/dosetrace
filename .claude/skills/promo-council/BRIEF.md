@@ -7,7 +7,12 @@ pure-math calculator. A person can:
   that keep coming until they end the protocol;
 - see their doses taken / missed over 7 and 30 days, and a history;
 - store blood-test reports (photo or PDF, read by AI into values) and compare markers over time;
-- see those lab results next to what they were taking at the time;
+- on the dose-accumulation curve, jump to each blood-draw date and see the estimated level from
+  their own log on that date (Premium). There is NO screen that puts lab results and doses
+  together (founder 2026-11-02 11:05: it does not and will not exist); the person compares the
+  lab chart with the curve's estimate on the same date. Say "your labs and your estimated
+  levels, on the same dates, for you and your doctor" — never "labs next to your doses on one
+  screen";
 - reconstitution / syringe math for vials, how long a vial lasts, expiry alerts;
 - a dose-accumulation curve (estimated level over time from their own log, Premium);
 - a food log with an AI conversation and a 7-day "your real numbers" check;
