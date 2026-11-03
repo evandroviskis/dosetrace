@@ -139,3 +139,18 @@ test('L9: the page reports its theme to the app on load and on toggle', () => {
 test('L10: on the phone every fixed dialog overlay pads its top by the status-bar inset', () => {
   assert.match(HTML, /@media\(max-width:699px\)\{[\s\S]*?#prem,#msg,#rsd,#stepup,#gloss\{padding-top:calc\(24px \+ var\(--sat,0px\)\)\}/);
 });
+
+// UX review 2026-11-02 (and seen on the S25: the card changed account under the founder's eyes): a tap that closes the
+// Opções menu fell through and selected the row under the finger. U1: closing the menu is the whole tap.
+test('U1: a click that closes the Opções menu never also selects a row', () => {
+  assert.match(HTML, /if\(US&&US\.menu&&!el\.closest\('\.us-menu'\)\)\{US\.menu=false;render\(\);return;\}/);
+});
+// U2: a failed background refresh must not leave "updating…" forever: the chip becomes a fixed "not updated" state.
+test('U2: a failed refresh shows a fixed failure chip (not the "updating…" chip) with the age of the numbers, ×6', () => {
+  assert.match(HTML, /var ADM_LAST_KEY='dt_adm_last', FROM_CACHE=false, UPD_FAILED=false;/);
+  assert.match(HTML, /UPD_FAILED=true;render\(\);/, 'failure sets the state and re-renders');
+  assert.match(HTML, /class="stale err"/, 'failure chip uses the error colour');
+  const T = (0, eval)('(' + HTML.match(/<script>\n([\s\S]*?)<\/script>/)[1].match(/var T=(\{[\s\S]*?\n  \});/)[1] + ')');
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].upd_failed_chip, l + ' upd_failed_chip');
+  assert.equal(T.pt.upd_failed_chip, 'não atualizado · números das {d}');
+});
