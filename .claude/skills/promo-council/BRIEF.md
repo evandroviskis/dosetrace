@@ -22,6 +22,21 @@ aplicativo. A propaganda tem que mencionar o que o aplicativo pode fazer pela pe
   see results side by side with what you were taking, never miss a dose.
 - It must be accepted by Meta (Instagram/Facebook) — and by Apple, Google and TikTok.
 
+## Exception: organic educational posts (founder 2026-11-02)
+"Para fazer os posts informativos não tenha problema citar peptídeos, hormônios e etc. Acho que
+só para propaganda que não pode." Organic EDUCATIONAL posts on our own profiles (how half-life
+works, why a lab result depends on the draw day, a study explained with credit) MAY name the
+substance. The rule above still holds for everything else: ads, boosted posts, the store pages,
+the website, the bio and the app-feature posts. Conditions for a post that names a substance:
+- never boost it or turn it into an ad (Meta reviews it as an ad then);
+- explain, never advise: no dose, frequency, cycle, sourcing or "do this"; point to a doctor;
+- never imply where to get it, never a price, never a seller (never EvoxBiolabs);
+- research is explained in our own words and our own graphic, with credit; never repost
+  someone else's video or image;
+- expect less reach outside followers: Instagram's recommendation rules can keep posts about
+  pharmaceutical drugs out of Explore/Reels; TikTok is stricter, so keep the TikTok versions
+  without substance names.
+
 ## Hard lines (never cross)
 - AI / product hard line: the app only SHOWS the person's own data side by side. Copy may
   never say or imply the app tells you what works, finds the cause, optimizes, recommends a
