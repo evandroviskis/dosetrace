@@ -9,12 +9,28 @@ que você use a pasta Second Brain como a sua memória"; "sua memória deve ser 
 tem na pasta"). Before every answer, read the relevant Second Brain files (dosetrace/HANDOFF.md,
 01-estado.md, 02-decisoes.md, 90-pendencias.md, ../Instrucoes/00-regras-gerais.md) and confront them with your own
 memory; if they differ, the folder wins and you say so in one line. Never tell the founder you did not
-remember something that is in the folder or in this repo. Since 2026-11-03 the CODE lives inside the Second Brain too (founder: "Não quero absolutamente nada fora
-do Second Brain"): the app repo is Second Brain/dosetrace/codigo, the admin worktree is
-dosetrace/admin-panel/codigo. The memory notes stay text; never secrets, images or tool settings in them. Hooks in .claude/settings.json inject dosetrace/HANDOFF.md + state at session start and
+remember something that is in the folder or in this repo. Hooks in .claude/settings.json inject dosetrace/HANDOFF.md + state at session start and
 after compaction, and a reminder + the matching decisions at every prompt. When state or a decision changes,
 update the file in Second Brain/dosetrace/ (02-decisoes.md etc.) with the real time from date. Never write
 anything at the Second Brain root: it is shared with other projects (founder 2026-10-23 21:30).
+
+## Standing rule: EVERYTHING DoseTrace lives inside the Second Brain, nothing on the Desktop (founder, 2026-11-03 15:25 EST)
+
+"Não quero absolutamente nada fora do Second Brain. Tudo lá dentro. Não quero nenhuma desculpa para criar
+nada no desktop. Imagens, SQLs, qualquer coisa, tudo, absolutamente tudo dentro da pasta Second Brain."
+This replaces the 2026-10-23 20:59 "Second Brain = text only" rule. Every file of DoseTrace — code, images,
+SQL, captures, exports, videos, documents, APKs, pictures for the founder — lives under
+~/Desktop/Second Brain/dosetrace, one place per kind:
+- app code (this repo): dosetrace/codigo; admin panel + DT Admin: dosetrace/admin-panel/codigo;
+- store / social images and videos: codigo/store_assets/; design pictures: codigo/docs/design/ (panel:
+  admin-panel/codigo/docs/design/); proof captures: codigo/docs/evidence/; SQL: codigo/supabase/ (migrations,
+  one-off scripts in codigo/supabase/sql/); reports: codigo/docs/review/;
+- memory notes (text): dosetrace/*.md and admin-panel/*.md.
+Never create, save, copy or download anything to ~/Desktop or anywhere else outside the Second Brain — no
+exceptions, no "temporary" Desktop files. Throwaway scratch work goes only in the session scratchpad (system
+temp, deleted by the system), and anything the founder will look at or keep is written inside the Second
+Brain. Secrets stay out of git and out of the notes (.env and keys sit git-ignored in the repo folder;
+production secrets in Vercel/Supabase). Never write at the Second Brain root (shared with other projects).
 
 ## Standing rule: one device at a time, no exceptions (founder, 2026-10-15; reaffirmed 2026-10-23)
 
