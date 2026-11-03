@@ -6,7 +6,7 @@ never on Google Play: installed by cable on the founder's S25 and Fold only.
 Build (Android SDK build-tools 36 + Homebrew JDK 17; no network needed):
 
     ./build.sh            # → build/dtadmin.apk, signed with ~/.dtadmin-release.keystore (local only, never in git)
-    adb install -r build/dtadmin.apk
+    adb install -r --user 0 build/dtadmin.apk   # --user 0: sem isso a Samsung instala uma cópia também no perfil "Dual App" (ícone com selo azul, que não abre o painel)
 
 Signing key: `~/.dtadmin-release.keystore` is created on the first build and stays on this Mac. Losing it
 means the next APK cannot update the installed one (uninstall + reinstall). Back it up with the other keys
