@@ -1,7 +1,7 @@
 -- Admin panel — campaign marks on the "Quantas pessoas reais chegam?" chart (Admin Council round 2, founder
 -- approved the picture 2026-11-02 23:30 EST). One row per mark: the day, a short label ("carrossel D") and an
 -- optional channel. Written only by the panel's service role through api/adm.js (admin role + step-up).
--- NOT applied until the founder's go.
+-- Applied live 2026-11-03 00:15 EST with the founder's go (ACL service_role=ard, anon 42501).
 
 create extension if not exists pgcrypto;
 
