@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="io.outcom.dtadmin"
-    android:versionCode="7"
-    android:versionName="0.7">
+    android:versionCode="8"
+    android:versionName="0.8">
     <uses-sdk android:minSdkVersion="30" android:targetSdkVersion="35" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Phase 5 (SA12): system alerts. Notifications (Android 13+ asks), the 15-minute job survives a reboot
+         (setPersisted needs RECEIVE_BOOT_COMPLETED) and its network constraint needs ACCESS_NETWORK_STATE. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
         android:label="@string/app_name"
         android:icon="@drawable/ic_launcher"
@@ -21,5 +26,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".AlertJob"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
     </application>
 </manifest>

@@ -3,9 +3,11 @@ package io.outcom.dtadmin;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.BiometricPrompt;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.SystemClock;
@@ -42,6 +44,8 @@ import javax.crypto.spec.GCMParameterSpec;
  * Keystore and can only be used right after a strong biometric (5 min validity); the ciphertext sits in
  * the app's private preferences. Nothing is logged; the key never leaves the device except in the
  * X-DT-Device header the panel sends to dosetrace.io. No Expo, no Gradle, never on Google Play.
+ * 0.8 (Phase 5, 2026-11-03): the system alerts — the bridge takes an alerts-only token from the unlocked panel page
+ * and AlertJob polls the alert feed every 15 minutes (notifications on the channel "Alertas do sistema").
  */
 public class MainActivity extends Activity {
     private static final String PANEL = "https://dosetrace.io/adm";
@@ -69,7 +73,14 @@ public class MainActivity extends Activity {
     private final class Bridge {
         // The key is handed only to the panel page itself (never to another page the WebView might be sent to).
         @JavascriptInterface public String deviceKey() { return unlocked && deviceKey != null && onPanelPage() ? deviceKey : ""; }
-        @JavascriptInterface public String appVersion() { return "0.7"; }
+        @JavascriptInterface public String appVersion() { return "0.8"; }
+        // Phase 5 (SA15): the panel page asks the server for an alerts-only token (device path) only when the app
+        // has none, and hands it here; the 15-minute job (AlertJob) reads the system alerts with it.
+        @JavascriptInterface public boolean alertsTokenWanted() { return unlocked && deviceKey != null && onPanelPage() && !AlertJob.hasToken(MainActivity.this); }
+        @JavascriptInterface public void setAlertsToken(String t) {
+            if (!unlocked || deviceKey == null || !onPanelPage()) return;
+            if (AlertJob.saveToken(MainActivity.this, t)) AlertJob.schedule(MainActivity.this);
+        }
         // L9: the page says which theme it shows; the status-bar icons follow (dark icons on a light page).
         @JavascriptInterface public void setTheme(String theme) {
             final boolean light = "light".equals(theme);
@@ -91,6 +102,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        AlertJob.ensureChannel(this);
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.parseColor("#0C2340"));
 
@@ -99,7 +111,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setSupportZoom(false);
-        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.7");
+        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.8");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.addJavascriptInterface(new Bridge(), "DTAdmin");
@@ -211,6 +223,18 @@ public class MainActivity extends Activity {
     private void openPanel() {
         gate.setVisibility(View.GONE); reg.setVisibility(View.GONE); web.setVisibility(View.VISIBLE);
         if (web.getUrl() == null) web.loadUrl(PANEL);
+        askNotificationsOnce();
+        if (AlertJob.hasToken(this)) AlertJob.schedule(this);
+    }
+
+    // Phase 5 (SA15): Android 13+ asks once for permission to show the system alerts.
+    private void askNotificationsOnce() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+            SharedPreferences p = AlertJob.prefs(this);
+            if (p.getBoolean("asked_notifications", false)) return;
+            p.edit().putBoolean("asked_notifications", true).apply();
+            requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, 7);
+        }
     }
 
     private void showRegistration(boolean replacing) {

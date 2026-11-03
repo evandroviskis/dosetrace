@@ -12,4 +12,12 @@
     <string name="reg_bad">Chave inválida. O formato é id.segredo, como foi mostrado no banco.</string>
     <string name="reg_store_failed">Não foi possível guardar a chave no cofre do aparelho. Tente de novo após a biometria.</string>
     <string name="reg_replacing">Trocar a chave deste aparelho: cole a nova chave.</string>
+    <string name="alerts_channel">Alertas do sistema</string>
+    <string name="alerts_channel_desc">Avisos de lentidão ou queda do sistema do DoseTrace (limite de 1 s por resposta).</string>
+    <string name="alert_slow">DoseTrace: lentidão no sistema</string>
+    <string name="alert_down">DoseTrace: sistema fora do ar</string>
+    <string name="alert_recovered">DoseTrace: sistema normalizado</string>
+    <string name="alert_silent">DoseTrace: monitor sem resposta</string>
+    <string name="alert_silent_body">Não foi possível confirmar o estado do sistema às %1$s. O servidor ou o monitor pode estar fora do ar.</string>
+    <string name="alert_silent_back">O monitor voltou a responder às %1$s.</string>
 </resources>
