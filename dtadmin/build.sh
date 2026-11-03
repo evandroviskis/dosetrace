@@ -19,8 +19,7 @@ zipalign -f -p 4 build/unsigned.apk build/aligned.apk
 
 KS="$HOME/.dtadmin-release.keystore"   # chave de assinatura só deste Mac; fora do git e do Second Brain
 if [ ! -f "$KS" ]; then
-  keytool -genkeypair -v -keystore "$KS" -alias dtadmin -keyalg RSA -keysize 2048 -validity 10000 \
-    -storepass dtadmin-local -keypass dtadmin-local -dname "CN=DT Admin, O=Outcom, C=US" >/dev/null 2>&1
+  echo "ERRO: chave de assinatura $KS não encontrada. Nunca gere outra: um APK com chave nova não instala por cima e o cadastro do aparelho se perde. Restaure a cópia do HD de chaves." >&2; exit 1
 fi
 apksigner sign --ks "$KS" --ks-key-alias dtadmin --ks-pass pass:dtadmin-local --key-pass pass:dtadmin-local \
   --out build/dtadmin.apk build/aligned.apk

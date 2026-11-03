@@ -61,12 +61,15 @@ public class MainActivity extends Activity {
     private boolean unlocked = false;
     private long leftAt = 0;
     private boolean prompting = false;
+    private volatile String pageUrl = ""; // last URL the WebView started loading (onPageStarted)
+    private boolean onPanelPage() { return pageUrl.equals("https://dosetrace.io/adm") || pageUrl.startsWith("https://dosetrace.io/adm?") || pageUrl.startsWith("https://dosetrace.io/adm#"); }
     private int insetTop = 0, insetBottom = 0; // px, system bars (status + gesture); pushed to the page as --sat/--sab
 
     // ---- the bridge the panel page calls ---------------------------------------------------------
     private final class Bridge {
-        @JavascriptInterface public String deviceKey() { return unlocked && deviceKey != null ? deviceKey : ""; }
-        @JavascriptInterface public String appVersion() { return "0.6"; }
+        // The key is handed only to the panel page itself (never to another page the WebView might be sent to).
+        @JavascriptInterface public String deviceKey() { return unlocked && deviceKey != null && onPanelPage() ? deviceKey : ""; }
+        @JavascriptInterface public String appVersion() { return "0.7"; }
         // L9: the page says which theme it shows; the status-bar icons follow (dark icons on a light page).
         @JavascriptInterface public void setTheme(String theme) {
             final boolean light = "light".equals(theme);
@@ -96,15 +99,16 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setSupportZoom(false);
-        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.6");
+        s.setUserAgentString(s.getUserAgentString() + " DTAdmin/0.7");
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false);
         web.addJavascriptInterface(new Bridge(), "DTAdmin");
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 String h = r.getUrl().getHost();
-                return !(h != null && (h.equals("dosetrace.io") || h.endsWith(".supabase.co")));
+                return !(h != null && h.equals("dosetrace.io")); // the page talks to Supabase by fetch only, never by navigation
             }
+            @Override public void onPageStarted(WebView v, String url, android.graphics.Bitmap favicon) { pageUrl = url == null ? "" : url; }
             @Override public void onPageFinished(WebView v, String url) { pushInsets(); }
         });
         // Edge-to-edge (Android 15): the page content would sit under the clock and the gesture bar.

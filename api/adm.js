@@ -113,6 +113,7 @@ async function fetchGooglePlay() {
     }
     async function readCsv(name) {
       const dr = await fetch(`https://storage.googleapis.com/storage/v1/b/${bucket}/o/${encodeURIComponent(name)}?alt=media`, { headers: { Authorization: 'Bearer ' + at } });
+      if (!dr.ok) throw new Error('bucket read ' + dr.status + ' ' + name);
       const text = Buffer.from(await dr.arrayBuffer()).toString('utf16le').replace(/^\uFEFF/, '');
       const rows = text.split(/\r?\n/).filter(x => x.length).map(l => l.split(','));
       return { name, header: rows[0] || [], rows: rows.slice(1) };
@@ -174,6 +175,7 @@ async function fetchGooglePlay() {
 // A closed UTC day never changes: the server keeps every day it has read and asks Apple only for the rest.
 // Read failures fall back to asking Apple for every day; a failed write never fails the source.
 const APPLE_NO_REPORT_AFTER_DAYS = 3; // a 404 for a day this old is "no sales that day", stored as report=false
+const APPLE_RECHECK_DAYS = 14;        // a stored no-report day younger than this is asked again (Apple restates late)
 async function appleCacheRead(oldestDay) {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
@@ -183,7 +185,8 @@ async function appleCacheRead(oldestDay) {
     const rows = await r.json();
     if (!Array.isArray(rows)) return null;
     const m = new Map();
-    for (const row of rows) if (row && typeof row.day === 'string') m.set(row.day.slice(0, 10), row);
+    const young = d => Math.floor((Date.now() - Date.parse(d + 'T00:00:00Z')) / 86400000) < APPLE_RECHECK_DAYS;
+    for (const row of rows) if (row && typeof row.day === 'string' && !(row.report === false && young(row.day.slice(0, 10)))) m.set(row.day.slice(0, 10), row);
     return m;
   } catch (e) { return null; }
 }
@@ -216,27 +219,26 @@ async function fetchApple() {
     for (let b = 1; b <= STORE_DAYS; b++) days.push(ymd(new Date(Date.now() - b * 86400000)));
     const cached = (await appleCacheRead(days[days.length - 1])) || new Map();
     const toFetch = days.filter(d => !cached.has(d));
-    const reports = [];
-    for (let i = 0; i < toFetch.length; i += ASC_BATCH) {
-      reports.push(...await Promise.all(toFetch.slice(i, i + ASC_BATCH).map(async date => {
-        const url = 'https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[version]=1_0&filter[vendorNumber]=' + vendor + '&filter[reportDate]=' + date;
-        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/a-gzip' } });
-        if (r.status !== 200) return { date, tsv: null }; // 404 = Apple wrote no report for that day
-        try { return { date, tsv: zlib.gunzipSync(Buffer.from(await r.arrayBuffer())).toString('utf8') }; }
-        catch (e) { return { date, tsv: null }; }
-      })));
-    }
     const perDay = [];
     for (const row of cached.values()) if (row.report !== false) perDay.push({ date: row.day.slice(0, 10), downloads: row.downloads | 0, redownloads: row.redownloads | 0, updates: row.updates | 0 });
-    const store = [];
     const ageDays = date => Math.floor((Date.now() - Date.parse(date + 'T00:00:00Z')) / 86400000);
-    for (const { date, tsv } of reports) {
-      if (!tsv) { if (ageDays(date) >= APPLE_NO_REPORT_AFTER_DAYS) store.push({ day: date, downloads: 0, redownloads: 0, updates: 0, report: false }); continue; }
+    for (let i = 0; i < toFetch.length; i += ASC_BATCH) {
+      const reports = await Promise.all(toFetch.slice(i, i + ASC_BATCH).map(async date => {
+        const url = 'https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[version]=1_0&filter[vendorNumber]=' + vendor + '&filter[reportDate]=' + date;
+        const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/a-gzip' } });
+        if (r.status !== 200) return { date, status: r.status, tsv: null }; // 404 = Apple wrote no report; anything else = unknown, never stored
+        try { return { date, status: 200, tsv: zlib.gunzipSync(Buffer.from(await r.arrayBuffer())).toString('utf8') }; }
+        catch (e) { return { date, status: 0, tsv: null }; }
+      }));
+      const store = []; // written at the end of EACH batch, so a slow first load still keeps what it got
+    for (const { date, status, tsv } of reports) {
+      if (!tsv) { if (status === 404 && ageDays(date) >= APPLE_NO_REPORT_AFTER_DAYS) store.push({ day: date, downloads: 0, redownloads: 0, updates: 0, report: false }); continue; }
       const lines = tsv.split(/\r?\n/).filter(Boolean);
       if (lines.length < 2) continue;
       const hdr = lines[0].split('\t');
       const iType = hdr.indexOf('Product Type Identifier');
       const iUnits = hdr.indexOf('Units');
+      if (iType < 0 || iUnits < 0) continue; // unknown layout: show nothing and store nothing
       let dl = 0, re = 0, up = 0;
       for (const line of lines.slice(1)) {
         const c = line.split('\t');
@@ -249,7 +251,8 @@ async function fetchApple() {
       perDay.push({ date, downloads: dl, redownloads: re, updates: up });
       store.push({ day: date, downloads: dl, redownloads: re, updates: up, report: true });
     }
-    await appleCacheWrite(store);
+      await appleCacheWrite(store);
+    }
     perDay.sort((a, b) => (a.date < b.date ? -1 : 1));
     const last30 = perDay.filter(d => days.slice(0, 30).includes(d.date)); // the Details cards keep their 30-day window
     const latest = last30[last30.length - 1] || null;
@@ -637,5 +640,5 @@ module.exports = async (req, res) => {
 Object.assign(module.exports, {
   fullDayWindow, platformOf, splitPlatforms, headlineCards, funnel, reconciliation, activationRate, matchesTestRule, parseMarkBody,
   isAnonymousRcId, dailyNew, weeklyCohorts, buildManagement, fetchRevenueCatCustomers, withRcMatch,
-  storeWindow, fetchApple, fetchGooglePlay, withDeadline, SOURCE_DEADLINE_MS,
+  storeWindow, fetchApple, fetchGooglePlay, withDeadline, SOURCE_DEADLINE_MS, ASC_BATCH,
 });

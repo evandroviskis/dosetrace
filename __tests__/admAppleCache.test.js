@@ -91,3 +91,53 @@ test('AC3: the migration creates admin_apple_days with RLS, revokes public/anon/
   assert.ok(!/grant[^;]*delete/i.test(sql) && /revoke delete, truncate, references, trigger on table public\.admin_apple_days from service_role/.test(sql), 'no role but postgres may delete a cached day');
   assert.ok(!/create policy/i.test(sql), 'no policies: RLS blocks every non-bypassing role');
 });
+
+// Engineering review 2026-11-02: any non-200 (429, 401, 5xx) and any TSV without the expected columns was stored as
+// "no sales, forever". AC4: only a 404 is a no-report day; AC5: a report without the columns is not stored; AC6: a
+// stored no-report day younger than 14 days is asked again (Apple restates late); AC7: each batch is written as it ends.
+test('AC4/AC5: a 429, 401 or 500 on an old day stores nothing; a TSV without the Units column stores nothing', appleEnv(async () => {
+  const cached = []; for (let b = 1; b <= 91; b++) if (![5, 6, 7, 8].includes(b)) cached.push({ day: ymd(b), downloads: 1, redownloads: 0, updates: 0, report: true });
+  let stored = [];
+  const f = F.installFetch({ data: (u, body, init) => {
+    if (u.startsWith(CACHE)) { if ((init.method || 'GET') === 'GET') return F.json(cached); stored = stored.concat(body); return new Response(null, { status: 201 }); }
+    const d = reportDate(u);
+    if (d === ymd(5)) return new Response('', { status: 429 });
+    if (d === ymd(6)) return new Response('', { status: 401 });
+    if (d === ymd(7)) return new Response('', { status: 500 });
+    if (d === ymd(8)) return new Response(zlib.gzipSync(Buffer.from('Some Other Header\tX\nfoo\t1')), { status: 200 });
+    throw new Error('asked a cached day ' + d);
+  } });
+  try {
+    const r = await adm.fetchApple();
+    assert.equal(r.status, 'ok');
+    assert.deepEqual(stored, [], 'nothing stored for errors or an unreadable report');
+    assert.equal(r.data.days.length, 87, 'the four days are simply absent this time');
+  } finally { f.restore(); }
+}));
+
+test('AC6: a stored no-report day younger than 14 days is asked again; an older one is trusted', appleEnv(async () => {
+  const cached = []; for (let b = 1; b <= 91; b++) cached.push({ day: ymd(b), downloads: 0, redownloads: 0, updates: 0, report: !(b === 5 || b === 40) });
+  const asked = [];
+  const f = F.installFetch({ data: (u, body, init) => {
+    if (u.startsWith(CACHE)) return (init.method || 'GET') === 'GET' ? F.json(cached) : new Response(null, { status: 201 });
+    asked.push(reportDate(u)); return gz([['1F', 2]]);
+  } });
+  try {
+    const r = await adm.fetchApple();
+    assert.deepEqual(asked, [ymd(5)], 'only the young no-report day is re-asked');
+    assert.equal(r.data.days.find((d) => d.date === ymd(5)).downloads, 2, 'and its late report is used');
+  } finally { f.restore(); }
+}));
+
+test('AC7: the cache is written once per batch, so a slow first load still keeps what it got', appleEnv(async () => {
+  const writes = [];
+  const f = F.installFetch({ data: (u, body, init) => {
+    if (u.startsWith(CACHE)) { if ((init.method || 'GET') === 'GET') return F.json([]); writes.push(body.length); return new Response(null, { status: 201 }); }
+    return gz([['1F', 1]]);
+  } });
+  try {
+    await adm.fetchApple();
+    assert.ok(writes.length >= Math.ceil(91 / adm.ASC_BATCH), 'one write per batch: ' + writes.join(','));
+    assert.equal(writes.reduce((a, b) => a + b, 0), 91);
+  } finally { f.restore(); }
+}));

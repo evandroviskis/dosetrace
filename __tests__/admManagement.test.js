@@ -738,3 +738,11 @@ test('S4 (founder 2026-10-17): the card shows the all-time total of user install
   const s4 = html.match(/\{id:"S4"[^\n]*\}/)[0];
   assert.ok(s4.includes("Sum of \\\"Daily User Installs\\\" over every monthly overview file"), "S4 def"); assert.match(s4, /retired/);
 });
+
+
+// Engineering review 2026-11-02 (GP-ERR): a bucket read that fails (403/404) was decoded as UTF-16 garbage and the month
+// vanished with status "ok". Now the source reports the failure.
+test('GP-ERR: a failed CSV read makes the Google Play source an error, never a smaller ok number', async () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'api', 'adm.js'), 'utf8');
+  assert.match(src, /if \(!dr\.ok\) throw new Error\('bucket read ' \+ dr\.status \+ ' ' \+ name\);/);
+});

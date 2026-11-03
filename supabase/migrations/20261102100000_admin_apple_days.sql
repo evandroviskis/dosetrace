@@ -3,7 +3,7 @@
 -- the Apple column fell to "timeout". A closed UTC day never changes, so the server keeps each day it has
 -- already read here and asks Apple only for the days it does not have. One row per day; report=false
 -- means Apple had no report for that day (zero sales) once the day was at least 3 days old.
--- Written by the panel's service role only; nothing reads it from the app. NOT applied until the founder's go.
+-- Written by the panel's service role only; nothing reads it from the app. Applied live 2026-11-02 with the founder's go (see the note at the end).
 
 create table if not exists public.admin_apple_days (
   day date primary key,

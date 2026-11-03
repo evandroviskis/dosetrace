@@ -547,7 +547,7 @@ test('3.1 design: /adm is served with a Content-Security-Policy, no-store, no fr
     assert.match(csp, /default-src 'none'/);
     assert.match(csp, new RegExp("connect-src 'self' " + host.replace(/\./g, '\\.') + '(;|$)'));
     assert.match(csp, /frame-ancestors 'none'/);
-    assert.match(csp, /script-src 'self' 'unsafe-inline' https:\/\/cdnjs\.cloudflare\.com(;|$)/);
+    assert.match(csp, /script-src 'self' 'unsafe-inline'(;|$)/, 'no third-party script host (Chart.js is served from /assets with SRI)');
     assert.match(csp, /img-src 'self' data:/);
     assert.equal(get('Referrer-Policy'), 'no-referrer');
     assert.equal(get('X-Frame-Options'), 'DENY');
@@ -601,4 +601,20 @@ test('AU1 page (first-time setup): the QR is big enough for a phone camera (foun
   const w = Number((qrw.match(/width:(\d+)px/) || [])[1]);
   assert.ok(w >= 220, 'QR box at least 220 px, got ' + w);
   assert.match(HTML.match(/\.lqr\{[^}]*\}/)[0], /flex-direction:column/);
+});
+
+
+// Engineering review 2026-11-02 (SRI-1): the only third-party script on the page that holds the session and the device
+// key is now served from this origin with an integrity hash, and the CSP admits no outside script host.
+test('SRI-1: Chart.js is served from /assets with a sha384 integrity attribute and matches the file', () => {
+  const crypto = require('crypto');
+  const html = fs.readFileSync(path.join(ROOT, 'web', 'adm.html'), 'utf8');
+  const tag = html.match(/<script src="\/assets\/chart\.umd\.min\.js" integrity="(sha384-[A-Za-z0-9+/=]+)" crossorigin="anonymous"><\/script>/);
+  assert.ok(tag, 'local script tag with integrity');
+  const file = fs.readFileSync(path.join(ROOT, 'web', 'assets', 'chart.umd.min.js'));
+  assert.equal(tag[1], 'sha384-' + crypto.createHash('sha384').update(file).digest('base64'));
+  assert.ok(!/cdnjs\.cloudflare\.com/.test(html), 'no cdnjs reference left');
+  const v = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+  for (const h of v.headers) { const c = (h.headers.find((x) => x.key === 'Content-Security-Policy') || {}).value; if (c) assert.ok(!/cdnjs/.test(c), 'CSP has no cdnjs: ' + h.source); }
+  for (const fn of ['api/adm-premium.js', 'api/adm-messages.js', 'api/adm-account.js']) assert.ok(v.functions[fn] && v.functions[fn].maxDuration >= 60, fn + ' has a maxDuration above the 10 s default');
 });

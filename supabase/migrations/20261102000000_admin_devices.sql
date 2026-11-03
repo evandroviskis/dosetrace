@@ -3,7 +3,7 @@
 -- "X-DT-Device: <id>.<secret>"; the server compares sha256(secret) with key_hash for the same admin and,
 -- for a registered device, waives the authenticator (aal2), the 12 h password age and the 15 min step-up.
 -- The browser keeps the 2026-10-21 rules. Devices are registered / revoked by SQL only, with the founder's go.
--- NOT applied until the founder's go.
+-- Applied live 2026-11-02 with the founder's go (see the note at the end).
 
 create extension if not exists pgcrypto;
 
