@@ -1373,16 +1373,13 @@
   }
 
   function secEngagement(){
-    var a=D.adherence||{};var arate=a.total?Math.round(a.taken/a.total*100):0;
+    // Adherence left the panel 2026-11-02 (founder, Admin Council answer 6): per-dose health data; returns aggregated in a Partners view.
     var h='<section id="engagement"><h2>'+t('sec_engagement')+'</h2>';
-    h+='<div class="grid two"><div class="card"><h3>'+t('eng_adherence')+' '+iBtn('adherence')+'</h3>'+srcBtn('E1')+'<canvas id="c-adh" height="150"></canvas><div class="sub muted" style="text-align:center;margin-top:6px">'+t('adh_sub',{p:arate,n:fmt(a.total)})+'</div></div>';
-    h+='</div>';
-    h+='<div class="card" style="margin-top:12px"><h3>'+t('doses_90')+'</h3>'+srcBtn('E3')+'<canvas id="c-doses" height="80"></canvas></div>';
+    h+='<div class="card"><h3>'+t('doses_90')+'</h3>'+srcBtn('E3')+'<canvas id="c-doses" height="80"></canvas></div>';
     h+='</section>';return h;
   }
   function drawEngagement(){
-    var C=cc();var a=D.adherence||{};
-    makeChart('c-adh',{type:'doughnut',data:{labels:[t('taken'),t('missed'),t('skipped')],datasets:[{data:[a.taken||0,a.missed||0,a.skipped||0],backgroundColor:['#2CD3A7','#E8776B','#E8B54F'],borderWidth:0}]},options:{plugins:{legend:{labels:{color:C.ink,boxWidth:12}}}}});
+    var C=cc();
     var d=KPI.slice(-90);
     makeChart('c-doses',{type:'bar',data:{labels:d.map(function(r){return r.date;}),datasets:[{label:t('m_doses'),data:d.map(function(r){return r.doses;}),backgroundColor:'#46C6EE'}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{color:C.grid},ticks:{color:C.muted,maxTicksLimit:8,font:{size:10}}},y:{grid:{color:C.grid},ticks:{color:C.muted},beginAtZero:true}}}});
   }
@@ -1413,14 +1410,6 @@
       return '<tr><td style="text-align:left">'+esc(c.cohort)+'</td><td>'+fmt(c.size)+'</td>'+tds+'</tr>';
     }).join('');
     return '<section id="retention"><h2>'+t('sec_retention')+' '+iBtn('retention')+'</h2><div class="card">'+srcBtn('R1')+'<div class="tscroll"><table class="cmp heat">'+head+body+'</table></div><div class="sub muted" style="margin-top:8px">'+t('ret_footer')+'</div></div></section>';
-  }
-
-  function secProduct(){
-    var p0=periods[0];
-    // P1–P3 (compounds, searches, types) are gone: analytics carry no compound or search text since 2026-10-04.
-    var h='<section id="product"><h2>'+t('sec_product')+'</h2><div class="grid two">';
-    h+='<div class="card"><h3>'+t('prod_top_biomarkers')+'</h3>'+srcBtn('P4')+rows((D.top_biomarkers||[]).map(function(x){return {k:titleCase(x.k),n:x.n};}).slice(0,10))+'</div></div></section>';
-    return h;
   }
 
   function secRevenue(){
@@ -2465,7 +2454,7 @@
     var h=mobHeader();
     if(MOB.tab==='resumo')h+=mobResumo();
     else if(MOB.tab==='contas')h+='<div class="mob">'+secAccounts()+'</div>';
-    else if(MOB.more==='details'){h+='<button class="mobback" onclick="mobMore(null)">‹ '+esc(t('mob_back'))+'</button><div class="mob"><div class="sub muted" style="margin-top:6px">'+t('details_note')+'</div>'+secOverview()+'<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'</section>'+secEngagement()+secAdoption()+secProduct()+secRevenue()+secAudience()+secStores()+'</div>';}
+    else if(MOB.more==='details'){h+='<button class="mobback" onclick="mobMore(null)">‹ '+esc(t('mob_back'))+'</button><div class="mob"><div class="sub muted" style="margin-top:6px">'+t('details_note')+'</div>'+secOverview()+'<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'</section>'+secEngagement()+secAdoption()+secRevenue()+secAudience()+secStores()+'</div>';}
     else if(MOB.more==='sources'){h+='<button class="mobback" onclick="mobMore(null)">‹ '+esc(t('mob_back'))+'</button><div class="mob">'+secSources()+'</div>';}
     else h+=mobMais();
     h+=mobTabbar()+mobMenuHtml();
@@ -2519,7 +2508,7 @@
       h+='<div class="sub muted" style="margin-top:10px">'+t('details_note')+'</div>';
       h+=secOverview();
       h+='<section id="compare"><h2>'+t('sec_compare')+'</h2>'+comparator()+'<div style="height:12px"></div>'+cmpTable()+'<div class="card" style="margin-top:12px"><h3>'+t('side_by_side')+'</h3>'+srcBtn('C3,C4,C5')+'<canvas id="c-cmp" height="90"></canvas></div></section>';
-      h+=secEngagement();h+=secAdoption();h+=secProduct();h+=secRevenue();h+=secAudience();h+=secStores();
+      h+=secEngagement();h+=secAdoption();h+=secRevenue();h+=secAudience();h+=secStores();
     }
     app.innerHTML=h;
     if(TAB==='mgmt'){if(MG)drawCharts();} else if(TAB==='details'){drawCmp();drawEngagement();}

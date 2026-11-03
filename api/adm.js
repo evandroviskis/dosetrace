@@ -275,6 +275,14 @@ async function fetchApple() {
   }
 }
 
+// The panel never carries health data (founder 2026-11-02): per-dose adherence and biomarker names leave the answer
+// here, even though the SQL still computes them (they return aggregated in a Partners view later).
+function stripHealth(src) {
+  if (!src || !src.data) return src;
+  const d = Object.assign({}, src.data); delete d.adherence; delete d.top_biomarkers;
+  return Object.assign({}, src, { data: d });
+}
+
 // Deadline for one outside source (ms). Vercel kills the function at maxDuration (vercel.json: 30 s), so
 // every source must answer or be dropped well before that. Tests shorten it through ADM_SOURCE_DEADLINE_MS.
 const SOURCE_DEADLINE_MS = 9000;
@@ -631,7 +639,7 @@ module.exports = async (req, res) => {
 
   res.status(200).json({
     generated_at: new Date().toISOString(),
-    sources: { supabase, revenuecat, google_play, apple },
+    sources: { supabase: stripHealth(supabase), revenuecat, google_play, apple },
     management,
     me: { role: auth.role, device: !!auth.device },
   });

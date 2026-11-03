@@ -306,6 +306,8 @@ checklist-signed: founder 2026-11-02 ("eu aprovo as suas sugestões"; "Concordo 
 | M1 | The phone Theme row names the theme the tap switches to | [x] admMobile M1 | session |
 | L9 | Inside the app the status-bar icons follow the page theme (page reports its theme through the bridge; app paints the bars) | [x] admMobile L9; DT Admin 0.6; proven on the S25 2026-11-02 (captures in the session) | session |
 | L10 | On the phone every fixed dialog overlay (Premium, Message, Resend, step-up, glossary) pads its top by the status-bar inset | [x] admMobile L10 | session |
+| DP1 | Adherence and Top biomarkers leave the panel (page: no doughnut, no product section; founder 2026-11-02 answer 6); they return aggregated in a Partners view later | [x] admDetailsPrivacy DP1 | session |
+| DP2 | The API strips adherence and top_biomarkers from the Supabase data before answering | [x] admDetailsPrivacy DP2 | session |
 
 ## Auth
 
