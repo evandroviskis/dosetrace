@@ -56,8 +56,12 @@ test('AP-36: pt "1 mg por dia pela manhã" asks the time inside the morning, nev
   assert.ok(c.texts().includes('Lembrete: 9:00.'), 'the time is restated before the save');
 });
 
-test('AP-36: pt "todos os dias às 9 da manhã" is read as 09:00 and not asked again', () => {
-  const c = toDose().say('1 mg todos os dias às 9 da manhã', daily()).tap('start:0').step('confirm');
+test('AP-36: pt "todos os dias às 9 da manhã" is read as 09:00 and read back before it is used', () => {
+  const c = toDose().say('1 mg todos os dias às 9 da manhã', daily()).tap('start:0').step('time');
+  assert.equal(c.lastApp(), 'Lembrete: 9:00. Está certo?');
+  assert.deepEqual(c.options(), ['Sim', 'Outro horário']);
+  assert.deepEqual(c.form().reminderTimes, [''], 'never saved silently: closing here hands over no time');
+  c.tap('heard:yes').step('confirm');
   assert.deepEqual(c.form().reminderTimes, ['09:00']);
   const p = protocolPayload(c.form(), () => 'Daily', 'pt');
   assert.equal(p.reminder_time, '09:00');
@@ -107,7 +111,8 @@ test('AP-38: a time written with the dose or the frequency, in es / fr / de / it
     ['en', '1 mg every day at 9 pm', '21:00'],
   ];
   for (const [l, typed, want] of cases) {
-    const c = toDose(l).say(typed, daily()).tap('start:0').step('confirm');
+    const c = toDose(l).say(typed, daily()).tap('start:0').step('time');
+    c.tap('heard:yes').step('confirm');
     assert.deepEqual(c.form().reminderTimes, [want], `${l} "${typed}"`);
   }
 });
@@ -167,9 +172,11 @@ test('AP-39: 2 doses a day asks each time, and both can come in one answer', () 
   assert.deepEqual(c.form().reminderTimes, ['08:00', '20:00']);
   assert.ok(c.texts().includes('Lembretes: 8:00 e 20:00.'));
   const both = toDose().say('1 mg duas vezes ao dia às 8h e às 20h', { intent: 'answer', dose: { text: '1', unit: 'mg' }, basis: 'each', period: 'day', count: 2 })
-    .tap('start:0').step('confirm');
+    .tap('start:0').step('time');
+  assert.equal(both.lastApp(), 'Lembretes: 8:00 e 20:00. Está certo?');
+  both.tap('heard:yes').step('confirm');
   assert.deepEqual(both.form().reminderTimes, ['08:00', '20:00']);
-  const bare = toDose().say('1 mg', { intent: 'answer', dose: { text: '1', unit: 'mg' }, basis: 'each' }).tap('often:d2').tap('start:0').say('8 e 20').step('confirm');
+  const bare = toDose().say('1 mg', { intent: 'answer', dose: { text: '1', unit: 'mg' }, basis: 'each' }).tap('often:d2').tap('start:0').say('8h e 20h').step('confirm');
   assert.deepEqual(bare.form().reminderTimes, ['08:00', '20:00']);
 });
 
@@ -198,7 +205,7 @@ test('AP-39: no app-picked time for a 2nd or 3rd dose (the old 14:00 / 21:00 pad
 
 // ── AP-40: the review card, Change, Finish and Edit ───────────────────────
 test('AP-40: the review card shows the time and "Change something" can change it', () => {
-  const c = toDose().say('1 mg todos os dias às 9 da manhã', daily()).tap('start:0').tap('review');
+  const c = toDose().say('1 mg todos os dias às 9 da manhã', daily()).tap('start:0').tap('heard:yes').tap('review');
   const rows = c.s.messages[c.s.messages.length - 1].rows;
   assert.ok(rows.some((r) => r.key === 'ap_row_time' && r.value === '9:00'));
   c.tap('change');
