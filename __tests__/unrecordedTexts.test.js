@@ -75,10 +75,26 @@ test('UP-14: the summary is the plan\'s (Tomei todas, Não tomei, Escolher quais
   assert.match(X.summaryText(none.summary, ctx('pt')), /^As 20 doses, de .+ a .+, entram como puladas\. O frasco não muda\.$/);
   const pick = U.planUnrecordedAnswer({ protocol: daily, entries: e, choice: 'pick', picked: new Set(e.slice(0, 14).map((x) => x.slotMs)), nowMs: NOW });
   assert.match(X.summaryText(pick.summary, ctx('pt')), /^14 doses entram como concluídas e 6 como puladas\./);
+  // Sim 2026-11-04: "Escolher quais" with nothing (or everything) checked read "0 doses entram como concluídas…".
+  const pick0 = U.planUnrecordedAnswer({ protocol: daily, entries: e, choice: 'pick', picked: new Set(), nowMs: NOW });
+  assert.match(X.summaryText(pick0.summary, ctx('pt')), /^As 20 doses, de .+ a .+, entram como puladas\./);
+  const pickAll = U.planUnrecordedAnswer({ protocol: daily, entries: e, choice: 'pick', picked: new Set(e.map((x) => x.slotMs)), nowMs: NOW });
+  assert.match(X.summaryText(pickAll.summary, ctx('pt')), /^20 doses entram como concluídas, de .+ a .+\./);
   const unk = U.planUnrecordedAnswer({ protocol: daily, entries: e, choice: 'unknown', nowMs: NOW });
   assert.match(X.summaryText(unk.summary, ctx('pt')), /ficam sem registro, como estão hoje: não entram no Registro de doses e a curva não as soma\. Esta pergunta não volta para elas\./);
   const oral = U.planUnrecordedAnswer({ protocol: { ...daily, type: 'oral' }, entries: e, choice: 'all', nowMs: NOW });
   assert.match(X.summaryText(oral.summary, ctx('pt')), /O pote não muda\.$/);
+});
+
+test('UP-12: a period that crosses a dose change shows both amounts in the summary', () => {
+  const dh = JSON.stringify([{ from: null, dose: '2.5', unit: 'mg' }, { from: new Date(L(2026, 10, 10, 12)).toISOString(), dose: '5', unit: 'mg' }]);
+  const tz = { ...p, id: 3, name: 'Tirzepatida', dose: '5', dose_history: dh, interval_days: 1, reminder_time: '20:00', start_date: '2026-10-05', created_at: new Date(L(2026, 10, 5, 8)).toISOString() };
+  const e = U.gapEntries(tz, [], opts);
+  const plan = U.planUnrecordedAnswer({ protocol: tz, entries: e, choice: 'all', nowMs: NOW });
+  assert.deepEqual(plan.summary.amounts.map((a) => a.dose), [2.5, 5]);
+  assert.match(X.summaryText(plan.summary, ctx('pt')), /Doses em vigor nesses dias: 2,5 mg e 5 mg\./);
+  const one = U.planUnrecordedAnswer({ protocol: p, entries: U.gapEntries(p, [], opts), choice: 'all', nowMs: NOW });
+  assert.doesNotMatch(X.summaryText(one.summary, ctx('pt')), /Doses em vigor/);
 });
 
 test('UP-24 / UP-34: the card and the lab line', () => {

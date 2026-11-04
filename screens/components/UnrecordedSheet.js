@@ -53,7 +53,7 @@ export default function UnrecordedSheet({ queue, context = null, vialFor, capaci
   const fmtDay = (ms) => formatDate(new Date(ms), language, 'dayMonth');
   const fmtWeekday = (ms) => formatDate(new Date(ms), language, 'weekdayDayMonth');
   const fmtTime = (h) => formatTime(h, language, timeFormat);
-  const q = questionTexts(ask, { t, language, name, fmtDay, fmtTime, freqLabel: (i) => frequencyLabelFor(i, t), index, total, personMarked: ask.kept || [] });
+  const q = questionTexts(ask, { t, language, name, fmtDay, fmtTime, freqLabel: (i) => (i === 7 ? `${t('protocols_weekly')}, ${formatDate(new Date(ask.entries[0].slotMs), language, 'weekday')}` : frequencyLabelFor(i, t)), index, total, personMarked: ask.kept || [] });
   const vial = vialFor ? vialFor(p) : null;
   const ready = choice === 'all' || choice === 'none' || choice === 'unknown' || choice === 'pick';
   const plan = ready ? planUnrecordedAnswer({ protocol: p, entries: ask.entries, choice, picked, vial, capacityOf }) : null;
