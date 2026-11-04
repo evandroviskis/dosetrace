@@ -112,3 +112,27 @@ test('Third review: "é isso", "eso es", "c\'est ça", "esatto, sì", "stimmt" c
     assert.deepEqual(s.draft.times, ['21:00']);
   }
 });
+
+// Sim check 2026-11-04 (light, pt): "10 mg/2 ml" was refused with "Inclua o número e a unidade",
+// which is wrong — the person wrote both. A refusal for another volume asks for the amount in 1 ml.
+test('AP-54: a strength in another volume is asked again as "per 1 ml", never "include the unit"', () => {
+  const NOW = new Date(2026, 9, 3, 10, 0);
+  for (const raw of [
+    { intent: 'answer', conc: { text: '10', unit: 'mg' } },
+    { intent: 'answer', conc: null, vial_ml: { text: '2' } },
+    { intent: 'unclear' },
+  ]) {
+    let s = A.startConversation('build', newProtocolForm(NOW), { language: 'pt', now: NOW, catalog: { recon: [], rtu: [], oral: [] } });
+    s = A.answerText(s, 'testo', { intent: 'answer', compound: 'testo', form: 'ready' });
+    s = A.answerText(s, '10 mg/2 ml', raw);
+    const keys = s.messages.filter((m) => m.from === 'app' || m.role === 'app' || m.who === 'app').map((m) => m.key);
+    assert.ok(keys.includes('ap_conc_per_one_ml'), JSON.stringify(keys));
+    assert.ok(!keys.slice(-3).includes('ap_need_unit'));
+    assert.equal(s.step, 'conc');
+  }
+  // A plain missing unit still says "include the unit".
+  let s = A.startConversation('build', newProtocolForm(NOW), { language: 'pt', now: NOW, catalog: { recon: [], rtu: [], oral: [] } });
+  s = A.answerText(s, 'testo', { intent: 'answer', compound: 'testo', form: 'ready' });
+  s = A.answerText(s, '5', { intent: 'answer', vial_ml: { text: '5' } });
+  assert.ok(s.messages.map((m) => m.key).includes('ap_need_unit'));
+});
