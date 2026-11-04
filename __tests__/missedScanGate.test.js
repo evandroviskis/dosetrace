@@ -463,17 +463,19 @@ test('A-123 F6: an ended protocol is cleaned up up to its end; its end day is le
 test('A-123 F1: the schedule ledger (lib/missedDoses noteSchedules)', () => {
   const a = proto({ updated_at: isoMs(D(12, 9)) }); // an oral dose bumps updated_at every day (units_taken)
   const first = MD.noteSchedules(null, [a], { userId: USER, nowMs: D(3, 9) });
-  assert.equal(first.sinceById[1], D(3, 9), 'first seen: since now (updated_at is later)');
+  // 2026-11-03 (founder: a reinstall / sign-in must show the doses missed meanwhile): first sight counts from
+  // the last recorded schedule change (schedule_history) or the creation (created − 1 h), never from now.
+  assert.equal(first.sinceById[1], D(1, 6), 'first seen, no recorded schedule change: from the creation, not now');
   assert.equal(MD.noteSchedules(null, [proto()], { userId: USER, nowMs: D(3, 9) }).sinceById[1], D(1, 6), 'first seen, never written since its setup on day 1: from the creation (created − 1 h, 2026-11-01)');
   const again = MD.noteSchedules(first.next, [a], { userId: USER, nowMs: D(12, 10) });
-  assert.equal(again.sinceById[1], D(3, 9), 'same schedule seen again: still since day 3 although updated_at moved');
+  assert.equal(again.sinceById[1], D(1, 6), 'same schedule seen again: still from the creation although updated_at moved');
   const moved = MD.noteSchedules(again.next, [{ ...a, reminder_time: '21:00' }], { userId: USER, nowMs: D(12, 11) });
   assert.equal(moved.sinceById[1], D(12, 11), 'time edited: since now');
   const later = MD.noteSchedules(moved.next, [{ ...a, reminder_time: '21:00', updated_at: isoMs(D(1, 7)) }], { userId: USER, nowMs: D(13, 9) });
   assert.equal(later.sinceById[1], D(12, 11), 'after a seen change an old-looking updated_at never certifies more');
-  assert.equal(MD.noteSchedules(again.next, [a], { userId: 'other', nowMs: D(12, 10) }).sinceById[1], D(12, 9), 'another account: nothing carried over (first sight: its updated_at)');
-  assert.equal(MD.noteSchedules(again.next, [a], { userId: USER, nowMs: D(2, 10) }).sinceById[1], D(2, 10), 'clock set back before the entry: since now');
-  assert.equal(MD.noteSchedules({}, [proto({ updated_at: isoMs(NOW + DAY) })], { userId: USER, nowMs: NOW }).sinceById[1], NOW, 'a future updated_at certifies nothing');
+  assert.equal(MD.noteSchedules(again.next, [a], { userId: 'other', nowMs: D(12, 10) }).sinceById[1], D(1, 6), 'another account: nothing carried over (its own first sight: from the creation)');
+  assert.equal(MD.noteSchedules(again.next, [a], { userId: USER, nowMs: D(2, 10) }).sinceById[1], D(1, 6), 'clock set back to day 2, still after the entry (the creation): the entry is kept');
+  assert.equal(MD.noteSchedules({}, [proto({ updated_at: isoMs(NOW + DAY) })], { userId: USER, nowMs: NOW }).sinceById[1], D(1, 6), 'a future updated_at certifies nothing (first sight: from the creation)');
 });
 
 test('A-123 F1 through the real scan: nothing known about the schedule -> the Missed row next to a Taken stays', async () => {

@@ -35,13 +35,14 @@ test('a new protocol first seen with no edit since its setup counts from its cre
 test('council (senior): created at 08:00, dose time edited at 13:00, Today first opened at 13:05 → never from the creation', () => {
   const c8 = new Date(2026, 9, 31, 8, 0).getTime();
   const e13 = new Date(2026, 9, 31, 13, 0).getTime();
-  const edited = { ...p, reminder_time: '10:00', created_at: new Date(c8).toISOString(), updated_at: new Date(e13).toISOString() };
+  // The 13:00 edit is recorded in schedule_history (DV-247), which first sight honours (2026-11-03).
+  const edited = { ...p, reminder_time: '10:00', created_at: new Date(c8).toISOString(), updated_at: new Date(e13).toISOString(), schedule_history: [{ from: new Date(e13).toISOString(), reminder_time: '10:00' }] };
   assert.equal(noteSchedules(null, [edited], { userId: 'u', nowMs: e13 + 5 * 60000 }).sinceById[170], e13);
 });
 
-test('a later write (a sync stamp after 5 min) before the first sight proves nothing', () => {
+test('a later write (a sync stamp after 5 min) with no recorded schedule change counts from the creation (2026-11-03)', () => {
   const stamped = { ...p, updated_at: new Date(created + 6 * 60000).toISOString() };
-  assert.equal(noteSchedules(null, [stamped], { userId: 'u', nowMs: created + 7 * 60000 }).sinceById[170], Date.parse(stamped.updated_at));
+  assert.equal(noteSchedules(null, [stamped], { userId: 'u', nowMs: created + 7 * 60000 }).sinceById[170], created - H);
 });
 
 test('an entry written before this rule keeps its own first sight', () => {
