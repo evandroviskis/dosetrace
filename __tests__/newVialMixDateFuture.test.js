@@ -156,6 +156,7 @@ function formSave(now, form = {}) {
     name: 'Tirzepatide', doseStepBlocked: false, startDate: '2026-10-01', todayISO: () => '2026-10-26',
     type: f.type, skipVial: f.skipVial, vialMonth: f.vialMonth, vialDay: f.vialDay, editingId: f.editingId,
     amount: '10', unit: 'mg', dose: '2.5', doseUnit: 'mg', water: '1', language: 'en', intervalDays: 7, goals: [],
+    isClockTime: require('../lib/assistantTime').isClockTime, reminderTimes: f.reminderTimes || ['09:00'], // the person's time (founder 2026-11-04: an empty one stops the save)
     setStep: (n) => calls.steps.push(n), setSaving: (v) => calls.saving.push(v),
     setWizSheet: (s) => calls.sheets.push(s), wizError: (body) => calls.sheets.push({ title: 'error', body }),
     showMissingName() {}, showCheckValues() {},

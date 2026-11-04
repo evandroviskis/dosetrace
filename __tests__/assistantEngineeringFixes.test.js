@@ -41,7 +41,7 @@ test('MED 7: only what the user answered here counts as set by hand afterwards (
   let s = A.startConversation('build', newProtocolForm(NOW), { language: 'en', now: NOW, catalog: CATALOG });
   s = A.answerText(s, 'nad', { intent: 'answer', compound: 'nad', form: 'powder' });
   const r = A.formFromConversation(s, newProtocolForm(NOW)); // closing here hands this back
-  assert.deepEqual(r.set, { name: true, type: true, amount: false, water: false, mixed: false, dose: false, schedule: false, start: false, syringe: false });
+  assert.deepEqual(r.set, { name: true, type: true, amount: false, water: false, mixed: false, dose: false, schedule: false, start: false, syringe: false, time: false });
   const fin = SCREEN.slice(SCREEN.indexOf('function finishAssistant('), SCREEN.indexOf('// Done (AP-26)'));
   assert.doesNotMatch(fin, /touch\('schedule'\); touch\('start'\);/);
   assert.match(fin, /for \(const k of Object\.keys\(result\.set \|\| \{\}\)\) if \(result\.set\[k\]\) touch\(k\);/);

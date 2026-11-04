@@ -78,12 +78,15 @@ export function dueDateKeys(protocol: Protocol, fromKey: string, horizonDays: nu
 }
 
 // Reminder-time slots for a protocol as {hour, minute}, defaulting to 08:00.
-export function reminderSlots(protocol: Protocol): { hour: number; minute: number }[] {
+export function reminderSlots(protocol: Protocol): { hour: number; minute: number; invalid?: boolean }[] {
   const raw = protocol.reminder_time;
   if (!raw) return [{ hour: 8, minute: 0 }];
   return String(raw).split(',').filter(Boolean).map((t) => {
     const [h, m] = t.split(':').map(Number);
-    return { hour: Number.isFinite(h) ? h : 8, minute: Number.isFinite(m) ? m : 0 };
+    const hour = Number.isFinite(h) ? h : 8, minute = Number.isFinite(m) ? m : 0;
+    // Same as the app (lib/notificationPlan reminderTimes): a time off the clock is marked, never sent.
+    const ok = Number.isInteger(hour) && hour >= 0 && hour <= 23 && Number.isInteger(minute) && minute >= 0 && minute <= 59;
+    return ok ? { hour, minute } : { hour, minute, invalid: true };
   });
 }
 

@@ -66,6 +66,7 @@ import { drawReading, smallDraw, isMlSyringe, sizeLabelNoBreak as syringeSizeLab
 import { concentrationText, concentrationNote, volumeNote } from '../lib/calcNote';
 import { explainerModel } from '../lib/fitExplainer';
 import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
+import { isClockTime } from '../lib/assistantTime';
 import { renderText } from '../lib/assistantText';
 import ProtocolAssistant from './components/ProtocolAssistant';
 import FitExplainer from './components/FitExplainer';
@@ -1176,6 +1177,7 @@ export default function ProtocolsScreen() {
   function applyPickedTime(selectedDate) {
     const h = String(selectedDate.getHours()).padStart(2, '0');
     const m = String(selectedDate.getMinutes()).padStart(2, '0');
+    touch('time'); // a time picked by hand is the person's own (the assistant keeps it)
     setReminderTimes(prev => {
       // Clamp the index into range and never let the array grow
       // past doses-per-day. Writing next[activeTimeIndex] with a
@@ -1206,7 +1208,8 @@ export default function ProtocolsScreen() {
     // Only allow multiple doses per day for daily or every-2-day
     if (newInterval > 2) {
       setDosesPerDay(1);
-      setReminderTimes(prev => [prev[0] || currentTimeRounded5()]);
+      // A time the assistant left empty stays empty (never the clock time, founder 2026-11-04).
+      setReminderTimes(prev => [prev.length ? prev[0] : currentTimeRounded5()]);
       setActiveTimeIndex(0);
     }
   }
@@ -2090,6 +2093,13 @@ export default function ProtocolsScreen() {
     if (mix && mix.error) {
       setStep(5);
       setWizSheet({ icon: 'warning', ...mixDateError(mix.error, t), buttons: [{ label: t('ok'), kind: 'primary' }] });
+      return;
+    }
+    // Every dose has the person's own time (founder 2026-11-04): a time the assistant could not
+    // get is handed over empty ("—" on the time step) and asked here, never filled with the clock.
+    if (reminderTimes.some((rt) => !isClockTime(rt))) { // 00–23 : 00–59 only (N1)
+      setStep(4);
+      setWizSheet({ icon: 'warning', title: t('protocols_time_missing_title'), body: t('protocols_time_missing_body'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;
     }
     setSaving(true);
@@ -3120,7 +3130,7 @@ export default function ProtocolsScreen() {
               key={assistant.door}
               door={assistant.door}
               form={currentForm()}
-              ctx={{ touched: Array.from(touchedRef.current), visitedStep, mixedOn: skipVial ? null : formMixedOn(), skipVial, editing: !!editingId }}
+              ctx={{ touched: Array.from(touchedRef.current), visitedStep, mixedOn: skipVial ? null : formMixedOn(), skipVial, timeFormat, editing: !!editingId }}
               registerClose={(fn) => { assistantCloseRef.current = fn; }}
               catalog={assistantCatalog()}
               t={t}
@@ -3892,7 +3902,16 @@ export default function ProtocolsScreen() {
             </DTPickerSheet>
           )}
           {iosPicker && (
-            <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')} onDone={() => setShowTimePicker(false)}>
+            <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')} onDone={() => {
+              // An empty time (handed over by the assistant): Done on the wheel takes the time the
+              // person is looking at, as a pick (they chose it), and closes.
+              if (!reminderTimes[activeTimeIndex]) {
+                const [h, m] = currentTimeRounded5().split(':').map(Number);
+                const d = new Date(); d.setHours(h, m, 0, 0);
+                applyPickedTime(d);
+              }
+              setShowTimePicker(false);
+            }}>
               <DTWheel
                 columns={timeColumns(reminderTimes[activeTimeIndex] || currentTimeRounded5(), wheel12h, dayParts)}
                 onChange={(col, i) => {

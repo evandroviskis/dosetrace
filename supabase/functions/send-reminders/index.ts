@@ -232,6 +232,7 @@ Deno.serve(async (req) => {
         if (takenToday.has(`${p.id}|${lp.key}`)) continue;
         const slots = reminderSlots(p);
         for (let si = 0; si < slots.length; si++) {
+          if (slots[si].invalid) continue;
           const slotMin = mod(slots[si].hour, slots[si].minute);
           if (slotMin <= nowMin && slotMin > nowMin - RUN_WINDOW_MIN) {
             messages.push({
