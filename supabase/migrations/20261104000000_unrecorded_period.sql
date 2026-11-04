@@ -1,6 +1,6 @@
 -- Unrecorded period beyond 14 days, option B (founder 2026-11-03 "B"; answers 2026-11-04 10:04 EST;
 -- docs/specs/unrecorded-period.md UP-35, UP-36). Additive only: two nullable columns, no default, no data change.
--- STATUS: NOT APPLIED — applying it to production needs the founder's go. The app works before and after:
+-- STATUS: APPLIED to production 2026-11-04 15:12 EST (founder "pode aplicar"). The app works before and after:
 -- both columns are optional (lib/syncMappers OPTIONAL_COLUMNS), sent only when set; while the cloud lacks one
 -- it answers PGRST204 and the write is retried without it (the value stays on the phone, re-sent later).
 --
