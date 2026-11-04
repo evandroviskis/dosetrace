@@ -1,0 +1,240 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Horário sem padrão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0;--pcard:#FFFFFF}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--pcard:#17191B}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--pink);font:15px/1.45 Geist,-apple-system,BlinkMacSystemFont,Roboto,sans-serif}
+header,.notes{max-width:1000px;margin:0 auto;padding:0 16px}
+section{max-width:2400px;margin:0 auto;padding:0 16px}
+header{padding-top:28px}
+h1{font-size:24px;margin:0 0 8px;letter-spacing:-.3px}
+header p{margin:0 0 10px;color:var(--pink2);max-width:84ch}
+header p b{color:var(--pink)}
+.box{background:var(--pcard);border:1px solid var(--pline);border-radius:16px;padding:14px 16px;margin:14px 0 4px}
+.box h3{margin:0 0 6px;font-size:15px}
+.box ul{margin:4px 0 0;padding-left:20px}
+.box li{margin:4px 0;color:var(--pink2)}
+.box li b{color:var(--pink)}
+h2{font-size:20px;margin:44px 0 4px}
+h3.grp{font-size:16px;margin:28px 0 4px}
+.lead{color:var(--pink2);margin:0 0 14px;max-width:84ch}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(410px,100%),1fr));gap:26px 18px;justify-items:center}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;min-width:0;width:100%}
+figcaption{font-size:13px;font-weight:600;color:var(--pink2);margin:0 0 8px;text-align:center;max-width:410px}
+.cap2{font-size:12.5px;line-height:1.45;color:var(--pink2);margin-top:8px;max-width:410px;width:100%}
+.cap2 b{color:var(--pink)}
+.rec{display:inline-block;margin-left:6px;padding:0 8px;border-radius:10px;border:1px solid var(--pink2);font-size:11px;font-weight:600;color:var(--pink);vertical-align:2px}
+.notes{margin-top:30px;margin-bottom:56px}
+.notes h2{margin-top:30px}
+.notes ol,.notes ul{padding-left:20px;max-width:90ch}
+.notes li{margin:7px 0;color:var(--pink2)}
+.notes li b{color:var(--pink)}
+.tbl{border-collapse:collapse;width:100%;max-width:900px;font-size:14px}
+.tbl th,.tbl td{text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--pline)}
+.tbl th{color:var(--pink2);font-weight:600}
+code{font-size:12.5px}
+.pz{zoom:var(--z,1)}
+@supports not (zoom:1){.pz{transform:scale(var(--z,1));transform-origin:top center}}
+@media (max-width:440px){.pz{--z:.84}}
+
+/* ---------- the phone: app tokens copied from lib/theme.js (LIGHT / DARK) ---------- */
+.t-light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--tick:#71766F;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--onInk:#FFFFFF;--act:#111315;--onAct:#FFFFFF;--risk:#9E1F19;--scrim:rgba(0,0,0,0.45);--segOn:#FFFFFF;--segOnLine:#C3C7C0}
+.t-dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--tick:#747A7F;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--onInk:#121416;--act:#EEEFEB;--onAct:#121416;--risk:#F08A80;--scrim:rgba(0,0,0,0.45);--segOn:#4A4F56;--segOnLine:#5E646B}
+.phone{width:410px;height:864px;padding:10px;border-radius:62px;background:#050606;flex:none}
+.screen{position:relative;width:390px;height:844px;border-radius:52px;overflow:hidden;background:var(--ground);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Roboto,Arial,sans-serif;font-size:17px;line-height:22px;-webkit-font-smoothing:antialiased}
+.sb{position:absolute;left:0;right:0;top:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 34px 0 50px;z-index:8;color:var(--ink)}
+.sb-time{font-weight:600;font-size:17px;letter-spacing:-.2px}
+.sb-icons{display:flex;gap:6px;align-items:center}
+.island{position:absolute;top:11px;left:50%;width:124px;height:36px;margin-left:-62px;border-radius:20px;background:#000;z-index:9}
+.home{position:absolute;bottom:8px;left:50%;width:140px;height:5px;margin-left:-70px;border-radius:3px;background:var(--ink);z-index:30}
+.content{position:absolute;inset:0;padding-top:59px;display:flex;flex-direction:column}
+/* wizard chrome (ProtocolsScreen protocolsGraduated: wnav, prog, wiz, wfoot) */
+.wnav{display:flex;align-items:center;min-height:48px;padding:0 16px;gap:8px}
+.wnavSide{flex:1;min-width:64px}
+.wnavCancel{font-size:17px;color:var(--ink)}
+.wnavTitle{flex-shrink:1;font-size:17px;font-weight:600;color:var(--ink);text-align:center;white-space:nowrap}
+.prog{display:flex;gap:6px;padding:4px 16px 10px}
+.progSeg{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.progSeg.on{background:var(--ink)}
+.scroll{position:relative;flex:1;overflow:hidden}
+.wiz{position:absolute;left:0;right:0;bottom:var(--b,-112px);padding:6px 16px 32px;display:flex;flex-direction:column;gap:20px}
+.aiDoor{display:flex;align-items:center;gap:12px;background:var(--raised);border-radius:18px;padding:14px}
+.aiDoorIcon{width:40px;height:40px;border-radius:20px;background:var(--well);display:flex;align-items:center;justify-content:center;flex:none}
+.aiDoorTitle{font-size:16px;font-weight:600;color:var(--ink)}
+.aiDoorSub{font-size:13px;line-height:18px;color:var(--ink2)}
+.wt{display:flex;flex-direction:column;gap:4px;padding:6px 4px 0}
+.wtTitle{font-size:22px;font-weight:700;line-height:28px;color:var(--ink)}
+.wtSub{font-size:15px;line-height:20px;color:var(--ink2)}
+.fld{display:flex;flex-direction:column;gap:10px}
+.fldLabel{padding:0 4px;font-size:17px;font-weight:600;color:var(--ink)}
+.seg{display:flex;gap:2px;padding:3px;border-radius:14px;background:var(--well)}
+.segItem{flex:1;min-height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;padding:0 3px;border:1px solid var(--well);font-size:15px;font-weight:500;color:var(--ink2);white-space:nowrap}
+.segItem.on{background:var(--segOn);border-color:var(--segOnLine);color:var(--ink);font-weight:700}
+.infobox{background:var(--well);border-radius:14px;padding:12px 14px;font-size:15px;line-height:20px;color:var(--ink2)}
+.pickCol{display:flex;flex-direction:column;gap:8px}
+.pickbtn{display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px;background:var(--raised);border-radius:14px;border:1px solid var(--line)}
+.pickText{flex:1;font-size:17px;color:var(--ink);white-space:nowrap}
+.pickTextC2{font-size:17px;color:var(--ink2);white-space:nowrap}
+.pickTime{font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.pickPh{font-size:17px;color:var(--ink3);white-space:nowrap}  /* NEW: the placeholder words, in the app's placeholder colour (ink3) */
+.warnbox{border:1px solid var(--risk);border-radius:14px;padding:12px 14px;font-size:15px;line-height:20px;color:var(--risk);font-weight:600}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{min-height:36px;border-radius:18px;padding:0 14px;border:1px solid var(--line);display:flex;align-items:center;font-size:13px;color:var(--ink2)}
+.wfoot{display:flex;gap:10px;padding:10px 16px 40px;border-top:1px solid var(--line);background:var(--ground);position:relative;z-index:2}
+.btn{min-height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;padding:0 16px;font-size:17px;font-weight:700}
+.btnSec{flex:1;background:var(--well);color:var(--ink)}
+.btnPri{flex:2;background:var(--act);color:var(--onAct)}
+.tap{box-shadow:0 0 0 3px #2F7DF6}  /* page annotation only: where the finger is */
+/* sheets (screens/components/ProtocolParts.js sheetStyles) */
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:20;display:flex;flex-direction:column;justify-content:center;padding:16px}
+.scrim.bottom{justify-content:flex-end;padding:8px 8px 30px}
+.sheet{background:var(--raised);border-radius:26px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.sIcon{width:48px;height:48px;border-radius:24px;background:var(--well);display:flex;align-items:center;justify-content:center}
+.sTitle{font-size:22px;font-weight:700;line-height:28px;color:var(--ink)}
+.sBody{font-size:17px;line-height:22px;color:var(--ink2)}
+.sBtn{min-height:44px;border-radius:26px;display:flex;align-items:center;justify-content:center;background:var(--act);color:var(--onAct);font-size:15px;font-weight:700}
+.pickHead{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
+.pickTitle{flex:1;font-size:17px;font-weight:600;color:var(--ink)}
+.pickDone{font-size:17px;font-weight:600;color:var(--ink)}
+.pickDone.off{opacity:.35}  /* the screen's existing "off" (trashBtnOff: opacity .35) */
+.wheel{position:relative;display:flex;gap:4px;padding:4px 0;height:208px}
+.band{position:absolute;left:0;right:0;top:84px;height:40px;border-radius:10px;background:var(--well)}
+.wcol{flex:1;min-width:0;position:relative}
+.wrow{height:40px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.wrow.on{font-size:21px;font-weight:600;color:var(--ink)}
+</style></head><body>
+
+<header>
+<h1>Formulário manual: horário sem preenchimento automático</h1>
+<p>Hoje, ao criar um protocolo pelo formulário, o campo <b>“Que horas?”</b> já vem preenchido com a hora do relógio (arredondada a 5 minutos) e, ao escolher <b>“Duas vezes”</b> ou <b>“3 vezes”</b>, as doses extras recebem 14:00 e 21:00; um lembrete no meio do expediente acaba ignorado e a dose é perdida. Pela decisão de 4 de novembro (“1 Sim”), nenhum horário virá mais preenchido: cada dose começa vazia (“—”), a pessoa escolhe cada horário e o Salvar só conclui depois disso. <b>Recomendo a Proposta A</b>: o campo vazio mostra “— Escolha o horário”, o Salvar para no aviso que já existe (o mesmo do assistente de IA, já traduzido nos seis idiomas) e, no iPhone, a roda abre em 12:00 com “Concluído” apagado até a pessoa girar a roda. Nenhum texto novo é necessário.</p>
+<div class="box">
+<h3>Resumo das colunas</h3>
+<ul>
+<li><b>1. App hoje:</b> protocolo novo às 14:37, passo 4, “Duas vezes”: Dose 1 = 14:35 (o relógio), Dose 2 = 14:00 (preenchida pelo app, antes da Dose 1).</li>
+<li><b>2. Proposta A</b> <span class="rec">recomendada</span>: campos vazios com “— Escolha o horário”; o aviso “Escolha o horário” ao tocar em Salvar; a roda do iPhone em 12:00 com “Concluído” apagado até girar.</li>
+<li><b>3. Proposta B:</b> em vez do aviso, a tela desce até “Que horas?” e mostra a mesma frase em vermelho, logo abaixo das doses (a caixa de alerta vermelha que já existe no passo da dose).</li>
+</ul>
+</div>
+</header>
+
+<section id="light"></section>
+<section id="dark"></section>
+
+<div class="notes">
+<h2>Como cada proposta funciona</h2>
+<ul>
+<li><b>Proposta A:</b> protocolo novo abre com o horário vazio; “Duas vezes” e “3 vezes” acrescentam doses vazias (nunca 14:00/21:00). O botão mostra o ícone do relógio, “—” e, ao lado, “Escolha o horário” na cor de texto de exemplo do app. Ao tocar em Salvar com alguma dose sem horário, aparece o aviso que já existe (ícone de alerta, “Escolha o horário”, “Escolha o horário de cada dose. O lembrete será enviado nesse horário.”, OK). No liofilizado (5 passos), o Salvar fica no passo 5: o app volta ao passo 4 e mostra o mesmo aviso (é o que o código já faz hoje para o assistente).</li>
+<li><b>Roda do iPhone (Proposta A):</b> a roda do app é desenhada pelo próprio app (não é a roda nativa da Apple), então dá para apagar o “Concluído”. Em um horário vazio, ela abre em 12:00, o ponto que a roda já usa quando não há horário, no meio da lista de horas, nem manhã nem noite; “Concluído” fica apagado (o mesmo apagado da lixeira desta tela) até a pessoa girar uma coluna. Girar já grava o horário no campo, como hoje. Tocar fora da roda fecha sem gravar nada, e o campo continua “—”.</li>
+<li><b>Proposta B:</b> nenhuma janela por cima. Ao tocar em Salvar, a tela desce até “Que horas?” e mostra, abaixo das doses, a caixa vermelha de alerta do passo da dose, com a mesma frase. Ela some quando todas as doses têm horário. Vantagem: a pessoa já está ao lado do campo. Desvantagem: no liofilizado, o app pula do passo 5 para o 4 sem explicar por quê; com o aviso da Proposta A, a pessoa sabe por que voltou. Por isso fico com a A.</li>
+</ul>
+
+<h2>O que no código exige cuidado</h2>
+<ol>
+<li><b>Três lugares põem a hora do relógio:</b> o estado inicial do formulário (<code>ProtocolsScreen.js</code> ~1121, <code>currentTimeRounded5()</code>), o formulário novo em <code>lib/protocolForm.js</code> ~52 (<code>timeRounded5(now)</code>) e o preenchimento ao mudar a quantidade de doses (<code>ProtocolsScreen.js</code> ~1224 e <code>protocolForm.js</code> ~102–104, com 14:00/21:00). Ao editar um protocolo antigo com menos horários do que doses, ou sem horário salvo, <code>formFromProtocol</code> também usa o relógio, 14:00 e 21:00: deve deixar vazio da mesma forma.</li>
+<li><b>A roda parte do relógio mesmo com o campo vazio:</b> <code>timeColumns</code> e <code>timeAfter</code> recebem <code>reminderTimes[i] || currentTimeRounded5()</code> (~3916 e ~3918). Se só o “Concluído” mudar, girar apenas a hora para 20 gravaria 20:35 (os minutos do relógio). As duas chamadas precisam partir de 12:00.</li>
+<li><b>O “Concluído” de hoje grava o relógio:</b> o código do assistente, já juntado em redesign/graduated (~3906–3912), faz o “Concluído” em um horário vazio gravar a hora atual. É exatamente o que a decisão manda tirar.</li>
+<li><b>A janela da roda (<code>DTPickerSheet</code>) não tem estado “apagado”:</b> é preciso uma opção nova e pequena nesse componente compartilhado (as rodas de data não a usam). Tocar fora da roda chama a mesma função do “Concluído”: precisa fechar sem gravar.</li>
+<li><b>Android usa o relógio nativo do Google:</b> o OK dessa janela não pode ser apagado. Ela abriria em 12:00 (<code>timePickerValue</code> ~1173 hoje usa o relógio) e o OK grava o que está na tela, um toque consciente em um horário visível. <b>Defeito encontrado:</b> ao cancelar, a biblioteca (8.4.4) chama <code>onChange</code> com o valor de abertura, e a roda de horário não confere <code>event.type === 'dismissed'</code> (a de data confere). Com a mudança, Cancelar em um campo vazio gravaria 12:00. Precisa da mesma checagem da roda de data, com teste antes.</li>
+<li><b>Testes:</b> os testes que esperam o horário do relógio no formulário novo terão de ser trocados (teste primeiro). O plano de lembretes já ignora horários inválidos (código do assistente juntado), então um horário vazio nunca vira lembrete em hora errada.</li>
+</ol>
+
+<h2>Textos usados (pt) — todos já existem</h2>
+<table class="tbl">
+<tr><th>Onde</th><th>Chave</th><th>Texto</th></tr>
+<tr><td>Campo vazio (placeholder)</td><td><code>protocols_time_missing_title</code></td><td>Escolha o horário</td></tr>
+<tr><td>Aviso, título</td><td><code>protocols_time_missing_title</code></td><td>Escolha o horário</td></tr>
+<tr><td>Aviso, texto / caixa vermelha (B)</td><td><code>protocols_time_missing_body</code></td><td>Escolha o horário de cada dose. O lembrete será enviado nesse horário.</td></tr>
+<tr><td>Roda</td><td><code>protocols_what_time</code> / <code>done</code></td><td>Que horas? / Concluído</td></tr>
+</table>
+<p class="lead" style="margin-top:12px">Nada novo no desenho além do texto de exemplo ao lado do “—” (cor ink3, a mesma dos campos de texto) e do “Concluído” apagado (opacidade .35, a mesma da lixeira desta tela). As cores são as variáveis de <code>lib/theme.js</code>, nos dois temas. O contorno azul nos telefones só indica o toque; não faz parte do app.</p>
+</div>
+
+<script>
+(function(){
+  const SB = '<div class="sb"><span class="sb-time">14:37</span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="var(--ink)"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="var(--ink)"/><rect x="10" y="3" width="3" height="9" rx="1" fill="var(--ink)"/><rect x="15" y="0" width="3" height="12" rx="1" fill="var(--ink)"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 11.2 5.6 8.6a3.4 3.4 0 0 1 4.8 0Z" fill="var(--ink)"/><path d="M3.3 6.4a6.6 6.6 0 0 1 9.4 0" stroke="var(--ink)" stroke-width="1.8" fill="none" stroke-linecap="round"/><path d="M1 4a9.9 9.9 0 0 1 14 0" stroke="var(--ink)" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" stroke="var(--ink)" fill="none" opacity=".45"/><rect x="2" y="2" width="16" height="8" rx="2" fill="var(--ink)"/><path d="M24 4v4a2 2 0 0 0 0-4Z" fill="var(--ink)" opacity=".45"/></svg></span></div><div class="island"></div>';
+  const ic = (paths, size, color) => '<svg width="' + size + '" height="' + size + '" viewBox="0 0 1024 1024" fill="none" stroke="' + color + '" stroke-width="54" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>';
+  const CLOCK = ic('<path d="M232 512 A280 280 0 1 0 792 512 A280 280 0 1 0 232 512 Z"/><path d="M512 512 V330"/><path d="M512 512 L648 572"/>', 18, 'var(--ink)');
+  const CAL = ic('<rect x="236" y="264" width="552" height="520" rx="48"/><path d="M236 424 H788"/><path d="M360 214 V322"/><path d="M664 214 V322"/>', 18, 'var(--ink)');
+  const WARN = ic('<path d="M512 232 L826 786 H198 Z"/><path d="M512 430 V616"/><path d="M512 690 V698"/>', 26, 'var(--ink)');
+  const SPARK = ic('<path d="M512 150 C544 396 628 480 874 512 C628 544 544 628 512 874 C480 628 396 544 150 512 C396 480 480 396 512 150 Z"/>', 22, 'var(--ink2)');
+
+  const seg = (items, on) => '<div class="seg">' + items.map((l, i) => '<div class="segItem' + (i === on ? ' on' : '') + '">' + l + '</div>').join('') + '</div>';
+  // slot: { t: '14:35' } a time, or { empty: true }
+  function slots(list, opt) {
+    opt = opt || {};
+    const many = list.length > 1;
+    return '<div class="pickCol">' + list.map((sl, i) => {
+      const lab = many ? '<span class="pickTextC2">Dose ' + (i + 1) + '</span>' : '';
+      const val = sl.empty
+        ? '<span class="pickTime">—</span>' + (opt.placeholder ? '<span class="pickPh">Escolha o horário</span>' : '')
+        : '<span class="pickTime">' + sl.t + '</span>';
+      return '<div class="pickbtn' + (opt.tapIdx === i ? ' tap' : '') + '">' + CLOCK + lab + val + '</div>';
+    }).join('') + '</div>';
+  }
+  function form(list, opt) {
+    opt = opt || {};
+    const twice = list.length > 1;
+    return '<div class="wiz" style="--b:' + (opt.b != null ? opt.b : (twice ? -112 : -112)) + 'px">'
+      + '<div class="aiDoor"><div class="aiDoorIcon">' + SPARK + '</div><div><div class="aiDoorTitle">Terminar com IA</div><div class="aiDoorSub">Ela lê o que você já preencheu e ajuda com o resto.</div></div></div>'
+      + '<div class="wt"><div class="wtTitle">Horários e lembretes</div><div class="wtSub">Com que frequência você toma este composto?</div></div>'
+      + '<div class="fld"><div class="fldLabel">Quando é sua primeira dose?</div>' + seg(['Hoje', 'Amanhã'], 0) + '</div>'
+      + (twice ? '<div class="infobox">Se começar hoje, só contam os horários a partir de agora; os horários anteriores começam amanhã.</div>' : '')
+      + '<div class="fld"><div class="fldLabel">Quando começou (ou vai começar)?</div><div class="pickbtn">' + CAL + '<span class="pickText">qua., 4 de nov. de 2026</span></div></div>'
+      + '<div class="fld"><div class="fldLabel">Com que frequência?</div>' + seg(['Todo dia', 'Personalizado'], 0) + '</div>'
+      + '<div class="fld"><div class="fldLabel">Quantas doses por dia?</div>' + seg(['Uma vez', 'Duas vezes', '3 vezes'], list.length - 1) + '</div>'
+      + '<div class="fld"><div class="fldLabel">Que horas?</div>' + slots(list, opt) + (opt.warn ? '<div class="warnbox">Escolha o horário de cada dose. O lembrete será enviado nesse horário.</div>' : '') + '</div>'
+      + '<div class="fld"><div class="fldLabel">Objetivo de bem-estar — opcional</div><div class="pills"><div class="pill">Suporte anabólico</div><div class="pill">Suporte antioxidante</div><div class="pill">Regulação do apetite</div><div class="pill">Desempenho atlético</div><div class="pill">Composição corporal</div></div></div>'
+      + '</div>';
+  }
+  function wheelCol(values, idx) {
+    let h = '';
+    for (let k = idx - 2; k <= idx + 2; k++) h += '<div class="wrow' + (k === idx ? ' on' : '') + '">' + (k >= 0 && k < values.length ? values[k] : '') + '</div>';
+    return '<div class="wcol">' + h + '</div>';
+  }
+  const HRS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const MINS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+  function wheelSheet(h, m, doneOn) {
+    return '<div class="scrim bottom"><div class="sheet"><div class="pickHead"><div class="pickTitle">Que horas?</div><div class="pickDone' + (doneOn ? '' : ' off') + '">Concluído</div></div>'
+      + '<div class="wheel"><div class="band"></div>' + wheelCol(HRS, h) + wheelCol(MINS, m) + '</div></div></div>';
+  }
+  const warnSheet = '<div class="scrim"><div class="sheet"><div class="sIcon">' + WARN + '</div><div class="sTitle">Escolha o horário</div><div class="sBody">Escolha o horário de cada dose. O lembrete será enviado nesse horário.</div><div class="sBtn">OK</div></div></div>';
+
+  function phone(theme, list, opt) {
+    opt = opt || {};
+    return '<div class="pz"><div class="phone t-' + theme + '"><div class="screen">' + SB
+      + '<div class="content"><div class="wnav"><div class="wnavSide"><span class="wnavCancel">Cancelar</span></div><div class="wnavTitle">Novo protocolo</div><div class="wnavSide"></div></div>'
+      + '<div class="prog"><div class="progSeg on"></div><div class="progSeg on"></div><div class="progSeg on"></div><div class="progSeg on"></div></div>'
+      + '<div class="scroll">' + form(list, opt) + '</div>'
+      + '<div class="wfoot"><div class="btn btnSec">Voltar</div><div class="btn btnPri' + (opt.tapSave ? ' tap' : '') + '">Salvar</div></div></div>'
+      + (opt.overlay || '') + '<div class="home"></div></div></div></div>';
+  }
+  const fig = (cap, body, note) => '<figure><figcaption>' + cap + '</figcaption>' + body + (note ? '<div class="cap2">' + note + '</div>' : '') + '</figure>';
+  const E = { empty: true };
+
+  function themeSection(theme, name) {
+    const p = (l, o) => phone(theme, l, o);
+    return '<h2>Tema ' + name + '</h2>'
+      + '<h3 class="grp">1. App hoje</h3><p class="lead">Testosterona Cipionato (pronto para uso, 4 passos), criada às 14:37.</p><div class="cols">'
+      + fig('App hoje: “Duas vezes”', p([{ t: '14:35' }, { t: '14:00' }]), 'O passo abre com <b>14:35</b> (o relógio, arredondado a 5 minutos). Ao tocar em “Duas vezes”, o app acrescenta <b>14:00</b>, antes da primeira dose. Com “3 vezes”, viria também 21:00. A pessoa pode salvar sem ter escolhido nada.')
+      + '</div>'
+      + '<h3 class="grp">2. Proposta A <span class="rec">recomendada</span></h3><p class="lead">Nenhum horário preenchido; o Salvar para no aviso que já existe; a roda do iPhone só conclui depois de girada.</p><div class="cols">'
+      + fig('A · Uma vez: campo vazio', p([E], { placeholder: true }), 'O campo mostra <b>“—”</b> e, ao lado, <b>“Escolha o horário”</b> no tom de texto de exemplo. Tocar no campo abre a roda.')
+      + fig('A · Duas vezes: dois campos vazios', p([E, E], { placeholder: true }), '“Duas vezes” acrescenta uma <b>dose vazia</b>, nunca 14:00. Com “3 vezes”, três campos vazios.')
+      + fig('A · Salvar com horário faltando', p([{ t: '08:00' }, E], { placeholder: true, tapSave: true, overlay: warnSheet }), 'Dose 1 escolhida, Dose 2 vazia: Salvar mostra o <b>aviso que já existe</b>. OK fecha e a pessoa continua no passo 4, com a Dose 2 em “—”.')
+      + fig('A · iPhone: roda em um campo vazio', p([E, E], { placeholder: true, overlay: wheelSheet(12, 0, false) }), 'Abre em <b>12:00</b>, ponto neutro (o mesmo que a roda já usa sem horário). <b>“Concluído” apagado</b> até girar. Tocar fora fecha e o campo fica “—”.')
+      + fig('A · iPhone: depois de girar', p([{ t: '08:00' }, E], { placeholder: true, overlay: wheelSheet(8, 0, true) }), 'A pessoa girou a hora para 08: o campo já recebe <b>08:00</b> (girar grava, como hoje) e “Concluído” acende. No Android, o relógio nativo abre em 12:00 e o OK não pode ser apagado (ver notas).')
+      + '</div>'
+      + '<h3 class="grp">3. Proposta B</h3><p class="lead">Sem janela por cima: a frase aparece em vermelho embaixo das doses.</p><div class="cols">'
+      + fig('B · Salvar com horário faltando', p([{ t: '08:00' }, E], { placeholder: true, warn: true, tapSave: true, b: -112 }), 'Salvar não fecha: a tela desce até “Que horas?” e mostra a <b>caixa vermelha do passo da dose</b> com a mesma frase. Some quando todas as doses têm horário.')
+      + '</div>';
+  }
+  document.getElementById('light').innerHTML = themeSection('light', 'claro');
+  document.getElementById('dark').innerHTML = themeSection('dark', 'escuro');
+})();
+</script>
+</body></html>
