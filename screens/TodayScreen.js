@@ -917,7 +917,7 @@ export default function TodayScreen() {
       courseAskRef.current = true; // A-121 SG-17
       const timer = null; // armed by the Undo bar effect (lib/undoBar.js)
       const record = {
-        logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, protocolId, pending: true, extraDeleteIds,
+        logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, prevOutcomeByPerson: res.prevOutcomeByPerson, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
         oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null, text: toastText || null,
       };
@@ -1079,6 +1079,7 @@ export default function TodayScreen() {
         flippedFrom: res.flippedFrom,
         prevLoggedAt: res.prevLoggedAt, // A-78: Undo puts a logged skip back at its own time
         prevInjectionSite: res.prevInjectionSite,
+        prevOutcomeByPerson: res.prevOutcomeByPerson, // UP-36: who had written the flipped row
         extraDeleteIds: opts.extraDeleteIds || [],
         protocolId: protocol.id,
         vialId: res.vialId,
@@ -1345,7 +1346,8 @@ export default function TodayScreen() {
         && (getActiveVials(proto.user_id) || []).some(v => v.protocol_id === record.protocolId && v.id !== record.vialId));
       const plan = planUndoTake(record, { vialNow, otherActiveVial, unitsNow: proto ? (proto.units_taken || 0) : null });
       // A-78: a logged skip goes back to Skipped at its own time, with its own site.
-      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: plan.restoreOutcome, injection_site: plan.restoreSite, ...(plan.restoreLoggedAt ? { logged_at: plan.restoreLoggedAt } : {}) });
+      // UP-36: with who had written it (the app's Missed row stays the app's).
+      if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: plan.restoreOutcome, outcome_by_person: plan.restoreOutcomeByPerson, injection_site: plan.restoreSite, ...(plan.restoreLoggedAt ? { logged_at: plan.restoreLoggedAt } : {}) });
       for (const id of plan.deleteIds) deleteDoseLog(id);
       // Only take back a count bump that actually landed (a pending-from-yesterday
       // row never changed today's count).

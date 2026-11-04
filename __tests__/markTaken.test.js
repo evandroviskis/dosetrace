@@ -297,7 +297,8 @@ test('A-78: Today passes slot identity — Skip stamps the slot through recordSk
   assert.match(today, /newQuestion\(\{ protocolId: p\.id, tapMs, skipYesterday: opts\.skipYesterday \|\| null, source: 'today', slotMs: slot\.slotMs, flipRowId: slot\.flipRowId, ti: slot\.ti \}\)/);
   assert.match(today, /const write = \{ tapMs, slotMs: slot\.slotMs, flipRowId: slot\.flipRowId \};/);
   assert.match(today, /flipRowId: o\.flipRowId/, 'the site answer writes the same slot');
-  assert.match(today, /updateDoseLog\(plan\.restoreMissedId, \{ outcome: plan\.restoreOutcome, injection_site: plan\.restoreSite, \.\.\.\(plan\.restoreLoggedAt \? \{ logged_at: plan\.restoreLoggedAt \} : \{\}\) \}\)/);
+  // UP-36 (2026-11-04): the undo also puts back who had written the row.
+  assert.match(today, /updateDoseLog\(plan\.restoreMissedId, \{ outcome: plan\.restoreOutcome, outcome_by_person: plan\.restoreOutcomeByPerson, injection_site: plan\.restoreSite, \.\.\.\(plan\.restoreLoggedAt \? \{ logged_at: plan\.restoreLoggedAt \} : \{\}\) \}\)/);
   assert.match(today, /prevLoggedAt: res\.prevLoggedAt/);
   const actions = fs.readFileSync(path.join(__dirname, '..', 'lib', 'doseActions.js'), 'utf8');
   assert.match(actions, /flipRowId: opts\.flipRowId/);
