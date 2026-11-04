@@ -29,6 +29,7 @@ const UnrecordedHost = forwardRef(function UnrecordedHost({ onOpenChange, onAnsw
   const timer = useRef(null);
   const finished = useRef([]); // vials an answer finished: their prompt opens after the queue
   const openRef = useRef(false);
+  const toastRef = useRef(null); // the undo record while its "Desfazer" bar shows
 
   useImperativeHandle(ref, () => ({
     open(asks, ctx = null) {
@@ -48,14 +49,21 @@ const UnrecordedHost = forwardRef(function UnrecordedHost({ onOpenChange, onAnsw
     setQueue(null);
     setContext(null);
     if (onOpenChange) onOpenChange(false);
+    flushPrompts();
+  }
+  // UP-15 + review #4b: the usual vial prompt of a vial an answer finished opens only once the queue has closed
+  // AND that answer's Undo window has ended — never over the queue, never next to a live Undo (an Undo drops it).
+  function flushPrompts() {
+    if (openRef.current || toastRef.current) return;
     const list = finished.current;
     finished.current = [];
-    for (const v of list) requestVialPrompt(v); // UP-15: never over the queue, right after it
+    for (const v of list) requestVialPrompt(v);
   }
   function showUndo(undo) {
     clearTimeout(timer.current);
+    toastRef.current = undo;
     setToast({ undo });
-    timer.current = setTimeout(() => setToast(null), UNDO_MS);
+    timer.current = setTimeout(() => { toastRef.current = null; setToast(null); flushPrompts(); }, UNDO_MS);
   }
   function save(ask, { choice, picked }) {
     let res = null;
@@ -77,10 +85,12 @@ const UnrecordedHost = forwardRef(function UnrecordedHost({ onOpenChange, onAnsw
   function undo() {
     const u = toast && toast.undo;
     clearTimeout(timer.current);
+    toastRef.current = null;
     setToast(null);
     if (!u) return;
     try { undoUnrecordedAnswer(u); } catch { /* nothing changed */ }
     finished.current = finished.current.filter((v) => v.protocol.id !== u.protocolId);
+    flushPrompts(); // another answer's vial (its own Undo window has passed)
     requestSync();
     syncAllNotifications().catch(() => {});
     if (onChanged) onChanged();

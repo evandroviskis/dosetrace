@@ -112,7 +112,8 @@ test('UP-26: answers are ordinary pending rows written on the phone (offline wor
 
 test('UP-15: a vial an answer finished gets its usual prompt only after the last question', () => {
   assert.match(HOST, /finished\.current\.push\(/);
-  assert.match(sliceBlock(HOST, 'function close('), /for \(const v of list\) requestVialPrompt\(v\);/);
+  assert.match(sliceBlock(HOST, 'function close('), /flushPrompts\(\);/);
+  assert.match(sliceBlock(HOST, 'function flushPrompts('), /for \(const v of list\) requestVialPrompt\(v\);/);
 });
 
 test('UP-32 / UP-33 / UP-31: the sheet — centred up to 560 wide (Fold), radio and checkbox roles, theme tokens only', () => {

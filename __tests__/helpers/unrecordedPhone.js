@@ -12,6 +12,7 @@ function unrecordedPhone(db, { now } = {}) {
   const dbFns = {
     getProtocolById: fromDb('getProtocolById'),
     getActiveVials: fromDb('getActiveVials'),
+    getVialById: fromDb('getVialById'),
     insertDoseLog: fromDb('insertDoseLog'),
     updateDoseLog: fromDb('updateDoseLog'),
     deleteDoseLog: fromDb('deleteDoseLog'),

@@ -677,7 +677,8 @@ export default function TodayScreen() {
       const user = await getCachedUser();
       if (!user) return;
       let protocols = getActiveProtocols(user.id) || [];
-      if (protocols.length === 0) return;
+      // Review #3 (UP-8): an account with only ended protocols still gets the unrecorded-period question.
+      if (protocols.length === 0) { askUnrecordedToday(); return; }
       // A-148: an answer an older version kept on this phone only (wiped on sign-out, keyed by the
       // local id) moves once to the protocol's synced still_going_at.
       let moved = false;
@@ -728,11 +729,16 @@ export default function TodayScreen() {
       let st = null;
       try { st = JSON.parse((await AsyncStorage.getItem(unrecKey(user.id))) || 'null'); } catch { st = null; }
       const dayKey = localISO(new Date());
-      if (st && st.day === dayKey && !(st.later >= 3)) return; // already asked today: nothing to read
+      // Review #2: asked today, or already read today without asking (after three "Agora não" only a later
+      // absence asks again — checked at most once a day): nothing to read, no 365-day computation.
+      if (st && (st.day === dayKey || st.checked === dayKey)) return;
       const { asks } = await unrecordedQueue();
       if (!asks.length || unrecBlocked()) return;
       const newestMs = Math.max(...asks.map((a) => a.entries[a.entries.length - 1].slotMs));
-      if (!todayMayAsk(st, { dayKey, newestMs })) return;
+      if (!todayMayAsk(st, { dayKey, newestMs })) {
+        try { await AsyncStorage.setItem(unrecKey(user.id), JSON.stringify({ ...(st || {}), checked: dayKey })); } catch { /* per-phone convenience */ }
+        return;
+      }
       if (!unrecHostRef.current || !unrecHostRef.current.open(asks)) return;
       try { await AsyncStorage.setItem(unrecKey(user.id), JSON.stringify(afterShown(st, { dayKey, newestMs }))); } catch { /* per-phone convenience */ }
     } catch { /* never blocks Today */ } finally {
