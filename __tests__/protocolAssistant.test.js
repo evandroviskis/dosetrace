@@ -257,7 +257,8 @@ test('AP-17: what the assistant fills is exactly what the manual form saves for 
 
 test('AP-26 / editing: inside Edit the assistant ends in Fill the form (never a second protocol)', () => {
   const f = newProtocolForm(NOW);
-  Object.assign(f, { name: 'NAD+', compoundId: 'lyo_nad_plus', type: 'recon', amount: '1000', water: '7', dose: '240' });
+  // an edited protocol carries its stored time (a new form has none since 2026-11-04, MF-1)
+  Object.assign(f, { name: 'NAD+', compoundId: 'lyo_nad_plus', type: 'recon', amount: '1000', water: '7', dose: '240', reminderTimes: ['09:00'] });
   const c = chat(start('fit', f, { visitedStep: 4, editing: true, touched: ['water', 'schedule', 'start'] }))
     .tap('per:week').tap('count:3').tap('int:2');
   c.step('confirm');

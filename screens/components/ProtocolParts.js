@@ -197,17 +197,21 @@ export function AndroidDateDialog({ visible, iso, minISO, maxISO, onPick, onClos
 }
 
 // Bottom sheet that holds the iPhone wheel: the question on the left, Done on the right.
-export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
+// onCancel (optional): what a tap outside the sheet does; without it, the same as Done.
+// doneDisabled (optional): Done dimmed (opacity .35, the trash bar's "off") and not tappable,
+// e.g. the reminder time wheel on an empty slot until it is turned (manual-form-no-default-time MF-9).
+export function DTPickerSheet({ visible, title, doneLabel, onDone, onCancel, doneDisabled, children }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
   const gap = useSheetGap(30); // A-136 (2)
+  const close = onCancel || onDone;
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <Pressable style={[s.scrim, s.scrimBottom, { paddingBottom: gap }]} onPress={onDone}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
+      <Pressable style={[s.scrim, s.scrimBottom, { paddingBottom: gap }]} onPress={close}>
         <Pressable style={s.pickSheet} onPress={() => {}} accessibilityViewIsModal>
           <View style={s.pickHead}>
             <Text style={s.pickTitle}>{title}</Text>
-            <TouchableOpacity onPress={onDone} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
+            <TouchableOpacity onPress={onDone} disabled={!!doneDisabled} style={doneDisabled ? s.pickDoneOff : null} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityState={{ disabled: !!doneDisabled }}>
               <Text style={s.pickDone}>{doneLabel}</Text>
             </TouchableOpacity>
           </View>
@@ -454,6 +458,7 @@ const sheetStyles = (c) => StyleSheet.create({
   pickHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 },
   pickTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   pickDone: { fontSize: 17, fontWeight: '600', color: c.ink },
+  pickDoneOff: { opacity: 0.35 }, // ProtocolsScreen trashBtnOff
   // the wheel (prototype .wheel: 3 columns, gap 4, padding 4 0; the band 40 high, radius 10)
   wheel: { flexDirection: 'row', gap: 4, paddingVertical: 4, height: 40 * 5 + 8 },
   wheelBand: { position: 'absolute', left: 0, right: 0, top: 4 + 80, height: 40, borderRadius: 10, backgroundColor: c.well },
