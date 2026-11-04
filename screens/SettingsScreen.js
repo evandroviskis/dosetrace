@@ -22,7 +22,7 @@ import Animated from 'react-native-reanimated';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
 import { profileMeta, forgetKeptKeys, flushPendingGate } from '../lib/pendingGateStore';
 import { getPremiumSnapshot } from '../lib/premiumState';
@@ -62,6 +62,9 @@ import { errorSheet as errorSheetConfig, ERROR_ICON, errorTitle } from '../lib/e
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
+import SearchCorner, { SEARCH_PAGE, useTitleFit } from '../components/SearchCorner';
+import { HEADER_ROW, HEADER_STACKED, TITLE_STACKED } from '../lib/searchCorner';
+import AppSearchScreen from './AppSearchScreen';
 import { pluralKey } from '../lib/plural';
 import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourceKey } from '../lib/activityLevels';
 import { getCalcInputs } from '../lib/realityCheck';
@@ -235,7 +238,10 @@ function ProfileCardSkeleton({ s, colors, label }) {
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
   const { colors, mode, setMode } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
+  const titleFit = useTitleFit(t('settings_title')); // AS-22: the title goes under the corner when a word cannot fit
+  const base = useMemo(() => makeStyles(colors), [colors]);
+  // AS-22: stacked, the title keeps its own height (its flex: 1 would collapse it to 0 in a column).
+  const s = useMemo(() => (titleFit.stacked ? { ...base, headerTitle: titleFit.cap([base.headerTitle, TITLE_STACKED]) } : base), [base, titleFit.stacked, titleFit.scale]); // eslint-disable-line react-hooks/exhaustive-deps
   // A-169: the profile card's first frame comes from the session the auth client already holds and
   // the shared Premium state (lib/profileCardFirst) — never "??" / "—" while getCachedUser() answers;
   // with either unknown, the A-135 skeleton until Settings' own reads settle.
@@ -392,11 +398,87 @@ export default function SettingsScreen({ navigation }) {
   }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function scrollToSection(key) {
-    const y = headerY.current[key];
+    // Found 2026-11-04 (app search): the header's own y is relative to its card (0), so the fold
+    // scrolled to the top; the card's place in the list is the cards' block + the card.
+    const abs = landY.current.cards != null && landY.current[key] != null ? landY.current.cards + landY.current[key] : null;
+    const y = abs != null ? abs : headerY.current[key];
     if (y == null || !phoneScrollRef.current) return;
     phoneScrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: false });
     foldTarget.current = null;
   }
+
+  // App search landings (AS-8, AS-10): a group opens with the row in view (the book selects it on the
+  // right page), the language window, Editar perfil, the plans, a legal text, or Sair / Excluir conta
+  // scrolled into view and highlighted for a moment. Only opens and scrolls: nothing is changed, sent
+  // or signed out, and no confirmation opens.
+  const route = useRoute();
+  const landY = useRef({});
+  const bookLeftRef = useRef(null);
+  const [glow, setGlow] = useState(null);
+  useEffect(() => {
+    if (!glow) return undefined;
+    const id = setTimeout(() => setGlow(null), 2500);
+    return () => clearTimeout(id);
+  }, [glow]);
+  const scrollToY = (y, ref) => { if (y != null && ref.current) ref.current.scrollTo({ y: Math.max(0, y - 8), animated: true }); };
+  // Where each group card sits in the phone list (the cards' block + the card), for the search's
+  // landings and the fold's scroll: a header's own onLayout is relative to its card (always 0).
+  const onCardLayout = (key) => (e) => { landY.current[key] = e.nativeEvent.layout.y; };
+  // The Language row and the app search's "Idioma" open the same window.
+  function openLanguagePicker() { setShowLanguagePicker(true); }
+  // Where a row sits inside its group (its card on the phone, the group block on the Fold's right
+  // page), so a result lands on the row itself (AS-8), not only on the group.
+  const rowY = useRef({});
+  const onRowLayout = (key) => (e) => { rowY.current[key] = e.nativeEvent.layout.y; if (rowLand.current && rowLand.current.row === key) landOnRow(); };
+  const rowLand = useRef(null); // { group, row } waiting for its layout
+  const bookRightRef = useRef(null);
+  // The right page's group block is the first thing in its scroll, so its rows sit at their own y.
+  const bookGroupY = useRef(0);
+  function landOnRow() {
+    const want = rowLand.current;
+    if (!want) return;
+    const ry = want.row ? rowY.current[want.row] : 0;
+    if (want.row && ry == null) return;
+    if (book) {
+      if (bookGroupY.current == null) return;
+      rowLand.current = null;
+      scrollToY(bookGroupY.current + ry, bookRightRef);
+      return;
+    }
+    if (landY.current.cards == null || landY.current[want.group] == null) return;
+    rowLand.current = null;
+    scrollToY(landY.current.cards + landY.current[want.group] + ry, phoneScrollRef);
+  }
+  function openGroupFor(key, row = null) {
+    rowY.current = {};
+    rowLand.current = { group: key, row };
+    if (book) select(key);
+    else setCollapsed((prev) => (prev[key] === false ? prev : { ...prev, [key]: false }));
+    requestAnimationFrame(landOnRow);
+  }
+  useEffect(() => {
+    const sp = route && route.params ? route.params.search : null;
+    if (!sp || !sp.target) return;
+    navigation.setParams({ search: undefined });
+    switch (sp.target) {
+      case 'row': if (sp.group) openGroupFor(sp.group, sp.row || null); break;
+      case 'language': openGroupFor('account'); openLanguagePicker(); break;
+      case 'legal':
+        openGroupFor('privacy');
+        if (sp.doc === 'privacy') setShowPrivacy(true);
+        else if (sp.doc === 'terms') setShowTerms(true);
+        else if (sp.doc === 'disclaimer') setShowDisclaimer(true);
+        break;
+      case 'profile': openEditProfile(); break;
+      case 'premium': navigation.navigate('Paywall', { source: 'settings' }); break;
+      case 'signout':
+      case 'delete':
+        setGlow(sp.target);
+        requestAnimationFrame(() => scrollToY(landY.current.actions, book ? bookLeftRef : phoneScrollRef));
+        break;
+      default: break;
+    }
+  }, [route && route.params ? route.params.search : null]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onSectionHeaderLayout(key, e) {
     headerY.current[key] = e.nativeEvent.layout.y;
@@ -1092,7 +1174,7 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
           />
         </View>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('foodReminder')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="food" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1145,7 +1227,7 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={toggleVersionNews}
           />
         </View>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('silent')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="mute" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1217,7 +1299,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <RowChevron color={colors.tick} />
         </TouchableOpacity>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('analytics')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="calc_bars" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1230,7 +1312,7 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={toggleAnalytics}
           />
         </View>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('ai')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="ai_spark" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1246,6 +1328,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <TouchableOpacity
           style={s.row}
+          onLayout={onRowLayout('report')}
           onPress={handleAdherenceReport}
           disabled={exporting}
         >
@@ -1260,6 +1343,7 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
+          onLayout={onRowLayout('export')}
           onPress={handleExportData}
           disabled={exporting}
         >
@@ -1298,7 +1382,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <RowChevron color={colors.tick} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.row} onPress={handleContactSupport}>
+        <TouchableOpacity style={s.row} onPress={handleContactSupport} onLayout={onRowLayout('contact')}>
           <View style={s.rowLeft}>
             {/* A-163 picture: the envelope is Team messages; Contact us is the speech bubble */}
             <FeatureIcon name="chat" size={28} color={colors.text} />
@@ -1308,6 +1392,7 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
+          onLayout={onRowLayout('rate')}
           onPress={handleRateApp}
         >
           <View style={s.rowLeft}>
@@ -1325,7 +1410,7 @@ export default function SettingsScreen({ navigation }) {
   function renderAccountBody() {
     return (
       <>
-        <View style={s.setStack}>
+        <View style={s.setStack} onLayout={onRowLayout('appearance')}>
           <View style={s.setStackHead}>
             <FeatureIcon name="palette" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
@@ -1341,7 +1426,7 @@ export default function SettingsScreen({ navigation }) {
             onChange={setMode}
           />
         </View>
-        <View style={s.setStack}>
+        <View style={s.setStack} onLayout={onRowLayout('timeFormat')}>
           <View style={s.setStackHead}>
             <FeatureIcon name="clock" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
@@ -1357,7 +1442,7 @@ export default function SettingsScreen({ navigation }) {
             onChange={setTimeFormat}
           />
         </View>
-        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={() => setShowLanguagePicker(true)}>
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={openLanguagePicker}>
           <View style={s.rowLeft}>
             <FeatureIcon name="globe" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1388,7 +1473,7 @@ export default function SettingsScreen({ navigation }) {
   function renderGroupCard(g) {
     const open = !collapsed[g.key];
     return (
-      <View key={g.key} style={s.setCard}>
+      <View key={g.key} style={s.setCard} onLayout={onCardLayout(g.key)}>
         <TouchableOpacity
           style={[s.setHead, open && s.setHeadOpen]}
           activeOpacity={0.6}
@@ -1414,15 +1499,17 @@ export default function SettingsScreen({ navigation }) {
   // groups, on both layouts.
   function renderAccountActions() {
     return (
-      <View style={s.actionsCard}>
-        <TouchableOpacity style={s.row} onPress={handleSignOut} accessibilityRole="button">
+      <View style={s.actionsCard} onLayout={(e) => { landY.current.actions = e.nativeEvent.layout.y; }}>
+        {/* App search (AS-10): "Sair" / "Excluir conta" results only scroll here and highlight the row
+            (glow); the confirmation opens only from the person's own tap. */}
+        <TouchableOpacity style={[s.row, glow === 'signout' && s.rowGlow]} onPress={handleSignOut} accessibilityRole="button">
           <View style={s.rowLeft}>
             <FeatureIcon name="door" size={28} color={colors.ink} />
             <Text style={s.rowLabel}>{t('settings_signout')}</Text>
           </View>
           {signingOut ? <ActivityIndicator color={colors.ink} /> : <RowChevron color={colors.tick} />}
         </TouchableOpacity>
-        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount} accessibilityRole="button">
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }, glow === 'delete' && s.rowGlow]} onPress={handleDeleteAccount} accessibilityRole="button">
           <View style={s.rowLeft}>
             <FeatureIcon name="trash" size={28} color={colors.risk} />
             <Text style={[s.rowLabel, { color: colors.risk }]}>{t('settings_delete')}</Text>
@@ -1438,15 +1525,17 @@ export default function SettingsScreen({ navigation }) {
   function renderPhone() {
     return (
       <>
-        <View style={s.header}>
+        {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
+        <View style={[s.header, s.headerRow, titleFit.stacked && HEADER_STACKED]}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
+          <SearchCorner tab="Settings" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(base.headerTitle)} />
         </View>
 
         <ScrollView ref={phoneScrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
 
-          <View style={s.setCards}>
+          <View style={s.setCards} onLayout={(e) => { landY.current.cards = e.nativeEvent.layout.y; }}>
             {SETTINGS_GROUPS.map(g => renderGroupCard(g))}
           </View>
 
@@ -1464,19 +1553,21 @@ export default function SettingsScreen({ navigation }) {
   // with the open group outlined in ink (BK-8), the Sign out / Delete account card and the
   // version; right page = that group, always open.
   function renderBook() {
+    const searchOn = sel === SEARCH_PAGE; // AS-18: the app search is the right page (no group outlined)
     const open = bookGroup(sel);
     const openGroup = SETTINGS_GROUPS.find(g => g.key === open);
     const left = (
       <>
-        <View style={s.header}>
+        <View style={[s.header, s.headerRow, titleFit.stacked && HEADER_STACKED]}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
+          <SearchCorner tab="Settings" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(base.headerTitle)} />
         </View>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView ref={bookLeftRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
           <View style={s.bookNav}>
             {SETTINGS_GROUPS.map(g => {
-              const on = g.key === open;
+              const on = !searchOn && g.key === open;
               return (
                 <TouchableOpacity
                   key={g.key}
@@ -1502,15 +1593,17 @@ export default function SettingsScreen({ navigation }) {
       </>
     );
     const right = (
+      searchOn ? <AppSearchScreen embedded tab="Settings" /> : (
       <>
         <View style={s.header}>
           <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
         </View>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
+        <ScrollView ref={bookRightRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
           <View style={s.group}>{renderGroupBody(open)}</View>
           <View style={{ height: 40 }} />
         </ScrollView>
       </>
+      )
     );
     return <BookPanes left={left} right={right} rightKey={open} />;
   }
@@ -1930,7 +2023,9 @@ const settingsGraduated = (c) => ({
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   container: { flex: 1, backgroundColor: c.ground },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6, backgroundColor: c.ground },
-  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
+  headerRow: HEADER_ROW, // B2: the title + the search corner (lib/searchCorner)
+  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flex: 1, minWidth: 0 }, // B2: takes the room the corner leaves, wraps
+  rowGlow: { backgroundColor: c.well, borderRadius: 12 }, // app search: the row a "Sair" / "Excluir conta" result lands on (AS-10)
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 16, marginTop: 12, marginBottom: 8, padding: 16, backgroundColor: c.raised, borderRadius: 22 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: c.onInk, fontSize: 19, fontWeight: '700' },

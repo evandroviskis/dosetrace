@@ -88,7 +88,8 @@ test('phone order: title → profile → Premium → the four group cards → Si
 
 test('a group card = name + summary + a round arrow in one card; the rows open inside the same card', () => {
   const card = region(SET, 'function renderGroupCard(g)', '\n  }\n');
-  assert.match(card, /<View key=\{g\.key\} style=\{s\.setCard\}>/, 'one card per group');
+  // App search (2026-11-04): the card reports where it sits (search landings, the fold's scroll).
+  assert.match(card, /<View key=\{g\.key\} style=\{s\.setCard\}( onLayout=\{onCardLayout\(g\.key\)\})?>/, 'one card per group');
   assert.match(card, /onPress=\{\(\) => toggleSection\(g\.key\)\}/);
   assert.match(card, /accessibilityState=\{\{ expanded: open \}\}/);
   // A-163: the summary goes through groupSum (t(g.sumKey), or Support's "Messages, FAQ, contact").

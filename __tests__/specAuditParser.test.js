@@ -50,6 +50,18 @@ test('spec-audit: existing criterion ids still match and the header/separator ro
   assert.deepEqual(criterionRows(text).map((l) => l.split('|')[1].trim()), ['SG-1', 'OD-12', 'FR-6']);
 });
 
+test('spec-audit: a sub-row id with a letter after its number (AS-1b) is a criterion too (app search, 2026-11-04)', () => {
+  const text = [
+    '| AS-1 | a | built | x | |',
+    '| AS-1b | b | partial | x | |',
+    '| AS-1B | not a sub-row (capital) | built | x | |',
+    '| AS-1bc | not a sub-row (two letters) | built | x | |',
+  ].join('\n');
+  assert.deepEqual(criterionRows(text).map((l) => l.split('|')[1].trim()), ['AS-1', 'AS-1b']);
+  const spec = require('node:fs').readFileSync(require('node:path').join(__dirname, '../docs/specs/app-search.md'), 'utf8');
+  assert.ok(criterionRows(spec).some((l) => /^\|\s*AS-1b\s*\|/.test(l)), 'app-search.md AS-1b is audited');
+});
+
 // Gate S blocked every build on specs the founder had moved to a later release
 // (A-119, A-121, A-127 — decisions.md 2026-10-15). A spec is deferred only when its
 // committed-to line names a LATER release AND cites the founder AND (council fix 6, founder

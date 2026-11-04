@@ -98,7 +98,14 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import CheckMark from '../components/CheckMark';
 import { lastCompleteLog, lastLogWhen } from '../lib/protocolsHero';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
-import { defaultSelection } from '../lib/bookLayout';
+import SearchCorner, { SEARCH_PAGE, titleCapStyle, WordsMeasure } from '../components/SearchCorner';
+import { HEADER_ROW, titleFits } from '../lib/searchCorner';
+import AppSearchScreen from './AppSearchScreen';
+
+// The tab root's title row starts 14 pt below the top safe area (protocolsGraduated header
+// paddingTop); the search corner is lifted to the shared 8 pt (B2).
+const PROTOCOLS_HEADER_TOP = 14;
+import { defaultSelection, paneWidths } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
@@ -378,7 +385,8 @@ function RowsBlock({ s, title, rows, style }) {
 // Dose, typed by the user, does not. Tap to enlarge: the
 // enlarged syringe is SyringeZoomSheet, held by the screen so it stays open when a
 // foldable folds or unfolds (S-26 BK-10).
-function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
+// onLayout (app search AS-8): the block reports where it sits, so a result lands on it.
+function ProtocolDrawHero({ p, t, onDoseDetails, onZoom, onLayout }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -395,7 +403,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
 
   if (!draw.drawML || !draw.valid) {
     return (
-      <View style={s.hobj}>
+      <View style={s.hobj} onLayout={onLayout}>
         <Text style={s.hobjTitle}>{t('protocols_syringe_title')}</Text>
         <Text style={s.hobjSub}>
           {p.type === 'rtu' && !p.concentration
@@ -418,7 +426,7 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom }) {
   const note = volumeNote(p, draw, syringeMax, t, language);
 
   return (
-    <View style={s.hobj}>
+    <View style={s.hobj} onLayout={onLayout}>
       <Text style={s.hobjTitle}>{t('protocols_syringe_title')}</Text>
       <TouchableOpacity
         activeOpacity={0.8}
@@ -526,7 +534,7 @@ function SyringeZoomSheet({ p, visible, onClose, t }) {
 // Oral twin of the syringe calculator: target dose + per-serving strength → how many
 // units to take, and (with a container size) units / days of supply left. Pure
 // arithmetic on the user's own numbers — no recommendation.
-function ProtocolServingHero({ p, t, onRefill }) {
+function ProtocolServingHero({ p, t, onRefill, onLayout }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -545,7 +553,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
   if (!r.valid) {
     if (r.unitMismatch) {
       return (
-        <View style={s.hobj}>
+        <View style={s.hobj} onLayout={onLayout}>
           <Text style={s.hobjTitle}>{t('protocols_serving_title')}</Text>
           <WarnBox s={s} text={t('protocols_serving_unit_mismatch')} />
         </View>
@@ -575,7 +583,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
   while (reads.length < 3) reads.push(null);
 
   return (
-    <View style={s.hobj}>
+    <View style={s.hobj} onLayout={onLayout}>
       <Text style={s.hobjTitle}>{t('protocols_serving_title')}</Text>
       {canShowAmount ? (
         <View style={[s.drawWell, s.drawWellServing]}>
@@ -615,7 +623,7 @@ function ProtocolServingHero({ p, t, onRefill }) {
 // Vial block on the protocol screen: one cell per dose (remaining in data), doses left,
 // the mix / box date with days left, the supply tags, and New vial (a used RTU vial, or any
 // reconstituted vial — A-132).
-function ProtocolVialBlock({ p, vial, t, onRefillVial, onEditVial }) {
+function ProtocolVialBlock({ p, vial, t, onRefillVial, onEditVial, onLayout }) {
   const { colors: c } = useTheme();
   const { language } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -633,7 +641,7 @@ function ProtocolVialBlock({ p, vial, t, onRefillVial, onEditVial }) {
       : null;
   const past = daysLeft != null && daysLeft <= 0;
   return (
-    <View style={s.blkD}>
+    <View style={s.blkD} onLayout={onLayout}>
     <Text style={s.secth}>{t('protocols_vial_title')}</Text>
     <View style={[s.hobj, s.hobjTight]}>
       {remaining != null && capacity != null ? <VialCells total={capacity} left={remaining} /> : null}
@@ -801,7 +809,7 @@ export function noteDraftKey(id) {
 // protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
 // A-121 (option A, docs/design/a121-telas/4-*): onEndDate(p) — the "Termina em" row under Schedule & reminders on
 // every ACTIVE protocol (the planned end in the app language's format, or "Sem data"); null = no row.
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null, onEndProtocol = null }) {
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null, onEndProtocol = null, onBlockY = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -883,7 +891,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   }
 
   return (
-    <View style={s.detail}>
+    <View style={s.detail} onLayout={onBlockY ? onBlockY('root') : undefined}>
       <View style={s.ptitle}>
         <View style={s.ptitleRow}>
           <View style={[s.ptitleDot, { backgroundColor: displayColor(p.color) || c.data }]} />
@@ -901,9 +909,10 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
       </View>
       {notice || null}
 
-      {blocks.draw && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} />}
-      {vialShown && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} onEditVial={onEditVial} />}
-      <ProtocolServingHero p={p} t={t} onRefill={onRefill} />
+      {/* App search (AS-8): the calculator and the vial report where they sit, so a result lands there. */}
+      {blocks.draw && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} onLayout={onBlockY ? onBlockY('calc') : undefined} />}
+      {vialShown && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} onEditVial={onEditVial} onLayout={onBlockY ? onBlockY('vial') : undefined} />}
+      <ProtocolServingHero p={p} t={t} onRefill={onRefill} onLayout={onBlockY ? onBlockY('serving') : undefined} />
 
       <RowsBlock s={s} title={t('protocols_step_schedule')} rows={scheduleRows} style={vialShown ? [s.blkD, s.blkNext] : s.blkD} />
       <TouchableOpacity style={s.obtn2} onPress={() => openEdit(p, 4)} accessibilityRole="button">
@@ -981,7 +990,9 @@ function bookProtocolId(sel, fallback, ids) {
 // BK-10, folding: a protocol the user chose on the right page becomes the protocol
 // screen with "‹ Protocols". A default nobody chose keeps the one-column place the user had.
 function protocolsFoldView({ sel, explicit, openId, showList }) {
-  if (explicit && sel != null) return { openId: sel, showList: true };
+  // The app search on the right page ('search', SearchCorner SEARCH_PAGE) is no protocol: folding
+  // moves it to its own screen (SearchCorner).
+  if (explicit && sel != null && sel !== 'search') return { openId: sel, showList: true };
   return { openId, showList };
 }
 
@@ -1007,7 +1018,25 @@ function protocolExplainers(userId) {
 export default function ProtocolsScreen() {
   const { t, language, timeFormat } = useLanguage();
   const { colors } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
+  // App search B2 (AS-1b, sim 2026-11-04): the title's longest word is measured in the title's own
+  // style; when it cannot fit beside the corner ("+ Hinzufügen" + magnifier), the title goes under
+  // the corner at full width — it may wrap at a word, never be cut or shrunk (lib/searchCorner).
+  const { width: titleWinW } = useWindowSize();
+  const titleBook = useBook();
+  const [titleWordW, setTitleWordW] = useState(null);
+  const [titleSlotW, setTitleSlotW] = useState(null);
+  const titlePage = titleBook ? paneWidths(titleWinW).left : titleWinW;
+  const titleStacked = !titleFits({ pageWidth: titlePage, wordWidth: titleWordW, slotWidth: titleSlotW });
+  const s = useMemo(() => {
+    const b = makeStyles(colors);
+    return titleStacked ? { ...b, header: [b.header, b.headerStacked], headerEnd: [b.headerEnd, b.headerRowAgain] } : b;
+  }, [colors, titleStacked]);
+  const titleCap = titleCapStyle({ stacked: titleStacked, pageWidth: titlePage, wordWidth: titleWordW, base: s.headerTitle });
+  const onTitleWords = (e) => {
+    const w = Math.max(0, ...((e.nativeEvent && e.nativeEvent.lines) || []).map((l) => l.width || 0));
+    if (w > 0 && w !== titleWordW) setTitleWordW(w);
+  };
+  const onTitleSlot = (e) => { const w = e.nativeEvent.layout.width; if (w > 0 && w !== titleSlotW) setTitleSlotW(w); };
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const route = useRoute();
@@ -1277,7 +1306,50 @@ export default function ProtocolsScreen() {
     protocolIds: listOrderIds,
     openProtocolId: route.params?.openProtocolId,
   }));
-  const bookOpenId = bookProtocolId(bookSel.sel, defaultSelection('Protocols', { protocolIds: listOrderIds }), listOrderIds);
+  const searchPageOn = book && bookSel.sel === SEARCH_PAGE; // AS-18: the search is the right page (no card outlined)
+  const bookOpenId = searchPageOn ? null : bookProtocolId(bookSel.sel, defaultSelection('Protocols', { protocolIds: listOrderIds }), listOrderIds);
+
+  // App search landings (AS-8, AS-10, AS-11): open the list, Novo protocolo (its Cancel saves
+  // nothing), a protocol's page at its calculator or vial block, its Novo / Editar frasco window or
+  // Editar at the schedule step (their Cancel writes nothing), or the list at Encerrados / Excluídos
+  // recentemente. Only opens and scrolls; nothing here writes.
+  const leftListRef = useRef(null);
+  const landY = useRef({});
+  const [landTick, setLandTick] = useState(0);
+  const [land, setLand] = useState(null);
+  const onDetailY = (key) => (e) => { landY.current[key] = e.nativeEvent.layout.y; setLandTick((n) => n + 1); };
+  useEffect(() => {
+    const sp = route.params?.search;
+    if (!sp || !sp.target) return;
+    const p = sp.protocolId != null ? protocols.find((x) => String(x.id) === String(sp.protocolId)) || null : null;
+    const needsProtocol = ['protocol', 'calc', 'vial', 'newVial', 'editVial', 'schedule'].includes(sp.target);
+    if (needsProtocol && !p && fetchGen === 0) return; // the list is not read yet
+    navigation.setParams({ search: undefined });
+    if (needsProtocol && !p) return; // gone meanwhile (ended or deleted): nothing opens
+    landY.current = {};
+    switch (sp.target) {
+      case 'list': setOpenId(null); setShowList(true); break;
+      case 'new': openAdd(); break;
+      case 'protocol': openProtocolById(p.id); break;
+      case 'calc':
+      case 'vial': openProtocolById(p.id); setLand({ key: sp.target === 'calc' && p.type === 'oral' ? 'serving' : sp.target, n: sp.n }); break;
+      case 'newVial': openProtocolById(p.id); if (p.type !== 'oral') openNewVialWindow(p); break;
+      case 'editVial': openProtocolById(p.id); openEditVial(p.id); break;
+      case 'schedule': openProtocolById(p.id); openEdit(p, 4); break;
+      case 'ended':
+      case 'deleted': if (!book) { setOpenId(null); setShowList(true); } setLand({ key: 'archive', n: sp.n }); break;
+      default: break;
+    }
+  }, [route.params?.search, protocols, fetchGen]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!land) return;
+    const y = land.key === 'archive' ? landY.current.archive
+      : (landY.current.root != null && landY.current[land.key] != null ? landY.current.root + landY.current[land.key] : null);
+    if (y == null) return;
+    const target = land.key === 'archive' && book ? leftListRef.current : scrollRef.current;
+    if (target) target.scrollTo({ y: Math.max(0, y - 8), animated: true });
+    setLand(null);
+  }, [land, landTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Open a protocol: the phone pushes its screen, the book shows it on the right page.
   // Both are kept in step so folding or unfolding lands on the same protocol (BK-10).
@@ -2689,6 +2761,7 @@ export default function ProtocolsScreen() {
   const renderDetail = (p, inBook) => (
     <ProtocolDetail
       key={p.id}
+      onBlockY={onDetailY}
       p={p} vial={vialsByProtocol[p.id]}
       openEdit={inBook ? (q, st) => { claimBookProtocol(q.id); openEdit(q, st); } : openEdit}
       onEndDate={inBook ? (q) => { claimBookProtocol(q.id); openEndDate(q); } : openEndDate}
@@ -2863,7 +2936,7 @@ export default function ProtocolsScreen() {
   // deleted read as an archive, not one more protocol — 40 pt below the list, an ARQUIVO label on a hairline,
   // both in one sunk block (well + line border, no raised white). With no active protocol it sits at the foot.
   const archiveZone = endedSection || deletedSection ? (
-    <View style={s.archive}>
+    <View style={s.archive} onLayout={(e) => { landY.current.archive = e.nativeEvent.layout.y; setLandTick((n) => n + 1); }}>
       <View style={s.archiveHead}>
         <Text style={s.archiveLabel} accessibilityRole="header">{t('protocols_archive')}</Text>
         <View style={s.archiveRule} />
@@ -2927,6 +3000,9 @@ export default function ProtocolsScreen() {
       <Text style={s.addBtnText}>{t('protocols_add')}</Text>
     </TouchableOpacity>
   );
+  // AS-1b: the title's words measured in the title's own style, one per line, out of the flow and
+  // never shown or read (lib/searchCorner titleFits); drawn inside the corner slot.
+  const titleMeasure = <WordsMeasure title={t('protocols_title')} style={s.headerTitle} onWords={onTitleWords} />;
   // A unit choice sits beside its number field: the shared bar fills the other half of the row.
   const unitSeg = (units, value, setter, suffix = '') => (
     <SegmentedBar style={s.unitBar} items={units.map(u => ({ key: u, label: `${unitText(u, language)}${suffix}` }))} value={value} onChange={setter} />
@@ -2950,10 +3026,10 @@ export default function ProtocolsScreen() {
           left={
             <>
               <View style={s.header}>
-                <Text style={s.headerTitle} accessibilityRole="header">{t('protocols_title')}</Text>
-                {addButton}
+                <Text style={titleCap} accessibilityRole="header">{t('protocols_title')}</Text>
+                <SearchCorner tab="Protocols" leading={addButton} offsetTop={PROTOCOLS_HEADER_TOP} alignEnd={titleStacked} onSlotLayout={onTitleSlot} measure={titleMeasure} />
               </View>
-              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+              <ScrollView ref={leftListRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
                 {protocols.length === 0 && !loading && emptyState}
                 {protocols.length > 0 && sortPills}
                 {protocols.length > 0 && listCards}
@@ -2963,7 +3039,7 @@ export default function ProtocolsScreen() {
               </ScrollView>
             </>
           }
-          right={bookProtocol ? (
+          right={searchPageOn ? <AppSearchScreen embedded tab="Protocols" /> : bookProtocol ? (
             <>
               <View style={[s.header, s.headerEnd]}>
                 <TouchableOpacity style={s.addBtn} onPress={() => { claimBookProtocol(bookProtocol.id); openEdit(bookProtocol); }} accessibilityRole="button">
@@ -2998,8 +3074,9 @@ export default function ProtocolsScreen() {
           </TouchableOpacity>
         ) : (
           <>
-            <Text style={s.headerTitle}>{t('protocols_title')}</Text>
-            {addButton}
+            <Text style={titleCap}>{t('protocols_title')}</Text>
+            {/* App search B2: the magnifier keeps the corner, "+ Adicionar" sits just left of it. */}
+            <SearchCorner tab="Protocols" leading={addButton} offsetTop={PROTOCOLS_HEADER_TOP} alignEnd={titleStacked} onSlotLayout={onTitleSlot} measure={titleMeasure} />
           </>
         )}
       </View>
@@ -3961,11 +4038,18 @@ const protocolsGraduated = (c) => ({
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', flexGrow: 1 }, // flexGrow: the archive's foot spacer
   container: { flex: 1, backgroundColor: c.ground },
   // My Protocols title row (prototype .scr top 6 + .hrow top 8; 14 to the first card)
-  header: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: c.ground, gap: 12 },
+  // App search B2 (2026-11-04): the row aligns to its top (HEADER_ROW) — the title keeps its place
+  // (top 14) and wraps, the search corner (with "+ Adicionar" left of it) sits at the shared 8 pt.
+  header: { flexDirection: 'row', alignItems: HEADER_ROW.alignItems, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 14, paddingBottom: 14, backgroundColor: c.ground, gap: 12 },
   // back row on the list and the protocol screen (prototype .navrow: 44 high, centred; 14 below)
   navrow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 18, paddingTop: 6, marginBottom: 14, backgroundColor: c.ground, gap: 12 },
   headerEnd: { justifyContent: 'flex-end' }, // book right page: Edit only, no back (BK-4)
-  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1 },
+  // AS-1b: the title under the corner when its longest word cannot fit beside it (titleFits); the
+  // right page's Edit row stays a row.
+  headerStacked: { flexDirection: 'column-reverse', alignItems: 'stretch' },
+  headerRowAgain: { flexDirection: 'row', alignItems: 'flex-start' },
+  // The title's words, one per line, measured in the title's own style (never shown).
+  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1, minWidth: 0 },
   backBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },
   backChev: { transform: [{ scaleX: -1 }] }, // the row arrow mirrored (prototype .back svg)
   backText: { fontSize: 17, color: c.ink },

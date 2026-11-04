@@ -18,8 +18,9 @@ const DIR = path.join(ROOT, 'docs', 'specs');
 const readSignature = (text) => (text.match(/checklist-signed:[ \t]*([^\r\n]*)/) || [])[1] || '';
 const isUnsigned = (signed) => /pending|^$/i.test(signed.trim());
 // Every acceptance-checklist row: a table line whose first cell is a criterion id.
-// The prefix may carry digits after its first letter (MB2-1, BK2-3), not only letters.
-const criterionRows = (text) => text.split('\n').filter((l) => /^\|\s*[A-Z][A-Z0-9]*-\d+\s*\|/.test(l));
+// The prefix may carry digits after its first letter (MB2-1, BK2-3), not only letters; the number
+// may carry one small letter for a sub-row (AS-1b, app search 2026-11-04).
+const criterionRows = (text) => text.split('\n').filter((l) => /^\|\s*[A-Z][A-Z0-9]*-\d+[a-z]?\s*\|/.test(l));
 
 // A spec the founder moved to a LATER release does not block this build (decisions.md
 // 2026-10-15: A-119, A-121, A-127 move to the release after 1.3.0). Deferred only when the

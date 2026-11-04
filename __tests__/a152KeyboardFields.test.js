@@ -68,6 +68,7 @@ const ALLOW = [
   { file: 'screens/components/DoseEditSheet.js', has: 'TextInput', why: 'AD-95 Alterar dose: a bottom sheet in its own Modal + KeyboardAvoidingView (the vial-window pattern), not a page field' },
   { file: 'screens/BodyScreen.js', has: "t('blood_tag_ph')", why: 'Labels field at the top of a lab report page (above any keyboard)' },
   { file: 'screens/BodyScreen.js', has: "t('blood_search_ph')", why: 'Search field at the top of the lab journal' },
+  { file: 'screens/AppSearchScreen.js', has: "placeholder={t('search_field')}", why: 'App search: the field is the top row of the search (above any keyboard); the results scroll under it' },
   { file: 'screens/components/VaccinesSection.js', has: "t('vax_search_ph')", why: 'Search field at the top of the vaccine journal' },
   { file: 'screens/FoodChatScreen.js', has: 'value={fuText}', why: 'The chat composer row sits on the keyboard (FoodChatScreen layout; Fold and iPhone 2026-10-20)' },
   { file: 'screens/FoodChatScreen.js', has: 'value={text}', why: 'The chat composer sits on the keyboard (FoodChatScreen layout; Fold and iPhone 2026-10-20)' },

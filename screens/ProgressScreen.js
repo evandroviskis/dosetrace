@@ -17,7 +17,7 @@ import { useTheme } from '../lib/theme';
 import CalculatorSection from './components/CalculatorSection';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import RowChevron from '../components/RowChevron';
-import { useUnfoldToPage } from '../components/BookPanes';
+import { useUnfoldToPage, useBookSelection } from '../components/BookPanes';
 import { paneWidths } from '../lib/bookLayout';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import { getCalcInputsRow, getCalcSnapshots } from '../lib/database';
@@ -39,6 +39,10 @@ export default function ProgressScreen({ embedded = false }) {
   const { width } = useWindowSize();
   const s = makeStyles(colors, embedded);
   const flushRef = useRef(null);
+  // App search (AS-8, AS-18, AS-27): the landing params — a pushed Progress reads its route params
+  // (below, as before); on the Fold's right page they come with Journey's selection.
+  const { params: journeyPage } = useBookSelection('Journey', 'progress');
+  const lp = embedded ? journeyPage : (route && route.params) || null;
   useUnfoldToPage('Progress', {
     embedded,
     params: embedded ? null : (route && route.params) || null,
@@ -64,6 +68,10 @@ export default function ProgressScreen({ embedded = false }) {
         paneWidth={embedded ? paneWidths(width).right : null}
         focus={embedded ? null : (route && route.params && route.params.focus) || null}
         focusKey={embedded || !route || !route.params ? null : route.params.nonce || null}
+        bookFocus={embedded && lp ? lp.focus || null : null}
+        bookFocusKey={embedded && lp ? lp.nonce || null : null}
+        learnItem={(lp && lp.learnItem) || null}
+        mark={(lp && lp.mark) || null}
       />
       <FeatureExplainerGate candidates={energyExplainers} />
     </SafeAreaView>

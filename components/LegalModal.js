@@ -7,7 +7,8 @@
 // semibold ink), every other line a paragraph (15 pt ink2). The words are untouched,
 // in every language: the headings keep their own case here (turning them to sentence
 // case by code would break German nouns and acronyms; that is a copy change).
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { markRanges, markedPieces } from '../lib/appSearchText';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import Modal from './PresenceModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,10 +16,37 @@ import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { legalBlocks } from '../lib/legalBlocks';
 
-export default function LegalModal({ visible, onClose, title, content, doneLabel }) {
+// App search (AS-27): focusBlock = the index (lib/legalBlocks) of the paragraph a search hit opens at
+// — the reader opens scrolled so that paragraph's heading is at the top — and mark = the typed words,
+// marked in that paragraph only (lib/appSearchText markRanges; the text itself never changes). The
+// marks clear when the person scrolls or closes.
+export default function LegalModal({ visible, onClose, title, content, doneLabel, focusBlock = null, mark = null }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const blocks = useMemo(() => legalBlocks(content), [content]);
+  const scrollRef = useRef(null);
+  const blockY = useRef({});
+  const landed = useRef(false);
+  const [marksOn, setMarksOn] = useState(true);
+  // The heading above the hit paragraph (or the paragraph itself when it has none).
+  const anchor = useMemo(() => {
+    if (focusBlock == null || !blocks[focusBlock]) return null;
+    for (let i = focusBlock; i >= 0; i--) if (blocks[i].heading) return i;
+    return focusBlock;
+  }, [blocks, focusBlock]);
+  useEffect(() => { if (visible) { landed.current = false; setMarksOn(true); } }, [visible, focusBlock]);
+  const onBlockLayout = (i) => (e) => {
+    blockY.current[i] = e.nativeEvent.layout.y;
+    if (i === anchor && !landed.current && scrollRef.current) {
+      landed.current = true;
+      const y = Math.max(0, e.nativeEvent.layout.y - (i === 0 ? 0 : 20));
+      requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTo({ y, animated: false }); });
+    }
+  };
+  const paragraph = (b, i) => {
+    if (i !== focusBlock || !mark || !marksOn) return b.text;
+    return markedPieces(b.text, markRanges(b.text, mark)).map((p, k) => (p.mark ? <Text key={k} style={s.mark}>{p.text}</Text> : p.text));
+  };
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <SafeAreaView style={s.modal}>
@@ -31,11 +59,11 @@ export default function LegalModal({ visible, onClose, title, content, doneLabel
             <Text style={s.modalClose} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{doneLabel}</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView style={s.modalBody} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollRef} style={s.modalBody} showsVerticalScrollIndicator={false} onScrollBeginDrag={() => { if (marksOn) setMarksOn(false); }}>
           {blocks.map((b, i) => (
             b.heading
-              ? <Text key={i} style={[s.legalHeading, i === 0 && s.legalHeadingFirst]} accessibilityRole="header">{b.text}</Text>
-              : <Text key={i} style={s.legalText}>{b.text}</Text>
+              ? <Text key={i} onLayout={anchor != null ? onBlockLayout(i) : undefined} style={[s.legalHeading, i === 0 && s.legalHeadingFirst]} accessibilityRole="header">{b.text}</Text>
+              : <Text key={i} onLayout={anchor != null ? onBlockLayout(i) : undefined} style={s.legalText}>{paragraph(b, i)}</Text>
           ))}
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -55,4 +83,5 @@ const makeStyles = (c) => StyleSheet.create({
   legalHeading: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, marginTop: 20, marginBottom: 6 },
   legalHeadingFirst: { marginTop: 0 },
   legalText: { fontSize: 15, lineHeight: 21, color: c.ink2, marginBottom: 12 },
+  mark: { backgroundColor: c.mark, color: c.ink }, // app search: the typed words (AS-27)
 });

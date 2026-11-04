@@ -150,6 +150,7 @@ import { SheetToast } from './screens/components/BodySheets';
 import { DTSheet } from './screens/components/ProtocolParts';
 import SerumCurveScreen from './screens/SerumCurveScreen';
 import ProgressScreen from './screens/ProgressScreen';
+import AppSearchScreen from './screens/AppSearchScreen';
 
 // A-206 (founder 2026-11-01): the iPhone draws the same glass bar as Android (components/GlassTabBar).
 const Tab = createBottomTabNavigator();
@@ -301,6 +302,11 @@ function MainStack() {
       <Stack.Screen name="TeamMessages" component={TeamMessagesScreen} />
       <Stack.Screen name="ReminderCheck" component={ReminderCheckScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
+      {/* App search "Buscar no DoseTrace" (docs/specs/app-search.md, B2): opened by the magnifier of
+          the five tab roots; a place replaces it, a text opens over it. The stack's own transition, as
+          every screen opened from a tab (sim 2026-11-04: the fade stayed see-through when opened from
+          My Body). */}
+      <Stack.Screen name="AppSearch" component={AppSearchScreen} />
       {/* The ONE food chat (FL-31/32/37): Today's hero, Journey's hero and the 8 PM
           reminder all open it. Journey redesign part 21 (founder 2026-10-02): full screen,
           sliding up from the bottom (no iOS sheet with the screen behind peeking above);

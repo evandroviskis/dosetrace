@@ -97,6 +97,7 @@ import { loadFoodAccess, ensureFreeStart } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
 import LearnBlock from './LearnBlock';
+import { requestLearn } from '../../lib/appSearchStore';
 import useKeyboardLift from '../../components/useKeyboardLift';
 import useClock from '../../components/useClock';
 
@@ -120,7 +121,14 @@ const round5 = n => Math.round(n / 5) * 5;
 // flushRef (optional): the screen gets a function that writes any pending input now, for its
 // beforeLeave on a fold or unfold (S-26 BK-10). paneWidth (optional): the width of the book
 // page it sits on, so the chart fits the page instead of the whole unfolded window.
-export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null, focus = null, focusKey = null }) {
+// App search landings (AS-8, AS-27); 'reality' and 'weighin' are the older links (Today, A-44).
+const SEARCH_FOCUS = ['weighins', 'numbers', 'target', 'learn'];
+
+// bookFocus / bookFocusKey: the same landings on the Fold's right page (Journey's selection, AS-18).
+export default function CalculatorSection({ header = null, flushRef = null, paneWidth = null, focus = null, focusKey = null, bookFocus = null, bookFocusKey = null, learnItem = null, mark = null }) {
+  // The landing the app search asked for: the pushed screen's focus, or the Fold page's (bookFocus).
+  const landFocus = focus || bookFocus;
+  const landKey = focus ? focusKey : bookFocusKey;
   const { t, language } = useLanguage();
   // Every number typed here is read the way the app language writes it ("86,5"; review 2026-10-02).
   const num = v => { const n = parseMeasure(v, language); return Number.isFinite(n) ? n : null; }; // body numbers: in English a comma stays the decimal
@@ -1204,6 +1212,51 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     focusedRef.current = true;
     if (layout.card.includes('logWeight')) openWeighIn();
   }, [focus, focusKey, loaded, layout.card.includes('logWeight')]);
+  // App search (AS-8, AS-27): 'weighins' opens Pesagens, 'numbers' opens Seus números, 'target' the
+  // target window (nothing is saved without Save), 'learn' the "Entenda os números" item; each lands
+  // in view, once per open. Nothing here writes anything.
+  const partY = useRef({});
+  const [partTick, setPartTick] = useState(0);
+  const onPartLayout = (key) => (e) => { partY.current[key] = e.nativeEvent.layout.y; setPartTick((n) => n + 1); };
+  const searchFocusRef = useRef(null);
+  const landedRef = useRef(null); // { k, y, at } the landing just made
+  useEffect(() => {
+    // 'reality' / 'weighin' from a pushed screen keep their own effects above; on the Fold they come here.
+    const bookOnly = !focus && (landFocus === 'reality' || landFocus === 'weighin');
+    if ((!SEARCH_FOCUS.includes(landFocus) && !bookOnly) || !loaded) return;
+    const k = `${landFocus}:${landKey}`;
+    // The page keeps laying out for a moment after it opens (the card fills in): a landing already
+    // made follows its block for 2 s if it moves (sim 2026-11-04: Entenda stopped short).
+    const done = landedRef.current;
+    if (done && done.k === k) {
+      const yNow = landFocus === 'reality' ? rcY
+        : landFocus === 'learn' ? partY.current.learn
+          : (partY.current.card != null && partY.current[landFocus] != null ? partY.current.card + partY.current[landFocus] : null);
+      if (yNow != null && yNow !== done.y && Date.now() - done.at < 2000 && scrollRef.current) {
+        done.y = yNow;
+        scrollRef.current.scrollTo({ y: Math.max(0, yNow - 8), animated: false });
+      }
+      return;
+    }
+    if (searchFocusRef.current === k) return;
+    if (landFocus === 'target') { searchFocusRef.current = k; beginEditTarget(); return; }
+    if (landFocus === 'weighin') { if (layout.card.includes('logWeight')) { searchFocusRef.current = k; openWeighIn(); } return; }
+    if (landFocus === 'learn' && searchFocusRef.current !== `asked:${k}`) {
+      // "Entenda os números" opens that item with the words marked (LearnBlock reads the request).
+      requestLearn({ key: learnItem, mark, n: landKey });
+      searchFocusRef.current = `asked:${k}`;
+    }
+    if (landFocus === 'weighins' && !weighOpen) setWeighOpen(true);
+    if (landFocus === 'numbers' && numbersOpen !== true) setNumbersOpen(true);
+    const inCard = landFocus === 'weighins' || landFocus === 'numbers';
+    const y = landFocus === 'reality' ? rcY
+      : inCard ? (partY.current.card != null && partY.current[landFocus] != null ? partY.current.card + partY.current[landFocus] : null)
+        : partY.current.learn;
+    if (y == null) return;
+    searchFocusRef.current = k;
+    landedRef.current = { k, y, at: Date.now() };
+    if (scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: true });
+  }, [landFocus, landKey, loaded, partTick, rcY]); // eslint-disable-line react-hooks/exhaustive-deps
   const numbersFoldable = layout.numbersFoldable;
   const numbersOpenEff = !numbersFoldable ? true : (numbersOpen == null ? false : numbersOpen);
   const youNowSummary = useMemo(() => {
@@ -1553,7 +1606,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     </View>
   );
   const numbersPart = (
-    <View key="numbers" style={s.foldBlock}>
+    <View key="numbers" style={s.foldBlock} onLayout={onPartLayout('numbers')}>
       {numbersFoldable
         ? foldRow('numbers', t('cal_your_numbers'), youNowSummary, numbersOpenEff, () => setNumbersOpen(!numbersOpenEff))
         : <View key="numbersHead" style={s.foldRowCard}><Text style={[s.head, s.grow]}>{t('cal_your_numbers')}</Text></View>}
@@ -1747,7 +1800,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // chart, the newest weigh-ins (Show all / Show less) and + Add a past weigh-in. Never
   // paywalled (FX-15).
   const weighPart = (
-    <View key="weighIns" style={s.foldBlock}>
+    <View key="weighIns" style={s.foldBlock} onLayout={onPartLayout('weighins')}>
       {foldRow('weighIns', t('cal_weighins_title'), weighSummary, weighOpen, () => setWeighOpen(o => !o))}
       {weighOpen ? (
         <View style={s.foldBlock}>
@@ -1807,7 +1860,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     numbers: numbersPart,
   };
   const cardEl = (
-    <View key="card" style={s.card}>
+    <View key="card" style={s.card} onLayout={onPartLayout('card')}>
       {layout.card.map(k => cardParts[k])}
     </View>
   );
@@ -1826,7 +1879,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       {pageLift.spacer}
 
       {/* Understand the numbers + Sources & references (shared with the Journey dashboard). */}
-      <LearnBlock />
+      <View onLayout={onPartLayout('learn')}>
+        <LearnBlock />
+      </View>
 
       {/* Log today's weight (part 6, prototype weighin sheet). */}
       <SheetModal visible={wiOpen} onClose={closeWeighIn} s={s}>

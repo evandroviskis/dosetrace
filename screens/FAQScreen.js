@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
+import { markRanges, markedPieces } from '../lib/appSearchText';
 import {
   View,
   Text,
@@ -37,15 +38,38 @@ function Chevron({ dir, color }) {
   );
 }
 
-export default function FAQScreen({ navigation }) {
+// App search (AS-27): route.params.openQuestion = { ci, qi } opens that question in view; mark = the
+// typed words, marked in its question and answer (lib/appSearchText; the text never changes) until
+// the person scrolls or closes it.
+export default function FAQScreen({ navigation, route }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const [openItem, setOpenItem] = useState(null);
+  const hit = route && route.params && route.params.openQuestion ? route.params.openQuestion : null;
+  const hitKey = hit ? `${hit.ci}-${hit.qi}` : null;
+  const [openItem, setOpenItem] = useState(hitKey);
+  const [mark, setMark] = useState(hit && route.params.mark ? route.params.mark : null);
+  const scrollRef = useRef(null);
+  const pos = useRef({ section: {}, list: {}, item: {} });
+  const landed = useRef(false);
+  const land = () => {
+    if (!hit || landed.current || !scrollRef.current) return;
+    const p = pos.current;
+    const y = [p.section[hit.ci], p.list[hit.ci], p.item[hitKey]];
+    if (y.some((v) => v == null)) return;
+    landed.current = true;
+    requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, y[0] + y[1] + y[2] - 12), animated: false }); });
+  };
+  const at = (kind, key) => (e) => { pos.current[kind][key] = e.nativeEvent.layout.y; land(); };
+  const marked = (text, key) => {
+    if (!mark || key !== hitKey) return text;
+    return markedPieces(text, markRanges(text, mark)).map((p, i) => (p.mark ? <Text key={i} style={s.mark}>{p.text}</Text> : p.text));
+  };
 
   const faqData = t('faq_categories') || [];
 
   function toggle(key) {
+    setMark(null);
     setOpenItem(openItem === key ? null : key);
   }
 
@@ -63,20 +87,21 @@ export default function FAQScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} onScrollBeginDrag={() => { if (mark) setMark(null); }}>
         <Text style={s.headerTitle} accessibilityRole="header">{t('faq_title')}</Text>
         <Text style={s.intro}>{t('faq_intro')}</Text>
 
         {faqData.map((section, si) => (
-          <View key={si} style={s.section}>
+          <View key={si} style={s.section} onLayout={hit ? at('section', si) : undefined}>
             <Text style={s.sectionLabel}>{section.category}</Text>
-            <View style={s.list}>
+            <View style={s.list} onLayout={hit ? at('list', si) : undefined}>
               {section.questions.map((item, qi) => {
                 const key = `${si}-${qi}`;
                 const isOpen = openItem === key;
                 return (
                   <TouchableOpacity
                     key={qi}
+                    onLayout={hit ? at('item', key) : undefined}
                     style={[s.item, qi > 0 && s.itemDivider]}
                     onPress={() => toggle(key)}
                     activeOpacity={0.7}
@@ -84,13 +109,16 @@ export default function FAQScreen({ navigation }) {
                     accessibilityState={{ expanded: isOpen }}
                   >
                     <View style={s.itemHeader}>
-                      <Text style={s.itemQ}>{item.q}</Text>
+                      <Text style={s.itemQ}>{marked(item.q, key)}</Text>
                       <View style={s.itemChevron}>
                         <Chevron dir={isOpen ? 'up' : 'down'} color={colors.ink2} />
                       </View>
                     </View>
-                    {isOpen && (
+                    {isOpen && !(mark && key === hitKey) && (
                       <Text style={s.itemA}>{fillStoreText(item.a, t, Platform.OS)}</Text>
+                    )}
+                    {isOpen && mark && key === hitKey && (
+                      <Text style={s.itemA}>{marked(fillStoreText(item.a, t, Platform.OS), key)}</Text>
                     )}
                   </TouchableOpacity>
                 );
@@ -135,6 +163,7 @@ const makeStyles = (c) => StyleSheet.create({
   itemQ: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, flex: 1 },
   itemChevron: { paddingTop: 7, flexShrink: 0 },
   itemA: { fontSize: 15, lineHeight: 21, color: c.ink2, marginTop: 8 },
+  mark: { backgroundColor: c.mark, color: c.ink }, // app search: the typed words (AS-27)
   footer: { marginHorizontal: 16, marginTop: 24, padding: 18, backgroundColor: c.raised, borderRadius: 24, alignItems: 'center', gap: 4 },
   footerTitle: { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' },
   footerText: { fontSize: 15, lineHeight: 20, color: c.ink2, textAlign: 'center' },
