@@ -91,7 +91,7 @@ import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
 import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler, StepGlyph, RULER, rulerX, EndDateSheet } from './components/ProtocolParts';
-import { dateColumns, dateAfter, timeColumns, timeAfter } from '../lib/wheelPick';
+import { dateColumns, dateAfter, timeColumns, timeAfter, WHEEL_IDLE, wheelMotion } from '../lib/wheelPick';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import CollapsibleSection from '../components/CollapsibleSection';
@@ -106,7 +106,7 @@ import { pluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import { imageMediaType } from '../lib/imageType';
 import {
-  isoDay, firstDoseChoice, timeRounded5, newProtocolForm, formFromProtocol, protocolPayload,
+  isoDay, firstDoseChoice, resizeTimes, wheelStartTime, timeDoneDisabled, timeDoneValue, timeRowLabel, newProtocolForm, formFromProtocol, protocolPayload,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass,
 } from '../lib/protocolForm';
 
@@ -125,10 +125,6 @@ const SORT_STORAGE_KEY = 'dosetrace_protocols_sort';
 const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_eloralintide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_fsh','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_pentadeca_arginate','lyo_peptide_t','lyo_pinealon','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip','lyo_glow','lyo_klow','lyo_wolverine'];
 
 const RTU_KEYS = ['rtu_boldenone_undecylenate','rtu_cyanocobalamin','rtu_drostanolone_enanthate','rtu_drostanolone_propionate','rtu_dulaglutide','rtu_estradiol_cypionate','rtu_estradiol_valerate','rtu_hydroxocobalamin','rtu_insulin_aspart','rtu_insulin_degludec','rtu_insulin_glargine','rtu_insulin_lispro','rtu_l_carnitine','rtu_lipo_c','rtu_liraglutide','rtu_methenolone_enanthate','rtu_methylcobalamin','rtu_mic_blend','rtu_nandrolone_decanoate','rtu_nandrolone_phenylpropionate','rtu_progesterone','rtu_pyridoxine','rtu_semaglutide','rtu_stanozolol','rtu_sustanon_250','rtu_testosterone_cypionate','rtu_testosterone_enanthate','rtu_testosterone_propionate','rtu_testosterone_suspension','rtu_testosterone_undecanoate','rtu_tirzepatide','rtu_trenbolone_acetate','rtu_trenbolone_enanthate','rtu_trenbolone_hexahydrobenzylcarbonate'];
-
-function currentTimeRounded5() {
-  return timeRounded5(new Date());
-}
 
 const ORAL_KEYS = ['oral_alpha_gpc','oral_ala','oral_ashwagandha','oral_astragalus','oral_bacopa','oral_berberine','oral_beta_alanine','oral_citrulline','oral_coq10','oral_creatine','oral_curcumin','oral_gaba','oral_grape_seed','oral_krill_oil','oral_carnitine','oral_glutamine','oral_theanine','oral_tyrosine','oral_lions_mane','oral_maca','oral_mag_bisglycinate','oral_mag_threonate','oral_melatonin','oral_milk_thistle','oral_nac','oral_nmn','oral_nr','oral_omega3','oral_probiotics','oral_red_yeast','oral_resveratrol','oral_rhodiola','oral_saw_palmetto','oral_taurine','oral_tudca','oral_vit_b','oral_vit_c','oral_vit_d3','oral_vit_k2','oral_zinc'];
 
@@ -1118,7 +1114,8 @@ export default function ProtocolsScreen() {
   // any past or future date is allowed so a protocol can be scheduled ahead.
   const [startDate, setStartDate] = useState(() => isoDay(new Date(), 0));
   const [showStartPicker, setShowStartPicker] = useState(false);
-  const [reminderTimes, setReminderTimes] = useState([currentTimeRounded5()]);
+  // No time is picked for the person: each dose starts empty (founder 2026-11-04, MF-1).
+  const [reminderTimes, setReminderTimes] = useState(['']);
   const [goals, setGoals] = useState([]);
   const [notes, setNotes] = useState('');
   const [note, setNote] = useState('');
@@ -1145,6 +1142,25 @@ export default function ProtocolsScreen() {
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  // The person's hand on the reminder-time wheel since it opened (lib/wheelPick wheelMotion):
+  // touched → "Concluído" lights up even when the wheel came back to 12:00 (MF-15); a column still
+  // moving → "Concluído" waits for the row to settle (MF-16).
+  const [timeWheel, setTimeWheel] = useState(WHEEL_IDLE);
+  function openTimePicker(idx) {
+    setActiveTimeIndex(idx);
+    setTimeWheel(WHEEL_IDLE);
+    setShowTimePicker(true);
+  }
+  // "Concluído" on the time wheel: turning already saved the time; on a touched, settled empty slot
+  // it saves the row the wheel shows (12:00), never the clock (MF-11, MF-15, lib/protocolForm timeDoneValue).
+  function timeWheelDone() {
+    const hm = timeDoneValue(reminderTimes[activeTimeIndex], timeWheel);
+    if (hm) {
+      const [h, m] = hm.split(':').map(Number);
+      applyPickedTime(new Date(2000, 0, 1, h, m, 0, 0));
+    }
+    setShowTimePicker(false);
+  }
 
   // Build a Date object from month index (0-11) + day string
   function buildDate(monthIdx, dayStr) {
@@ -1168,11 +1184,18 @@ export default function ProtocolsScreen() {
     return formatDate(iso, language, 'weekdayDayMonthYear') || '—';
   }
 
-  // The time wheel opens on the chosen dose time.
+  // The time dialog opens on the chosen dose time; an empty slot at 12:00, never the clock (MF-8).
   function timePickerValue() {
-    const [h, m] = (reminderTimes[activeTimeIndex] || currentTimeRounded5()).split(':').map(Number);
+    const [h, m] = wheelStartTime(reminderTimes[activeTimeIndex]).split(':').map(Number);
     const d = new Date(); d.setHours(h, m, 0, 0);
     return d;
+  }
+  // Android's time dialog: OK saves the time on screen; Cancel saves nothing (the library calls
+  // onChange with the opening value and type 'dismissed', MF-12).
+  function onAndroidTime(event, selectedDate) {
+    setShowTimePicker(false);
+    if (event.type === 'dismissed' || !selectedDate) return;
+    applyPickedTime(selectedDate);
   }
   function applyPickedTime(selectedDate) {
     const h = String(selectedDate.getHours()).padStart(2, '0');
@@ -1208,8 +1231,8 @@ export default function ProtocolsScreen() {
     // Only allow multiple doses per day for daily or every-2-day
     if (newInterval > 2) {
       setDosesPerDay(1);
-      // A time the assistant left empty stays empty (never the clock time, founder 2026-11-04).
-      setReminderTimes(prev => [prev.length ? prev[0] : currentTimeRounded5()]);
+      // An empty time stays empty (never the clock time, founder 2026-11-04).
+      setReminderTimes(prev => resizeTimes(prev, 1));
       setActiveTimeIndex(0);
     }
   }
@@ -1219,13 +1242,10 @@ export default function ProtocolsScreen() {
     touch('schedule');
     setDosesPerDay(newCount);
     setActiveTimeIndex(0); // reset so a stale index can't write past the array
-    setReminderTimes(prev => {
-      if (prev.length === newCount) return prev;
-      const defaults = [currentTimeRounded5(), '14:00', '21:00'];
-      const next = [...prev];
-      while (next.length < newCount) next.push(defaults[next.length] || '12:00');
-      return next.slice(0, newCount);
-    });
+    // An added dose arrives EMPTY for the person to choose, never 14:00 / 21:00 (MF-2).
+    // Edit: a dose added back gets its stored time (2 → 1 → 2, MF-18).
+    const stored = editStartRef.current ? editStartRef.current.reminderTimes : null;
+    setReminderTimes(prev => (prev.length === newCount ? prev : resizeTimes(prev, newCount, stored)));
   }
   const [vialMonth, setVialMonth] = useState(new Date().getMonth()); // 0-11
   const [vialDay, setVialDay] = useState(String(new Date().getDate()));
@@ -3713,12 +3733,20 @@ export default function ProtocolsScreen() {
                 <Fld s={s} label={t('protocols_what_time')}>
                   <View style={s.pickCol}>
                     {reminderTimes.map((rt, idx) => (
-                      <TouchableOpacity key={idx} style={s.pickbtn} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }} accessibilityRole="button">
+                      <TouchableOpacity key={idx} style={s.pickbtn} onPress={() => openTimePicker(idx)} accessibilityRole="button" accessibilityLabel={timeRowLabel(rt, idx, reminderTimes.length, t, formatTimeAMPM)}>
                         <FeatureIcon name="clock" size={18} color={colors.ink} />
                         {reminderTimes.length > 1 && (
                           <Text style={s.pickTextC2}>{t('protocols_dose_label')} {idx + 1}</Text>
                         )}
-                        <Text style={s.pickTime}>{formatTimeAMPM(rt)}</Text>
+                        {/* An empty slot (MF-6): "—" and "Escolha o horário" in the placeholder grey. */}
+                        {isClockTime(rt) ? (
+                          <Text style={s.pickTime}>{formatTimeAMPM(rt)}</Text>
+                        ) : (
+                          <>
+                            <Text style={s.pickTime}>—</Text>
+                            <Text style={s.pickPh} numberOfLines={1}>{t('protocols_time_missing_title')}</Text>
+                          </>
+                        )}
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -3729,10 +3757,7 @@ export default function ProtocolsScreen() {
                       is24Hour={false}
                       minuteInterval={1}
                       display="default"
-                      onChange={(event, selectedDate) => {
-                        setShowTimePicker(false);
-                        if (selectedDate) applyPickedTime(selectedDate);
-                      }}
+                      onChange={onAndroidTime}
                     />
                   )}
                 </Fld>
@@ -3901,21 +3926,19 @@ export default function ProtocolsScreen() {
               />
             </DTPickerSheet>
           )}
+          {/* MF-9..MF-11: an empty slot opens at 12:00 with Done dimmed until the wheel is turned
+              (turning saves, as before); Done only closes; a tap outside closes and writes nothing. */}
           {iosPicker && (
-            <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')} onDone={() => {
-              // An empty time (handed over by the assistant): Done on the wheel takes the time the
-              // person is looking at, as a pick (they chose it), and closes.
-              if (!reminderTimes[activeTimeIndex]) {
-                const [h, m] = currentTimeRounded5().split(':').map(Number);
-                const d = new Date(); d.setHours(h, m, 0, 0);
-                applyPickedTime(d);
-              }
-              setShowTimePicker(false);
-            }}>
+            <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')}
+              doneDisabled={timeDoneDisabled(reminderTimes[activeTimeIndex], timeWheel)}
+              onDone={timeWheelDone}
+              onCancel={() => setShowTimePicker(false)}
+            >
               <DTWheel
-                columns={timeColumns(reminderTimes[activeTimeIndex] || currentTimeRounded5(), wheel12h, dayParts)}
+                columns={timeColumns(wheelStartTime(reminderTimes[activeTimeIndex]), wheel12h, dayParts)}
+                onInteract={(ev, col) => setTimeWheel((s) => wheelMotion(s, ev, col))}
                 onChange={(col, i) => {
-                  const hm = timeAfter(reminderTimes[activeTimeIndex] || currentTimeRounded5(), wheel12h, col, i);
+                  const hm = timeAfter(wheelStartTime(reminderTimes[activeTimeIndex]), wheel12h, col, i);
                   const [h, m] = hm.split(':').map(Number);
                   const d = new Date(); d.setHours(h, m, 0, 0);
                   applyPickedTime(d);
@@ -4226,6 +4249,7 @@ const protocolsGraduated = (c) => ({
   pickText: { flex: 1, fontSize: 17, color: c.ink },
   pickTextC2: { fontSize: 17, color: c.ink2 },
   pickTime: { fontSize: 17, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] }, // with the clock, on the left (part 17)
+  pickPh: { fontSize: 17, color: c.ink3 }, // an empty time's "Escolha o horário": the placeholder grey (MF-6)
   prev: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: c.raised, borderRadius: 22, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start', maxWidth: '100%' },
   prevDot: { width: 12, height: 12, borderRadius: 5 },
   prevName: { fontSize: 17, fontWeight: '600', color: c.ink, flexShrink: 1 },

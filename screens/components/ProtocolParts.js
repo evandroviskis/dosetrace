@@ -197,17 +197,21 @@ export function AndroidDateDialog({ visible, iso, minISO, maxISO, onPick, onClos
 }
 
 // Bottom sheet that holds the iPhone wheel: the question on the left, Done on the right.
-export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
+// onCancel (optional): what a tap outside the sheet does; without it, the same as Done.
+// doneDisabled (optional): Done dimmed (opacity .35, the trash bar's "off") and not tappable,
+// e.g. the reminder time wheel on an empty slot until it is turned (manual-form-no-default-time MF-9).
+export function DTPickerSheet({ visible, title, doneLabel, onDone, onCancel, doneDisabled, children }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
   const gap = useSheetGap(30); // A-136 (2)
+  const close = onCancel || onDone;
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDone}>
-      <Pressable style={[s.scrim, s.scrimBottom, { paddingBottom: gap }]} onPress={onDone}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
+      <Pressable style={[s.scrim, s.scrimBottom, { paddingBottom: gap }]} onPress={close}>
         <Pressable style={s.pickSheet} onPress={() => {}} accessibilityViewIsModal>
           <View style={s.pickHead}>
             <Text style={s.pickTitle}>{title}</Text>
-            <TouchableOpacity onPress={onDone} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button">
+            <TouchableOpacity onPress={onDone} disabled={!!doneDisabled} style={doneDisabled ? s.pickDoneOff : null} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityState={{ disabled: !!doneDisabled }}>
               <Text style={s.pickDone}>{doneLabel}</Text>
             </TouchableOpacity>
           </View>
@@ -225,7 +229,11 @@ export function DTPickerSheet({ visible, title, doneLabel, onDone, children }) {
 // onChange(columnIndex, rowIndex). Values come from lib/wheelPick.js.
 const ROW = 40;
 const SHOWN = 5;
-function WheelColumn({ values, index, onPick, s }) {
+// onInteract (optional): the person's hand on the column, as events for lib/wheelPick wheelMotion:
+// 'dragStart', 'momentumStart', 'settled' (every rest), 'tap' (a row tap or a VoiceOver adjust).
+// A touch that ends on the same row still counts (the reminder-time wheel enables Done on it, so
+// 12:00 itself can be chosen, MF-15), and Done waits while the column moves (MF-16).
+function WheelColumn({ values, index, onPick, onInteract, s }) {
   const ref = useRef(null);
   const [live, setLive] = useState(index);
   const lastSent = useRef(index);
@@ -239,8 +247,9 @@ function WheelColumn({ values, index, onPick, s }) {
   }, [index, values.length]);
   const settle = (y, fromTap = false) => {
     const { pick, snapTo } = wheelSettle({ y, row: ROW, count: values.length, lastSent: lastSent.current, fromTap });
-    if (snapTo != null) { setLive(snapTo); if (ref.current) ref.current.scrollTo({ y: snapTo * ROW, animated: false }); return; }
-    if (pick != null) { setLive(pick); lastSent.current = pick; onPick(pick); } else setLive(lastSent.current);
+    if (snapTo != null) { setLive(snapTo); if (ref.current) ref.current.scrollTo({ y: snapTo * ROW, animated: false }); }
+    else if (pick != null) { setLive(pick); lastSent.current = pick; onPick(pick); } else setLive(lastSent.current);
+    if (onInteract) onInteract('settled'); // the row is final: Done may act on it (MF-16)
   };
   return (
     <View
@@ -250,6 +259,7 @@ function WheelColumn({ values, index, onPick, s }) {
       accessibilityValue={{ text: values[live] }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => {
+        if (onInteract) onInteract('tap');
         const i = live + (e.nativeEvent.actionName === 'increment' ? 1 : -1);
         if (i >= 0 && i < values.length) { setLive(i); lastSent.current = i; onPick(i); }
       }}
@@ -263,12 +273,13 @@ function WheelColumn({ values, index, onPick, s }) {
         contentContainerStyle={s.wheelPad}
         scrollEventThrottle={16}
         onScroll={(e) => { const i = Math.round(e.nativeEvent.contentOffset.y / ROW); if (i !== live && i >= 0 && i < values.length) setLive(i); }}
-        onScrollBeginDrag={() => { tapped.current = false; }}
+        onScrollBeginDrag={() => { tapped.current = false; if (onInteract) onInteract('dragStart'); }}
+        onMomentumScrollBegin={() => { if (onInteract) onInteract('momentumStart'); }}
         onMomentumScrollEnd={(e) => { const fromTap = tapped.current; tapped.current = false; settle(e.nativeEvent.contentOffset.y, fromTap); }}
         onScrollEndDrag={(e) => { if (!e.nativeEvent.velocity || Math.abs(e.nativeEvent.velocity.y) < 0.05) settle(e.nativeEvent.contentOffset.y); }}
       >
         {values.map((v, i) => (
-          <Pressable key={i} style={s.wheelRow} onPress={() => { tapped.current = true; if (ref.current) ref.current.scrollTo({ y: i * ROW, animated: true }); setLive(i); if (i !== lastSent.current) { lastSent.current = i; onPick(i); } }}>
+          <Pressable key={i} style={s.wheelRow} onPress={() => { if (onInteract) onInteract('tap'); tapped.current = true; if (ref.current) ref.current.scrollTo({ y: i * ROW, animated: true }); setLive(i); if (i !== lastSent.current) { lastSent.current = i; onPick(i); } }}>
             <Text style={[s.wheelText, i === live && s.wheelTextOn]} numberOfLines={1}>{v}</Text>
           </Pressable>
         ))}
@@ -276,14 +287,14 @@ function WheelColumn({ values, index, onPick, s }) {
     </View>
   );
 }
-export function DTWheel({ columns, onChange }) {
+export function DTWheel({ columns, onChange, onInteract }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
   return (
     <View style={s.wheel}>
       <View style={s.wheelBand} pointerEvents="none" />
       {columns.map((col, ci) => (
-        <WheelColumn key={ci} values={col.values} index={col.index} onPick={(i) => onChange(ci, i)} s={s} />
+        <WheelColumn key={ci} values={col.values} index={col.index} onPick={(i) => onChange(ci, i)} onInteract={onInteract ? (ev) => onInteract(ev, ci) : undefined} s={s} />
       ))}
     </View>
   );
@@ -454,6 +465,7 @@ const sheetStyles = (c) => StyleSheet.create({
   pickHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 },
   pickTitle: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
   pickDone: { fontSize: 17, fontWeight: '600', color: c.ink },
+  pickDoneOff: { opacity: 0.35 }, // ProtocolsScreen trashBtnOff
   // the wheel (prototype .wheel: 3 columns, gap 4, padding 4 0; the band 40 high, radius 10)
   wheel: { flexDirection: 'row', gap: 4, paddingVertical: 4, height: 40 * 5 + 8 },
   wheelBand: { position: 'absolute', left: 0, right: 0, top: 4 + 80, height: 40, borderRadius: 10, backgroundColor: c.well },

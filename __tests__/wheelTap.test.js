@@ -28,8 +28,9 @@ test('a real swipe still picks the row it stops on (clamped to the column)', () 
 test('the wheel column marks a tap, clears it when the user drags, and settles through wheelSettle', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'components', 'ProtocolParts.js'), 'utf8');
   const col = src.slice(src.indexOf('function WheelColumn('), src.indexOf('export function DTWheel('));
-  assert.match(col, /onScrollBeginDrag=\{\(\) => \{ tapped\.current = false; \}\}/);
-  assert.match(col, /onPress=\{\(\) => \{ tapped\.current = true;/);
+  // (MF-15, 2026-11-04: the optional onInteract runs first; it never changes the tap / drag marks)
+  assert.match(col, /onScrollBeginDrag=\{\(\) => \{ tapped\.current = false; if \(onInteract\) onInteract\('dragStart'\); \}\}/);
+  assert.match(col, /onPress=\{\(\) => \{ if \(onInteract\) onInteract\('tap'\); tapped\.current = true;/);
   assert.match(col, /wheelSettle\(\{ y, row: ROW, count: values\.length, lastSent: lastSent\.current, fromTap \}\)/);
   assert.match(col, /onMomentumScrollEnd=\{\(e\) => \{ const fromTap = tapped\.current; tapped\.current = false; settle\(e\.nativeEvent\.contentOffset\.y, fromTap\); \}\}/);
 });

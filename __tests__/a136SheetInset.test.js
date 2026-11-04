@@ -49,7 +49,7 @@ test('A-136 (2): the hook reads the bottom inset and the platform', () => {
 const SHEETS = {
   'screens/components/ProtocolParts.js': [
     /<Pressable style=\{\[s\.scrim, s\.scrimBottom, \{ paddingBottom: gap \}\]\} onPress=\{onClose\}>/, // DTActionSheet
-    /<Pressable style=\{\[s\.scrim, s\.scrimBottom, \{ paddingBottom: gap \}\]\} onPress=\{onDone\}>/, // DTPickerSheet
+    /<Pressable style=\{\[s\.scrim, s\.scrimBottom, \{ paddingBottom: gap \}\]\} onPress=\{close\}>/, // DTPickerSheet (close = onCancel || onDone)
     /<Pressable style=\{\[s\.scrim, \{ paddingBottom: centerGap \}\]\} onPress=\{dismiss\}/, // DTSheet
   ],
   'screens/SerumCurveScreen.js': [/<Pressable style=\{\[s\.sheet, \{ paddingBottom: pickerPad \}\]\}/],
