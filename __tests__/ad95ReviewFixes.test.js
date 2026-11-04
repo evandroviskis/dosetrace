@@ -70,7 +70,8 @@ test('review 5: a dose edit without a unit on the row takes the protocol\'s unit
 
 // 6. dose_logs is an optional-column table: its rows need the local optional_pending marker.
 test('review 6: dose_logs optional columns can be re-sent (local marker in the fresh schema too)', () => {
-  assert.deepEqual(OPTIONAL_COLUMNS.dose_logs, ['dose_amount', 'dose_unit', 'slot_at', 'dose_edited']);
+  // UP-36 (2026-11-04): outcome_by_person joined the optional columns.
+  assert.deepEqual(OPTIONAL_COLUMNS.dose_logs, ['dose_amount', 'dose_unit', 'slot_at', 'dose_edited', 'outcome_by_person']);
   const db = makeDb();
   const cols = db.getAllSync('PRAGMA table_info(dose_logs)').map((c) => c.name);
   assert.ok(cols.includes('optional_pending'));

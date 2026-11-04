@@ -133,6 +133,7 @@ test('NN-1/NN-2: persistMarkers stores the sign and the words and counts word re
     notice: () => {}, scanErrorSheet: () => ({}), t: (k) => k, language: 'pt',
     insertBiomarkers: (rows) => inserted.push(...rows),
     Analytics: { bloodworkUploaded: () => {} }, fetchReports: () => {}, requestSync: () => {},
+    askUnrecordedForLab: () => {}, // UP-22 (2026-11-04): the unrecorded-period question after a past test
     parseMeasure: require('../lib/doseMath').parseMeasure,
     scanResult: L.scanResult,
   });
@@ -229,6 +230,7 @@ function saveFn(state, calls) {
     updateBiomarker: (id, data) => calls.updated.push({ id, data }),
     markerToSave: (name) => name.trim(),
     requestSync: () => {}, setMEdit: () => {}, fetchReports: () => {},
+    askUnrecordedForLab: () => {}, // UP-22 (2026-11-04)
   });
 }
 const newCalls = () => ({ sheet: [], added: [], updated: [] });

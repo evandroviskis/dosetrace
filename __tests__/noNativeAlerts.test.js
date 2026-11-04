@@ -108,7 +108,7 @@ test('Today: the site picker\'s Android-back question is asked from inside the p
   const back = src.slice(src.indexOf('function handleBodyMapBack'), src.indexOf('function handleBodyMapSkip'));
   assert.match(back, /\{ label: t\('today_site_back_stay'\), kind: 'secondary' \},\s*\{ label: t\('today_site_back_leave'\), kind: 'danger'/);
   assert.match(src, /onDismiss: \(\) => resetTake\(p\.id\)/, 'a tap outside the day question puts the button back');
-  assert.match(src, /todaySheetOpenRef\.current;\n/, 'the sheet counts as one of Today\'s popups');
+  assert.match(src, /todaySheetOpenRef\.current( \|\| unrecOpenRef\.current)?;\n/, 'the sheet counts as one of Today\'s popups'); // UP-20: and the unrecorded-period queue
   const body = read('screens/components/BodyMapModal.js');
   const tail = body.slice(body.lastIndexOf('</KeyboardAvoidingView>'));
   assert.match(tail, /<DTSheet config=\{sheet\}/);

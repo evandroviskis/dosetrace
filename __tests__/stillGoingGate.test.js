@@ -127,6 +127,8 @@ function makeToday({ sync, logs, firstShown }) {
     // A-121 SG-22: nor over any other Today popup.
     vialPromptOpenRef: { current: false }, skipSheetOpenRef: { current: false }, todaySheetOpenRef: { current: false },
     teamSheetOpenRef: { current: false }, // A-163: the team message sheet (Still going? never opens over it)
+    unrecOpenRef: { current: false }, // UP-20 (2026-11-04): the unrecorded-period queue
+    askUnrecordedToday: () => {}, // UP-20: with no protocol question left, the unrecorded period is asked
   };
   const firstShownRef = { current: firstShown || { p: Promise.resolve() } };
   const checkTreatmentStillActive = loadFn('screens/TodayScreen.js', 'async function checkTreatmentStillActive(', 'checkTreatmentStillActive', {

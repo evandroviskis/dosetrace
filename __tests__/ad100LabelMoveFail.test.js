@@ -70,6 +70,7 @@ function screen({ tests, tags }) {
     notice: (cfg) => st.notices.push(cfg),
     saveFailed: () => st.notices.push({ title: 'error', body: 'error_save_failed' }),
     t: (k) => k,
+    askUnrecordedForLab: () => {}, // UP-22 (2026-11-04): a test moved earlier asks about the doses before it
   };
   const saveReportTagOp = loadFn('screens/BodyScreen.js', 'async function saveReportTagOp(', 'saveReportTagOp', common);
   const moveLabels = loadFn('screens/BodyScreen.js', 'async function moveLabels(', 'moveLabels', common);
