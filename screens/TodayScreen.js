@@ -88,6 +88,10 @@ import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
 import FoodLogHero from './components/FoodLogHero';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
+import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
+import { HEADER_ROW } from '../lib/searchCorner';
+import { setTodayFlags } from '../lib/appSearchStore';
+import AppSearchScreen from './AppSearchScreen';
 import { paneWidths } from '../lib/bookLayout';
 import { ProtocolDetail, noteDraftKey } from './ProtocolsScreen';
 import useKeyboardLift from '../components/useKeyboardLift';
@@ -367,6 +371,26 @@ export default function TodayScreen() {
   const [todayTaken, setTodayTaken] = useState([]);
   const [takenOpen, setTakenOpen] = useState(false);
   const [fold, setFold] = useState({ tom: false, n5: false });
+  // App search landings (AS-8): 'alerts' = the top, 'pending' and 'doses' scroll to their block,
+  // 'upcoming' unfolds Amanhã / Próximos 5 dias and scrolls there. Only scrolls and unfolds.
+  const leftScrollRef = useRef(null);
+  const blockY = useRef({});
+  const [searchLand, setSearchLand] = useState(null);
+  const onBlockY = (key) => (e) => { blockY.current[key] = e.nativeEvent.layout.y; if (searchLand && searchLand.target === key) setSearchLand({ ...searchLand }); };
+  useEffect(() => {
+    const sp = route.params?.search;
+    if (!sp || !['alerts', 'pending', 'doses', 'upcoming'].includes(sp.target)) return;
+    navigation.setParams({ search: undefined });
+    if (sp.target === 'upcoming') setFold({ tom: true, n5: true });
+    setSearchLand({ target: sp.target, n: sp.n });
+  }, [route.params?.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!searchLand || !leftScrollRef.current) return;
+    const y = searchLand.target === 'alerts' ? 0 : blockY.current[searchLand.target];
+    if (y == null) return;
+    leftScrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: true });
+    setSearchLand(null);
+  }, [searchLand]);
 
   // Vial continuation state
   const [showVialPrompt, setShowVialPrompt] = useState(false);
@@ -2187,10 +2211,14 @@ export default function TodayScreen() {
   // My Protocols). Skip / Mark taken stay on the left card; Delete is not offered here; Edit and the
   // refill sheets open in My Protocols. Nothing tapped: the Dose log.
   function renderRightPage() {
+    // App search on the Fold (AS-18): the search is Today's right page while it is the chosen item.
+    if (bookSel === SEARCH_PAGE) return <AppSearchScreen embedded tab="Today" />;
     const p = pickedDose ? protocols.find(x => String(x.id) === String(pickedDose.protocolId)) : null;
     if (!p) {
       // A dose written, skipped or undone on the left page refreshes the embedded log (BK-19).
       const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length, dataRev]);
+      // App search (AS-7, AS-18): a "Doses perdidas / puladas / concluídas" result opens it filtered
+      // (LogScreen embedded reads the filter from Today's right-page selection).
       return <LogScreen embedded refreshKey={logRev} onChanged={afterLogChange} popupGate={logPopupGate} />;
     }
     const vial = vials[p.id];
@@ -2505,13 +2533,20 @@ export default function TodayScreen() {
   const firstSkel = (plan.find((b) => !ready[SKEL_SECTION[b.key]]) || {}).key;
   const skel = (key) => (ready[SKEL_SECTION[key]] ? null : <SkeletonBlock spec={plan.find((b) => b.key === key)} first={key === firstSkel} />);
 
+  // App search (logic 5): Pendente de ontem and Alertas are listed only while they exist.
+  setTodayFlags({ pending: presentRef.current.pending > 0, alerts: presentRef.current.alerts > 0 });
+
   const leftPage = (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+      <ScrollView ref={leftScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         {/* Today v2.1 order (founder 2026-09-29): header → Alerts (gone when none) → Pending
             from yesterday → tracker → AI food log → Doses → Taken → Tomorrow / Next 5 days. */}
-        <View style={s.header}>
-          <Text style={s.date}>{today}</Text>
-          <Text style={s.title}>{t('tab_today')}</Text>
+        {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
+        <View style={[s.header, s.headerRow]}>
+          <View style={s.headerText}>
+            <Text style={s.date}>{today}</Text>
+            <Text style={s.title}>{t('tab_today')}</Text>
+          </View>
+          <SearchCorner tab="Today" />
         </View>
 
         {/* A-135: no spinner. Each block below is its placeholder (SkeletonBlock, as tall as last
@@ -2575,7 +2610,7 @@ export default function TodayScreen() {
 
         {skel('pending')}
         {ready.pending && pendingYest.length > 0 && (
-          <View style={s.block} onLayout={onBlock('pending', s.block)}>
+          <View style={s.block} onLayout={(e) => { onBlock('pending', s.block)(e); onBlockY('pending')(e); }}>
             <View style={s.lab}><Text style={s.labText}>{t('today_pending_title')}</Text></View>
             {pendingYest.map((item) => {
               const pr = protocols.find((x) => x.id === item.protocolId);
@@ -2643,7 +2678,7 @@ export default function TodayScreen() {
 
         {skel('doses')}
         {ready.doses && protocols.length > 0 && (
-          <View style={s.block} onLayout={onBlock('doses', s.block)}>
+          <View style={s.block} onLayout={(e) => { onBlock('doses', s.block)(e); onBlockY('doses')(e); }}>
             <View style={s.lab}>
               <Text style={s.sectionTitle}>{t('today_doses').charAt(0).toUpperCase() + t('today_doses').slice(1)}</Text>
               {totalDoses > 0 && <Text style={s.labCount}>{dosesTakenLabel(doneDoses, totalDoses, t, language)}</Text>}
@@ -2721,7 +2756,7 @@ export default function TodayScreen() {
         )}
 
         {ready.doses && (tomorrowCards.length > 0 || next5Cards.length > 0) && (
-          <View style={s.block}>
+          <View style={s.block} onLayout={onBlockY('upcoming')}>
             <View style={s.foldList}>
               {foldRow('tom', t('today_section_tomorrow'), tomorrowCards)}
               {foldRow('n5', t('today_section_next5'), next5Cards, laterCount > 0 ? (
@@ -3054,6 +3089,8 @@ const todayV21Styles = (c) => ({
   container: { flex: 1, backgroundColor: c.ground },
   // A-135: the opening draws the same header (screens/components/TodaySkeleton TODAY_HEADER).
   header: TODAY_HEADER.header,
+  headerRow: HEADER_ROW, // B2: title column + the search corner (lib/searchCorner)
+  headerText: { flex: 1, minWidth: 0, gap: TODAY_HEADER.header.gap },
   date: { ...TODAY_HEADER.date, color: c.ink2 },
   title: { ...TODAY_HEADER.title, color: c.ink },
   block: { paddingHorizontal: 16, marginBottom: 26, gap: 10 },

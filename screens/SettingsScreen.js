@@ -22,7 +22,7 @@ import Animated from 'react-native-reanimated';
 import GradSwitch from '../components/GradSwitch';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
 import { profileMeta, forgetKeptKeys, flushPendingGate } from '../lib/pendingGateStore';
 import { getPremiumSnapshot } from '../lib/premiumState';
@@ -62,6 +62,9 @@ import { errorSheet as errorSheetConfig, ERROR_ICON, errorTitle } from '../lib/e
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
+import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
+import { HEADER_ROW } from '../lib/searchCorner';
+import AppSearchScreen from './AppSearchScreen';
 import { pluralKey } from '../lib/plural';
 import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourceKey } from '../lib/activityLevels';
 import { getCalcInputs } from '../lib/realityCheck';
@@ -392,11 +395,65 @@ export default function SettingsScreen({ navigation }) {
   }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function scrollToSection(key) {
-    const y = headerY.current[key];
+    // Found 2026-11-04 (app search): the header's own y is relative to its card (0), so the fold
+    // scrolled to the top; the card's place in the list is the cards' block + the card.
+    const abs = landY.current.cards != null && landY.current[key] != null ? landY.current.cards + landY.current[key] : null;
+    const y = abs != null ? abs : headerY.current[key];
     if (y == null || !phoneScrollRef.current) return;
     phoneScrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: false });
     foldTarget.current = null;
   }
+
+  // App search landings (AS-8, AS-10): a group opens with the row in view (the book selects it on the
+  // right page), the language window, Editar perfil, the plans, a legal text, or Sair / Excluir conta
+  // scrolled into view and highlighted for a moment. Only opens and scrolls: nothing is changed, sent
+  // or signed out, and no confirmation opens.
+  const route = useRoute();
+  const landY = useRef({});
+  const bookLeftRef = useRef(null);
+  const [glow, setGlow] = useState(null);
+  useEffect(() => {
+    if (!glow) return undefined;
+    const id = setTimeout(() => setGlow(null), 2500);
+    return () => clearTimeout(id);
+  }, [glow]);
+  const scrollToY = (y, ref) => { if (y != null && ref.current) ref.current.scrollTo({ y: Math.max(0, y - 8), animated: true }); };
+  // Where each group card sits in the phone list (the cards' block + the card), for the search's
+  // landings and the fold's scroll: a header's own onLayout is relative to its card (always 0).
+  const onCardLayout = (key) => (e) => { landY.current[key] = e.nativeEvent.layout.y; };
+  // The Language row and the app search's "Idioma" open the same window.
+  function openLanguagePicker() { setShowLanguagePicker(true); }
+  function openGroupFor(key) {
+    if (book) { select(key); return; }
+    setCollapsed((prev) => (prev[key] === false ? prev : { ...prev, [key]: false }));
+    requestAnimationFrame(() => {
+      const y = landY.current.cards != null && landY.current[key] != null ? landY.current.cards + landY.current[key] : null;
+      scrollToY(y, phoneScrollRef);
+    });
+  }
+  useEffect(() => {
+    const sp = route && route.params ? route.params.search : null;
+    if (!sp || !sp.target) return;
+    navigation.setParams({ search: undefined });
+    switch (sp.target) {
+      case 'row': if (sp.group) openGroupFor(sp.group); break;
+      case 'language': openGroupFor('account'); openLanguagePicker(); break;
+      case 'legal':
+        openGroupFor('privacy');
+        if (sp.doc === 'privacy') setShowPrivacy(true);
+        else if (sp.doc === 'terms') setShowTerms(true);
+        else if (sp.doc === 'disclaimer') setShowDisclaimer(true);
+        break;
+      case 'profile': openEditProfile(); break;
+      case 'premium': navigation.navigate('Paywall', { source: 'settings' }); break;
+      case 'signout':
+      case 'delete':
+        setGlow(sp.target);
+        requestAnimationFrame(() => scrollToY(landY.current.actions, book ? bookLeftRef : phoneScrollRef));
+        break;
+      default: break;
+    }
+  }, [route && route.params ? route.params.search : null]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onSectionHeaderLayout(key, e) {
     headerY.current[key] = e.nativeEvent.layout.y;
@@ -1357,7 +1414,7 @@ export default function SettingsScreen({ navigation }) {
             onChange={setTimeFormat}
           />
         </View>
-        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={() => setShowLanguagePicker(true)}>
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={openLanguagePicker}>
           <View style={s.rowLeft}>
             <FeatureIcon name="globe" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1388,7 +1445,7 @@ export default function SettingsScreen({ navigation }) {
   function renderGroupCard(g) {
     const open = !collapsed[g.key];
     return (
-      <View key={g.key} style={s.setCard}>
+      <View key={g.key} style={s.setCard} onLayout={onCardLayout(g.key)}>
         <TouchableOpacity
           style={[s.setHead, open && s.setHeadOpen]}
           activeOpacity={0.6}
@@ -1414,15 +1471,17 @@ export default function SettingsScreen({ navigation }) {
   // groups, on both layouts.
   function renderAccountActions() {
     return (
-      <View style={s.actionsCard}>
-        <TouchableOpacity style={s.row} onPress={handleSignOut} accessibilityRole="button">
+      <View style={s.actionsCard} onLayout={(e) => { landY.current.actions = e.nativeEvent.layout.y; }}>
+        {/* App search (AS-10): "Sair" / "Excluir conta" results only scroll here and highlight the row
+            (glow); the confirmation opens only from the person's own tap. */}
+        <TouchableOpacity style={[s.row, glow === 'signout' && s.rowGlow]} onPress={handleSignOut} accessibilityRole="button">
           <View style={s.rowLeft}>
             <FeatureIcon name="door" size={28} color={colors.ink} />
             <Text style={s.rowLabel}>{t('settings_signout')}</Text>
           </View>
           {signingOut ? <ActivityIndicator color={colors.ink} /> : <RowChevron color={colors.tick} />}
         </TouchableOpacity>
-        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount} accessibilityRole="button">
+        <TouchableOpacity style={[s.row, { borderBottomWidth: 0 }, glow === 'delete' && s.rowGlow]} onPress={handleDeleteAccount} accessibilityRole="button">
           <View style={s.rowLeft}>
             <FeatureIcon name="trash" size={28} color={colors.risk} />
             <Text style={[s.rowLabel, { color: colors.risk }]}>{t('settings_delete')}</Text>
@@ -1438,15 +1497,17 @@ export default function SettingsScreen({ navigation }) {
   function renderPhone() {
     return (
       <>
-        <View style={s.header}>
+        {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
+        <View style={[s.header, s.headerRow]}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
+          <SearchCorner tab="Settings" />
         </View>
 
         <ScrollView ref={phoneScrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
 
-          <View style={s.setCards}>
+          <View style={s.setCards} onLayout={(e) => { landY.current.cards = e.nativeEvent.layout.y; }}>
             {SETTINGS_GROUPS.map(g => renderGroupCard(g))}
           </View>
 
@@ -1464,19 +1525,21 @@ export default function SettingsScreen({ navigation }) {
   // with the open group outlined in ink (BK-8), the Sign out / Delete account card and the
   // version; right page = that group, always open.
   function renderBook() {
+    const searchOn = sel === SEARCH_PAGE; // AS-18: the app search is the right page (no group outlined)
     const open = bookGroup(sel);
     const openGroup = SETTINGS_GROUPS.find(g => g.key === open);
     const left = (
       <>
-        <View style={s.header}>
+        <View style={[s.header, s.headerRow]}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
+          <SearchCorner tab="Settings" />
         </View>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        <ScrollView ref={bookLeftRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}
           {renderPremiumCard()}
           <View style={s.bookNav}>
             {SETTINGS_GROUPS.map(g => {
-              const on = g.key === open;
+              const on = !searchOn && g.key === open;
               return (
                 <TouchableOpacity
                   key={g.key}
@@ -1502,6 +1565,7 @@ export default function SettingsScreen({ navigation }) {
       </>
     );
     const right = (
+      searchOn ? <AppSearchScreen embedded tab="Settings" /> : (
       <>
         <View style={s.header}>
           <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
@@ -1511,6 +1575,7 @@ export default function SettingsScreen({ navigation }) {
           <View style={{ height: 40 }} />
         </ScrollView>
       </>
+      )
     );
     return <BookPanes left={left} right={right} rightKey={open} />;
   }
@@ -1930,7 +1995,9 @@ const settingsGraduated = (c) => ({
   profileBadgeRow: { flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' },
   container: { flex: 1, backgroundColor: c.ground },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6, backgroundColor: c.ground },
-  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
+  headerRow: HEADER_ROW, // B2: the title + the search corner (lib/searchCorner)
+  headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flex: 1, minWidth: 0 }, // B2: takes the room the corner leaves, wraps
+  rowGlow: { backgroundColor: c.well, borderRadius: 12 }, // app search: the row a "Sair" / "Excluir conta" result lands on (AS-10)
   profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 16, marginTop: 12, marginBottom: 8, padding: 16, backgroundColor: c.raised, borderRadius: 22 },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: c.onInk, fontSize: 19, fontWeight: '700' },

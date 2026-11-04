@@ -41,6 +41,7 @@ import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel } from './ProtocolParts'
 import { BottomSheet, SheetBar, SheetToast } from './BodySheets';
 import Svg, { Path } from 'react-native-svg';
 import { imageMediaType } from '../../lib/imageType';
+import { takeVaccineRequest } from '../../lib/appSearchStore';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const TOAST_MS = 4000; // the prototype toast()
@@ -116,6 +117,14 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
     const next = getVaccines(user.id) || [];
     setList(next);
     if (onListChange) onListChange(next);
+    // App search (AS-28): a vaccine found by name opens its record — on the phone that is this
+    // journal's sheet, as a tap on the row (nothing is saved without Save). Only the phone journal
+    // (no onSelect) takes the request; the Fold opens the read page on the right page instead.
+    if (!onSelect) {
+      const want = takeVaccineRequest();
+      const v = want ? next.find((x) => String(x.id) === want) : null;
+      if (v) openEdit(v);
+    }
   }
 
   // A sheet that follows the camera / photo library waits for it to close (iOS presents

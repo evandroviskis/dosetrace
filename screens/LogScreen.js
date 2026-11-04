@@ -47,7 +47,7 @@ import { formatNumber } from '../lib/localeFormat';
 import { DTSheet } from './components/ProtocolParts';
 import { SITE_HISTORY_DAYS } from '../lib/bodySites';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { useUnfoldToPage } from '../components/BookPanes';
+import { useUnfoldToPage, useBookSelection } from '../components/BookPanes';
 import { outcomeCounts } from '../lib/declared';
 import { NO_DOSE } from '../lib/noDose';
 import { logListState } from '../lib/firstLoad';
@@ -92,14 +92,20 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   const listState = logListState({ loaded, rows: logs });
   // UP-34: a link may open the Dose log on one filter ("Perdidas" from a lab test); otherwise "Todos".
   const route = useRoute();
-  const routeFilter = !embedded && route && route.params ? route.params.filter : null;
+  // App search (AS-7, AS-18): on the Fold the right page reads the filter from Today's right-page
+  // selection (its nonce changes on every tap); "Ver histórico" and the My Protocols hero still open
+  // it on "Todos".
+  const { params: todayPage } = useBookSelection('Today', 'log');
+  const initialFilter = embedded && todayPage ? todayPage.filter : null;
+  const filterKey = embedded && todayPage ? todayPage.nonce : null;
+  const routeFilter = embedded ? initialFilter : route && route.params ? route.params.filter : null;
   const [filter, setFilter] = useState(['Taken', 'Skipped', 'Missed'].includes(routeFilter) ? routeFilter : 'All');
   useEffect(() => {
     if (['Taken', 'Skipped', 'Missed'].includes(routeFilter)) {
       setFilter(routeFilter);
-      try { navigation.setParams({ filter: undefined }); } catch { /* no params to clear */ }
+      if (!embedded) { try { navigation.setParams({ filter: undefined }); } catch { /* no params to clear */ } }
     }
-  }, [routeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [routeFilter, filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // UP-24 (option B): the card "Doses sem registro antes de {data}" while any unrecorded period remains;
   // "Responder" opens the same queue as Today. unrecQueue: the asks behind the card.
   const [unrecCard, setUnrecCard] = useState(null);

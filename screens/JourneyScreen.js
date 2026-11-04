@@ -20,8 +20,11 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
-import { useNavigation, useFocusEffect, NavigationContext } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, NavigationContext } from '@react-navigation/native';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
+import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
+import { HEADER_ROW } from '../lib/searchCorner';
+import AppSearchScreen from './AppSearchScreen';
 import { setSelection, clearSelection } from '../lib/bookSelection';
 import ProgressScreen from './ProgressScreen';
 import SerumCurveScreen from './SerumCurveScreen';
@@ -90,6 +93,17 @@ export default function JourneyScreen() {
   // The Curve is Premium: if Premium ended while it was the open page, fall back to the default.
   useEffect(() => { if (premium === false && sel === 'curve') clearSelection('Journey'); }, [premium, sel]);
   const open = (value, params = null) => setSelection('Journey', value, { explicit: true, params });
+  // App search landing 'curve' (D27, AS-10): what a tap on the Dose accumulation tile does, once
+  // Premium is known — free users get the animated explainer first (its Unlock opens the plans).
+  const route = useRoute();
+  useEffect(() => {
+    const sp = route.params?.search;
+    if (!sp || sp.target !== 'curve' || premium === null) return;
+    navigation.setParams({ search: undefined });
+    if (premium === false) setPreviewKey('serum');
+    else if (book) open('curve');
+    else navigation.navigate('SerumCurve');
+  }, [route.params?.search, premium]); // eslint-disable-line react-hooks/exhaustive-deps
   // The food log card (FoodLogHero) opens the chat with navigation.navigate('FoodChat'). On a
   // book page the chat opens on the right page instead; every other route (the Paywall when
   // the log is locked) goes through unchanged. Stable per navigation, so the card's focus
@@ -172,9 +186,13 @@ export default function JourneyScreen() {
 
   const dashboard = (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
-        <View style={s.header}>
-          <Text style={s.title}>{t('tab_journey')}</Text>
-          <Text style={s.sub}>{t('journey_subtitle')}</Text>
+        {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
+        <View style={[s.header, s.headerRow]}>
+          <View style={s.headerText}>
+            <Text style={s.title}>{t('tab_journey')}</Text>
+            <Text style={s.sub}>{t('journey_subtitle')}</Text>
+          </View>
+          <SearchCorner tab="Journey" />
         </View>
 
         <View style={s.block}>
@@ -282,10 +300,11 @@ export default function JourneyScreen() {
     );
   }
 
-  const right = page === 'food' ? <FoodChatScreen embedded params={selParams} />
-    : page === 'curve' ? <SerumCurveScreen embedded />
-      : page === 'wait' ? <View style={s.container} />
-        : <ProgressScreen embedded />;
+  const right = page === SEARCH_PAGE ? <AppSearchScreen embedded tab="Journey" />
+    : page === 'food' ? <FoodChatScreen embedded params={selParams} />
+      : page === 'curve' ? <SerumCurveScreen embedded />
+        : page === 'wait' ? <View style={s.container} />
+          : <ProgressScreen embedded />;
 
   return (
     <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
@@ -300,6 +319,8 @@ const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground },
   centered: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18, gap: 4 },
+  headerRow: HEADER_ROW, // B2: title column + the search corner (lib/searchCorner)
+  headerText: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
   sub: { fontSize: 15, color: c.ink2 },
   block: { paddingHorizontal: 16, marginBottom: 12 },

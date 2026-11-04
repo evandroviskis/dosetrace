@@ -7,7 +7,9 @@
  * App Review 1.4.1: health information cites its sources. Citation text stays in English
  * (the convention for references); the topic labels are localized.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { markRanges, markedPieces } from '../../lib/appSearchText';
+import { learnRequest, onLearnRequest } from '../../lib/appSearchStore';
 import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -40,6 +42,9 @@ function ExternalIcon({ color }) {
   );
 }
 
+// App search (AS-27): an "Entenda os números" hit (lib/appSearchStore requestLearn) opens the block
+// and that explainer, with the typed words marked (lib/appSearchText markRanges; the text never
+// changes). The marks clear when the item is closed or another one is opened.
 export default function LearnBlock({ style }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
@@ -47,6 +52,26 @@ export default function LearnBlock({ style }) {
   const [learnOpen, setLearnOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [expl, setExpl] = useState(null);
+  const [marked, setMarked] = useState(null);
+  const [mark, setMark] = useState(null);
+  useEffect(() => {
+    const apply = (req) => {
+      if (!req || !EXPLAINERS.some((e) => e.key === req.key)) return;
+      setLearnOpen(true);
+      setExpl(req.key);
+      setMark(req.mark);
+      setMarked(req.mark ? req.key : null);
+    };
+    apply(learnRequest());
+    return onLearnRequest(apply);
+  }, []);
+  const bodyText = (e) => {
+    const text = t(e.body);
+    if (marked !== e.key || !mark) return text;
+    return markedPieces(text, markRanges(text, mark)).map((p, i) => (
+      p.mark ? <Text key={i} style={s.mark}>{p.text}</Text> : p.text
+    ));
+  };
   return (
     <View style={[s.list, style]}>
       <TouchableOpacity style={s.head} onPress={() => setLearnOpen(o => !o)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: learnOpen }}>
@@ -55,11 +80,11 @@ export default function LearnBlock({ style }) {
       </TouchableOpacity>
       {learnOpen && EXPLAINERS.map(e => (
         <View key={e.key} style={s.item}>
-          <TouchableOpacity style={s.row} onPress={() => setExpl(expl === e.key ? null : e.key)} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: expl === e.key }}>
+          <TouchableOpacity style={s.row} onPress={() => { setMarked(null); setExpl(expl === e.key ? null : e.key); }} activeOpacity={0.7} accessibilityRole="button" accessibilityState={{ expanded: expl === e.key }}>
             <Text style={[s.body, s.grow]}>{t(e.title)}</Text>
             <FoldChevron open={expl === e.key} color={colors.ink3} />
           </TouchableOpacity>
-          {expl === e.key && <Text style={[s.sec2, s.itemBody]}>{t(e.body)}</Text>}
+          {expl === e.key && <Text style={[s.sec2, s.itemBody]}>{bodyText(e)}</Text>}
         </View>
       ))}
       <View style={s.item}>
@@ -101,4 +126,5 @@ const makeStyles = (c) => StyleSheet.create({
   itemBody: { paddingBottom: 14 },
   intro: { paddingBottom: 10 },
   src: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
+  mark: { backgroundColor: c.mark, color: c.ink }, // the search's typed words (AS-26, AS-27)
 });

@@ -52,6 +52,14 @@ import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel } from './components/Pro
 import { BottomSheet, SheetBar, CloseBar } from './components/BodySheets';
 import CheckMark, { CrossMark } from '../components/CheckMark';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
+import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
+import { HEADER_ROW } from '../lib/searchCorner';
+import AppSearchScreen from './AppSearchScreen';
+import { requestVaccine } from '../lib/appSearchStore';
+
+// The book's left page title row starts 12 pt below the top safe area (scrollPad paddingTop 4 +
+// bookHero paddingTop 8); the search corner is lifted to the shared 8 pt (B2).
+const BODY_BOOK_HEADER_TOP = 12;
 import { defaultSelection, paneWidths } from '../lib/bookLayout';
 import { setSelection } from '../lib/bookSelection';
 import DashTile, { dashTileStyles } from './components/DashTile';
@@ -158,7 +166,7 @@ function bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium }) {
 // Dose accumulation is pushed as today. A default nobody chose changes nothing (the hub stays).
 function bodyFoldPlan({ sel, explicit, vaxSheetOpen }) {
   if (vaxSheetOpen) return { section: 'vaccines', detail: null };
-  if (!explicit || !sel) return null;
+  if (!explicit || !sel || sel === 'search') return null; // the app search ('search', SearchCorner SEARCH_PAGE) moves to its own screen
   if (sel === 'curve') return { section: null, detail: null, push: 'SerumCurve' };
   if (sel === 'labs') return { section: 'labs', detail: null };
   if (sel === 'vaccines' || sel.indexOf('vax:') === 0) return { section: 'vaccines', detail: null };
@@ -342,7 +350,8 @@ export default function BodyScreen({ navigation, route }) {
   const reportKeys = useMemo(() => new Set(cards.map(c => c.key)), [cards]);
   const markerKeys = useMemo(() => new Set(allMarkerSeries.map(x => x.key)), [allMarkerSeries]);
   const vaxKeys = useMemo(() => new Set(vaccineList.map(v => String(v.id))), [vaccineList]);
-  const rightPage = book ? bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium }) : null;
+  // AS-18: while the app search is the right page, no tile of the left page is outlined.
+  const rightPage = book ? (sel === SEARCH_PAGE ? { type: 'search', id: SEARCH_PAGE, group: SEARCH_PAGE } : bodyRightPage({ sel, reportKeys, markerKeys, vaxKeys, premium })) : null;
   const bookReport = rightPage?.type === 'report' ? buildReport(rows, rightPage.key) : null;
   const bookMarker = rightPage?.type === 'marker' ? allMarkerSeries.find(x => x.key === rightPage.key) || null : null;
   const bookVaccine = rightPage?.type === 'vaccine' ? vaccineList.find(v => String(v.id) === rightPage.key) || null : null;
@@ -367,6 +376,29 @@ export default function BodyScreen({ navigation, route }) {
       navigation.setParams({ initialSection: undefined });
     }
   }, [route?.params?.initialSection]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // App search landings (AS-8, AS-10, AS-28): the Lab test journal ('labs'; 'export' lands there too,
+  // with its Export button — the search never exports), the upload window ('upload', nothing is read
+  // or saved before the person goes on), the Vaccine journal, a marker's page or a vaccine's record
+  // (on the phone a vaccine opens its sheet, as a tap in the journal does; nothing is saved without
+  // Save). Only opens.
+  useEffect(() => {
+    const sp = route?.params?.search;
+    if (!sp || !sp.target) return;
+    navigation.setParams({ search: undefined });
+    const labs = sp.target === 'labs' || sp.target === 'export' || sp.target === 'upload' || sp.target === 'marker';
+    if (labs) {
+      setSection('labs');
+      setDetail(sp.target === 'marker' && sp.key ? { type: 'marker', key: sp.key } : null);
+      if (book) select(sp.target === 'marker' && sp.key ? 'marker:' + sp.key : 'labs');
+      if (sp.target === 'upload') handleUploadPress();
+    } else if (sp.target === 'vaccines' || sp.target === 'vaccine') {
+      setSection('vaccines');
+      setDetail(null);
+      if (book) select(sp.target === 'vaccine' && sp.key ? 'vax:' + sp.key : 'vaccines');
+      else if (sp.target === 'vaccine' && sp.key) requestVaccine(String(sp.key)); // the phone journal opens its sheet
+    }
+  }, [route?.params?.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // VaccinesSection hands over every fresh list (after an add, edit, delete or sync), so the
   // book's right page shows the saved values (a deleted vaccine falls back to its journal) and
@@ -1513,9 +1545,14 @@ export default function BodyScreen({ navigation, route }) {
   function renderBookLeft() {
     return (
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={[s.centered, s.scrollPad]}>
+        {/* App search B2: the corner sits 8 pt below the safe area like on every tab root; this
+            header starts 12 pt down (scrollPad 4 + bookHero 8), so the slot is lifted 4 pt. */}
         <View style={s.bookHero}>
-          <Text style={s.hubGreeting}>{t('tab_body')}</Text>
-          <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
+          <View style={s.headerText}>
+            <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+            <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
+          </View>
+          <SearchCorner tab="Body" offsetTop={BODY_BOOK_HEADER_TOP} />
         </View>
         {renderHubItems(true)}
       </ScrollView>
@@ -1615,12 +1652,17 @@ export default function BodyScreen({ navigation, route }) {
   return (
     <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       {book ? (
-        <BookPanes left={renderBookLeft()} right={renderBookRight()} rightKey={rightPage.group === 'vaccines' ? 'vaccines' : rightPage.id} />
+        // AS-18: the app search is the right page while it is the chosen item (rightPage.id 'search').
+        <BookPanes left={renderBookLeft()} right={sel === SEARCH_PAGE ? <AppSearchScreen embedded tab="Body" /> : renderBookRight()} rightKey={rightPage.group === 'vaccines' ? 'vaccines' : rightPage.id} />
       ) : section === null ? (
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+          {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
           <View style={s.hubHero}>
-            <Text style={s.hubGreeting}>{t('tab_body')}</Text>
-            <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
+            <View style={s.headerText}>
+              <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+              <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
+            </View>
+            <SearchCorner tab="Body" />
           </View>
           <View style={s.hubBody}>
             {renderHubItems(false)}
@@ -1882,7 +1924,7 @@ const makeStyles = (c) => StyleSheet.create({
 // No border, shadow or tint.
 const bodyGraduated = (c) => ({
   container: { flex: 1, backgroundColor: c.ground },
-  hubHero: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18, backgroundColor: c.ground },
+  hubHero: { ...HEADER_ROW, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 18, backgroundColor: c.ground }, // B2: title column + the search corner
   hubGreeting: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8 },
   hubHeroSub: { fontSize: 15, color: c.ink2, marginTop: 4 },
   hubBody: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 30, gap: 14 },
@@ -1916,7 +1958,8 @@ const labsGraduated = (c) => ({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // book layout (S-26): the left page's hero, the right page's journal actions; the open item outlined
   // in ink, 2 pt (BK-8). Padding drops by the border so nothing shifts.
-  bookHero: { paddingHorizontal: 4, paddingTop: 8, paddingBottom: 6 },
+  bookHero: { ...HEADER_ROW, paddingHorizontal: 4, paddingTop: 8, paddingBottom: 6 }, // B2: title column + the search corner
+  headerText: { flex: 1, minWidth: 0 },
   bookActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
   selCard: { borderWidth: 2, borderColor: c.ink, padding: 16 },
   // the right page (A-125): the journal's title sits a little lower (picture Afold); a read
