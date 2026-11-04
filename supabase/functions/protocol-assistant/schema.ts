@@ -73,8 +73,16 @@ const UNIT_WORDS: Record<string, RegExp> = {
 };
 const unitInText = (unit: string, text: string) => !!(UNIT_WORDS[unit] && UNIT_WORDS[unit].test(text));
 
+// A strength per ml is only per ONE ml (second review 2026-11-04, N4): "10 mg/2 ml", "250 mcg/0,5 ml",
+// "10 mg em 2 ml" are a total in another volume, 2x off as a per-ml value — never taken, asked again.
+const OTHER_VOLUME = /(?:\/|(?<![\p{L}])(?:em|in|en|dans|pro|per|por|na|no)\s)\s*(\d+(?:[.,]\d+)?)\s*ml(?![\p{L}])/giu;
+function perOtherVolume(text: string): boolean {
+  for (const m of String(text || "").matchAll(OTHER_VOLUME)) if (Number(m[1].replace(",", ".")) !== 1) return true;
+  return false;
+}
 function quantity(v: any, text: string, units: string[] | null, perMl = false) {
   if (!v || typeof v !== 'object') return null;
+  if (perMl && perOtherVolume(text)) return null;
   const tok = typeof v.text === 'string' ? v.text.trim() : '';
   if (!tokenInText(tok, text)) return null;
   if (units) {

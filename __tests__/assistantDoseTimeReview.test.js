@@ -90,7 +90,7 @@ test('B4: noon or midnight next to before / after is not a time; a range is not 
     assert.equal(r.range, true, `${l} "${t}" is a range`);
   }
   const c = atTime().say('das 8 às 10').step('time');
-  assert.ok(c.texts().includes('Escreva um horário exato, não um intervalo.'));
+  assert.ok(c.texts().includes('Escreva um horário exato, não uma faixa de horário.'));
   assert.deepEqual(c.form(), ['']);
   const d = toDose().say('1 mg por dia, das 8 às 10', perDay(1)).tap('start:0').step('time');
   assert.equal(d.lastApp(), TR.pt.ap_q_time, 'a range in the dose answer is not read back');
@@ -120,11 +120,12 @@ test('Error 1: "8 e 20" is asked (8:20, or 8:00 and 20:00); "8 e 20 da noite" ke
   two.tap('join:two').step('confirm');
   assert.deepEqual(two.form(), ['08:00', '20:00']);
   const one = atTime().say('8 e 20').step('time');
-  assert.deepEqual(one.options(), ['8:20', 'Outro horário'], 'one dose a day: two times are not offered');
-  one.tap('join:one').step('confirm');
+  assert.equal(one.lastApp(), 'Você quis dizer 8:20?', 'one dose a day: two times are not offered (second review N7)');
+  assert.deepEqual(one.options(), ['Sim', 'Outro horário']);
+  one.tap('heard:yes').step('confirm');
   assert.deepEqual(one.form(), ['08:20']);
   const night = atTime().say('8 e 20 da noite').step('time');
-  assert.deepEqual(night.options(), ['20:20', 'Outro horário'], 'the 8 is not dropped');
+  assert.equal(night.lastApp(), 'Você quis dizer 20:20?', 'the 8 is not dropped');
   const inDose = toDose().say('1 mg 2x ao dia às 8 e 20', perDay(2)).tap('start:0').step('time');
   assert.deepEqual(inDose.options(), ['8:20', '8:00 e 20:00', 'Outro horário']);
 });

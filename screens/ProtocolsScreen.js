@@ -66,6 +66,7 @@ import { drawReading, smallDraw, isMlSyringe, sizeLabelNoBreak as syringeSizeLab
 import { concentrationText, concentrationNote, volumeNote } from '../lib/calcNote';
 import { explainerModel } from '../lib/fitExplainer';
 import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
+import { isClockTime } from '../lib/assistantTime';
 import { renderText } from '../lib/assistantText';
 import ProtocolAssistant from './components/ProtocolAssistant';
 import FitExplainer from './components/FitExplainer';
@@ -2096,7 +2097,7 @@ export default function ProtocolsScreen() {
     }
     // Every dose has the person's own time (founder 2026-11-04): a time the assistant could not
     // get is handed over empty ("—" on the time step) and asked here, never filled with the clock.
-    if (reminderTimes.some((rt) => !/^\d{2}:\d{2}$/.test(String(rt || '')))) {
+    if (reminderTimes.some((rt) => !isClockTime(rt))) { // 00–23 : 00–59 only (N1)
       setStep(4);
       setWizSheet({ icon: 'warning', title: t('protocols_time_missing_title'), body: t('protocols_time_missing_body'), buttons: [{ label: t('ok'), kind: 'primary' }] });
       return;

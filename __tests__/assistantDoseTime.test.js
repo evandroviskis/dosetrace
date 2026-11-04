@@ -248,7 +248,7 @@ test('AP-41: handed back to the form before the time, the form asks it before sa
   assert.deepEqual(A.formFromConversation(early.s, newProtocolForm(NOW)).form.reminderTimes, ['']);
   const SCREEN = read('screens', 'ProtocolsScreen.js');
   const save = SCREEN.slice(SCREEN.indexOf('async function saveProtocol('), SCREEN.indexOf('function saveProtocolNote('));
-  assert.match(save, /reminderTimes\.some\(\(rt\) => !\/\^\\d\{2\}:\\d\{2\}\$\/\.test\(String\(rt \|\| ''\)\)\)/, 'save checks every dose has its time');
+  assert.match(save, /reminderTimes\.some\(\(rt\) => !isClockTime\(rt\)\)/, 'save checks every dose has its time');
   assert.match(save, /protocols_time_missing_title/);
   assert.match(SCREEN, /touch\('time'\)/, 'a time picked by hand is the person\'s own');
   assert.match(SCREEN, /timeFormat, editing: !!editingId \}\}/, 'the assistant shows times in the person\'s format');
@@ -257,10 +257,10 @@ test('AP-41: handed back to the form before the time, the form asks it before sa
 
 test('AP-41: Save with a dose still without its time stops on the time step; nothing is written', async () => {
   const { loadFn } = require('./helpers/extractFn');
-  for (const times of [[''], ['09:00', '']]) {
+  for (const times of [[''], ['09:00', ''], ['30:00'], ['08:60']]) {
     const calls = { steps: [], sheets: [], saving: [], inserted: 0 };
     const fn = loadFn('screens/ProtocolsScreen.js', 'async function saveProtocol(', 'saveProtocol', {
-      name: 'NAD+', doseStepBlocked: false, editingId: null, type: 'oral', skipVial: true, reminderTimes: times, t: (k) => k,
+      name: 'NAD+', doseStepBlocked: false, editingId: null, type: 'oral', skipVial: true, reminderTimes: times, t: (k) => k, isClockTime: require('../lib/assistantTime').isClockTime,
       setStep: (n) => calls.steps.push(n), setWizSheet: (x) => calls.sheets.push(x), setSaving: (v) => calls.saving.push(v),
       showMissingName() {}, showCheckValues() {}, insertProtocol: () => { calls.inserted++; return 1; },
     });
