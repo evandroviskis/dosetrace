@@ -141,7 +141,7 @@ test('MF-8: the time wheel opens at 12:00 on an empty slot (never the clock) and
 
 test('MF-9: "Concluído" is dimmed and disabled on an empty slot until the wheel is turned', () => {
   const sheet = SCREEN.slice(SCREEN.indexOf("title={t('protocols_what_time')}") - 200, SCREEN.indexOf('</DTPickerSheet>', SCREEN.indexOf("title={t('protocols_what_time')}")));
-  assert.match(sheet, /doneDisabled=\{!isClockTime\(reminderTimes\[activeTimeIndex\]\)\}/);
+  assert.match(sheet, /doneDisabled=\{!isClockTime\(reminderTimes\[activeTimeIndex\]\) && !timeWheelTouched\}/);
   const pick = sliceBlock(PARTS, 'export function DTPickerSheet(');
   assert.match(pick, /<TouchableOpacity onPress=\{onDone\} disabled=\{!!doneDisabled\} style=\{doneDisabled \? s\.pickDoneOff : null\}/);
   assert.match(pick, /accessibilityState=\{\{ disabled: !!doneDisabled \}\}/);
@@ -172,9 +172,20 @@ test('MF-11: a tap outside the wheel closes it without saving; Done on an empty 
   assert.match(pick, /<Pressable style=\{\[s\.scrim, s\.scrimBottom, \{ paddingBottom: gap \}\]\} onPress=\{close\}>/);
   const at = SCREEN.indexOf("title={t('protocols_what_time')}");
   const head = SCREEN.slice(SCREEN.lastIndexOf('<DTPickerSheet', at), SCREEN.indexOf('<DTWheel', at));
-  assert.match(head, /onDone=\{\(\) => setShowTimePicker\(false\)\}/, 'Done only closes (turning already saved)');
+  assert.match(head, /onDone=\{timeWheelDone\}/);
   assert.match(head, /onCancel=\{\(\) => setShowTimePicker\(false\)\}/, 'outside closes, writes nothing');
-  assert.doesNotMatch(head, /applyPickedTime/, 'no clock time on Done');
+  assert.doesNotMatch(head, /applyPickedTime|new Date\(\)/, 'no clock time on Done');
+  // Done on a filled slot (turning already saved) or an untouched one: closes, writes nothing
+  for (const [times, touched] of [[['08:00'], false], [['08:00'], true], [[''], false]]) {
+    const calls = { closed: 0, applied: [] };
+    const fn = loadFn('screens/ProtocolsScreen.js', 'function timeWheelDone(', 'timeWheelDone', {
+      reminderTimes: times, activeTimeIndex: 0, timeWheelTouched: touched, isClockTime, wheelStartTime: F.wheelStartTime,
+      setShowTimePicker: (v) => { if (v === false) calls.closed++; }, applyPickedTime: (d) => calls.applied.push(d),
+    });
+    fn();
+    assert.equal(calls.closed, 1);
+    assert.equal(calls.applied.length, 0, JSON.stringify([times, touched]));
+  }
 });
 
 test('MF-12: Android Cancel on the time dialog saves nothing; OK saves the time on screen', () => {
@@ -196,7 +207,42 @@ test('MF-13: the other wheels keep their behaviour (no onCancel / doneDisabled p
     const tags = read(f).split('<DTPickerSheet').slice(1).map((x) => x.slice(0, x.indexOf('}>') + 2));
     assert.ok(tags.length, f);
     for (const tag of tags) assert.doesNotMatch(tag, /doneDisabled|onCancel/, `${f}: ${tag}`);
+    assert.doesNotMatch(read(f), /onInteract/, `${f}: no wheel touch hook`);
   }
+  assert.equal([...SCREEN.matchAll(/onInteract=/g)].length, 1, 'only the reminder-time wheel');
   const start = SCREEN.slice(SCREEN.indexOf("title={t('protocols_start_date')}") - 120, SCREEN.indexOf("title={t('protocols_start_date')}") + 200);
   assert.doesNotMatch(start, /doneDisabled|onCancel/);
+});
+
+test('MF-15: any touch on the reminder-time wheel enables "Concluído", so exactly 12:00 can be chosen (nudge and come back)', () => {
+  // DTWheel: an optional onInteract fires on any drag, row tap or VoiceOver adjust, even when the value ends where it started
+  const col = sliceBlock(PARTS, 'function WheelColumn(');
+  assert.match(col, /function WheelColumn\(\{ values, index, onPick, onInteract, s \}\)/);
+  assert.match(col, /onScrollBeginDrag=\{\(\) => \{ tapped\.current = false; if \(onInteract\) onInteract\(\); \}\}/);
+  assert.match(col, /<Pressable key=\{i\} style=\{s\.wheelRow\} onPress=\{\(\) => \{ if \(onInteract\) onInteract\(\);/);
+  assert.match(col, /onAccessibilityAction=\{\(e\) => \{\s*if \(onInteract\) onInteract\(\);/);
+  const wheel = sliceBlock(PARTS, 'export function DTWheel(');
+  assert.match(wheel, /export function DTWheel\(\{ columns, onChange, onInteract \}\)/);
+  assert.match(wheel, /onInteract=\{onInteract\}/);
+  // the reminder-time wheel: a touch marks it; opening the wheel clears the mark
+  const at = SCREEN.indexOf("title={t('protocols_what_time')}");
+  const sheet = SCREEN.slice(at, SCREEN.indexOf('</DTPickerSheet>', at));
+  assert.match(sheet, /onInteract=\{\(\) => setTimeWheelTouched\(true\)\}/);
+  assert.match(SCREEN, /const \[timeWheelTouched, setTimeWheelTouched\] = useState\(false\);/);
+  const calls = { idx: [], touched: [], shown: [] };
+  loadFn('screens/ProtocolsScreen.js', 'function openTimePicker(', 'openTimePicker', {
+    setActiveTimeIndex: (i) => calls.idx.push(i), setTimeWheelTouched: (v) => calls.touched.push(v), setShowTimePicker: (v) => calls.shown.push(v),
+  })(1);
+  assert.deepEqual(calls, { idx: [1], touched: [false], shown: [true] });
+  const rows = SCREEN.slice(SCREEN.indexOf('{/* 4 — Time pickers */}'), SCREEN.indexOf('{/* Wellness goals */}'));
+  assert.match(rows, /onPress=\{\(\) => openTimePicker\(idx\)\}/);
+  // Done after a touch on an empty slot saves the time on the wheel (12:00), never the clock
+  const out = { closed: 0, applied: [] };
+  loadFn('screens/ProtocolsScreen.js', 'function timeWheelDone(', 'timeWheelDone', {
+    reminderTimes: ['08:00', ''], activeTimeIndex: 1, timeWheelTouched: true, isClockTime, wheelStartTime: F.wheelStartTime,
+    setShowTimePicker: (v) => { if (v === false) out.closed++; }, applyPickedTime: (d) => out.applied.push(d),
+  })();
+  assert.equal(out.closed, 1);
+  assert.equal(out.applied.length, 1);
+  assert.deepEqual([out.applied[0].getHours(), out.applied[0].getMinutes()], [12, 0]);
 });

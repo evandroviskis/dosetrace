@@ -229,7 +229,9 @@ export function DTPickerSheet({ visible, title, doneLabel, onDone, onCancel, don
 // onChange(columnIndex, rowIndex). Values come from lib/wheelPick.js.
 const ROW = 40;
 const SHOWN = 5;
-function WheelColumn({ values, index, onPick, s }) {
+// onInteract (optional): any drag, row tap or VoiceOver adjust, even when the value ends where it
+// started (the reminder-time wheel enables Done on a touch, so 12:00 itself can be chosen, MF-15).
+function WheelColumn({ values, index, onPick, onInteract, s }) {
   const ref = useRef(null);
   const [live, setLive] = useState(index);
   const lastSent = useRef(index);
@@ -254,6 +256,7 @@ function WheelColumn({ values, index, onPick, s }) {
       accessibilityValue={{ text: values[live] }}
       accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
       onAccessibilityAction={(e) => {
+        if (onInteract) onInteract();
         const i = live + (e.nativeEvent.actionName === 'increment' ? 1 : -1);
         if (i >= 0 && i < values.length) { setLive(i); lastSent.current = i; onPick(i); }
       }}
@@ -267,12 +270,12 @@ function WheelColumn({ values, index, onPick, s }) {
         contentContainerStyle={s.wheelPad}
         scrollEventThrottle={16}
         onScroll={(e) => { const i = Math.round(e.nativeEvent.contentOffset.y / ROW); if (i !== live && i >= 0 && i < values.length) setLive(i); }}
-        onScrollBeginDrag={() => { tapped.current = false; }}
+        onScrollBeginDrag={() => { tapped.current = false; if (onInteract) onInteract(); }}
         onMomentumScrollEnd={(e) => { const fromTap = tapped.current; tapped.current = false; settle(e.nativeEvent.contentOffset.y, fromTap); }}
         onScrollEndDrag={(e) => { if (!e.nativeEvent.velocity || Math.abs(e.nativeEvent.velocity.y) < 0.05) settle(e.nativeEvent.contentOffset.y); }}
       >
         {values.map((v, i) => (
-          <Pressable key={i} style={s.wheelRow} onPress={() => { tapped.current = true; if (ref.current) ref.current.scrollTo({ y: i * ROW, animated: true }); setLive(i); if (i !== lastSent.current) { lastSent.current = i; onPick(i); } }}>
+          <Pressable key={i} style={s.wheelRow} onPress={() => { if (onInteract) onInteract(); tapped.current = true; if (ref.current) ref.current.scrollTo({ y: i * ROW, animated: true }); setLive(i); if (i !== lastSent.current) { lastSent.current = i; onPick(i); } }}>
             <Text style={[s.wheelText, i === live && s.wheelTextOn]} numberOfLines={1}>{v}</Text>
           </Pressable>
         ))}
@@ -280,14 +283,14 @@ function WheelColumn({ values, index, onPick, s }) {
     </View>
   );
 }
-export function DTWheel({ columns, onChange }) {
+export function DTWheel({ columns, onChange, onInteract }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => sheetStyles(c), [c]);
   return (
     <View style={s.wheel}>
       <View style={s.wheelBand} pointerEvents="none" />
       {columns.map((col, ci) => (
-        <WheelColumn key={ci} values={col.values} index={col.index} onPick={(i) => onChange(ci, i)} s={s} />
+        <WheelColumn key={ci} values={col.values} index={col.index} onPick={(i) => onChange(ci, i)} onInteract={onInteract} s={s} />
       ))}
     </View>
   );

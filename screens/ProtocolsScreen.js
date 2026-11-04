@@ -1142,6 +1142,24 @@ export default function ProtocolsScreen() {
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  // The person touched the reminder-time wheel since it opened (MF-15): "Concluído" lights up even
+  // when the wheel came back to 12:00, so noon itself can be chosen.
+  const [timeWheelTouched, setTimeWheelTouched] = useState(false);
+  function openTimePicker(idx) {
+    setActiveTimeIndex(idx);
+    setTimeWheelTouched(false);
+    setShowTimePicker(true);
+  }
+  // "Concluído" on the time wheel: turning already saved the time; on an empty slot the person
+  // touched, it saves the time on the wheel (12:00), never the clock (MF-11, MF-15).
+  function timeWheelDone() {
+    if (timeWheelTouched && !isClockTime(reminderTimes[activeTimeIndex])) {
+      const [h, m] = wheelStartTime(reminderTimes[activeTimeIndex]).split(':').map(Number);
+      const d = new Date(2000, 0, 1, h, m, 0, 0);
+      applyPickedTime(d);
+    }
+    setShowTimePicker(false);
+  }
 
   // Build a Date object from month index (0-11) + day string
   function buildDate(monthIdx, dayStr) {
@@ -3712,7 +3730,7 @@ export default function ProtocolsScreen() {
                 <Fld s={s} label={t('protocols_what_time')}>
                   <View style={s.pickCol}>
                     {reminderTimes.map((rt, idx) => (
-                      <TouchableOpacity key={idx} style={s.pickbtn} onPress={() => { setActiveTimeIndex(idx); setShowTimePicker(true); }} accessibilityRole="button">
+                      <TouchableOpacity key={idx} style={s.pickbtn} onPress={() => openTimePicker(idx)} accessibilityRole="button">
                         <FeatureIcon name="clock" size={18} color={colors.ink} />
                         {reminderTimes.length > 1 && (
                           <Text style={s.pickTextC2}>{t('protocols_dose_label')} {idx + 1}</Text>
@@ -3909,12 +3927,13 @@ export default function ProtocolsScreen() {
               (turning saves, as before); Done only closes; a tap outside closes and writes nothing. */}
           {iosPicker && (
             <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')}
-              doneDisabled={!isClockTime(reminderTimes[activeTimeIndex])}
-              onDone={() => setShowTimePicker(false)}
+              doneDisabled={!isClockTime(reminderTimes[activeTimeIndex]) && !timeWheelTouched}
+              onDone={timeWheelDone}
               onCancel={() => setShowTimePicker(false)}
             >
               <DTWheel
                 columns={timeColumns(wheelStartTime(reminderTimes[activeTimeIndex]), wheel12h, dayParts)}
+                onInteract={() => setTimeWheelTouched(true)}
                 onChange={(col, i) => {
                   const hm = timeAfter(wheelStartTime(reminderTimes[activeTimeIndex]), wheel12h, col, i);
                   const [h, m] = hm.split(':').map(Number);
