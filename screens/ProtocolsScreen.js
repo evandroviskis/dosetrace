@@ -97,7 +97,7 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import CheckMark from '../components/CheckMark';
 import { lastCompleteLog, lastLogWhen } from '../lib/protocolsHero';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
-import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
+import SearchCorner, { SEARCH_PAGE, titleCapStyle, WordsMeasure } from '../components/SearchCorner';
 import { HEADER_ROW, titleFits } from '../lib/searchCorner';
 import AppSearchScreen from './AppSearchScreen';
 
@@ -1034,6 +1034,7 @@ export default function ProtocolsScreen() {
     const b = makeStyles(colors);
     return titleStacked ? { ...b, header: [b.header, b.headerStacked], headerEnd: [b.headerEnd, b.headerRowAgain] } : b;
   }, [colors, titleStacked]);
+  const titleCap = titleCapStyle({ stacked: titleStacked, pageWidth: titlePage, wordWidth: titleWordW, base: s.headerTitle });
   const onTitleWords = (e) => {
     const w = Math.max(0, ...((e.nativeEvent && e.nativeEvent.lines) || []).map((l) => l.width || 0));
     if (w > 0 && w !== titleWordW) setTitleWordW(w);
@@ -2971,13 +2972,7 @@ export default function ProtocolsScreen() {
   );
   // AS-1b: the title's words measured in the title's own style, one per line, out of the flow and
   // never shown or read (lib/searchCorner titleFits); drawn inside the corner slot.
-  const titleMeasure = (
-    <View style={s.titleMeasureBox} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Text style={[s.headerTitle, s.titleMeasure]} onTextLayout={onTitleWords}>
-        {String(t('protocols_title')).split(/\s+/).join('\n')}
-      </Text>
-    </View>
-  );
+  const titleMeasure = <WordsMeasure title={t('protocols_title')} style={s.headerTitle} onWords={onTitleWords} />;
   // A unit choice sits beside its number field: the shared bar fills the other half of the row.
   const unitSeg = (units, value, setter, suffix = '') => (
     <SegmentedBar style={s.unitBar} items={units.map(u => ({ key: u, label: `${unitText(u, language)}${suffix}` }))} value={value} onChange={setter} />
@@ -3001,7 +2996,7 @@ export default function ProtocolsScreen() {
           left={
             <>
               <View style={s.header}>
-                <Text style={s.headerTitle} accessibilityRole="header">{t('protocols_title')}</Text>
+                <Text style={titleCap} accessibilityRole="header">{t('protocols_title')}</Text>
                 <SearchCorner tab="Protocols" leading={addButton} offsetTop={PROTOCOLS_HEADER_TOP} alignEnd={titleStacked} onSlotLayout={onTitleSlot} measure={titleMeasure} />
               </View>
               <ScrollView ref={leftListRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
@@ -3049,7 +3044,7 @@ export default function ProtocolsScreen() {
           </TouchableOpacity>
         ) : (
           <>
-            <Text style={s.headerTitle}>{t('protocols_title')}</Text>
+            <Text style={titleCap}>{t('protocols_title')}</Text>
             {/* App search B2: the magnifier keeps the corner, "+ Adicionar" sits just left of it. */}
             <SearchCorner tab="Protocols" leading={addButton} offsetTop={PROTOCOLS_HEADER_TOP} alignEnd={titleStacked} onSlotLayout={onTitleSlot} measure={titleMeasure} />
           </>
@@ -4012,8 +4007,6 @@ const protocolsGraduated = (c) => ({
   headerStacked: { flexDirection: 'column-reverse', alignItems: 'stretch' },
   headerRowAgain: { flexDirection: 'row', alignItems: 'flex-start' },
   // The title's words, one per line, measured in the title's own style (never shown).
-  titleMeasureBox: { position: 'absolute', left: -3000, top: 0, width: 1000, height: 1, overflow: 'hidden', opacity: 0 },
-  titleMeasure: { flexShrink: 0, minWidth: 0, alignSelf: 'flex-start' },
   headerTitle: { fontSize: 34, fontWeight: '700', color: c.ink, letterSpacing: -0.8, flexShrink: 1, minWidth: 0 },
   backBtn: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },
   backChev: { transform: [{ scaleX: -1 }] }, // the row arrow mirrored (prototype .back svg)

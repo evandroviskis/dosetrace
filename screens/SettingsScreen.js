@@ -62,8 +62,8 @@ import { errorSheet as errorSheetConfig, ERROR_ICON, errorTitle } from '../lib/e
 import CheckMark from '../components/CheckMark';
 import { MONO } from '../lib/fonts';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
-import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
-import { HEADER_ROW } from '../lib/searchCorner';
+import SearchCorner, { SEARCH_PAGE, useTitleFit } from '../components/SearchCorner';
+import { HEADER_ROW, HEADER_STACKED, TITLE_STACKED } from '../lib/searchCorner';
 import AppSearchScreen from './AppSearchScreen';
 import { pluralKey } from '../lib/plural';
 import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourceKey } from '../lib/activityLevels';
@@ -238,7 +238,10 @@ function ProfileCardSkeleton({ s, colors, label }) {
 export default function SettingsScreen({ navigation }) {
   const { language, setLanguage, timeFormat, setTimeFormat, t, LANGUAGES } = useLanguage();
   const { colors, mode, setMode } = useTheme();
-  const s = useMemo(() => makeStyles(colors), [colors]);
+  const titleFit = useTitleFit(t('settings_title')); // AS-22: the title goes under the corner when a word cannot fit
+  const base = useMemo(() => makeStyles(colors), [colors]);
+  // AS-22: stacked, the title keeps its own height (its flex: 1 would collapse it to 0 in a column).
+  const s = useMemo(() => (titleFit.stacked ? { ...base, headerTitle: titleFit.cap([base.headerTitle, TITLE_STACKED]) } : base), [base, titleFit.stacked, titleFit.scale]); // eslint-disable-line react-hooks/exhaustive-deps
   // A-169: the profile card's first frame comes from the session the auth client already holds and
   // the shared Premium state (lib/profileCardFirst) — never "??" / "—" while getCachedUser() answers;
   // with either unknown, the A-135 skeleton until Settings' own reads settle.
@@ -1523,9 +1526,9 @@ export default function SettingsScreen({ navigation }) {
     return (
       <>
         {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
-        <View style={[s.header, s.headerRow]}>
+        <View style={[s.header, s.headerRow, titleFit.stacked && HEADER_STACKED]}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
-          <SearchCorner tab="Settings" />
+          <SearchCorner tab="Settings" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(base.headerTitle)} />
         </View>
 
         <ScrollView ref={phoneScrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
@@ -1555,9 +1558,9 @@ export default function SettingsScreen({ navigation }) {
     const openGroup = SETTINGS_GROUPS.find(g => g.key === open);
     const left = (
       <>
-        <View style={[s.header, s.headerRow]}>
+        <View style={[s.header, s.headerRow, titleFit.stacked && HEADER_STACKED]}>
           <Text style={s.headerTitle}>{t('settings_title')}</Text>
-          <SearchCorner tab="Settings" />
+          <SearchCorner tab="Settings" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(base.headerTitle)} />
         </View>
         <ScrollView ref={bookLeftRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {renderProfileCard()}

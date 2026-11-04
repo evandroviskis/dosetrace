@@ -22,8 +22,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useNavigation, useFocusEffect, useRoute, NavigationContext } from '@react-navigation/native';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
-import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
-import { HEADER_ROW } from '../lib/searchCorner';
+import SearchCorner, { SEARCH_PAGE, useTitleFit } from '../components/SearchCorner';
+import { HEADER_ROW, HEADER_STACKED, TITLE_STACKED } from '../lib/searchCorner';
 import AppSearchScreen from './AppSearchScreen';
 import { setSelection, clearSelection } from '../lib/bookSelection';
 import ProgressScreen from './ProgressScreen';
@@ -96,6 +96,7 @@ export default function JourneyScreen() {
   // App search landing 'curve' (D27, AS-10): what a tap on the Dose accumulation tile does, once
   // Premium is known — free users get the animated explainer first (its Unlock opens the plans).
   const route = useRoute();
+  const titleFit = useTitleFit(t('tab_journey')); // AS-22: the title goes under the corner when a word cannot fit
   useEffect(() => {
     const sp = route.params?.search;
     if (!sp || sp.target !== 'curve' || premium === null) return;
@@ -187,12 +188,12 @@ export default function JourneyScreen() {
   const dashboard = (
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
         {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
-        <View style={[s.header, s.headerRow]}>
-          <View style={s.headerText}>
-            <Text style={s.title}>{t('tab_journey')}</Text>
+        <View style={[s.header, s.headerRow, titleFit.stacked && HEADER_STACKED]}>
+          <View style={[s.headerText, titleFit.stacked && TITLE_STACKED]}>
+            <Text style={titleFit.cap(s.title)}>{t('tab_journey')}</Text>
             <Text style={s.sub}>{t('journey_subtitle')}</Text>
           </View>
-          <SearchCorner tab="Journey" />
+          <SearchCorner tab="Journey" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(s.title)} />
         </View>
 
         <View style={s.block}>

@@ -167,12 +167,11 @@ test('AS-11: only what exists is listed; oral calculator; Novo / Editar frasco n
   assert.equal(index('pt', { protocols: [PROTOS[0]] }).rows.filter((r) => r.entry === 'D14').length, 1);
 });
 
-test('AS-3: the shortcuts follow the tab the search was opened from (B2), as drawn', () => {
+test('AS-3 (founder 2026-11-04, Somente na hoje): the shortcuts show only when the search is opened from Today', () => {
   const pt = index('pt');
   assert.deepEqual(titles(S.shortcutsFor(pt, 'Today')), ['Doses perdidas', 'Registro de doses', 'Próximas doses', 'Verificar lembretes', 'Diário de exames', 'FAQ']);
-  assert.deepEqual(titles(S.shortcutsFor(pt, 'Settings')), ['Idioma', 'Aparência', 'Notificações', 'Verificar lembretes', 'Baixar meus dados', 'Fale conosco']);
-  assert.deepEqual(S.shortcutsFor(pt, 'Settings').map((r) => r.path), ['Ajustes › Preferências › Idioma', 'Ajustes › Preferências › Aparência', 'Ajustes › Notificações', 'Ajustes › Notificações › Verificar lembretes', 'Ajustes › Dados e privacidade › Baixar meus dados', 'Ajustes › Suporte › Fale conosco']);
-  for (const tab of ['Protocols', 'Journey', 'Body']) assert.equal(S.shortcutsFor(pt, tab).length, 6, tab);
+  for (const tab of ['Protocols', 'Journey', 'Body', 'Settings']) assert.deepEqual(S.shortcutsFor(pt, tab), [], tab);
+  assert.deepEqual(Object.keys(S.SHORTCUTS), ['Today']);
 });
 
 test('AS-13 / AS-28: rows show only names and paths, never a value, unit, date, dose or note', () => {

@@ -88,8 +88,8 @@ import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
 import FoodLogHero from './components/FoodLogHero';
 import BookPanes, { useBook, useBookSelection, useFoldPush } from '../components/BookPanes';
-import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
-import { HEADER_ROW } from '../lib/searchCorner';
+import SearchCorner, { SEARCH_PAGE, useTitleFit } from '../components/SearchCorner';
+import { HEADER_ROW, HEADER_STACKED, TITLE_STACKED } from '../lib/searchCorner';
 import { setTodayFlags } from '../lib/appSearchStore';
 import AppSearchScreen from './AppSearchScreen';
 import { paneWidths } from '../lib/bookLayout';
@@ -247,6 +247,7 @@ export default function TodayScreen() {
   // Next 5 days: the day + time column is as wide as its widest date in this language.
   const [upColW, onUpColLayout] = useColumnWidth(88, language);
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const titleFit = useTitleFit(t('tab_today')); // AS-22: the title goes under the corner when a word cannot fit
   // S-26 book layout (docs/specs/book-layout.md): on an unfolded foldable Today is the left
   // page and the Dose log, or the dose the user tapped, the right page (BK-3). One column
   // (book false) renders exactly as before (BK-2).
@@ -2541,12 +2542,12 @@ export default function TodayScreen() {
         {/* Today v2.1 order (founder 2026-09-29): header → Alerts (gone when none) → Pending
             from yesterday → tracker → AI food log → Doses → Taken → Tomorrow / Next 5 days. */}
         {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
-        <View style={[s.header, s.headerRow]}>
-          <View style={s.headerText}>
+        <View style={[s.header, s.headerRow, titleFit.stacked && HEADER_STACKED]}>
+          <View style={[s.headerText, titleFit.stacked && TITLE_STACKED]}>
             <Text style={s.date}>{today}</Text>
-            <Text style={s.title}>{t('tab_today')}</Text>
+            <Text style={titleFit.cap(s.title)}>{t('tab_today')}</Text>
           </View>
-          <SearchCorner tab="Today" />
+          <SearchCorner tab="Today" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(s.title)} />
         </View>
 
         {/* A-135: no spinner. Each block below is its placeholder (SkeletonBlock, as tall as last

@@ -148,11 +148,65 @@ test('AS-1b (sim 2026-11-04): a title word that cannot fit beside the corner mov
   assert.equal(titleFits({ pageWidth: 390, wordWidth: null, slotWidth: 184 }), true, 'not measured yet: as drawn');
   const p = code(TAB_ROOTS.Protocols);
   assert.match(p, /titleFits\(\{ pageWidth: titlePage, wordWidth: titleWordW, slotWidth: titleSlotW \}\)/);
-  assert.match(p, /onTextLayout=/, 'the longest word is measured with the real title style');
+  assert.match(p, /<WordsMeasure title=\{t\('protocols_title'\)\} style=\{s\.headerTitle\}/, 'the longest word is measured with the real title style');
+  assert.match(code('components/SearchCorner.js'), /export function WordsMeasure[\s\S]*?onTextLayout=\{onWords\}/);
   // stacked: the corner keeps its place (top right), the title goes full width under it, same font
   assert.match(p, /headerStacked: \{ flexDirection: 'column-reverse', alignItems: 'stretch' \}/);
   assert.doesNotMatch(p, /headerTitle[^}]*adjustsFontSizeToFit/);
   assert.match(code('components/SearchCorner.js'), /alignEnd && \{ alignSelf: 'flex-end' \}/);
+});
+
+test('AS-22 (sim 2026-11-04, Heut-e at the largest size): every tab title moves under the corner when its longest word cannot fit beside it', () => {
+  const corner = code('components/SearchCorner.js');
+  assert.match(corner, /export function useTitleFit\(title\)/);
+  assert.match(corner, /titleFits\(\{ pageWidth, wordWidth: wordW, slotWidth: slotW \}\)/);
+  assert.match(corner, /onTextLayout=\{onWords\}/);
+  assert.deepEqual(require('../lib/searchCorner').HEADER_STACKED, { flexDirection: 'column-reverse', alignItems: 'stretch' });
+  for (const [tab, key] of [['Today', 'tab_today'], ['Journey', 'tab_journey'], ['Body', 'tab_body'], ['Settings', 'settings_title']]) {
+    const s = code(TAB_ROOTS[tab]);
+    assert.match(s, new RegExp(`useTitleFit\\(t\\('${key}'\\)\\)`), `${tab} measures its title`);
+    const uses = [...s.matchAll(/<SearchCorner tab="(\w+)"([^>]*)\/>/g)];
+    for (const m of uses) {
+      assert.match(m[2], /alignEnd=\{titleFit\.stacked\}/, `${tab}: the corner keeps the top right when stacked`);
+      assert.match(m[2], /onSlotLayout=\{titleFit\.onSlotLayout\}/);
+      assert.match(m[2], /measure=\{titleFit\.measure\(/);
+    }
+    assert.match(s, /titleFit\.stacked && HEADER_STACKED|HEADER_STACKED/, `${tab}: the header stacks`);
+  }
+});
+
+test('AS-22 (sim 2026-11-04, Einstellungen vanished at the largest size): a stacked header keeps its title column at its own height', () => {
+  assert.deepEqual(require('../lib/searchCorner').TITLE_STACKED, { flex: 0, flexGrow: 0, flexShrink: 0, flexBasis: 'auto' }, 'flex: 1 resolves the basis to 0 in Yoga, so flex itself goes to 0');
+  const col = /<View style=\{\[s\.headerText, titleFit\.stacked && TITLE_STACKED\]\}>/;
+  assert.match(code(TAB_ROOTS.Settings), /titleFit\.stacked \? \{ \.\.\.base, headerTitle: titleFit\.cap\(\[base\.headerTitle, TITLE_STACKED\]\) \} : base/, 'Settings: the title keeps its height when stacked');
+  const want = { Today: col, Journey: col, Body: col };
+  for (const [tab, re] of Object.entries(want)) {
+    const s = code(TAB_ROOTS[tab]);
+    const n = (s.match(new RegExp(re.source, 'g')) || []).length;
+    assert.ok(n >= 1, tab + ': the title column drops its flex when stacked');
+    assert.equal(n, (s.match(/<SearchCorner tab=/g) || []).length, tab + ': every header of the tab (phone and book)');
+  }
+});
+
+test('AS-22 (sim 2026-11-04, Einste-llungen at the largest size): a tab title stops growing where its longest word still fits the full width, never smaller than its default size', () => {
+  const { titleScale } = require('../lib/searchCorner');
+  assert.equal(titleScale({ pageWidth: 440, wordWidth: null }), 1);
+  assert.equal(titleScale({ pageWidth: 440, wordWidth: 380 }), 1);
+  assert.ok(Math.abs(titleScale({ pageWidth: 440, wordWidth: 500 }) - 0.98 * 400 / 500) < 1e-9);
+  assert.match(code('components/SearchCorner.js'), /const scale = stacked \? titleScale\(\{ pageWidth, wordWidth \}\) : 1;/);
+  assert.match(code('components/SearchCorner.js'), /fontScale: PixelRatio\.getFontScale\(\)|Math\.max\(1 \/ PixelRatio\.getFontScale\(\), scale\)/, 'never under the default size');
+  assert.match(code('components/SearchCorner.js'), /fontFamily: fontFamilyFor\(f\.fontWeight\), fontWeight: undefined/, 'a capped title keeps its Geist face (lib/fonts maps only 22 pt and up)');
+  assert.match(code(TAB_ROOTS.Today), /<Text style=\{titleFit\.cap\(s\.title\)\}>\{t\('tab_today'\)\}/);
+  assert.match(code(TAB_ROOTS.Journey), /<Text style=\{titleFit\.cap\(s\.title\)\}>\{t\('tab_journey'\)\}/);
+  assert.equal((code(TAB_ROOTS.Body).match(/<Text style=\{titleFit\.cap\(s\.hubGreeting\)\}>\{t\('tab_body'\)\}/g) || []).length, 2);
+  const pr = code(TAB_ROOTS.Protocols);
+  assert.match(pr, /const titleCap = titleCapStyle\(\{ stacked: titleStacked, pageWidth: titlePage, wordWidth: titleWordW, base: s\.headerTitle \}\);/);
+  assert.equal((pr.match(/<Text style=\{titleCap\}[^>]*>\{t\('protocols_title'\)\}/g) || []).length, 2, 'Protocols: both headers capped');
+  assert.match(pr, /const titleMeasure = <WordsMeasure title=\{t\('protocols_title'\)\} style=\{s\.headerTitle\} onWords=\{onTitleWords\} \/>;/, 'Protocols measures the uncapped title with the shared element');
+  assert.doesNotMatch(pr, /titleMeasureBox/, 'its own box (359 pt for a 580 pt word) is gone');
+  const st = code(TAB_ROOTS.Settings);
+  assert.match(st, /headerTitle: titleFit\.cap\(\[base\.headerTitle, TITLE_STACKED\]\)/);
+  assert.equal((st.match(/measure=\{titleFit\.measure\(base\.headerTitle\)\}/g) || []).length, 2, 'Settings measures the uncapped title');
 });
 
 test('AS-2 / AS-20 / AS-21 / AS-22: the search screen (field focused, Cancelar, keyboard and Android back, large text)', () => {
@@ -188,7 +242,14 @@ test('AS-12: no result shows the glyph, the fixed sentence and three shortcuts, 
   assert.match(s, /<FeatureIcon name="search" size=\{44\}/);
   assert.match(s, /t\('search_none_title'\)\.replace\('\{q\}', q\.trim\(\)\)/);
   assert.match(s, /t\('search_none_body'\)/);
-  assert.match(s, /shortcuts\.slice\(0, 3\)\.map\(placeRow\)/);
+  assert.match(s, /shortcuts\.length > 0 && block\(t\('search_shortcuts'\), null, shortcuts\.slice\(0, 3\)\.map\(placeRow\)/);
+});
+
+test('AS-3 (founder 2026-11-04): opened from any tab but Today, the search shows no shortcut block; before typing only the no-result sentence, in its own style', () => {
+  const s = code('screens/AppSearchScreen.js');
+  assert.match(s, /\{!typed && shortcuts\.length > 0 && block\(t\('search_shortcuts'\), null, shortcuts\.map\(placeRow\), 'short'\)\}/);
+  assert.match(s, /\{!typed && shortcuts\.length === 0 && \(\s*<View style=\{s\.hint\}>\s*<Text style=\{s\.noneB\}>\{t\('search_none_body'\)\}<\/Text>/);
+  assert.match(s, /hint: \{[^}]*paddingTop/);
 });
 
 test('AS-16: theme tokens only; the new mark token in both palettes', () => {

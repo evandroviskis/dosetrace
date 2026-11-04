@@ -52,8 +52,8 @@ import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel } from './components/Pro
 import { BottomSheet, SheetBar, CloseBar } from './components/BodySheets';
 import CheckMark, { CrossMark } from '../components/CheckMark';
 import BookPanes, { useBook, useBookSelection } from '../components/BookPanes';
-import SearchCorner, { SEARCH_PAGE } from '../components/SearchCorner';
-import { HEADER_ROW } from '../lib/searchCorner';
+import SearchCorner, { SEARCH_PAGE, useTitleFit } from '../components/SearchCorner';
+import { HEADER_ROW, HEADER_STACKED, TITLE_STACKED } from '../lib/searchCorner';
 import AppSearchScreen from './AppSearchScreen';
 import { requestVaccine } from '../lib/appSearchStore';
 
@@ -206,7 +206,12 @@ export default function BodyScreen({ navigation, route }) {
   const CHART_WIDTH = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 32 - 36;
   // Book layout: the marker chart sized on the right page (BK-9: two equal pages).
   const bookChartWidth = Math.min(paneWidths(windowWidth).right, CONTENT_MAX_WIDTH) - 32 - 36;
-  const s = useMemo(() => makeStyles(colors), [colors]);
+  // AS-22: the title goes under the corner when a word cannot fit beside it (components/SearchCorner).
+  const titleFit = useTitleFit(t('tab_body'));
+  const s = useMemo(() => {
+    const b = makeStyles(colors);
+    return titleFit.stacked ? { ...b, hubHero: [b.hubHero, HEADER_STACKED], bookHero: [b.bookHero, HEADER_STACKED] } : b;
+  }, [colors, titleFit.stacked]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -1548,11 +1553,11 @@ export default function BodyScreen({ navigation, route }) {
         {/* App search B2: the corner sits 8 pt below the safe area like on every tab root; this
             header starts 12 pt down (scrollPad 4 + bookHero 8), so the slot is lifted 4 pt. */}
         <View style={s.bookHero}>
-          <View style={s.headerText}>
-            <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+          <View style={[s.headerText, titleFit.stacked && TITLE_STACKED]}>
+            <Text style={titleFit.cap(s.hubGreeting)}>{t('tab_body')}</Text>
             <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
           </View>
-          <SearchCorner tab="Body" offsetTop={BODY_BOOK_HEADER_TOP} />
+          <SearchCorner tab="Body" offsetTop={BODY_BOOK_HEADER_TOP} alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(s.hubGreeting)} />
         </View>
         {renderHubItems(true)}
       </ScrollView>
@@ -1658,11 +1663,11 @@ export default function BodyScreen({ navigation, route }) {
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
           {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
           <View style={s.hubHero}>
-            <View style={s.headerText}>
-              <Text style={s.hubGreeting}>{t('tab_body')}</Text>
+            <View style={[s.headerText, titleFit.stacked && TITLE_STACKED]}>
+              <Text style={titleFit.cap(s.hubGreeting)}>{t('tab_body')}</Text>
               <Text style={s.hubHeroSub}>{t('body_hub_subtitle')}</Text>
             </View>
-            <SearchCorner tab="Body" />
+            <SearchCorner tab="Body" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(s.hubGreeting)} />
           </View>
           <View style={s.hubBody}>
             {renderHubItems(false)}

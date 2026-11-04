@@ -287,7 +287,12 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
         onScrollBeginDrag={() => Keyboard.dismiss()}
         showsVerticalScrollIndicator={false}
       >
-        {!typed && block(t('search_shortcuts'), null, shortcuts.map(placeRow), 'short')}
+        {!typed && shortcuts.length > 0 && block(t('search_shortcuts'), null, shortcuts.map(placeRow), 'short')}
+        {!typed && shortcuts.length === 0 && (
+          <View style={s.hint}>
+            <Text style={s.noneB}>{t('search_none_body')}</Text>
+          </View>
+        )}
 
         {none && (
           <>
@@ -296,7 +301,7 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
               <Text style={s.noneT}>{t('search_none_title').replace('{q}', q.trim())}</Text>
               <Text style={s.noneB}>{t('search_none_body')}</Text>
             </View>
-            {block(t('search_shortcuts'), null, shortcuts.slice(0, 3).map(placeRow), 'noneShort')}
+            {shortcuts.length > 0 && block(t('search_shortcuts'), null, shortcuts.slice(0, 3).map(placeRow), 'noneShort')}
           </>
         )}
 
@@ -361,6 +366,7 @@ const makeStyles = (c) => StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5 },
   more: { minHeight: 48, justifyContent: 'center', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
   moreText: { fontSize: 15, fontWeight: '600', color: c.ink },
+  hint: { alignItems: 'center', paddingTop: 34, paddingHorizontal: 28 },
   none: { alignItems: 'center', gap: 10, paddingTop: 34, paddingHorizontal: 28, paddingBottom: 30 },
   noneT: { fontSize: 22, lineHeight: 28, fontWeight: '600', color: c.ink, textAlign: 'center' },
   noneB: { fontSize: 15, lineHeight: 20, color: c.ink2, textAlign: 'center', maxWidth: 310 },
