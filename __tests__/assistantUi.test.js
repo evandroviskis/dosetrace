@@ -117,6 +117,6 @@ test('AP-21: Ready to use gets the option-B row and grouped list; a powder keeps
 });
 
 test('AP-10: fields the user set by hand are tracked (the form\'s defaults are not answers)', () => {
-  for (const k of ['water', 'syringe', 'schedule', 'start', 'type', 'mixed']) assert.match(SCREEN, new RegExp(`touch\\('${k}'\\)`), k);
-  assert.match(SCREEN, /ctx=\{\{ touched: Array\.from\(touchedRef\.current\), visitedStep, mixedOn: skipVial \? null : formMixedOn\(\), skipVial, editing: !!editingId \}\}/);
+  for (const k of ['water', 'syringe', 'schedule', 'start', 'type', 'mixed', 'time']) assert.match(SCREEN, new RegExp(`touch\\('${k}'\\)`), k);
+  assert.match(SCREEN, /ctx=\{\{ touched: Array\.from\(touchedRef\.current\), visitedStep, mixedOn: skipVial \? null : formMixedOn\(\), skipVial, timeFormat, editing: !!editingId \}\}/);
 });

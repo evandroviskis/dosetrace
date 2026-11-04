@@ -65,7 +65,7 @@ test('AP-5: Build asks compound → form → vial amount → mix (powders) → m
   c.tap('day:0').step('dose');
   c.say('2.5 mg once a week', { intent: 'answer', dose: { text: '2.5', unit: 'mg' }, basis: 'each', period: 'week', count: 1 }).step('start');
   assert.deepEqual(c.options().slice(0, 2), ['Today', 'Tomorrow'], 'Today is offered first');
-  c.tap('start:0').step('confirm');
+  c.tap('start:0').say('9 am').step('confirm');
   // one question per app turn: every app question is followed by a user answer
   const msgs = c.s.messages;
   for (let i = 1; i < msgs.length; i++) if (msgs[i].from === 'app' && msgs[i - 1].from === 'app') assert.ok(['facts', 'summary', 'deflect', 'error'].includes(msgs[i - 1].kind) || msgs[i].key === 'ap_q_right' || msgs[i].kind, `two questions in a row at ${i}`);
@@ -108,7 +108,7 @@ test('AP-0: blends and unlisted compounds are kept as typed; the form stays free
   const c = chat(start('build')).say('klow', { intent: 'answer', compound: 'klow', form: 'powder' });
   assert.equal(c.s.draft.compoundId, 'lyo_klow', 'a listed blend is matched by name');
   const f = c.say('80 mg').say('4 ml').tap('day:0').say('2 mg', undefined).tap('basis:each')
-    .tap('often:d1').tap('start:0').form();
+    .tap('often:d1').tap('start:0').say('9 am').form();
   assert.equal(f.form.compoundId, 'lyo_klow');
   assert.equal(f.form.composition, '', 'a blend composition is never filled in as fact');
 });
@@ -127,7 +127,7 @@ test('AP-22 (3): 240 mg a week in 3 → 80 mg = 56 units, "for your numbers", sp
   assert.ok(c.texts().includes('For your numbers: 240 mg a week in 3 doses is 80 mg each = 56.0 units.'));
   c.step('spacing');
   assert.deepEqual(c.options(), ['Every 2 days · 3 or 4 times a week', 'Every 3 days · 2 or 3 times a week', 'Other spacing']);
-  c.tap('int:2').tap('start:0').step('confirm');
+  c.tap('int:2').tap('start:0').say('9 am').step('confirm');
   const f = c.form().form;
   assert.equal(f.dose, '80');
   assert.equal(f.intervalDays, 2);
@@ -140,7 +140,7 @@ test('AP-22 (3): 240 mg a month in 4 → 60 mg = 42 units, every 7 days offered 
   const c = nadBuild().say('240 mg').tap('per:month').tap('count:4');
   assert.ok(c.texts().includes('For your numbers: 240 mg a month in 4 doses is 60 mg each = 42.0 units.'));
   assert.deepEqual(c.options(), ['Every 7 days · 4 or 5 times in 30 days', 'Every 8 days · 3 or 4 times in 30 days', 'Other spacing']);
-  c.tap('int:7').tap('start:0');
+  c.tap('int:7').tap('start:0').say('9 am');
   assert.equal(c.form().form.intervalDays, 7);
 });
 
@@ -156,7 +156,7 @@ test('AP-4: a per-day total sets doses a day (up to the 3 the form can remind)',
   c.tap('count:2').step('start');
   assert.equal(c.s.draft.dosesPerDay, 2);
   assert.equal(c.s.draft.intervalDays, 1);
-  const f = c.tap('start:0').form().form;
+  const f = c.tap('start:0').say('9 am').form().form;
   assert.equal(f.dosesPerDay, 2);
   assert.equal(f.reminderTimes.length, 2);
 });
@@ -195,7 +195,7 @@ test('AP-21 / AP-22: ready to use that really is one injection can pick a 2 / 3 
   assert.ok(c.texts().includes(TR.en.ap_fit_fact_ready));
   // the user says which syringe they use, from the whole list (regulatory review 2026-10-03 B2)
   assert.deepEqual(c.options(), ['Choose my syringe', 'Enter different numbers', 'Continue in the form']);
-  c.tap('redo:syringe').tap('syr:200').step('start').tap('start:0');
+  c.tap('redo:syringe').tap('syr:200').step('start').tap('start:0').say('9 am');
   assert.ok(c.texts().includes('Each dose: draw to 1.68 ml.'), 'an ml syringe reads in ml');
   assert.equal(c.form().form.syringeSize, 200);
   assert.equal(c.form().form.vialMl, '10');
@@ -215,7 +215,7 @@ test('AP-8: the plan is restated in the user\'s numbers before anything is fille
   const c = chat(start('build')).say('Tirzepatide', { intent: 'answer', compound: 'Tirzepatide', form: 'powder' })
     .say('20 mg').tap('dil:bacteriostatic_water').say('2').tap('day:0')
     .say('2.5 mg once a week', { intent: 'answer', dose: { text: '2.5', unit: 'mg' }, basis: 'each', period: 'week', count: 1 })
-    .tap('start:0').step('confirm');
+    .tap('start:0').say('9 am').step('confirm');
   const all = c.texts();
   assert.ok(all.includes('2.5 mg once a week = 10 mg every 4 weeks.'));
   assert.ok(all.includes('This 20 mg vial lasts 8 doses, about 56 days.'));
@@ -225,11 +225,11 @@ test('AP-8: the plan is restated in the user\'s numbers before anything is fille
 });
 
 test('AP-9: the review card lists every field, the draw (units and ml) and how long the vial lasts; Change / Fill the form / Save', () => {
-  const c = nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0').tap('review').step('review');
+  const c = nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0').say('9 am').tap('review').step('review');
   const rows = A.reviewRows(c.s).map((r) => [TR.en[r.key], typeof r.value === 'string' ? r.value : renderParam((k) => TR.en[k], r.value)]);
   assert.deepEqual(rows, [
     ['Compound', 'NAD+'], ['Form', 'Powder I mix'], ['In the vial', '1000 mg'], ['Mixed with', '7 ml'], ['Mixed on', 'Oct 3'],
-    ['Each dose', '80 mg'], ['How often', 'every 2 days'], ['First dose', 'today'], ['Syringe', '1 ml · 100 u'],
+    ['Each dose', '80 mg'], ['How often', 'every 2 days'], ['First dose', 'today'], ['Time', '9:00 AM'], ['Syringe', '1 ml · 100 u'],
     ['Draw to', '56.0 u · 0.56 ml'], ['Vial lasts', '12 doses · about 24 days'],
   ]);
   assert.deepEqual(c.options(), ['Change something', 'Fill the form', 'Save protocol']);
@@ -238,7 +238,7 @@ test('AP-9: the review card lists every field, the draw (units and ml) and how l
 });
 
 test('AP-26: one Done creates the protocol (outcome save); the review is one tap away', () => {
-  const c = nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0');
+  const c = nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0').say('9 am');
   assert.deepEqual(c.options(), ['Done', 'See all details', 'Change something']);
   c.tap('done');
   assert.deepEqual(c.s.outcome, { kind: 'save' });
@@ -246,11 +246,11 @@ test('AP-26: one Done creates the protocol (outcome save); the review is one tap
 });
 
 test('AP-17: what the assistant fills is exactly what the manual form saves for the same answers', () => {
-  const c = nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0');
+  const c = nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0').say('9 am');
   const base = newProtocolForm(NOW);
   const assisted = c.form(base).form;
   const manual = { ...newProtocolForm(NOW), name: 'NAD+', compoundId: 'lyo_nad_plus', type: 'recon', amount: '1000', unit: 'mg',
-    water: '7', dose: '80', doseUnit: 'mg', intervalDays: 2, customIntervalOpen: true, customIntervalText: '2', dosesPerDay: 1, startDate: '2026-10-03' };
+    water: '7', dose: '80', doseUnit: 'mg', intervalDays: 2, customIntervalOpen: true, customIntervalText: '2', dosesPerDay: 1, startDate: '2026-10-03', reminderTimes: ['09:00'] };
   assert.deepEqual(protocolPayload(assisted, freq, 'en'), protocolPayload(manual, freq, 'en'));
   assert.equal(c.form(base).mixedOn, '2026-10-03');
 });
@@ -274,7 +274,7 @@ test('AP-10: Finish reads the form, says it back, asks only what is missing, and
   assert.equal(c.lastApp(), 'Here is what you filled in so far: Tirzepatide, 20 mg in the vial, mixed with 2 ml. Is that right?');
   c.tap('yes').step('mixed').date('2026-10-01').step('dose')
     .say('2.5 mg once a week', { intent: 'answer', dose: { text: '2.5', unit: 'mg' }, basis: 'each', period: 'week', count: 1 })
-    .tap('start:0');
+    .tap('start:0').say('9 am');
   const out = c.form(f).form;
   for (const k of ['name', 'compoundId', 'type', 'amount', 'water', 'diluentChoice', 'color']) assert.equal(out[k], f[k], k);
   assert.equal(out.dose, '2.5');
@@ -369,7 +369,7 @@ test('AP-20: a vial mixed days ago and a protocol started weeks ago end in the r
   assert.equal(x.s.draft.mixedOn, '2026-09-29');
   x = x.say('240 mg a week in 4', { intent: 'answer', dose: { text: '240', unit: 'mg' }, basis: 'total', period: 'week', count: 4 })
     .tap('int:2').step('start');
-  x.date('2026-09-05').step('confirm');
+  x.date('2026-09-05').say('9 am').step('confirm');
   assert.equal(x.form().form.startDate, '2026-09-05');
   assert.equal(c.draft.mixedOn, '2026-10-03');
 });
@@ -413,13 +413,13 @@ test('AP-2: every number in the plan comes from the calculator (lib/doseMath), n
 // ── AP-23 small draw ───────────────────────────────────────────────────────
 test('AP-23: a dose under 10 units gets the neutral small-marks fact in the plan', () => {
   const c = chat(start('build')).say('BPC-157', { intent: 'answer', compound: 'BPC-157', form: 'powder' }).say('10 mg').say('2').tap('day:0')
-    .say('250 mcg every day', { intent: 'answer', dose: { text: '250', unit: 'mcg' }, basis: 'each', period: 'day', count: 1 }).tap('start:0');
+    .say('250 mcg every day', { intent: 'answer', dose: { text: '250', unit: 'mcg' }, basis: 'each', period: 'day', count: 1 }).tap('start:0').say('9 am');
   assert.ok(c.texts().includes('This dose is 5.0 units — small marks are harder to read accurately.'));
 });
 
 // ── the change menu ────────────────────────────────────────────────────────
 test('Change something: each part can be asked again and the plan comes back', () => {
-  const base = () => nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0');
+  const base = () => nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0').say('9 am');
   for (const [id, step] of [['redo:compound', 'compound'], ['redo:form', 'form'], ['redo:amount', 'amount'], ['redo:mix', 'mix'], ['redo:mixed', 'mixed'], ['redo:dose', 'dose'], ['redo:often', 'often'], ['redo:start', 'start'], ['redo:syringe', 'syringe']]) {
     base().tap('change').tap(id).step(step);
   }
@@ -463,7 +463,7 @@ test('back to the form: the step of the first thing still missing (AP-0, AP-16)'
 
 test('AP-14: every message and option is an app string in all 6 languages (no model text on screen)', () => {
   const drives = [
-    () => nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0').tap('review'),
+    () => nadBuild().say('240 mg').tap('per:week').tap('count:3').tap('int:2').tap('start:0').say('9 am').tap('review'),
     () => nadBuild().say('240 mg').tap('basis:each'),
     () => chat(start('build')).say('x?', { intent: 'advice' }),
   ];
