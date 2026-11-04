@@ -12,12 +12,14 @@ import {
 import Modal from '../components/PresenceModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import UnrecordedHost from './components/UnrecordedHost';
+import { cardTexts } from '../lib/unrecordedText';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { protocolDisplayName } from '../lib/protocolName';
 import { getAllLogs, getLogsSince, getTodayLogs, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
-import { scanMissedDoses, recordDoseTaken, unsyncedState } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken, unsyncedState, unrecordedQueue } from '../lib/doseActions';
 import { requestVialPrompt } from '../lib/vialPromptRequests';
 import { requestSync, forceSync, addSyncListener } from '../lib/sync';
 import { pluralKey } from '../lib/plural';
@@ -88,7 +90,21 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // "No doses yet" or 0 / 0 / 0 before the rows are read.
   const [loaded, setLoaded] = useState(false);
   const listState = logListState({ loaded, rows: logs });
-  const [filter, setFilter] = useState('All');
+  // UP-34: a link may open the Dose log on one filter ("Perdidas" from a lab test); otherwise "Todos".
+  const route = useRoute();
+  const routeFilter = !embedded && route && route.params ? route.params.filter : null;
+  const [filter, setFilter] = useState(['Taken', 'Skipped', 'Missed'].includes(routeFilter) ? routeFilter : 'All');
+  useEffect(() => {
+    if (['Taken', 'Skipped', 'Missed'].includes(routeFilter)) {
+      setFilter(routeFilter);
+      try { navigation.setParams({ filter: undefined }); } catch { /* no params to clear */ }
+    }
+  }, [routeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  // UP-24 (option B): the card "Doses sem registro antes de {data}" while any unrecorded period remains;
+  // "Responder" opens the same queue as Today. unrecQueue: the asks behind the card.
+  const [unrecCard, setUnrecCard] = useState(null);
+  const unrecAsksRef = useRef([]);
+  const unrecHostRef = useRef(null);
 
   // Body-map editor state (tap a row to edit its injection site)
   const [bodyMapVisible, setBodyMapVisible] = useState(false);
@@ -147,6 +163,15 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // A-181: read after the scan, so the rows it wrote or removed are counted.
   function refreshUnsync() {
     unsyncedState().then((st) => setUnsync(st && st.notice ? st.notice : null)).catch(() => {});
+    // UP-24: the same slots as the question (read after the scan, like the A-181 card).
+    unrecordedQueue().then(({ asks, card }) => { unrecAsksRef.current = asks || []; setUnrecCard(card || null); }).catch(() => {});
+  }
+  // UP-24 "Responder": the queue, one protocol at a time. BK-20 (embedded on the Fold): Today's popups first.
+  function answerUnrecorded() {
+    const asks = unrecAsksRef.current;
+    if (!asks.length || !unrecHostRef.current) return;
+    if (gate && gate.busy()) { gate.wait(answerUnrecorded); return; }
+    if (unrecHostRef.current.open(asks) && gate) gate.opened();
   }
   // Sync now: a full pass, then the scan (it writes the misses the pull now proves), then the notice.
   async function syncNow() {
@@ -636,6 +661,22 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
           </TouchableOpacity>
         </View>
       ) : null}
+      {/* UP-24 (option B): doses with no record before the 14 days — the A-181 card style, no alert colour */}
+      {unrecCard ? (() => {
+        const ct = cardTexts(unrecCard, { t, language, fmtDay: (ms) => formatDate(new Date(ms), language, 'dayMonth') });
+        return (
+          <View style={s.unsyncCard}>
+            <View style={s.unsyncHead}>
+              <FeatureIcon name="calendar" size={18} color={colors.ink2} />
+              <Text style={s.unsyncTitle}>{ct.title}</Text>
+            </View>
+            <Text style={s.unsyncBody}>{ct.body}</Text>
+            <TouchableOpacity onPress={answerUnrecorded} style={s.syncBtn} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={s.syncBtnText}>{ct.action}</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      })() : null}
       {/* Why the log matters — moved here from Today (today-build-handoff.md item 15) */}
       <View style={s.expl}>
         <Text style={s.explText}>{t('today_streak_explainer')}</Text>
@@ -867,6 +908,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       </Modal>
 
       <DoseEditSheet edit={doseEdit} onClose={closeDoseEdit} onSave={saveDoseEdit} />
+      <UnrecordedHost ref={unrecHostRef}
+        onOpenChange={(open) => { if (!open && gate) gate.closed(); }}
+        onChanged={() => { fetchLogs(); refreshUnsync(); if (embedded && onChanged) onChanged(); }} />
       <DTSheet config={deleteSheet} onClose={closeDeleteAsk} />
       <DTSheet config={logSheet} onClose={() => setLogSheet(null)} />
 

@@ -22,7 +22,12 @@ import { usePremiumUpdates } from '../lib/usePremium';
 import { formatDate as localeDate, MONTHS_SHORT } from '../lib/localeFormat';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
-import { getBiomarkers, insertBiomarkers, addBiomarkerToReport, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines } from '../lib/database';
+import { getBiomarkers, insertBiomarkers, addBiomarkerToReport, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines, getLogsSince } from '../lib/database';
+import { unrecordedQueue } from '../lib/doseActions';
+import UnrecordedHost from './components/UnrecordedHost';
+import { labMissedCount } from '../lib/unrecordedPeriod';
+import { labLineTexts } from '../lib/unrecordedText';
+import { localISO } from '../lib/localDate';
 import { buildRecordsCSV, buildRecordsHTML, canonicalMarker, markerSeries as buildMarkerSeries, byReportThenBatch } from '../lib/exportRecords';
 import { markerLabel, markerToSave } from '../lib/markerNames';
 import { isFavorite, setFavorite, setReportTag, dropReportDate } from '../lib/bodyPrefs';
@@ -240,6 +245,30 @@ export default function BodyScreen({ navigation, route }) {
   const [scanUsage, setScanUsage] = useState(null);
   // AD-100: "Change this test's date" — { card, date } while its window is open.
   const [dateMove, setDateMove] = useState(null);
+  // Unrecorded period, option B (UP-22 / UP-23 / UP-34). doseLogs: the dose rows the lab line counts. labAskRef:
+  // a lab test with a past date just saved — its question opens once nothing else is on screen.
+  // Read again whenever the tests are read (rows) — the 14 days before the oldest test bound the read.
+  const doseLogs = useMemo(() => {
+    try {
+      const dates = (rows || []).map((r) => String(r.report_date || '').slice(0, 10)).filter(Boolean).sort();
+      const uid = rows && rows[0] && rows[0].user_id;
+      if (!dates.length || !uid) return [];
+      const from = new Date(`${dates[0]}T00:00:00`);
+      from.setDate(from.getDate() - 15);
+      return getLogsSince(uid, from.toISOString()) || [];
+    } catch { return []; }
+  }, [rows]);
+  const labAskRef = useRef(null);
+  const unrecHostRef = useRef(null);
+  const sheetRef = useRef(null); sheetRef.current = sheet;
+  const valueSheetRef = useRef(null); valueSheetRef.current = valueSheet;
+  const mEditRef = useRef(null); mEditRef.current = mEdit;
+  const dateMoveRef = useRef(null); dateMoveRef.current = dateMove;
+  // One popup at a time: the lab question opens once the saved / imported notice and the windows are closed.
+  useEffect(() => {
+    if (labAskRef.current && !sheet && !valueSheet && !mEdit && !dateMove) { const id = setTimeout(openLabAsk, 450); return () => clearTimeout(id); }
+    return undefined;
+  }, [sheet, valueSheet, mEdit, dateMove]); // eslint-disable-line react-hooks/exhaustive-deps
   // AD-100 review: label moves whose save failed twice ({ from, to, keepFrom, labels },
   // lib/labDateMove applyLabelMoves) — shown with the moved test and sent with the next label save
   // and the next time My Body opens; never undone onto a date that may have no test.
@@ -468,6 +497,31 @@ export default function BodyScreen({ navigation, route }) {
 
   // A DoseTrace sheet with OK (MB-12, MB-13). One that follows the camera / photo library
   // waits for it to close (iOS presents nothing while another view is still animating out).
+  // UP-22 / UP-23 (option B): right after a lab test with a past date is saved (read from a photo, a value
+  // added, its date moved earlier), the unrecorded-period sheet asks about the doses the curve needs before
+  // that day — only the protocols the curve draws, never on an account without the curve (free), even after an
+  // "Agora não" on Today. Several values / tests saved in a row → one queue (the latest date asked).
+  function askUnrecordedForLab(dateKey) {
+    const day = String(dateKey || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day >= localISO(new Date())) return;
+    labAskRef.current = !labAskRef.current || day > labAskRef.current ? day : labAskRef.current;
+    setTimeout(openLabAsk, 500);
+  }
+  async function openLabAsk() {
+    const day = labAskRef.current;
+    if (!day || !unrecHostRef.current || unrecHostRef.current.isOpen()) return;
+    if (sheetRef.current || valueSheetRef.current || mEditRef.current || dateMoveRef.current) return; // waits (effect below)
+    labAskRef.current = null;
+    try {
+      if (!(await hasPremium())) return; // UP-23: the free account waits for the Today question
+      const { asks } = await unrecordedQueue({ examDay: day });
+      if (asks.length) unrecHostRef.current.open(asks, { labDate: formatDate(day) });
+    } catch { /* nothing to ask */ }
+  }
+  function openMissedLog() {
+    navigation.navigate('Log', { filter: 'Missed' }); // UP-34: the usual filter, "Perdidas"
+  }
+
   function notice(cfg, afterPicker) {
     const withOk = { ...cfg, icon: cfg.icon === undefined ? 'warning' : cfg.icon, buttons: [{ label: t('ok'), kind: 'primary' }] };
     if (afterPicker) setTimeout(() => setSheet(withOk), 450);
@@ -678,6 +732,7 @@ export default function BodyScreen({ navigation, route }) {
     Analytics.bloodworkUploaded({ biomarkerCount: rows.length });
     fetchReports();
     requestSync();
+    askUnrecordedForLab(date); // UP-22: a test with a past date asks about the doses before it
     return rows.length;
   }
 
@@ -748,6 +803,7 @@ export default function BodyScreen({ navigation, route }) {
         requestSync();
         setMEdit(null);
         fetchReports();
+        askUnrecordedForLab(mEdit.card.date); // UP-22: a value added to a past test
       } catch {
         setValueSheet(errorSheet(t, 'save', t('blood_add_value_failed')));
       } finally { savingRef.current = false; }
@@ -755,8 +811,10 @@ export default function BodyScreen({ navigation, route }) {
     }
     updateBiomarker(mEdit.id, { marker: markerToSave(mName, mEdit.marker, language), value, qualifier, value_text, unit: mUnit.trim(), report_date: mDate });
     requestSync();
+    const before = String(mEdit.report_date || mEdit.date || '').slice(0, 10);
     setMEdit(null);
     fetchReports();
+    if (mDate && before && String(mDate).slice(0, 10) < before) askUnrecordedForLab(mDate); // UP-22: moved earlier
   }
   // MB-18 (bug): Delete this value asks first; only the question's Delete writes the synced
   // tombstone (deleteBiomarker → sync_status 'deleted'). The question names the value as it
@@ -838,6 +896,7 @@ export default function BodyScreen({ navigation, route }) {
       return;
     }
     requestSync();
+    if (String(toDate).slice(0, 10) < String(from).slice(0, 10)) askUnrecordedForLab(toDate); // UP-22: moved earlier
     const fresh = getBiomarkers(user.id) || [];
     const key = movedCardKey(fresh, toDate, card.batches[0]);
     setRows(fresh);
@@ -1104,6 +1163,17 @@ export default function BodyScreen({ navigation, route }) {
         <View style={s.titleBlock}>
           <Text style={s.screenTitle} accessibilityRole={inBook ? 'header' : undefined}>{formatDate(reportDetail.date)}</Text>
           <Text style={[s.sec, s.tnum]}>{markerCount(reportDetail.markers)} {t(pluralKey('blood_markers', markerCount(reportDetail.markers), language))}</Text>
+          {(() => {
+            // UP-34 (founder answer 1, 2026-11-04): a link only — the red "Perdida" doses of the 14 days before
+            // this test; it never reads a value and says nothing about the test (AI line).
+            const ll = labLineTexts(labMissedCount(doseLogs, reportDetail.date, { nowMs: Date.now() }), { t, language });
+            if (!ll) return null;
+            return (
+              <TouchableOpacity onPress={openMissedLog} accessibilityRole="link" accessibilityLabel={ll.a11y} hitSlop={{ top: 8, bottom: 8 }}>
+                <Text style={s.sec}>{ll.line} · <Text style={s.labMissedLink}>{ll.link}</Text></Text>
+              </TouchableOpacity>
+            );
+          })()}
         </View>
 
         {/* Founder 2026-10-27 (collapse rule): with no tags yet the block arrives closed. */}
@@ -1770,6 +1840,8 @@ export default function BodyScreen({ navigation, route }) {
       {/* The screen's DoseTrace sheets: permission, Add a lab report, results, errors, the
           delete-test question. Never the grey iOS alert (MB-25). */}
       <DTSheet config={sheet} onClose={() => setSheet(null)} />
+      {/* UP-22: the unrecorded-period queue after a lab test with a past date */}
+      <UnrecordedHost ref={unrecHostRef} onChanged={() => { fetchReports(); }} />
       {/* AD-100: Change this test's date (picture ad99-ad100-labs.html "A janela"): the calendar icon,
           the title, what moves, the app's date wheel (30 years back, never a future day), Cancel | Save. */}
       <DTSheet
@@ -1861,6 +1933,7 @@ const labsGraduated = (c) => ({
   head: { fontSize: 17, fontWeight: '600', color: c.ink, lineHeight: 22 },
   body: { fontSize: 17, color: c.ink, lineHeight: 22 },
   sec: { fontSize: 15, color: c.ink2, lineHeight: 20 },
+  labMissedLink: { color: c.ink, fontWeight: '600', textDecorationLine: 'underline' }, // UP-34
   foot: { fontSize: 13, color: c.ink2, lineHeight: 18 },
   value: { fontFamily: MONO['500'], fontSize: 15, color: c.ink, fontVariant: ['tabular-nums'] },
   // A-203: a result in words ("Não reagente") in the text face, not the number face (picture option C).

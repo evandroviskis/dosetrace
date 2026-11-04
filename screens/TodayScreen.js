@@ -49,7 +49,9 @@ import { calendarDaysSince } from '../lib/localDate';
 import { SITE_HISTORY_DAYS } from '../lib/bodySites';
 import { unsyncedCount } from '../lib/recoveryFlow';
 import { TABLES, getPendingChanges } from '../lib/syncCore';
-import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged, scheduleSinceNow } from '../lib/doseActions';
+import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged, scheduleSinceNow, unrecordedQueue } from '../lib/doseActions';
+import UnrecordedHost from './components/UnrecordedHost';
+import { todayMayAsk, afterShown, afterLater, afterAnswered } from '../lib/unrecordedPeriod';
 import { pendingFromYesterday, pendingPromptFor } from '../lib/pendingYesterday';
 import { planUndoTake, takeRefusal } from '../lib/markTaken';
 import { loggedOnly } from '../lib/declared';
@@ -338,6 +340,10 @@ export default function TodayScreen() {
   const vialPromptPendingRef = useRef(false); // set synchronously by markTaken when the vial prompt will show
   const vialTimerRef = useRef(null); // the delayed open of the vial prompt (cancelled when it closes)
   const inactivePromptOpenRef = useRef(false); // the "still going?" prompt is up
+  // UP-20 (option B, 2026-11-03/04): the unrecorded-period queue — last of Today's popups, once a day.
+  const unrecHostRef = useRef(null);
+  const unrecOpenRef = useRef(false);
+  const unrecBusyRef = useRef(false);
   const stillGoingWaitRef = useRef(false); // A-122: a check is waiting for the first sync
   const courseAskRef = useRef(false); // A-121 SG-17: a dose was logged — ask once its Undo bar has gone
   const focusedRef = useRef(false); // questions open only on Today, never over another tab
@@ -688,11 +694,12 @@ export default function TodayScreen() {
       since.setDate(since.getDate() - 90);
       const logs = getLogsSince(user.id, since.toISOString()) || [];
       const q = nextTodayQuestion(protocols, logs, new Date());
-      if (!q) return;
+      // UP-8 / UP-20: "Ainda está usando?" comes first; with no protocol question left, the unrecorded period.
+      if (!q) { askUnrecordedToday(); return; }
       // One modal at a time: a site question goes first; this prompt comes after it (openNextQuestion).
       // BK-20: nor over the embedded Dose log's site editor; DV-202: nor over any other Today popup.
       if (bodyMapOpenRef.current || siteQueueRef.current.length || logPopupOpenRef.current
-        || vialPromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
+        || vialPromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current || unrecOpenRef.current) return;
       if (teamSheetOpenRef.current) return; // A-163: nor over the team message sheet (asked on a later open)
       if (inactivePromptOpenRef.current) return;
       inactivePromptOpenRef.current = true;
@@ -701,6 +708,48 @@ export default function TodayScreen() {
       setInactiveStep('ask');
       setShowInactivePrompt(true);
     } catch { /* ignore */ }
+  }
+
+  // UP-20 / UP-21 (founder option B, 2026-11-03; answers 2026-11-04): "De … a … há N doses sem registro. Você
+  // tomou?" — at most once a local day, only with Today in front, after the successful pull (the queue is empty
+  // before it, UP-6) and after every other Today popup (site question, vial prompt, "Ainda está usando?", team
+  // message, notifications sheet, update notice); never while a dose from a reminder is open or its Undo bar
+  // shows. Three "Agora não" in a row → Today stops asking (the Dose log card and the lab trigger still ask);
+  // a later absence starts again. The once-a-day state is a per-phone convenience (AsyncStorage).
+  const unrecKey = (uid) => `dosetrace_unrec_today:${uid}`;
+  const unrecBlocked = () => !focusedRef.current || todayPopupBusy() || siteQueueRef.current.length > 0 || logPopupOpenRef.current
+    || vialPromptPendingRef.current || pendingVialsRef.current.length > 0 || doseFocusOpenRef.current || !!undoDataRef.current || unrecOpenRef.current;
+  async function askUnrecordedToday() {
+    if (unrecBusyRef.current || unrecBlocked()) return;
+    unrecBusyRef.current = true;
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      let st = null;
+      try { st = JSON.parse((await AsyncStorage.getItem(unrecKey(user.id))) || 'null'); } catch { st = null; }
+      const dayKey = localISO(new Date());
+      if (st && st.day === dayKey && !(st.later >= 3)) return; // already asked today: nothing to read
+      const { asks } = await unrecordedQueue();
+      if (!asks.length || unrecBlocked()) return;
+      const newestMs = Math.max(...asks.map((a) => a.entries[a.entries.length - 1].slotMs));
+      if (!todayMayAsk(st, { dayKey, newestMs })) return;
+      if (!unrecHostRef.current || !unrecHostRef.current.open(asks)) return;
+      try { await AsyncStorage.setItem(unrecKey(user.id), JSON.stringify(afterShown(st, { dayKey, newestMs }))); } catch { /* per-phone convenience */ }
+    } catch { /* never blocks Today */ } finally {
+      unrecBusyRef.current = false;
+    }
+  }
+  async function noteUnrecorded(step) {
+    try {
+      const user = await getCachedUser();
+      if (!user) return;
+      const st = JSON.parse((await AsyncStorage.getItem(unrecKey(user.id))) || 'null');
+      await AsyncStorage.setItem(unrecKey(user.id), JSON.stringify(step(st)));
+    } catch { /* per-phone convenience */ }
+  }
+  function onUnrecordedOpen(open) {
+    unrecOpenRef.current = open;
+    if (!open) setTimeout(openNextQuestion, 450); // a popup that waited (the vial prompt of an answer)
   }
 
   // A-121 SG-17: once per logged dose, after its Undo bar has gone.
@@ -1185,7 +1234,7 @@ export default function TodayScreen() {
 
   // A popup of Today's own is open (or the vial prompt is about to open).
   function todayPopupBusy() {
-    return teamSheetOpenRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current;
+    return teamSheetOpenRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current || unrecOpenRef.current;
   }
 
   // A-163 TM-13/TM-15: what the team message sheet waits for — any of Today's popups, a site
@@ -1213,7 +1262,7 @@ export default function TodayScreen() {
     // BK-20: one popup at a time across both pages — also not over the embedded Dose log's
     // site editor; the question waits and opens when that editor closes.
     if (teamSheetOpenRef.current) return; // A-163: nor over the team message sheet (it closes, then the question opens)
-    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current) return;
+    if (!focusedRef.current || bodyMapOpenRef.current || vialPromptOpenRef.current || inactivePromptOpenRef.current || logPopupOpenRef.current || skipSheetOpenRef.current || todaySheetOpenRef.current || unrecOpenRef.current) return;
     const q = siteQueueRef.current.shift();
     // No site question waits: the embedded Log's editor, else the next protocol question (A-121
     // SG-22 / SG-29: one at a time, after any other popup has closed; the check guards itself).
@@ -2706,6 +2755,11 @@ export default function TodayScreen() {
           </View>
         </View>
       )}
+
+      {/* UP-20: the unrecorded-period queue (option B), the last of Today's popups. */}
+      <UnrecordedHost ref={unrecHostRef} onOpenChange={onUnrecordedOpen}
+        onLater={() => noteUnrecorded(afterLater)} onAnswered={() => noteUnrecorded(afterAnswered)}
+        onChanged={() => { setDataRev((n) => n + 1); afterLogChange(); }} />
 
       {/* S-20: the dose was undone from the site picker (Cancel / back) — say so. */}
       {takeNotice && !undoData && (
