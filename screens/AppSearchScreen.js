@@ -30,6 +30,7 @@ import { todayFlags, getQuery, setQuery, clearQuery, askFocusBack } from '../lib
 import { SEARCH_PAGE } from '../components/SearchCorner';
 
 const TEXT_LIMIT = 5; // "Ajuda e textos legais": the best 5, then "Mostrar mais {n}" (AS-26)
+const TOP_ROW_MAX_SCALE = 1.4; // the field and Cancelar stop growing here (AS-22); the results grow freely
 
 // The person's names on this phone (AS-28): active protocols, markers of saved lab reports, vaccines.
 // Read from the local database only, for the account whose data the phone holds (DV-242 keeps it the
@@ -169,7 +170,11 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
     navigation.navigate(a.route, a.params);
   }
 
-  const legalDoc = legal ? LEGAL.find((d) => d.doc === legal.doc) : null;
+  // The text stays in the sheet while it slides away (sim 2026-11-04: it went blank on Done).
+  const lastLegal = useRef(null);
+  if (legal) lastLegal.current = legal;
+  const shownLegal = legal || lastLegal.current;
+  const legalDoc = shownLegal ? LEGAL.find((d) => d.doc === shownLegal.doc) : null;
 
   const placeRow = (r, i) => (
     <TouchableOpacity
@@ -234,10 +239,13 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
           <TextInput
             ref={inputRef}
             style={s.input}
-            value={q}
+            // Uncontrolled (sim 2026-11-04: a controlled field dropped letters typed right after the
+            // search opened); the clear button empties it through the ref.
+            defaultValue={q}
             onChangeText={onType}
             placeholder={t('search_field')}
             placeholderTextColor={colors.ink3}
+            maxFontSizeMultiplier={TOP_ROW_MAX_SCALE}
             accessibilityLabel={t('search_field')}
             autoFocus
             autoCorrect={false}
@@ -252,7 +260,7 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
           {q.length > 0 && (
             <TouchableOpacity
               style={s.clear}
-              onPress={() => { onType(''); if (inputRef.current) inputRef.current.focus(); }}
+              onPress={() => { onType(''); if (inputRef.current) { inputRef.current.clear(); inputRef.current.focus(); } }}
               accessibilityRole="button"
               accessibilityLabel={t('search_clear')}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -263,7 +271,9 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
         </View>
         {!embedded && (
           <TouchableOpacity onPress={close} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} style={s.cancel}>
-            <Text style={s.cancelText}>{t('cancel')}</Text>
+            {/* AS-22 (sim 2026-11-04, largest text): "Abbrechen" grew until the field was a few points wide; the
+                top row's two controls stop growing at 1.4x, as the system search bar does. */}
+            <Text style={s.cancelText} maxFontSizeMultiplier={TOP_ROW_MAX_SCALE}>{t('cancel')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -308,10 +318,10 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
         visible={!!legal}
         onClose={() => setLegal(null)}
         title={legalDoc ? t(legalDoc.title) : ''}
-        content={legal ? legalContent(t, legal.doc, Platform.OS) : ''}
+        content={shownLegal ? legalContent(t, shownLegal.doc, Platform.OS) : ''}
         doneLabel={t('done')}
-        focusBlock={legal ? legal.block : null}
-        mark={legal ? legal.q : null}
+        focusBlock={shownLegal ? shownLegal.block : null}
+        mark={shownLegal ? shownLegal.q : null}
       />
     </SafeAreaView>
   );

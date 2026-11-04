@@ -423,20 +423,42 @@ export default function SettingsScreen({ navigation }) {
   const onCardLayout = (key) => (e) => { landY.current[key] = e.nativeEvent.layout.y; };
   // The Language row and the app search's "Idioma" open the same window.
   function openLanguagePicker() { setShowLanguagePicker(true); }
-  function openGroupFor(key) {
-    if (book) { select(key); return; }
-    setCollapsed((prev) => (prev[key] === false ? prev : { ...prev, [key]: false }));
-    requestAnimationFrame(() => {
-      const y = landY.current.cards != null && landY.current[key] != null ? landY.current.cards + landY.current[key] : null;
-      scrollToY(y, phoneScrollRef);
-    });
+  // Where a row sits inside its group (its card on the phone, the group block on the Fold's right
+  // page), so a result lands on the row itself (AS-8), not only on the group.
+  const rowY = useRef({});
+  const onRowLayout = (key) => (e) => { rowY.current[key] = e.nativeEvent.layout.y; if (rowLand.current && rowLand.current.row === key) landOnRow(); };
+  const rowLand = useRef(null); // { group, row } waiting for its layout
+  const bookRightRef = useRef(null);
+  // The right page's group block is the first thing in its scroll, so its rows sit at their own y.
+  const bookGroupY = useRef(0);
+  function landOnRow() {
+    const want = rowLand.current;
+    if (!want) return;
+    const ry = want.row ? rowY.current[want.row] : 0;
+    if (want.row && ry == null) return;
+    if (book) {
+      if (bookGroupY.current == null) return;
+      rowLand.current = null;
+      scrollToY(bookGroupY.current + ry, bookRightRef);
+      return;
+    }
+    if (landY.current.cards == null || landY.current[want.group] == null) return;
+    rowLand.current = null;
+    scrollToY(landY.current.cards + landY.current[want.group] + ry, phoneScrollRef);
+  }
+  function openGroupFor(key, row = null) {
+    rowY.current = {};
+    rowLand.current = { group: key, row };
+    if (book) select(key);
+    else setCollapsed((prev) => (prev[key] === false ? prev : { ...prev, [key]: false }));
+    requestAnimationFrame(landOnRow);
   }
   useEffect(() => {
     const sp = route && route.params ? route.params.search : null;
     if (!sp || !sp.target) return;
     navigation.setParams({ search: undefined });
     switch (sp.target) {
-      case 'row': if (sp.group) openGroupFor(sp.group); break;
+      case 'row': if (sp.group) openGroupFor(sp.group, sp.row || null); break;
       case 'language': openGroupFor('account'); openLanguagePicker(); break;
       case 'legal':
         openGroupFor('privacy');
@@ -1149,7 +1171,7 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={(v) => toggleNotificationPref('checkin_reminders', v, setCheckinReminders)}
           />
         </View>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('foodReminder')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="food" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1202,7 +1224,7 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={toggleVersionNews}
           />
         </View>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('silent')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="mute" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1274,7 +1296,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <RowChevron color={colors.tick} />
         </TouchableOpacity>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('analytics')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="calc_bars" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1287,7 +1309,7 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={toggleAnalytics}
           />
         </View>
-        <View style={s.row}>
+        <View style={s.row} onLayout={onRowLayout('ai')}>
           <View style={s.rowLeft}>
             <FeatureIcon name="ai_spark" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
@@ -1303,6 +1325,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <TouchableOpacity
           style={s.row}
+          onLayout={onRowLayout('report')}
           onPress={handleAdherenceReport}
           disabled={exporting}
         >
@@ -1317,6 +1340,7 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
+          onLayout={onRowLayout('export')}
           onPress={handleExportData}
           disabled={exporting}
         >
@@ -1355,7 +1379,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <RowChevron color={colors.tick} />
         </TouchableOpacity>
-        <TouchableOpacity style={s.row} onPress={handleContactSupport}>
+        <TouchableOpacity style={s.row} onPress={handleContactSupport} onLayout={onRowLayout('contact')}>
           <View style={s.rowLeft}>
             {/* A-163 picture: the envelope is Team messages; Contact us is the speech bubble */}
             <FeatureIcon name="chat" size={28} color={colors.text} />
@@ -1365,6 +1389,7 @@ export default function SettingsScreen({ navigation }) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.row, { borderBottomWidth: 0 }]}
+          onLayout={onRowLayout('rate')}
           onPress={handleRateApp}
         >
           <View style={s.rowLeft}>
@@ -1382,7 +1407,7 @@ export default function SettingsScreen({ navigation }) {
   function renderAccountBody() {
     return (
       <>
-        <View style={s.setStack}>
+        <View style={s.setStack} onLayout={onRowLayout('appearance')}>
           <View style={s.setStackHead}>
             <FeatureIcon name="palette" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_appearance')}</Text>
@@ -1398,7 +1423,7 @@ export default function SettingsScreen({ navigation }) {
             onChange={setMode}
           />
         </View>
-        <View style={s.setStack}>
+        <View style={s.setStack} onLayout={onRowLayout('timeFormat')}>
           <View style={s.setStackHead}>
             <FeatureIcon name="clock" size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_time_format')}</Text>
@@ -1570,7 +1595,7 @@ export default function SettingsScreen({ navigation }) {
         <View style={s.header}>
           <Text style={s.bookPageTitle} numberOfLines={2}>{t(openGroup.labelKey)}</Text>
         </View>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
+        <ScrollView ref={bookRightRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.bookRightBody]}>
           <View style={s.group}>{renderGroupBody(open)}</View>
           <View style={{ height: 40 }} />
         </ScrollView>

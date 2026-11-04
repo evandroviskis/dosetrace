@@ -84,10 +84,10 @@ test('AS-1 / AS-1b: one corner, the same frame on the five tab roots (phone 390 
 
 test('AS-1b: "+ Adicionar" sits just left of the magnifier, centred, 10 pt apart; screens opened from a tab show no button', () => {
   const p = code(TAB_ROOTS.Protocols);
-  assert.equal((p.match(/<SearchCorner tab="Protocols" leading=\{addButton\} offsetTop=\{PROTOCOLS_HEADER_TOP\} \/>/g) || []).length, 2, 'phone and book');
+  assert.equal((p.match(/<SearchCorner tab="Protocols" leading=\{addButton\} offsetTop=\{PROTOCOLS_HEADER_TOP\} alignEnd=\{titleStacked\} onSlotLayout=\{onTitleSlot\} measure=\{titleMeasure\} \/>/g) || []).length, 2, 'phone and book');
   const corner = code('components/SearchCorner.js');
   assert.match(corner, /slot: \{ flexDirection: 'row', alignItems: 'center', gap: CORNER\.gap/);
-  assert.match(corner, /\{leading\}\s*<TouchableOpacity/);
+  assert.match(corner, /\{measure\}\s*\{leading\}\s*<TouchableOpacity/);
   // only the five tab roots import the corner
   const users = [];
   for (const dir of ['screens', 'screens/components', 'components']) {
@@ -139,6 +139,22 @@ test('AS-1b: the titles keep their place and may wrap, never cut: no word wider 
   for (const f of Object.values(TAB_ROOTS)) assert.doesNotMatch(read(f), /<Text style=\{\[?s\.(title|headerTitle|hubGreeting)[^>]*numberOfLines/);
 });
 
+test('AS-1b (sim 2026-11-04): a title word that cannot fit beside the corner moves the title under it, never cut, never shrunk', () => {
+  const { titleFits } = require('../lib/searchCorner');
+  // Measured on the iPhone 17 Pro Max (440 pt), German: "Protokolle" 164 pt, the slot (+ Hinzufügen + 10 + 44) 184 pt.
+  assert.equal(titleFits({ pageWidth: 440, wordWidth: 164, slotWidth: 184 }), true, '440 pt: beside the corner');
+  assert.equal(titleFits({ pageWidth: 390, wordWidth: 164, slotWidth: 184 }), false, '390 pt: under the corner');
+  assert.equal(titleFits({ pageWidth: 390, wordWidth: 120, slotWidth: 130 }), true, 'English "Protocols" beside "+ Add"');
+  assert.equal(titleFits({ pageWidth: 390, wordWidth: null, slotWidth: 184 }), true, 'not measured yet: as drawn');
+  const p = code(TAB_ROOTS.Protocols);
+  assert.match(p, /titleFits\(\{ pageWidth: titlePage, wordWidth: titleWordW, slotWidth: titleSlotW \}\)/);
+  assert.match(p, /onTextLayout=/, 'the longest word is measured with the real title style');
+  // stacked: the corner keeps its place (top right), the title goes full width under it, same font
+  assert.match(p, /headerStacked: \{ flexDirection: 'column-reverse', alignItems: 'stretch' \}/);
+  assert.doesNotMatch(p, /headerTitle[^}]*adjustsFontSizeToFit/);
+  assert.match(code('components/SearchCorner.js'), /alignEnd && \{ alignSelf: 'flex-end' \}/);
+});
+
 test('AS-2 / AS-20 / AS-21 / AS-22: the search screen (field focused, Cancelar, keyboard and Android back, large text)', () => {
   const app = code('App.js');
   assert.match(app, /<Stack\.Screen name="AppSearch" component=\{AppSearchScreen\}/);
@@ -159,6 +175,9 @@ test('AS-2 / AS-20 / AS-21 / AS-22: the search screen (field focused, Cancelar, 
   // large text: titles and paths wrap, the excerpt keeps two lines, rows have no fixed height
   assert.doesNotMatch(s, /style=\{s\.rtitle\} numberOfLines|style=\{s\.rpath\} numberOfLines/);
   assert.match(s, /style=\{s\.rex\} numberOfLines=\{2\}/);
+  // sim 2026-11-04 at the largest size: the top row (field + Cancelar) stops growing so the field stays usable
+  assert.match(s, /<Text style=\{s\.cancelText\} maxFontSizeMultiplier=\{TOP_ROW_MAX_SCALE\}>/);
+  assert.equal((s.match(/maxFontSizeMultiplier=\{TOP_ROW_MAX_SCALE\}/g) || []).length, 2, 'the field and Cancelar');
   assert.doesNotMatch(s.match(/row: \{[^}]*\}/)[0], /\bheight:/);
   assert.match(s, /minHeight: 64/);
 });
@@ -238,6 +257,29 @@ test('AS-10 / AS-9: a result only opens; places go through their normal path and
   const body = code('screens/BodyScreen.js');
   const bland = body.match(/const sp = route\?\.params\?\.search;([\s\S]*?)\}, \[route\?\.params\?\.search\]\)/)[1];
   assert.doesNotMatch(bland, /handleExport|shareAsync/);
+});
+
+test('AS-8: an Ajustes result lands on its row (not only the group): every row target is reported by that row', () => {
+  const set = code('screens/SettingsScreen.js');
+  const rows = S.CATALOG.filter((e) => e.open.tab === 'Settings' && e.open.target === 'row');
+  assert.ok(rows.length >= 10);
+  for (const e of rows) {
+    if (e.id === 'D36') { assert.equal(e.open.row, undefined, 'Notificações is the group itself'); continue; }
+    assert.equal(typeof e.open.row, 'string', `${e.id} names its row`);
+    assert.ok(set.includes(`onLayout={onRowLayout('${e.open.row}')}`), `${e.id}: the ${e.open.row} row reports where it sits`);
+    assert.equal(placeAction({ open: e.open }).params.search.row, e.open.row, `${e.id} carries the row`);
+  }
+  assert.match(set, /case 'row': if \(sp\.group\) openGroupFor\(sp\.group, sp\.row \|\| null\); break;/);
+  assert.match(set, /scrollToY\(landY\.current\.cards \+ landY\.current\[want\.group\] \+ ry, phoneScrollRef\)/);
+  assert.match(set, /scrollToY\(bookGroupY\.current \+ ry, bookRightRef\)/);
+});
+
+test('found on the sim 2026-11-04: a screen opened over the search reads "‹ Back" (it returns to the search), not a tab name', () => {
+  const { backTabKey } = require('../lib/navBack');
+  const overSearch = { index: 2, routes: [{ name: 'MainTabs', state: { index: 4, routes: [{ name: 'Today' }, { name: 'Protocols' }, { name: 'Journey' }, { name: 'Body' }, { name: 'Settings' }] } }, { name: 'AppSearch' }, { name: 'Progress' }] };
+  assert.equal(backTabKey(overSearch), 'back');
+  const overTabs = { index: 1, routes: [{ name: 'MainTabs', state: { index: 2, routes: [{ name: 'Today' }, { name: 'Protocols' }, { name: 'Journey' }] } }, { name: 'Progress' }] };
+  assert.equal(backTabKey(overTabs), 'tab_journey');
 });
 
 test('found 2026-11-04: the Settings group scroll (fold BK-10 and the search) uses the card\'s place in the list, not the header\'s y inside its card (always 0)', () => {

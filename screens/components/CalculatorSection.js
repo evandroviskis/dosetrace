@@ -1219,11 +1219,25 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [partTick, setPartTick] = useState(0);
   const onPartLayout = (key) => (e) => { partY.current[key] = e.nativeEvent.layout.y; setPartTick((n) => n + 1); };
   const searchFocusRef = useRef(null);
+  const landedRef = useRef(null); // { k, y, at } the landing just made
   useEffect(() => {
     // 'reality' / 'weighin' from a pushed screen keep their own effects above; on the Fold they come here.
     const bookOnly = !focus && (landFocus === 'reality' || landFocus === 'weighin');
     if ((!SEARCH_FOCUS.includes(landFocus) && !bookOnly) || !loaded) return;
     const k = `${landFocus}:${landKey}`;
+    // The page keeps laying out for a moment after it opens (the card fills in): a landing already
+    // made follows its block for 2 s if it moves (sim 2026-11-04: Entenda stopped short).
+    const done = landedRef.current;
+    if (done && done.k === k) {
+      const yNow = landFocus === 'reality' ? rcY
+        : landFocus === 'learn' ? partY.current.learn
+          : (partY.current.card != null && partY.current[landFocus] != null ? partY.current.card + partY.current[landFocus] : null);
+      if (yNow != null && yNow !== done.y && Date.now() - done.at < 2000 && scrollRef.current) {
+        done.y = yNow;
+        scrollRef.current.scrollTo({ y: Math.max(0, yNow - 8), animated: false });
+      }
+      return;
+    }
     if (searchFocusRef.current === k) return;
     if (landFocus === 'target') { searchFocusRef.current = k; beginEditTarget(); return; }
     if (landFocus === 'weighin') { if (layout.card.includes('logWeight')) { searchFocusRef.current = k; openWeighIn(); } return; }
@@ -1240,6 +1254,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         : partY.current.learn;
     if (y == null) return;
     searchFocusRef.current = k;
+    landedRef.current = { k, y, at: Date.now() };
     if (scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: true });
   }, [landFocus, landKey, loaded, partTick, rcY]); // eslint-disable-line react-hooks/exhaustive-deps
   const numbersFoldable = layout.numbersFoldable;

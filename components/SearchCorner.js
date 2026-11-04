@@ -18,7 +18,10 @@ export const SEARCH_PAGE = 'search'; // the right-page item of the search on the
 
 // offsetTop: how far below the top safe area the header's content box begins (the slot always lands
 // at CORNER.top).
-export default function SearchCorner({ tab, leading = null, offsetTop = CORNER.top }) {
+// alignEnd: the header is stacked (the title under the corner), the slot keeps the top right.
+// onSlotLayout: reports the slot's width (the title-fit rule, lib/searchCorner titleFits).
+// measure: an out-of-flow element the screen measures with (My Protocols' title words), never shown.
+export default function SearchCorner({ tab, leading = null, offsetTop = CORNER.top, alignEnd = false, onSlotLayout = null, measure = null }) {
   const { colors } = useTheme();
   const { t } = useLanguage();
   const navigation = useNavigation();
@@ -48,7 +51,8 @@ export default function SearchCorner({ tab, leading = null, offsetTop = CORNER.t
     navigation.navigate('AppSearch', { from: tab });
   };
   return (
-    <View style={[s.slot, { marginTop: slotMarginTop(offsetTop) }]}>
+    <View style={[s.slot, { marginTop: slotMarginTop(offsetTop) }, alignEnd && { alignSelf: 'flex-end' }]} onLayout={onSlotLayout || undefined}>
+      {measure}
       {leading}
       <TouchableOpacity
         ref={ref}
