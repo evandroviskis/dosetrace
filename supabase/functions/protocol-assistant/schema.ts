@@ -73,12 +73,14 @@ const UNIT_WORDS: Record<string, RegExp> = {
 };
 const unitInText = (unit: string, text: string) => !!(UNIT_WORDS[unit] && UNIT_WORDS[unit].test(text));
 
-function quantity(v: any, text: string, units: string[] | null) {
+function quantity(v: any, text: string, units: string[] | null, perMl = false) {
   if (!v || typeof v !== 'object') return null;
   const tok = typeof v.text === 'string' ? v.text.trim() : '';
   if (!tokenInText(tok, text)) return null;
   if (units) {
-    const raw = String(v.unit == null ? '' : v.unit).trim().toLowerCase();
+    let raw = String(v.unit == null ? '' : v.unit).trim().toLowerCase();
+    // The per-ml question (conc): the model may copy the unit as the label writes it, "mg/ml".
+    if (perMl) raw = raw.replace(/\s*\/\s*ml$/, '');
     const spelled = UNIT_ALIASES[raw] || raw;
     const u = units.find((x) => x.toLowerCase() === spelled.toLowerCase());
     if (!u || !unitInText(u, text)) return null;
@@ -130,7 +132,7 @@ export function validateUnderstanding(step: string, raw: any, userText: string):
   if (has('compound')) out.compound = compoundName(raw.compound, text);
   if (has('form')) out.form = pick(raw.form, FORMS);
   if (has('amount')) out.amount = quantity(raw.amount, text, MASS_UNITS);
-  if (has('conc')) out.conc = quantity(raw.conc, text, MASS_UNITS);
+  if (has('conc')) out.conc = quantity(raw.conc, text, MASS_UNITS, true);
   if (has('vial_ml')) out.vial_ml = quantity(raw.vial_ml, text, null);
   if (has('strength')) out.strength = quantity(raw.strength, text, ORAL_UNITS);
   if (has('diluent')) out.diluent = pick(raw.diluent, DILUENTS);
