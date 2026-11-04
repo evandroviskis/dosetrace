@@ -63,7 +63,8 @@ test('N1: defense in depth — the form save guard and the reminder plan reject 
   assert.match(save, /isClockTime/, 'the save uses the strict clock check');
   const { isClockTime } = require('../lib/assistantTime');
   for (const t of ['00:00', '09:30', '23:59']) assert.equal(isClockTime(t), true, t);
-  for (const t of ['30:00', '24:00', '08:60', '8:00', '', null, '9']) assert.equal(isClockTime(t), false, String(t));
+  for (const t of ['30:00', '24:00', '08:60', '', null, '9']) assert.equal(isClockTime(t), false, String(t));
+  assert.equal(isClockTime('8:00'), true, 'an old-format value is read like the scheduler reads it (third review)');
   // The plan keeps the slot index (ids stay the same) but never builds a Date from a bad time.
   assert.deepEqual(NP.reminderTimes('08:00,30:00'), [{ hour: 8, minute: 0 }, { hour: 30, minute: 0, invalid: true }]);
   assert.deepEqual(PLAN.reminderSlots({ reminder_time: '08:00,30:00' }), NP.reminderTimes('08:00,30:00'), 'the server sender reads it the same way');

@@ -33,7 +33,7 @@ test('RL-2: morningSummaryPlan is identical', () => {
 });
 
 test('RL-2: reminder slots are identical (several times, none set = 08:00, bad input)', () => {
-  for (const raw of ['08:00,20:00', '21:30', null, '', 'x:y']) {
+  for (const raw of ['08:00,20:00', '21:30', null, '', 'x:y', '30:00', '08:60', '24:00', '08:00,30:00']) { // a time off the clock is marked the same way (N1)
     assert.deepEqual(server.reminderSlots({ reminder_time: raw }), client.reminderTimes(raw), String(raw));
   }
 });
