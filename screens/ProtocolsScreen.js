@@ -91,7 +91,7 @@ import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
 import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler, StepGlyph, RULER, rulerX, EndDateSheet } from './components/ProtocolParts';
-import { dateColumns, dateAfter, timeColumns, timeAfter } from '../lib/wheelPick';
+import { dateColumns, dateAfter, timeColumns, timeAfter, WHEEL_IDLE, wheelMotion } from '../lib/wheelPick';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
 import CollapsibleSection from '../components/CollapsibleSection';
@@ -106,7 +106,7 @@ import { pluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import { imageMediaType } from '../lib/imageType';
 import {
-  isoDay, firstDoseChoice, resizeTimes, wheelStartTime, newProtocolForm, formFromProtocol, protocolPayload,
+  isoDay, firstDoseChoice, resizeTimes, wheelStartTime, timeDoneDisabled, timeDoneValue, timeRowLabel, newProtocolForm, formFromProtocol, protocolPayload,
   editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass,
 } from '../lib/protocolForm';
 
@@ -1142,21 +1142,22 @@ export default function ProtocolsScreen() {
 
   const [activeTimeIndex, setActiveTimeIndex] = useState(0);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  // The person touched the reminder-time wheel since it opened (MF-15): "Concluído" lights up even
-  // when the wheel came back to 12:00, so noon itself can be chosen.
-  const [timeWheelTouched, setTimeWheelTouched] = useState(false);
+  // The person's hand on the reminder-time wheel since it opened (lib/wheelPick wheelMotion):
+  // touched → "Concluído" lights up even when the wheel came back to 12:00 (MF-15); a column still
+  // moving → "Concluído" waits for the row to settle (MF-16).
+  const [timeWheel, setTimeWheel] = useState(WHEEL_IDLE);
   function openTimePicker(idx) {
     setActiveTimeIndex(idx);
-    setTimeWheelTouched(false);
+    setTimeWheel(WHEEL_IDLE);
     setShowTimePicker(true);
   }
-  // "Concluído" on the time wheel: turning already saved the time; on an empty slot the person
-  // touched, it saves the time on the wheel (12:00), never the clock (MF-11, MF-15).
+  // "Concluído" on the time wheel: turning already saved the time; on a touched, settled empty slot
+  // it saves the row the wheel shows (12:00), never the clock (MF-11, MF-15, lib/protocolForm timeDoneValue).
   function timeWheelDone() {
-    if (timeWheelTouched && !isClockTime(reminderTimes[activeTimeIndex])) {
-      const [h, m] = wheelStartTime(reminderTimes[activeTimeIndex]).split(':').map(Number);
-      const d = new Date(2000, 0, 1, h, m, 0, 0);
-      applyPickedTime(d);
+    const hm = timeDoneValue(reminderTimes[activeTimeIndex], timeWheel);
+    if (hm) {
+      const [h, m] = hm.split(':').map(Number);
+      applyPickedTime(new Date(2000, 0, 1, h, m, 0, 0));
     }
     setShowTimePicker(false);
   }
@@ -1242,7 +1243,9 @@ export default function ProtocolsScreen() {
     setDosesPerDay(newCount);
     setActiveTimeIndex(0); // reset so a stale index can't write past the array
     // An added dose arrives EMPTY for the person to choose, never 14:00 / 21:00 (MF-2).
-    setReminderTimes(prev => (prev.length === newCount ? prev : resizeTimes(prev, newCount)));
+    // Edit: a dose added back gets its stored time (2 → 1 → 2, MF-18).
+    const stored = editStartRef.current ? editStartRef.current.reminderTimes : null;
+    setReminderTimes(prev => (prev.length === newCount ? prev : resizeTimes(prev, newCount, stored)));
   }
   const [vialMonth, setVialMonth] = useState(new Date().getMonth()); // 0-11
   const [vialDay, setVialDay] = useState(String(new Date().getDate()));
@@ -3730,7 +3733,7 @@ export default function ProtocolsScreen() {
                 <Fld s={s} label={t('protocols_what_time')}>
                   <View style={s.pickCol}>
                     {reminderTimes.map((rt, idx) => (
-                      <TouchableOpacity key={idx} style={s.pickbtn} onPress={() => openTimePicker(idx)} accessibilityRole="button">
+                      <TouchableOpacity key={idx} style={s.pickbtn} onPress={() => openTimePicker(idx)} accessibilityRole="button" accessibilityLabel={timeRowLabel(rt, idx, reminderTimes.length, t, formatTimeAMPM)}>
                         <FeatureIcon name="clock" size={18} color={colors.ink} />
                         {reminderTimes.length > 1 && (
                           <Text style={s.pickTextC2}>{t('protocols_dose_label')} {idx + 1}</Text>
@@ -3927,13 +3930,13 @@ export default function ProtocolsScreen() {
               (turning saves, as before); Done only closes; a tap outside closes and writes nothing. */}
           {iosPicker && (
             <DTPickerSheet visible={showModal && showTimePicker} title={t('protocols_what_time')} doneLabel={t('done')}
-              doneDisabled={!isClockTime(reminderTimes[activeTimeIndex]) && !timeWheelTouched}
+              doneDisabled={timeDoneDisabled(reminderTimes[activeTimeIndex], timeWheel)}
               onDone={timeWheelDone}
               onCancel={() => setShowTimePicker(false)}
             >
               <DTWheel
                 columns={timeColumns(wheelStartTime(reminderTimes[activeTimeIndex]), wheel12h, dayParts)}
-                onInteract={() => setTimeWheelTouched(true)}
+                onInteract={(ev, col) => setTimeWheel((s) => wheelMotion(s, ev, col))}
                 onChange={(col, i) => {
                   const hm = timeAfter(wheelStartTime(reminderTimes[activeTimeIndex]), wheel12h, col, i);
                   const [h, m] = hm.split(':').map(Number);
