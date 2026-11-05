@@ -409,6 +409,29 @@ test('RS-9: the summary offers "Ajustar <item>" for every item not OK; it walks 
   assert.match(src, /C\.fixChips\(conv, health\)/);
 });
 
+// Coordinator 2026-11-05: a card in the history shows what was true when it was shown and never
+// contradicts the step below it — only the latest summary reads the phone live.
+test('RS-9: only the latest summary reads the phone live; earlier summaries keep their snapshot', () => {
+  const off = { ...iphone, permission: 'denied' };
+  const on = { ...iphone, permission: 'granted' };
+  let conv = C.startConversation(on); // summary #1, all set
+  conv = C.choose(conv, 'fix:notifications', off).conv; // notifications went off meanwhile
+  conv = C.returned(C.choose(conv, 'act', off).conv, on); // turned on → summary #2
+  const sums = conv.messages.filter((m) => m.kind === 'summary');
+  const heads = conv.messages.filter((m) => m.kind === 'head');
+  const scheds = conv.messages.filter((m) => m.kind === 'schedule');
+  assert.equal(sums.length, 2);
+  // The latest group reads the phone as it is now; the older one keeps the health it was drawn with.
+  const live = { ...on, scheduledCount: 99 };
+  for (const m of [sums[1], heads[1], scheds[1]]) assert.equal(C.summaryHealth(conv, m, live), live, m.kind);
+  for (const m of [sums[0], heads[0], scheds[0]]) assert.deepEqual(C.summaryHealth(conv, m, live), on, m.kind);
+  assert.equal(C.isLatestSummary(conv, heads[0]), false);
+  assert.equal(C.isLatestSummary(conv, heads[1]), true);
+  // The screen draws every summary part from summaryHealth, never straight from the live read.
+  const src = read('components/ReminderConversation.js');
+  assert.match(src, /C\.summaryHealth\(conv, m, health\)/);
+});
+
 // ── RS-10: iPhone ──────────────────────────────────────────────────────────────────────────────
 test('RS-10: iPhone — notifications off: it starts on the notifications step (no opening) and ends on the summary; on: the summary', () => {
   let conv = C.startConversation(iphone);

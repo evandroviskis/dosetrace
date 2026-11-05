@@ -171,7 +171,7 @@ test('council 4: the screen never shows the iPhone title or "0 reminders" before
   // of the phone, and the schedule is drawn only with it.
   const c = read('components/ReminderConversation.js');
   assert.match(c, /setConv\(\(c\) => c \|\| C\.startConversation\(h, \{ mode, resume \}\)\)/);
-  assert.match(c, /if \(m\.kind === 'schedule'\) return health \? schedule\(m\.id\) : null;/);
+  assert.match(c, /if \(m\.kind === 'schedule'\) return health \? schedule\(m\.id, C\.summaryHealth\(conv, m, health\)\) : null;/);
 });
 
 test('council 4: with a red item the test reminder says it cannot arrive yet', () => {

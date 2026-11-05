@@ -122,7 +122,8 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
 
   const tr = (key, params) => renderText(t, key, params);
   function msgText(m) {
-    if (m.kind === 'head') { const hd = health ? C.summaryHead(health, conv) : m; return tr(hd.key, hd.params); }
+    // Only the latest summary reads the phone live; an older head keeps the words it was shown with.
+    if (m.kind === 'head') { const hd = health && C.isLatestSummary(conv, m) ? C.summaryHead(C.summaryHealth(conv, m, health), conv) : m; return tr(hd.key, hd.params); }
     if (m.parts) return m.parts.map((p) => tr(p.key, p.params)).join(' ');
     return m.key ? tr(m.key, m.params) : '';
   }
@@ -154,7 +155,8 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     if (c.state === 'ok') return colors.ok;
     return colors.ink2;
   }
-  function summary(key) {
+  // health: the phone this card is drawn from (live for the latest summary, its snapshot otherwise).
+  function summary(key, health) {
     const rows = C.summaryRows(health, { mode });
     return (
       <View key={key} style={s.sum}>
@@ -174,7 +176,7 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
       </View>
     );
   }
-  function schedule(key) {
+  function schedule(key, health) {
     const sched = scheduleState(health);
     const next = health.next;
     let main = null;
@@ -225,12 +227,12 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
       const fixes = m.id === lastSummaryId ? C.fixChips(conv, health) : [];
       return (
         <View key={m.id} style={s.sumWrap}>
-          {summary(`${m.id}-card`)}
+          {summary(`${m.id}-card`, C.summaryHealth(conv, m, health))}
           {fixes.length > 0 ? <View style={s.chips}>{fixes.map(chipView)}</View> : null}
         </View>
       );
     }
-    if (m.kind === 'schedule') return health ? schedule(m.id) : null;
+    if (m.kind === 'schedule') return health ? schedule(m.id, C.summaryHealth(conv, m, health)) : null;
     const bubble = (
       <View style={[s.app, m.mark && s.appMarked]}>
         {m.titleKey ? (
