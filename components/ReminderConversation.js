@@ -215,11 +215,21 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     );
   }
   function renderMsg(m) {
-    if (m.kind === 'user') return <View key={m.id} style={s.user}><Text style={s.userText}>{t(m.key)}</Text></View>;
+    if (m.kind === 'user') return <View key={m.id} style={s.user}><Text style={s.userText}>{tr(m.key, m.params)}</Text></View>;
     if (m.kind === 'done') return line(m, 'check', colors.ok);
     if (m.kind === 'warn') return line(m, 'alert', colors.attention);
     if (m.kind === 'note') return line(m, 'info', colors.ink2);
-    if (m.kind === 'summary') return health ? summary(m.id) : null;
+    if (m.kind === 'summary') {
+      if (!health) return null;
+      // RS-9 (coordinator 2026-11-05): under the latest card, "Ajustar <item>" for every item not OK.
+      const fixes = m.id === lastSummaryId ? C.fixChips(conv, health) : [];
+      return (
+        <View key={m.id} style={s.sumWrap}>
+          {summary(`${m.id}-card`)}
+          {fixes.length > 0 ? <View style={s.chips}>{fixes.map(chipView)}</View> : null}
+        </View>
+      );
+    }
     if (m.kind === 'schedule') return health ? schedule(m.id) : null;
     const bubble = (
       <View style={[s.app, m.mark && s.appMarked]}>
@@ -238,6 +248,15 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
 
   const prog = C.progress(conv);
   const chipList = conv && !pending.current ? C.chips(conv, health) : [];
+  const lastSummaryId = conv ? (conv.messages.filter((m) => m.kind === 'summary').pop() || {}).id : null;
+  function chipView(chip) {
+    const label = tr(chip.key, chip.params);
+    return (
+      <TouchableOpacity key={chip.id} style={[s.chip, chip.primary && s.chipPrimary]} onPress={() => tap(chip.id)} accessibilityRole="button" accessibilityLabel={label}>
+        <Text style={[s.chipText, chip.primary && s.chipTextPrimary]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <View style={s.root}>
@@ -300,6 +319,7 @@ const makeStyles = (c) => StyleSheet.create({
   userText: { fontSize: 17, lineHeight: 22, fontWeight: '500', color: c.onAct },
   line: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, maxWidth: '100%' },
   lineText: { flexShrink: 1, fontSize: 15, lineHeight: 20, fontWeight: '600' },
+  sumWrap: { alignSelf: 'stretch', gap: 8 },
   sum: { alignSelf: 'stretch', backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 4 },
   sumRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.line },
   sumRowLast: { borderBottomWidth: 0 },

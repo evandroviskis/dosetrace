@@ -355,6 +355,60 @@ test('RS-9: the summary rows keep every state the list showed (block in risk, wa
   assert.equal(C.stateTextKey({ id: 'notifications', state: 'block' }), 'rc_notif_block');
 });
 
+// RS-9 (coordinator 2026-11-05, answer 3): the list let the person fix any row from that screen — the
+// summary keeps that: one "Ajustar <item>" chip under the card per item that is not OK; it resumes the
+// walk at that item and, after the return, goes back to the summary (not on through the rest).
+test('RS-9: the summary offers "Ajustar <item>" for every item not OK; it walks that one item and comes back to the summary', () => {
+  assert.deepEqual(C.fixChips(C.startConversation(allOk), allOk), [], 'all OK: no fix chips');
+  const h = { ...allOk, batteryOptimized: true, deepSleepCheckedAt: null, foodOn: true, checkinChannelImportance: R.IMPORTANCE_NONE };
+  // Walk once, skipping everything → the summary.
+  let conv = C.choose(C.startConversation(h), 'start', h).conv;
+  for (let g = 0; g < 8 && conv.phase === 'step'; g++) conv = C.choose(conv, 'skip', h).conv;
+  assert.equal(conv.phase, 'summary');
+  const fixes = C.fixChips(conv, h);
+  assert.deepEqual(fixes.map((x) => x.id), ['fix:battery', 'fix:deep_sleep', 'fix:channel_checkin']);
+  assert.equal(text(tPt, fixes[0]), 'Ajustar Bateria');
+  assert.equal(text(tPt, fixes[1]), 'Ajustar Aplicativos em suspensão profunda');
+  assert.equal(text(tPt, fixes[2]), 'Ajustar Check-ins e registro de comida');
+  // Tap "Ajustar Bateria": the person's bubble, then the normal step (why + action + Agora não).
+  let r = C.choose(conv, 'fix:battery', h);
+  conv = r.conv;
+  assert.equal(conv.phase, 'step'); assert.equal(conv.current, 'battery');
+  assert.equal(text(tPt, conv.messages.filter((m) => m.kind === 'user').pop()), 'Ajustar Bateria');
+  assert.equal(conv.messages.filter((m) => m.item === 'battery' && m.kind === 'app').slice(-2)[0].key, 'rcv_why_battery');
+  assert.deepEqual(chipIds(conv, h), ['act', 'not_now']);
+  // Back from Android, fixed → green line, then the summary again (not deep sleep next).
+  conv = C.choose(conv, 'act', h).conv;
+  const fixed = { ...h, batteryOptimized: false };
+  conv = C.returned(conv, fixed);
+  assert.equal(conv.messages.filter((m) => m.kind === 'done').pop().key, 'rcv_ok_battery');
+  assert.equal(conv.phase, 'summary');
+  assert.deepEqual(C.fixChips(conv, fixed).map((x) => x.id), ['fix:deep_sleep', 'fix:channel_checkin']);
+  // Still not OK → retry; "Pular este" goes back to the summary too.
+  conv = C.choose(C.choose(conv, 'fix:channel_checkin', fixed).conv, 'act', fixed).conv;
+  conv = C.returned(conv, fixed);
+  assert.equal(conv.phase, 'retry');
+  conv = C.choose(conv, 'skip', fixed).conv;
+  assert.equal(conv.phase, 'summary');
+  // Deep sleep: "Já conferi" → back to the summary, no more chip for it.
+  conv = C.choose(conv, 'fix:deep_sleep', fixed).conv;
+  r = C.choose(conv, 'checked', fixed);
+  const checked = { ...fixed, deepSleepCheckedAt: NOW };
+  conv = C.afterChecked(r.conv, checked);
+  assert.equal(conv.phase, 'summary');
+  assert.deepEqual(C.fixChips(conv, checked).map((x) => x.id), ['fix:channel_checkin']);
+  // An item gone wrong while the summary was open (iPhone: notifications switched off) gets its chip.
+  const ios = C.startConversation({ ...iphone, permission: 'granted' });
+  assert.deepEqual(C.fixChips(ios, iphone).map((x) => x.id), ['fix:notifications']);
+  const back = C.choose(ios, 'fix:notifications', iphone);
+  assert.equal(back.conv.current, 'notifications');
+  assert.equal(C.choose(back.conv, 'act', iphone).effect.ask, true);
+  // The words in 6 languages; the screen draws the chips under the latest summary card.
+  for (const l of LANGS) assert.ok(T[l].rcv_fix && T[l].rcv_fix.includes('{name}'), l);
+  const src = read('components/ReminderConversation.js');
+  assert.match(src, /C\.fixChips\(conv, health\)/);
+});
+
 // ── RS-10: iPhone ──────────────────────────────────────────────────────────────────────────────
 test('RS-10: iPhone — notifications off: it starts on the notifications step (no opening) and ends on the summary; on: the summary', () => {
   let conv = C.startConversation(iphone);
