@@ -36,6 +36,10 @@ test('RG-7 Samsung: deep sleeping apps and its path use Samsung\'s own names in 
 });
 
 test('RG-7 Samsung: Check reminders and the setup step title rows through rowTitleKey', () => {
-  const src = read('components/ReminderSetupList.js'); // A-112: the rows live in the shared list
+  // RS (2026-11-05): the conversation's summary rows and step titles use the phone's own names.
+  const src = read('components/ReminderConversation.js');
   assert.match(src, /rowTitleKey\(c\.id, health\.manufacturer\)/);
+  const C = require('../lib/reminderConversation');
+  assert.equal(C.stepTitle('hibernation', { manufacturer: 'samsung' }), 'rc_hibernation_samsung');
+  for (const l of LANGS) assert.ok(T[l].rcv_deep_sleep_path.includes(SAMSUNG.limits[l]) && T[l].rcv_deep_sleep_path.includes(SAMSUNG.deepSleep[l]), `${l} rcv_deep_sleep_path`);
 });

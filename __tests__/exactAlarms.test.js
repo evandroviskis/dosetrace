@@ -51,8 +51,12 @@ test('EA-1: readReminderHealth reads the native check; EA-4: turning it on resch
 });
 
 test('EA-2: the Reminder check row has on / off texts and a Turn on button', () => {
-  const s = read('components/ReminderSetupList.js'); // A-112: the rows live in the shared list
-  assert.match(s, /alarms: \{ icon: 'clock', title: 'rc_alarms', ok: 'rc_alarms_ok', warn: 'rc_alarms_warn', open: 'rc_alarms_sub', fix: 'rc_fix_turn_on' \}/);
+  // RS-9: the rows' table moved to lib/reminderConversation (the conversation's summary).
+  const s = read('lib/reminderConversation.js');
+  assert.match(s, /alarms: \{ icon: 'clock', title: 'rc_alarms', ok: 'rc_alarms_ok', warn: 'rc_alarms_warn', open: 'rc_alarms_sub' \}/);
+  // Off: the conversation's step says why and opens Android's screen (RS-3).
+  const C = require('../lib/reminderConversation');
+  assert.equal(C.ITEM.alarms.why, 'rcv_why_alarms');
 });
 
 // A-112 SP-6 (signed 2026-10-07) supersedes the direct open: the card opens "Make sure your reminders

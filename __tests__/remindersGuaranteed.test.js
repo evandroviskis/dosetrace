@@ -76,8 +76,9 @@ test('RG-1: the step opens once per phone, Android only (no longer from the prot
 test('RG-2/RG-5: one screen (A-112: no setup mode); Today\'s alerts open it at the missing item', () => {
   const s = read('screens/ReminderCheckScreen.js');
   assert.doesNotMatch(s, /mode === 'setup'/);
-  assert.match(s, /rc_setup_title/);
-  assert.match(read('components/ReminderSetupList.js'), /rc_setup_progress/);
+  // RS (2026-11-05): one conversation, with "N de M" in its header.
+  assert.match(s, /<ReminderConversation mode="screen"/);
+  assert.match(read('components/ReminderConversation.js'), /rcv_progress/);
   const t = read('screens/TodayScreen.js');
   // "may stop" opens the screen at the hibernation switch; "not refreshed" at the refresh row.
   const stop = t.slice(t.indexOf("id: 'reminders_stop'"), t.indexOf("id: 'reminders_stop'") + 500);
@@ -96,8 +97,10 @@ test('RG-3: the native module reads the hibernation exemption (Android 11+)', ()
 });
 
 test('RG-7: new text in all 6 languages; icons from the app set (no emoji)', () => {
-  const keys = ['rc_setup_title', 'rc_setup_intro', 'rc_setup_progress', 'rc_setup_done', 'ob_setup_later', // A-112: "Continue later" became onboarding's "Set up later"
-    'rc_hibernation', 'rc_hibernation_ok', 'rc_hibernation_warn', 'rc_fix_turn_off',
+  // RS (2026-11-05): the list's intro, "Done" and button words went with the list; the conversation's
+  // texts are checked in reminderConversation.test.js.
+  const keys = ['rc_setup_title', 'rc_setup_progress', 'ob_setup_later', // A-112: "Continue later" became onboarding's "Set up later"
+    'rc_hibernation', 'rc_hibernation_ok', 'rc_hibernation_warn', 'rcv_why_hibernation',
     'rc_refresh', 'rc_refresh_ok', 'rc_refresh_pending', 'rc_refresh_warn',
     'today_alert_stop_title', 'today_alert_stop_body', 'today_alert_stale_title', 'today_alert_stale_body'];
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of keys) assert.ok(T[l][k], `${l} ${k}`);
@@ -161,7 +164,7 @@ test('RG-4: the refresh row also says until when reminders are scheduled (the la
   const c = R.reminderChecks({ ...base, lastScheduledMs: NOW + 20 * DAY }).find((x) => x.id === 'refresh');
   assert.equal(c.until, NOW + 20 * DAY);
   assert.match(read('lib/notifications.js'), /out\.lastScheduledMs = /);
-  assert.match(read('components/ReminderSetupList.js'), /rc_refresh_until/);
+  assert.match(read('components/ReminderConversation.js'), /rc_refresh_until/); // RS-9: the summary's refresh row
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].rc_refresh_until && T[l].rc_refresh_until.includes('{date}'), l);
 });
 

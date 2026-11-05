@@ -9,14 +9,15 @@ const read = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
 const { notifTapTarget } = require('../lib/notificationPlan');
 
 test('RC-2/RC-8: the screen parses, uses theme tokens only and draws no emoji', () => {
-  // A-112: the rows moved to components/ReminderSetupList.js (shared with the onboarding step).
-  const parts = [read('screens/ReminderCheckScreen.js'), read('components/ReminderSetupList.js')];
+  // RS (2026-11-05): the screen is the conversation (components/ReminderConversation.js), shared with
+  // the Android onboarding step; the list is gone.
+  const parts = [read('screens/ReminderCheckScreen.js'), read('components/ReminderConversation.js')];
   for (const p of parts) parse(p, { sourceType: 'module', plugins: ['jsx'] });
   const s = parts.join('\n');
   assert.doesNotMatch(s, /#[0-9a-fA-F]{3,8}\b/, 'no raw hex');
   assert.doesNotMatch(s, /'white'|'black'|rgba\(/);
   assert.doesNotMatch(s, /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u, 'no emoji');
-  assert.match(s, /openReminderFix\(c\.fix\)/, 'each fix opens its system screen');
+  assert.match(s, /openReminderFix\(effect\.fix\)/, 'each step opens its system screen');
   assert.match(s, /sendTestReminder\(\)/);
 });
 

@@ -198,7 +198,7 @@ test('PA-35: the adults-only note and the country bottom sheet', () => {
 });
 
 test('PA-39 / PA-63: Terms of service AND Privacy policy linked on the consent step and on Create account', () => {
-  const consent = ONB.slice(ONB.indexOf("cur === 'consent'"), ONB.indexOf("cur === 'reminders'"));
+  const consent = ONB.slice(ONB.indexOf("{cur === 'consent' && ("), ONB.indexOf("{cur === 'reminders' && !showSetup && ("));
   assert.match(consent, /settings_terms/);
   assert.match(consent, /settings_privacy_policy/);
   assert.match(ONB, /content=\{fillStoreText\(t\('settings_terms_body'\), t, Platform\.OS\)\}/); // council fix 4

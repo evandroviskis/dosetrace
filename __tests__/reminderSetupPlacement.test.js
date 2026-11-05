@@ -50,10 +50,13 @@ test('SP-2: one screen — no setup mode, no "See step by step"; Android shows t
   assert.doesNotMatch(s, /mode === 'setup'/);
   assert.doesNotMatch(s, /rc_setup_open/);
   assert.doesNotMatch(s, /navigation\.push\('ReminderCheck'/);
-  assert.match(s, /ReminderSetupList/);
-  assert.match(s, /rc_setup_title/);
-  assert.match(s, /rc_test_btn/);
-  assert.match(s, /rc_sched_title/);
+  // RS (2026-11-05): the one screen is now the conversation; its summary keeps the items, the
+  // schedule and the test reminder (RS-9).
+  assert.match(s, /<ReminderConversation mode="screen"/);
+  const c = read('components/ReminderConversation.js');
+  assert.match(c, /rcv_next_line/);
+  const C = require('../lib/reminderConversation');
+  assert.deepEqual(C.chips(C.startConversation(ok), ok).map((x) => x.key), ['rcv_finish', 'rc_test_btn']);
   const rows = R.setupSteps(ok, { withRefresh: true }).rows.map((r) => r.id);
   assert.deepEqual(rows, ['notifications', 'alarms', 'battery', 'hibernation', 'refresh', 'deep_sleep']);
   assert.ok(!R.setupSteps(ok).rows.some((r) => r.id === 'refresh'), 'onboarding: items only');
@@ -61,8 +64,9 @@ test('SP-2: one screen — no setup mode, no "See step by step"; Android shows t
 });
 
 test('SP-3: the screen and the onboarding step read the phone again on return from Android settings', () => {
-  assert.match(read('screens/ReminderCheckScreen.js'), /AppState\.addEventListener\('change'/);
-  assert.match(read('screens/OnboardingFlowScreen.js'), /AppState\.addEventListener\('change'/);
+  // RS-4: the conversation (screen and onboarding step alike) reads the phone again on return.
+  assert.match(read('components/ReminderConversation.js'), /AppState\.addEventListener\('change'/);
+  assert.match(read('screens/OnboardingFlowScreen.js'), /<ReminderConversation mode="onboarding"/);
   assert.match(read('screens/SettingsScreen.js'), /useFocusEffect\(/);
 });
 
@@ -74,8 +78,8 @@ test('SP-4: Android onboarding shows the step after "Turn on notifications", mar
   assert.match(en, /setShowSetup\(true\)/);
   assert.match(en, /toAuth\('create'\)/, 'iPhone goes on as before');
   assert.match(en, /await markSetupSeen\(\)/);
-  assert.match(o, /ob_setup_later/);
-  assert.match(o, /<ReminderSetupList[^>]*health=/);
+  // RS-8: the step is the conversation; its "Configurar depois" / "Continuar" chips go on (toAuth).
+  assert.match(o, /<ReminderConversation mode="onboarding" onContinue=\{\(\) => toAuth\('create'\)\} \/>/);
   // "Not now" skips it.
   const notNow = o.slice(o.indexOf("t('ob_not_now')") - 300, o.indexOf("t('ob_not_now')"));
   assert.match(notNow, /toAuth\('create'\)/);
@@ -163,30 +167,36 @@ test('council 4 / SP-1: a late automatic refresh never reads "All set"; the scre
 });
 
 test('council 4: the screen never shows the iPhone title or "0 reminders" before the phone is read', () => {
-  const s = read('screens/ReminderCheckScreen.js');
-  assert.match(s, /const android = Platform\.OS === 'android';/);
-  assert.match(s, /\{health \? \(/, 'schedule card waits for the first read');
+  // RS (2026-11-05): one header for both platforms; the conversation starts only from the first read
+  // of the phone, and the schedule is drawn only with it.
+  const c = read('components/ReminderConversation.js');
+  assert.match(c, /setConv\(\(c\) => c \|\| C\.startConversation\(h, \{ mode, resume \}\)\)/);
+  assert.match(c, /if \(m\.kind === 'schedule'\) return health \? schedule\(m\.id\) : null;/);
 });
 
 test('council 4: with a red item the test reminder says it cannot arrive yet', () => {
-  const s = read('screens/ReminderCheckScreen.js');
+  const lib = read('lib/reminderConversation.js');
   // Ship-check: only a red ROW stops the test (an empty schedule does not: the test schedules its own).
-  assert.match(s, /reminderChecks\(health\)\.some\(\(c\) => c\.state === 'block'\)/);
-  assert.doesNotMatch(s, /blockingCount/);
-  assert.match(s, /rc_test_blocked/);
+  assert.match(between(lib, 'function testBlocked(h)', '\n}\n'), /reminderChecks\(h\)\.some\(\(c\) => c\.state === 'block'\)/);
+  assert.doesNotMatch(lib, /blockingCount/);
+  assert.match(lib, /rc_test_blocked/);
+  assert.match(read('components/ReminderConversation.js'), /const blocked = C\.testBlocked\(h\);/);
   for (const l of LANGS) assert.ok(T[l].rc_test_blocked, l);
 });
 
-test('council 4: the Settings row icon is the feature\'s shield (warning only when blocked); onboarding shield in ink', () => {
+test('council 4: the Settings row icon is the feature\'s shield (warning only when blocked)', () => {
   const body = between(read('screens/SettingsScreen.js'), 'function renderNotificationsBody()', 'function renderPrivacyBody()');
   assert.match(body, /setupRow && setupRow\.kind === 'block' \? 'warning' : 'shield'/);
-  assert.match(read('screens/OnboardingFlowScreen.js'), /<FeatureIcon name="shield" size=\{56\} color=\{colors\.ink\} \/>/);
+  // RS-1 (2026-11-05): the onboarding step's shield gave way to the conversation and its DoseTrace mark.
 });
 
-test('council 4: the test reminder is a secondary (outlined) button, as in the approved picture', () => {
-  const s = read('screens/ReminderCheckScreen.js');
-  assert.match(s, /testBtn: \{[^}]*borderWidth: 1, borderColor: c\.line[^}]*\}/);
-  assert.match(s, /testText: \{[^}]*color: c\.ink[^}]*\}/);
+test('council 4: the test reminder is a secondary (outlined) chip, as in the approved pictures', () => {
+  const s = read('components/ReminderConversation.js');
+  assert.match(s, /chip: \{[^}]*borderWidth: 1, borderColor: c\.line[^}]*\}/);
+  assert.match(s, /chipText: \{[^}]*color: c\.ink[^}]*\}/);
+  const C = require('../lib/reminderConversation');
+  const test = C.chips(C.startConversation(ok), ok).find((x) => x.id === 'test');
+  assert.ok(test && !test.primary, 'secondary');
 });
 
 test('council 4: replaced strings are gone (rebuild = replace)', () => {
@@ -215,13 +225,12 @@ test('SP-10: the phone remembers the confirmation; the row shows Open + I checke
   assert.match(n, /DEEP_SLEEP_CHECKED_KEY = 'dosetrace_deep_sleep_checked'/);
   assert.match(n, /export async function markDeepSleepChecked\(/);
   assert.match(between(n, 'export async function readReminderHealth()', '\n}\n'), /deepSleepCheckedAt/);
-  const l = read('components/ReminderSetupList.js');
-  assert.match(l, /rc_deep_sleep_checked_btn/);
+  // RS-5 (2026-11-05): the conversation's deep-sleep step keeps "Abrir" / "Já conferi"; the summary
+  // row shows the date (the list is gone).
+  const l = read('components/ReminderConversation.js');
+  assert.match(read('lib/reminderConversation.js'), /rc_deep_sleep_checked_btn/);
   assert.match(l, /rc_deep_sleep_checked/);
-  assert.match(l, /markDeepSleepChecked\(\)/);
-  assert.match(l, /onChange/);
-  assert.match(read('screens/ReminderCheckScreen.js'), /<ReminderSetupList [^>]*onChange=\{load\}/);
-  assert.match(read('screens/OnboardingFlowScreen.js'), /<ReminderSetupList [^>]*onChange=/);
+  assert.match(l, /markDeepSleepChecked\(\)\.then\(\(\) => readReminderHealth\(\)\)/, 'saved, then the phone is read again');
   for (const k of ['rc_deep_sleep_checked_btn', 'rc_deep_sleep_checked']) for (const lg of LANGS) assert.ok(T[lg][k], `${lg} ${k}`);
   for (const lg of LANGS) assert.ok(T[lg].rc_deep_sleep_checked.includes('{date}'), lg);
 });

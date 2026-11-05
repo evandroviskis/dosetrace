@@ -7,7 +7,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parse } = require('@babel/parser');
 const R = require('../lib/reminderHealth');
 
 const read = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
@@ -26,16 +25,9 @@ const base = { os: 'android', manufacturer: 'Google', permission: 'granted', dos
   exactAlarms: true, hibernationExempt: true, remindersOn: true, activeWithTime: 1, scheduledCount: 20, syncedOnce: true,
   lastRefresh: { at: Date.now(), ok: true }, nowMs: Date.now() };
 
-// The ROW table of components/ReminderSetupList.js, read from its source (the file is JSX/ESM).
+// The ROW table of the summary rows (RS-9, 2026-11-05: moved from the list to lib/reminderConversation).
 function rowTable() {
-  const ast = parse(read('components/ReminderSetupList.js'), { sourceType: 'module', plugins: ['jsx'] });
-  const decl = ast.program.body.find((n) => n.type === 'ExportNamedDeclaration' && n.declaration && n.declaration.declarations && n.declaration.declarations[0].id.name === 'ROW');
-  const out = {};
-  for (const p of decl.declaration.declarations[0].init.properties) {
-    const key = p.key.name || p.key.value;
-    out[key] = Object.fromEntries(p.value.properties.map((q) => [q.key.name, q.value.value]));
-  }
-  return out;
+  return require('../lib/reminderConversation').ROW;
 }
 
 test('DV-098: food reminders on + check-in category off → a block row on the screen, counted', () => {
@@ -67,15 +59,18 @@ test('DV-098: a row only for a kind switched on; unreadable → no row; all on �
   assert.ok(!R.setupSteps({ ...h, os: 'ios', foodOn: true, checkinChannelImportance: R.IMPORTANCE_NONE }).rows.some((r) => r.id.startsWith('channel_')));
 });
 
-test('DV-098: the rows reuse the channel names, say where it is switched, and the fix is "Turn on"', () => {
+test('DV-098: the rows reuse the channel names, say where it is switched, and the step opens the category', () => {
   const ROW = rowTable();
-  assert.deepEqual(ROW.channel_checkin, { icon: ROW.channel_checkin.icon, title: 'notif_channel_checkin', ok: 'rc_channel_on_android', block: 'rc_channel_block', fix: 'rc_fix_turn_on' });
-  assert.deepEqual(ROW.channel_vial, { icon: ROW.channel_vial.icon, title: 'notif_channel_vials', ok: 'rc_channel_on_android', block: 'rc_channel_block', fix: 'rc_fix_turn_on' });
+  assert.deepEqual(ROW.channel_checkin, { icon: ROW.channel_checkin.icon, title: 'notif_channel_checkin', ok: 'rc_channel_on_android', block: 'rc_channel_block' });
+  assert.deepEqual(ROW.channel_vial, { icon: ROW.channel_vial.icon, title: 'notif_channel_vials', ok: 'rc_channel_on_android', block: 'rc_channel_block' });
   assert.equal(T.pt.notif_channel_checkin, 'Check-ins e registro de comida');
   assert.equal(T.pt.notif_channel_vials, 'Alertas de frasco');
   assert.equal(T.pt.rc_channel_on_android, 'Ligada nas configurações do Android');
   assert.equal(T.pt.rc_channel_block, 'Desligada nas configurações do Android');
-  assert.equal(T.pt.rc_fix_turn_on, 'Ligar');
+  // RS-3 (2026-11-05): the conversation's step for an off category: "Abrir o ajuste" opens its screen.
+  const C = require('../lib/reminderConversation');
+  assert.equal(C.ITEM.channel_checkin.act, 'rcv_open_setting');
+  assert.equal(T.pt.rcv_open_setting, 'Abrir o ajuste');
   for (const l of LANGS) assert.ok(T[l].rc_channel_on_android, `${l}.rc_channel_on_android`);
   // The fix opens that category's Android screen (lib/notifications openReminderFix).
   assert.match(read('lib/notifications.js'), /fix === 'channel_checkin' \? 'checkin-reminders' : fix === 'channel_vial' \? 'vial-alerts'/);

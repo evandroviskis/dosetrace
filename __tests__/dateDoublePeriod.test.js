@@ -13,7 +13,7 @@ const { renderText } = require('../lib/assistantText');
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 
 test('the reminder setup "checked on {date}." line has one period after a short month', () => {
-  const src = read('components/ReminderSetupList.js');
+  const src = read('components/ReminderConversation.js'); // RS-9: the summary row (the list is gone)
   assert.match(src, /fillDate\(t\('rc_deep_sleep_checked'\), formatDate\(new Date\(c\.at\), language, 'dayMonth'\)\)/);
   assert.equal(fillDate(translations.pt.rc_deep_sleep_checked, '31 de out.'),
     'Você conferiu em 31 de out. Se mudar algo nas configurações do celular, confira de novo.');
