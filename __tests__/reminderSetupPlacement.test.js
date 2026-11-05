@@ -224,7 +224,7 @@ test('SP-10: the phone remembers the confirmation; the row shows Open + I checke
   const n = read('lib/notifications.js');
   assert.match(n, /DEEP_SLEEP_CHECKED_KEY = 'dosetrace_deep_sleep_checked'/);
   assert.match(n, /export async function markDeepSleepChecked\(/);
-  assert.match(between(n, 'export async function readReminderHealth()', '\n}\n'), /deepSleepCheckedAt/);
+  assert.match(between(n, 'export async function readReminderHealth(', '\n}\n'), /deepSleepCheckedAt/);
   // RS-5 (2026-11-05): the conversation's deep-sleep step keeps "Abrir" / "Já conferi"; the summary
   // row shows the date (the list is gone).
   const l = read('components/ReminderConversation.js');

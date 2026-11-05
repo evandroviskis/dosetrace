@@ -36,6 +36,8 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
   const healthRef = useRef(null);
   const pending = useRef(null); // { away, settled, opened, settledAt } while an Android screen is open
   const scrollRef = useRef(null);
+  const nearBottom = useRef(true); // review 6: the person is at the end of the conversation
+  const seenCount = useRef(0);
   convRef.current = conv;
   healthRef.current = health;
 
@@ -51,31 +53,47 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     return () => { live = false; if (mode === 'screen') clearResume(); };
   }, []);
 
-  const refresh = useCallback(() => { readReminderHealth().then(setHealth).catch(() => {}); }, []);
+  // A plain re-read (back in front, a test sent): the summary updates, and a setting that became OK by
+  // itself while its step is on screen gets its green line and the walk goes on (review 6).
+  const refresh = useCallback(() => {
+    readReminderHealth().then((h) => { setHealth(h); setConv((c) => C.refreshed(c, h)); }).catch(() => {});
+  }, []);
 
-  // Back from Android (RS-4): read the phone again, then the conversation says what it found.
+  // Back from Android (RS-4): read the phone again, then the conversation says what it found. The read
+  // does not wait for a resync in flight (review 6: no chip lag after "Permitir"); a full read follows.
   const readBack = useCallback(() => {
     pending.current = null;
     if (mode === 'screen') clearResume();
-    readReminderHealth().then((h) => { setHealth(h); setConv((c) => C.returned(c, h)); }).catch(() => {});
-  }, [mode]);
+    readReminderHealth({ waitSync: false })
+      .then((h) => { setHealth(h); setConv((c) => C.returned(c, h)); refresh(); })
+      // Unreadable: decide with the last read rather than leave the person without chips.
+      .catch(() => { setConv((c) => C.returned(c, healthRef.current)); });
+  }, [mode, refresh]);
   const check = useCallback(() => {
     const p = pending.current;
     if (!p) return;
-    if (C.returnReady({ away: p.away, settled: p.settled, appState: AppState.currentState, opened: p.opened, waitedMs: p.settledAt ? Date.now() - p.settledAt : 0 })) readBack();
+    if (C.returnReady({ away: p.away, settled: p.settled, appState: AppState.currentState, opened: p.opened, waitedMs: p.settledAt ? Date.now() - p.settledAt : 0, activeMs: p.activeAt ? Date.now() - p.activeAt : 0 })) readBack();
   }, [readBack]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
-      if (pending.current && (st === 'background' || st === 'inactive')) pending.current.away = true;
-      if (st === 'active') { if (pending.current) check(); else refresh(); }
+      if (pending.current && (st === 'background' || st === 'inactive')) { pending.current.away = true; pending.current.activeAt = 0; }
+      if (st === 'active') {
+        if (pending.current) {
+          // Review 3: Android's startActivityAsync may never settle — read anyway after 1.5 s in front.
+          if (pending.current.away && !pending.current.activeAt) pending.current.activeAt = Date.now();
+          check();
+          setTimeout(check, 1600);
+        } else refresh();
+      }
     });
     return () => sub.remove();
   }, [check, refresh]);
 
   async function runOpen(effect) {
-    const p = { away: false, settled: false, opened: true, settledAt: 0 };
+    const p = { away: false, settled: false, opened: true, settledAt: 0, activeAt: 0 };
     pending.current = p;
-    if (mode === 'screen') saveResume(effect.item); // cold return: Today brings the person back here
+    // Cold return: Today brings the person back here — only this account (review 6).
+    if (mode === 'screen') saveResume(effect.item, healthRef.current && healthRef.current.userId);
     let opened = false;
     try {
       // RS-3: notifications first try the system dialog; when it cannot show, DoseTrace's notification settings.
@@ -156,20 +174,30 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     return colors.ink2;
   }
   // health: the phone this card is drawn from (live for the latest summary, its snapshot otherwise).
-  function summary(key, health) {
+  // latest: only the latest card offers actions (review 2: "Abrir" on confirmed deep sleep and on the
+  // rows the app cannot read, as the list had it; it opens the system screen, the return re-reads).
+  function summary(key, health, latest) {
     const rows = C.summaryRows(health, { mode });
     return (
       <View key={key} style={s.sum}>
         {rows.map((c, i) => {
           const title = t(rowTitleKey(c.id, health.manufacturer) || C.ROW[c.id].title);
           const ok = c.state === 'ok';
+          const openFix = latest ? C.rowOpenFix(c) : null;
           return (
-            <View key={c.id} style={[s.sumRow, i === rows.length - 1 && s.sumRowLast, c.id === focus && s.sumRowFocus]} accessible accessibilityLabel={`${title}: ${stateText(c)}`}>
-              <Text style={s.sumTitle}>{title}</Text>
-              <View style={s.sumState}>
-                {ok ? <FeatureIcon name="check" size={16} color={colors.ok} /> : c.state === 'block' ? <FeatureIcon name="warning" size={16} color={colors.risk} /> : null}
-                <Text style={[s.sumStateText, { color: stateColor(c) }]}>{stateText(c)}</Text>
+            <View key={c.id} style={[s.sumRow, i === rows.length - 1 && s.sumRowLast, c.id === focus && s.sumRowFocus]}>
+              <View style={s.sumMain} accessible accessibilityLabel={`${title}: ${stateText(c)}`}>
+                <Text style={s.sumTitle}>{title}</Text>
+                <View style={s.sumState}>
+                  {ok ? <FeatureIcon name="check" size={16} color={colors.ok} /> : c.state === 'block' ? <FeatureIcon name="warning" size={16} color={colors.risk} /> : null}
+                  <Text style={[s.sumStateText, { color: stateColor(c) }]}>{stateText(c)}</Text>
+                </View>
               </View>
+              {openFix ? (
+                <TouchableOpacity onPress={() => { openReminderFix(openFix).catch(() => {}); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={`${t('rc_fix_open')}: ${title}`}>
+                  <Text style={s.link}>{t('rc_fix_open')}</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           );
         })}
@@ -227,7 +255,7 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
       const fixes = m.id === lastSummaryId ? C.fixChips(conv, health) : [];
       return (
         <View key={m.id} style={s.sumWrap}>
-          {summary(`${m.id}-card`, C.summaryHealth(conv, m, health))}
+          {summary(`${m.id}-card`, C.summaryHealth(conv, m, health), m.id === lastSummaryId)}
           {fixes.length > 0 ? <View style={s.chips}>{fixes.map(chipView)}</View> : null}
         </View>
       );
@@ -262,6 +290,9 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
 
   return (
     <View style={s.root}>
+      {/* Review 5: inside onboarding its own top bar is the one progress indicator. */}
+      {C.showHeader(mode) ? (
+      <>
       <View style={s.head}>
         <View style={s.headSide}>
           {onClose ? (
@@ -277,7 +308,25 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
         </View>
       </View>
       <View style={s.bar}><View style={[s.barFill, { width: `${prog.total ? (prog.n / prog.total) * 100 : 0}%` }]} /></View>
-      <ScrollView ref={scrollRef} style={s.flex} contentContainerStyle={s.list} onContentSizeChange={() => scrollRef.current && scrollRef.current.scrollToEnd({ animated: true })}>
+      </>
+      ) : null}
+      <ScrollView
+        ref={scrollRef}
+        style={s.flex}
+        contentContainerStyle={s.list}
+        scrollEventThrottle={64}
+        onScroll={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          nearBottom.current = contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+        }}
+        onContentSizeChange={() => {
+          // Review 6: follow a new message, never pull someone reading the history back down.
+          const count = conv ? conv.messages.length : 0;
+          const newMessage = count !== seenCount.current;
+          seenCount.current = count;
+          if (C.shouldAutoScroll({ nearBottom: nearBottom.current, newMessage }) && scrollRef.current) scrollRef.current.scrollToEnd({ animated: true });
+        }}
+      >
         {conv ? conv.messages.map(renderMsg) : null}
         {chipList.length > 0 ? (
           <View style={s.chips}>
@@ -323,7 +372,9 @@ const makeStyles = (c) => StyleSheet.create({
   lineText: { flexShrink: 1, fontSize: 15, lineHeight: 20, fontWeight: '600' },
   sumWrap: { alignSelf: 'stretch', gap: 8 },
   sum: { alignSelf: 'stretch', backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 4 },
-  sumRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.line },
+  sumRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.line },
+  sumMain: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 6 },
+  link: { fontSize: 14, fontWeight: '600', color: c.ink, textDecorationLine: 'underline' },
   sumRowLast: { borderBottomWidth: 0 },
   // The item a Today card pointed at (A-110 RG-5): the well tone, as the list had it.
   sumRowFocus: { backgroundColor: c.well, marginHorizontal: -14, paddingHorizontal: 14 },

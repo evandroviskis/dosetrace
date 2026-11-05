@@ -69,12 +69,14 @@ test('RS-2: it opens on the two opening messages with "Começar" / "Agora não"'
   const conv = C.startConversation(fold);
   assert.equal(conv.phase, 'intro');
   assert.equal(text(tPt, conv.messages[0]), 'Vou ajudar você a deixar o celular pronto para os lembretes de dose chegarem na hora, mesmo com o app fechado.');
-  assert.equal(text(tPt, conv.messages[1]), 'São 5 ajustes, um de cada vez. Eu abro o lugar certo de cada um e confiro quando você voltar.');
+  assert.equal(text(tPt, conv.messages[1]), 'Faltam 5 ajustes, um de cada vez. Eu abro o lugar certo de cada um e confiro quando você voltar.');
   assert.deepEqual(C.chips(conv, fold).map((c) => [c.id, c.key, !!c.primary]), [['start', 'rcv_start', true], ['not_now', 'ob_not_now', false]]);
   assert.equal(T.pt.rcv_start, 'Começar'); assert.equal(T.pt.ob_not_now, 'Agora não');
   // One setting: the singular.
   const one = C.startConversation({ ...allOk, batteryOptimized: true });
-  assert.equal(one.messages[1].key, 'rcv_intro_2', 'counts every item of the phone, not only the pending ones');
+  // Review fix 6 (coordinator 2026-11-05): the count is of what still needs the person.
+  assert.equal(one.messages[1].key, 'rcv_intro_2_one', 'only battery is left');
+  assert.equal(text(tPt, one.messages[1]), 'Falta 1 ajuste. Eu abro o lugar certo e confiro quando você voltar.');
 });
 
 test('RS-2: items already OK are not walked — one green line each, then the first item that needs the person', () => {
@@ -530,4 +532,119 @@ test('the bold segments of a message (pure)', () => {
     { text: 'Lá, toque em ', bold: false }, { text: 'Bateria', bold: true }, { text: ' e escolha ', bold: false }, { text: 'Sem restrições', bold: true }, { text: '.', bold: false },
   ]);
   assert.deepEqual(C.segments(t, 'x', { battery: 'B', unrestricted: 'U' }), [{ text: 'Lá, toque em B e escolha U.', bold: false }]);
+});
+
+// ── Independent review 2026-11-05 (coordinator decisions; each fix test first) ─────────────────────
+const headKey = (h, conv) => C.summaryHead(h, conv || C.startConversation(h)).key;
+
+test('review 1: the summary head never says "All set" while something blocks or warns — the Settings row rule, on the live items', () => {
+  assert.equal(headKey(allOk), 'rcv_all_set');
+  // iPhone: notifications allowed but nothing scheduled although a protocol owes reminders (DV-044).
+  const noneSched = { ...iphone, permission: 'granted', scheduledCount: 0, dueInWindow: 6 };
+  assert.equal(R.setupRowState(noneSched).kind, 'block');
+  assert.equal(C.startConversation(noneSched).phase, 'summary');
+  assert.equal(headKey(noneSched), 'rcv_head_attention');
+  // Android: the automatic refresh is late (warn).
+  const late = { ...allOk, lastRefresh: { at: NOW - 5 * DAY, ok: true, lastOkAt: NOW - 5 * DAY } };
+  assert.equal(R.setupRowState(late).kind, 'warn');
+  assert.equal(headKey(late), 'rcv_head_attention');
+  // The Dose reminders category switched off after the screen opened: not all set, and it joins the live list.
+  const conv = C.startConversation(allOk);
+  const chanOff = { ...allOk, doseChannelImportance: R.IMPORTANCE_NONE };
+  assert.notEqual(C.summaryHead(chanOff, conv).key, 'rcv_all_set');
+  assert.ok(C.fixChips(conv, chanOff).some((x) => x.id === 'fix:channel'));
+  // Only rows the app cannot read left: a neutral line, never a claim nobody read.
+  const unread = { ...allOk, exactAlarms: null, manufacturer: 'Google' };
+  assert.equal(headKey(unread), 'rcv_head_check');
+  assert.equal(T.pt.rcv_head_check, 'Confira os itens abaixo.');
+  for (const l of LANGS) for (const k of ['rcv_head_check', 'rcv_head_attention']) assert.ok(T[l][k], `${l}.${k}`);
+});
+
+test('review 2: a late automatic refresh offers its fix (the battery step); confirmed deep sleep and unreadable rows keep "Abrir"', () => {
+  const late = { ...allOk, lastRefresh: { at: NOW - 5 * DAY, ok: true, lastOkAt: NOW - 5 * DAY } };
+  let conv = C.startConversation(late);
+  const chip = C.fixChips(conv, late).find((x) => x.id === 'fix:refresh');
+  assert.ok(chip, 'the refresh row has its fix again');
+  assert.equal(text(tPt, chip), 'Ajustar Renovação automática');
+  conv = C.choose(conv, 'fix:refresh', late).conv;
+  assert.equal(conv.current, 'battery', 'the old list\'s "Adjust" went to battery');
+  assert.equal(C.choose(conv, 'act', late).effect.fix, 'battery');
+  // Battery itself off: one chip for battery, no second one for the refresh.
+  const both = { ...late, batteryOptimized: true };
+  const ids = C.fixChips(C.startConversation(allOk), both).map((x) => x.id);
+  assert.ok(ids.includes('fix:battery') && !ids.includes('fix:refresh'));
+  // "Abrir" on the card row: confirmed deep sleep and the rows the app cannot read.
+  assert.equal(C.rowOpenFix({ id: 'deep_sleep', state: 'ok' }), 'deepSleep');
+  assert.equal(C.rowOpenFix({ id: 'alarms', state: 'open' }), 'alarms');
+  assert.equal(C.rowOpenFix({ id: 'hibernation', state: 'open' }), 'hibernation');
+  assert.equal(C.rowOpenFix({ id: 'battery', state: 'ok' }), null);
+  assert.equal(C.rowOpenFix({ id: 'battery', state: 'warn' }), null, 'a fix chip covers it');
+  assert.match(read('components/ReminderConversation.js'), /C\.rowOpenFix\(c\)/);
+});
+
+test('review 3: back from Android the phone is read even if the open call never settles', () => {
+  assert.equal(C.returnReady({ away: true, settled: false, appState: 'active', activeMs: 300 }), false, 'give the answer a moment');
+  assert.equal(C.returnReady({ away: true, settled: false, appState: 'active', activeMs: 1600 }), true, 'never settles: read anyway');
+  assert.equal(C.returnReady({ away: true, settled: false, appState: 'background', activeMs: 5000 }), false);
+  const src = read('components/ReminderConversation.js');
+  assert.match(src, /activeAt/);
+  assert.match(src, /setTimeout\(check, 1600\)/);
+});
+
+test('review 4: "Agora não" inside a fix started from the summary returns to the summary (screen and onboarding)', () => {
+  for (const mode of ['screen', 'onboarding']) {
+    const h = { ...allOk, batteryOptimized: true };
+    let conv = C.startConversation(h, { mode });
+    conv = C.choose(conv, 'start', h).conv;
+    conv = C.choose(conv, 'skip', h).conv;
+    assert.equal(conv.phase, 'summary', mode);
+    conv = C.choose(conv, 'fix:battery', h).conv;
+    const r = C.choose(conv, 'not_now', h);
+    assert.equal(r.effect, null, `${mode}: stays in the flow`);
+    assert.equal(r.conv.phase, 'summary', mode);
+  }
+});
+
+test('review 5: onboarding shows one progress indicator — the conversation hides its own header and bar there', () => {
+  assert.equal(C.showHeader('screen'), true);
+  assert.equal(C.showHeader('onboarding'), false);
+  assert.match(read('components/ReminderConversation.js'), /C\.showHeader\(mode\) \?/);
+});
+
+test('review 6: chips do not lag after "Permitir"; scroll only when near the bottom; a setting fixed by itself advances; "Permitir" only when the dialog can show', () => {
+  // The return read does not wait for the resync the new permission starts.
+  const n = read('lib/notifications.js');
+  assert.match(n, /export async function readReminderHealth\(\{ waitSync = true \} = \{\}\)/);
+  assert.match(n, /if \(waitSync && _notifSyncing\)/);
+  assert.match(read('components/ReminderConversation.js'), /readReminderHealth\(\{ waitSync: false \}\)/);
+  // Auto-scroll.
+  assert.equal(C.shouldAutoScroll({ nearBottom: false, newMessage: false }), false, 'reading history: stay');
+  assert.equal(C.shouldAutoScroll({ nearBottom: true, newMessage: false }), true);
+  assert.equal(C.shouldAutoScroll({ nearBottom: false, newMessage: true }), true);
+  // A setting that became OK while its step is on screen: green line, next.
+  const h = { ...fold, permission: 'granted', exactAlarms: true };
+  let conv = C.choose(C.startConversation(h), 'start', h).conv;
+  assert.equal(conv.current, 'battery');
+  conv = C.refreshed(conv, { ...h, batteryOptimized: false });
+  assert.equal(conv.messages.filter((m) => m.kind === 'done').pop().key, 'rcv_ok_battery');
+  assert.equal(conv.current, 'hibernation');
+  assert.equal(C.refreshed(conv, h), conv, 'nothing changed: nothing said');
+  // "Permitir" only when the system dialog can show (A-119 verdict or a stored answer → Settings).
+  const can = { ...fold, permission: 'undetermined', permissionCanAsk: true };
+  const cannot = { ...fold, permission: 'undetermined', permissionCanAsk: false };
+  assert.equal(C.chips(C.choose(C.startConversation(can), 'start', can).conv, can)[0].key, 'rcv_allow');
+  assert.equal(C.chips(C.choose(C.startConversation(cannot), 'start', cannot).conv, cannot)[0].key, 'rcv_open_setting');
+  assert.match(n, /out\.permissionCanAsk = /);
+});
+
+test('review 6: the "still" lines quote the setting name; the resume is tied to the account', () => {
+  assert.equal(T.pt.rcv_still_alarms, '"Alarmes e lembretes" ainda está desligado');
+  assert.equal(T.en.rcv_still_alarms, '"Alarms & reminders" is still off');
+  for (const l of LANGS) assert.ok(T[l].rcv_still_alarms.includes(T[l].rc_alarms), l);
+  const { resumeItem } = require('../lib/reminderSetupRule');
+  const raw = JSON.stringify({ item: 'battery', at: NOW - 60e3, user: 'u1' });
+  assert.equal(resumeItem(raw, NOW, 'u1'), 'battery');
+  assert.equal(resumeItem(raw, NOW, 'u2'), null, 'another account on this phone: never');
+  assert.equal(resumeItem(raw, NOW, null), null);
+  assert.match(read('lib/reminderSetup.js'), /saveResume\(item, userId\)/);
 });
