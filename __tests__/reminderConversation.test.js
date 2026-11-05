@@ -208,7 +208,7 @@ test('RS-4: the screen reads the phone again on return, warm (AppState) and cold
   assert.equal(resumeItem(null, NOW), null);
   const setup = read('lib/reminderSetup.js');
   assert.match(setup, /RESUME_KEY = 'dosetrace_reminder_conv_resume'/);
-  assert.match(setup, /navigation\.navigate\('ReminderCheck', \{ resume \}\)/);
+  assert.match(setup, /navigation\.navigate\('ReminderCheck', \{ resume: d\.item \}\)/);
   assert.match(src, /saveResume\(/);
   assert.match(src, /clearResume\(/);
   // Resumed: no opening messages again; the item is read at once.
@@ -561,18 +561,14 @@ test('review 1: the summary head never says "All set" while something blocks or 
 });
 
 test('review 2: a late automatic refresh offers its fix (the battery step); confirmed deep sleep and unreadable rows keep "Abrir"', () => {
+  // Second review 3 supersedes the refresh chip: the refresh row's fix is its plain "Abrir" (the
+  // app's own Android page, as the list's "Adjust"); a battery walk only when battery is not OK.
   const late = { ...allOk, lastRefresh: { at: NOW - 5 * DAY, ok: true, lastOkAt: NOW - 5 * DAY } };
-  let conv = C.startConversation(late);
-  const chip = C.fixChips(conv, late).find((x) => x.id === 'fix:refresh');
-  assert.ok(chip, 'the refresh row has its fix again');
-  assert.equal(text(tPt, chip), 'Ajustar Renovação automática');
-  conv = C.choose(conv, 'fix:refresh', late).conv;
-  assert.equal(conv.current, 'battery', 'the old list\'s "Adjust" went to battery');
-  assert.equal(C.choose(conv, 'act', late).effect.fix, 'battery');
-  // Battery itself off: one chip for battery, no second one for the refresh.
+  assert.equal(C.rowOpenFix({ id: 'refresh', state: 'warn' }), 'battery');
   const both = { ...late, batteryOptimized: true };
   const ids = C.fixChips(C.startConversation(allOk), both).map((x) => x.id);
   assert.ok(ids.includes('fix:battery') && !ids.includes('fix:refresh'));
+  assert.equal(C.choose(C.choose(C.startConversation(allOk), 'fix:battery', both).conv, 'act', both).effect.fix, 'battery');
   // "Abrir" on the card row: confirmed deep sleep and the rows the app cannot read.
   assert.equal(C.rowOpenFix({ id: 'deep_sleep', state: 'ok' }), 'deepSleep');
   assert.equal(C.rowOpenFix({ id: 'alarms', state: 'open' }), 'alarms');
@@ -588,7 +584,7 @@ test('review 3: back from Android the phone is read even if the open call never 
   assert.equal(C.returnReady({ away: true, settled: false, appState: 'background', activeMs: 5000 }), false);
   const src = read('components/ReminderConversation.js');
   assert.match(src, /activeAt/);
-  assert.match(src, /setTimeout\(check, 1600\)/);
+  assert.match(src, /timers\.current\.later\(check, 1600\)/); // second review 5: through the timer bag
 });
 
 test('review 4: "Agora não" inside a fix started from the summary returns to the summary (screen and onboarding)', () => {
@@ -615,7 +611,7 @@ test('review 6: chips do not lag after "Permitir"; scroll only when near the bot
   // The return read does not wait for the resync the new permission starts.
   const n = read('lib/notifications.js');
   assert.match(n, /export async function readReminderHealth\(\{ waitSync = true \} = \{\}\)/);
-  assert.match(n, /if \(waitSync && _notifSyncing\)/);
+  assert.match(n, /if \(waitSync\) await awaitSyncs\(\(\) => _notifSyncing\);/); // behaviour: "review2 1"
   assert.match(read('components/ReminderConversation.js'), /readReminderHealth\(\{ waitSync: false \}\)/);
   // Auto-scroll.
   assert.equal(C.shouldAutoScroll({ nearBottom: false, newMessage: false }), false, 'reading history: stay');
@@ -647,4 +643,108 @@ test('review 6: the "still" lines quote the setting name; the resume is tied to 
   assert.equal(resumeItem(raw, NOW, 'u2'), null, 'another account on this phone: never');
   assert.equal(resumeItem(raw, NOW, null), null);
   assert.match(read('lib/reminderSetup.js'), /saveResume\(item, userId\)/);
+});
+
+// ── Second independent review of f62b1e1 (coordinator 2026-11-05) ─────────────────────────────────
+const { loadFn } = require('./helpers/extractFn');
+const plan = require('../lib/notificationPlan');
+// readReminderHealth run for real (iPhone path) with the phone and the account faked: a protocol owes
+// reminders today, nothing is scheduled.
+function healthReader(syncing) {
+  const N = { getPermissionsAsync: async () => ({ status: 'granted' }), getAllScheduledNotificationsAsync: async () => [] };
+  const store = { getItem: async () => null };
+  const protocol = { id: 7, reminder_time: '23:59', frequency: 'daily', start_date: '2020-01-01' };
+  return loadFn('lib/notifications.js', 'export async function readReminderHealth(', 'readReminderHealth', {
+    getNotifications: () => N, Platform: { OS: 'ios' }, AsyncStorage: store, DEEP_SLEEP_CHECKED_KEY: 'k1', DEVICE_VERDICT_KEY: 'k2', PENDING_CAP_KEY: 'k3', FG_SYNC_KEY: 'k4',
+    _notifSyncing: syncing, _notifSyncedOnce: true, awaitSyncs: require('../lib/syncWait').awaitSyncs,
+    loadSnoozes: async () => [], nextScheduled: plan.nextScheduled, getCachedUser: async () => ({ id: 'u1', user_metadata: {} }),
+    getActiveProtocols: () => [protocol], reminderTimes: plan.reminderTimes, getTodayLogs: () => [], ymd: plan.ymd,
+    handledSlotIndexes: plan.handledSlotIndexes, doseBudget: plan.doseBudget, dueInWindow: R.dueInWindow, duePerProtocol: R.duePerProtocol,
+    canScheduleExactAlarms: () => null, isExemptFromHibernation: () => null,
+  });
+}
+
+test('review2 1: a resync still running never makes Settings read "pending" and hide a real "nothing scheduled" block', async () => {
+  // A follow-up resync B is still in flight after the read waited for A: the default read (Settings,
+  // Today) keeps the block; only the conversation's quick return read says "not known yet".
+  const B = Promise.resolve();
+  const settings = await healthReader(B)();
+  assert.equal(settings.syncedOnce, true);
+  assert.equal(R.setupRowState(settings).kind, 'block');
+  const quick = await healthReader(B)({ waitSync: false });
+  assert.equal(quick.syncedOnce, false);
+  assert.equal(R.scheduleState(quick), 'pending');
+  // The wait follows a resync that starts while it waits (A then B), with a limit.
+  const { awaitSyncs } = require('../lib/syncWait');
+  let current = null;
+  const A = new Promise((r) => setTimeout(r, 5)).then(() => { current = new Promise((r) => setTimeout(r, 5)).then(() => { current = null; }); });
+  current = A;
+  assert.equal(await awaitSyncs(() => current), true, 'waited for A and for B');
+  assert.equal(current, null);
+  const forever = Promise.resolve();
+  assert.equal(await awaitSyncs(() => forever, 3), false, 'never waits forever');
+});
+
+test('review2 2: while the schedule is still being checked the head is never "All set"; the schedule says so; a changed head is announced', () => {
+  const pend = { ...iphone, permission: 'granted', scheduledCount: 0, dueInWindow: 6, syncedOnce: false };
+  assert.equal(R.scheduleState(pend), 'pending');
+  assert.equal(headKey(pend), 'rcv_head_check');
+  assert.equal(T.pt.rcv_sched_pending, 'Conferindo os lembretes agendados…');
+  for (const l of LANGS) assert.ok(T[l].rcv_sched_pending, l);
+  assert.match(read('components/ReminderConversation.js'), /sched === 'pending'\) main = t\('rcv_sched_pending'\)/);
+  // The follow-up read lands: the latest head changed → it is announced; unchanged → silent.
+  const conv = C.startConversation(pend);
+  const done = { ...pend, syncedOnce: true, scheduledCount: 12 };
+  assert.equal(C.headChange(conv, pend, done).key, 'rcv_all_set');
+  assert.equal(C.headChange(conv, done, done), null);
+});
+
+test('review2 3: a late refresh with battery OK walks nothing false — the refresh row keeps "Abrir"; Samsung deep sleep unconfirmed keeps its own step', () => {
+  const late = { ...allOk, lastRefresh: { at: NOW - 5 * DAY, ok: true, lastOkAt: NOW - 5 * DAY } };
+  const conv = C.startConversation(late);
+  assert.deepEqual(C.fixChips(conv, late), [], 'battery is OK: no battery walk');
+  assert.equal(C.rowOpenFix({ id: 'refresh', state: 'warn' }), 'battery', 'the app\'s own Android page');
+  assert.equal(C.rowOpenFix({ id: 'refresh', state: 'ok' }), null);
+  const ds = { ...late, deepSleepCheckedAt: null };
+  assert.deepEqual(C.fixChips(C.startConversation(allOk), ds).map((x) => x.id), ['fix:deep_sleep']);
+  const bat = { ...late, batteryOptimized: true };
+  assert.deepEqual(C.fixChips(C.startConversation(allOk), bat).map((x) => x.id), ['fix:battery'], 'battery not OK: the battery walk');
+});
+
+test('review2 4: new messages and new chips are always scrolled into view; only re-renders respect the reader', () => {
+  assert.equal(C.shouldAutoScroll({ nearBottom: false, newMessage: false, newChips: true }), true);
+  assert.equal(C.shouldAutoScroll({ nearBottom: false, newMessage: true, newChips: false }), true);
+  assert.equal(C.shouldAutoScroll({ nearBottom: false, newMessage: false, newChips: false }), false);
+  assert.equal(C.shouldAutoScroll({ nearBottom: true, newMessage: false, newChips: false }), true);
+});
+
+test('review2 5: timers stop and nothing updates after the screen is gone', async () => {
+  const { timerBag } = require('../lib/syncWait');
+  const bag = timerBag();
+  let ran = 0;
+  bag.later(() => { ran++; }, 5);
+  bag.later(() => { ran++; }, 5);
+  bag.stop();
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(ran, 0, 'cleared on unmount');
+  assert.equal(bag.alive(), false);
+  assert.equal(bag.later(() => { ran++; }, 1), null, 'nothing new after unmount');
+  const src = read('components/ReminderConversation.js');
+  assert.match(src, /timers\.current\.stop\(\)/);
+  assert.match(src, /if \(!timers\.current\.alive\(\)\) return;/);
+});
+
+test('review2 6: a resume is saved only with the account id, and a valid one is never dropped silently', async () => {
+  const saved = [];
+  const saveResume = loadFn('lib/reminderSetup.js', 'export async function saveResume(', 'saveResume', { AsyncStorage: { setItem: async (k, v) => { saved.push(v); } }, RESUME_KEY: 'r' });
+  assert.equal(await saveResume('battery', null), false, 'no account id: not saved');
+  assert.equal(saved.length, 0);
+  assert.equal(await saveResume('battery', 'u1'), true);
+  assert.equal(JSON.parse(saved[0]).user, 'u1');
+  const { resumeDecision } = require('../lib/reminderSetupRule');
+  const raw = JSON.stringify({ item: 'battery', at: NOW - 60e3, user: 'u1' });
+  assert.deepEqual(resumeDecision(raw, NOW, null), { action: 'keep' }, 'account not known yet: keep it for the next look');
+  assert.deepEqual(resumeDecision(raw, NOW, 'u1'), { action: 'open', item: 'battery' });
+  assert.deepEqual(resumeDecision(raw, NOW, 'u2'), { action: 'drop' });
+  assert.deepEqual(resumeDecision(JSON.stringify({ item: 'battery', at: NOW - 40 * 60e3, user: 'u1' }), NOW, 'u1'), { action: 'drop' });
 });

@@ -17,6 +17,7 @@ import { rowTitleKey, scheduleState } from '../lib/reminderHealth';
 import * as C from '../lib/reminderConversation';
 import { renderText } from '../lib/assistantText';
 import { saveResume, clearResume } from '../lib/reminderSetup';
+import { timerBag } from '../lib/syncWait';
 import { formatDate, fillDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
@@ -38,36 +39,47 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
   const scrollRef = useRef(null);
   const nearBottom = useRef(true); // review 6: the person is at the end of the conversation
   const seenCount = useRef(0);
+  const seenChips = useRef('');
+  const timers = useRef(null);
+  if (!timers.current) timers.current = timerBag(); // second review 5: cleared on unmount
   convRef.current = conv;
   healthRef.current = health;
 
   // The first read starts the conversation (never drawn before the phone is read).
   useEffect(() => {
-    let live = true;
     readReminderHealth().then((h) => {
-      if (!live) return;
+      if (!timers.current.alive()) return;
       setHealth(h);
       setConv((c) => c || C.startConversation(h, { mode, resume }));
       if (resume) clearResume();
     }).catch(() => {});
-    return () => { live = false; if (mode === 'screen') clearResume(); };
+    // Second review 5: leaving the screen stops every timer; no read lands after this.
+    return () => { timers.current.stop(); if (mode === 'screen') clearResume(); };
   }, []);
 
   // A plain re-read (back in front, a test sent): the summary updates, and a setting that became OK by
-  // itself while its step is on screen gets its green line and the walk goes on (review 6).
+  // itself while its step is on screen gets its green line and the walk goes on (review 6). When the
+  // latest head's words change, screen readers hear the new head (second review 2).
   const refresh = useCallback(() => {
-    readReminderHealth().then((h) => { setHealth(h); setConv((c) => C.refreshed(c, h)); }).catch(() => {});
-  }, []);
+    readReminderHealth().then((h) => {
+      if (!timers.current.alive()) return;
+      const hc = C.headChange(convRef.current, healthRef.current, h);
+      setHealth(h);
+      setConv((c) => C.refreshed(c, h));
+      if (hc) AccessibilityInfo.announceForAccessibility(renderText(t, hc.key, hc.params));
+    }).catch(() => {});
+  }, [t]);
 
   // Back from Android (RS-4): read the phone again, then the conversation says what it found. The read
   // does not wait for a resync in flight (review 6: no chip lag after "Permitir"); a full read follows.
   const readBack = useCallback(() => {
+    if (!timers.current.alive()) return;
     pending.current = null;
     if (mode === 'screen') clearResume();
     readReminderHealth({ waitSync: false })
-      .then((h) => { setHealth(h); setConv((c) => C.returned(c, h)); refresh(); })
+      .then((h) => { if (!timers.current.alive()) return; setHealth(h); setConv((c) => C.returned(c, h)); refresh(); })
       // Unreadable: decide with the last read rather than leave the person without chips.
-      .catch(() => { setConv((c) => C.returned(c, healthRef.current)); });
+      .catch(() => { if (timers.current.alive()) setConv((c) => C.returned(c, healthRef.current)); });
   }, [mode, refresh]);
   const check = useCallback(() => {
     const p = pending.current;
@@ -82,7 +94,7 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
           // Review 3: Android's startActivityAsync may never settle — read anyway after 1.5 s in front.
           if (pending.current.away && !pending.current.activeAt) pending.current.activeAt = Date.now();
           check();
-          setTimeout(check, 1600);
+          timers.current.later(check, 1600);
         } else refresh();
       }
     });
@@ -100,10 +112,10 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
       if (effect.ask) opened = (await askNotificationPermission()) || (await openReminderFix(effect.fix));
       else opened = await openReminderFix(effect.fix);
     } catch { opened = false; }
-    if (pending.current !== p) return;
+    if (pending.current !== p || !timers.current.alive()) return;
     p.settled = true; p.opened = !!opened; p.settledAt = Date.now();
     check();
-    setTimeout(check, 1600);
+    timers.current.later(check, 1600);
   }
 
   function tap(id) {
@@ -118,12 +130,12 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     if (effect.type === 'open') { runOpen(effect); return; }
     if (effect.type === 'checked') {
       // SP-10: saved on this phone with its date.
-      markDeepSleepChecked().then(() => readReminderHealth()).then((fresh) => { setHealth(fresh); setConv((c) => C.afterChecked(c, fresh)); }).catch(() => {});
+      markDeepSleepChecked().then(() => readReminderHealth()).then((fresh) => { if (!timers.current.alive()) return; setHealth(fresh); setConv((c) => C.afterChecked(c, fresh)); }).catch(() => {});
       return;
     }
     if (effect.type === 'test') {
       const blocked = C.testBlocked(h); // the same rule as before: a red row means it cannot arrive
-      sendTestReminder().then((ok) => { setConv((c) => C.testResult(c, { ok, blocked })); refresh(); }).catch(() => {});
+      sendTestReminder().then((ok) => { if (!timers.current.alive()) return; setConv((c) => C.testResult(c, { ok, blocked })); refresh(); }).catch(() => {});
     }
   }
 
@@ -212,6 +224,8 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     let risk = false;
     if (sched === 'silent') main = t('rc_silent_on');
     else if (sched === 'off') main = t('rc_reminders_off');
+    // Second review 2: the queue is still being checked (a resync running) — say so, never a number.
+    else if (sched === 'pending') main = t('rcv_sched_pending');
     else if (sched === 'block') { main = t('rc_none'); sub = t('rc_none_sub'); risk = true; }
     else if (next) {
       const when = `${formatDate(new Date(next.atMs), language, 'weekdayDayMonth')}, ${formatTime(new Date(next.atMs).toTimeString().slice(0, 5), language, timeFormat)}`;
@@ -278,6 +292,7 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
 
   const prog = C.progress(conv);
   const chipList = conv && !pending.current ? C.chips(conv, health) : [];
+  const chipSig = chipList.concat(conv && health ? C.fixChips(conv, health) : []).map((c) => c.id).join(',');
   const lastSummaryId = conv ? (conv.messages.filter((m) => m.kind === 'summary').pop() || {}).id : null;
   function chipView(chip) {
     const label = tr(chip.key, chip.params);
@@ -324,7 +339,10 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
           const count = conv ? conv.messages.length : 0;
           const newMessage = count !== seenCount.current;
           seenCount.current = count;
-          if (C.shouldAutoScroll({ nearBottom: nearBottom.current, newMessage }) && scrollRef.current) scrollRef.current.scrollToEnd({ animated: true });
+          // Second review 4: new chips (the step's or the summary's fixes) are always brought into view.
+          const newChips = chipSig !== seenChips.current;
+          seenChips.current = chipSig;
+          if (C.shouldAutoScroll({ nearBottom: nearBottom.current, newMessage, newChips }) && scrollRef.current) scrollRef.current.scrollToEnd({ animated: true });
         }}
       >
         {conv ? conv.messages.map(renderMsg) : null}
