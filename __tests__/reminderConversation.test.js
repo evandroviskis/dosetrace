@@ -799,3 +799,17 @@ test('RS-1 / RS-9: "N de M" is the items ready now — the summary never says 7 
   assert.equal(p.total - p.n, left, 'header and head agree');
   assert.ok(p.n < p.total);
 });
+
+// S25 2026-11-07 (s25-pt-light-14-positive-all-ok-summary-empty-check-line.png): Samsung deep sleep
+// already confirmed drew a green check with no words — the item had no "ok" line. Every item that can
+// get a green line has its words, in all 6 languages.
+test('RS-2 / RS-4: Samsung deep sleep already confirmed gets its own green line, never an empty one', () => {
+  const h = { ...allOk, exactAlarms: false };
+  let conv = C.choose(C.startConversation(h), 'start', h).conv;
+  conv = C.returned(C.choose(conv, 'act', h).conv, allOk);
+  const done = conv.messages.filter((m) => m.kind === 'done');
+  assert.ok(done.length >= 2);
+  for (const m of done) for (const l of LANGS) assert.ok(m.key && T[l][m.key] && T[l][m.key].trim(), `${m.item} has words in ${l}`);
+  assert.equal(T.pt.rcv_ok_deep_sleep, 'Aplicativos em suspensão profunda conferidos');
+  assert.equal(T.en.rcv_ok_deep_sleep, 'Deep sleeping apps checked');
+});
