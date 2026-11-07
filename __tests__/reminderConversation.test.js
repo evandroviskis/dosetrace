@@ -748,3 +748,18 @@ test('review2 6: a resume is saved only with the account id, and a valid one is 
   assert.deepEqual(resumeDecision(raw, NOW, 'u2'), { action: 'drop' });
   assert.deepEqual(resumeDecision(JSON.stringify({ item: 'battery', at: NOW - 40 * 60e3, user: 'u1' }), NOW, 'u1'), { action: 'drop' });
 });
+
+// S25 2026-11-07 (peer session, +qa3): the opening said "4 settings left" while the header read
+// "0 of 7" — items already OK are behind the person from the first message, so "N de M" counts them.
+test('RS-1: "N de M" counts the items already OK from the opening, so it agrees with "Faltam N ajustes"', () => {
+  const someOk = { ...fold, permission: 'granted' }; // notifications already allowed: 4 of 5 still need the person
+  const conv = C.startConversation(someOk);
+  assert.equal(conv.phase, 'intro');
+  const left = conv.messages.find((m) => m.key === 'rcv_intro_2');
+  assert.equal(left.params.n, 4);
+  assert.deepEqual(C.progress(conv, someOk), { n: 1, total: 5 }, 'opening: 1 of 5 (5 - 4 left)');
+  const { conv: started } = C.choose(conv, 'start', someOk);
+  assert.deepEqual(C.progress(started, someOk), { n: 1, total: 5 }, 'after Começar the number does not move');
+  const src = read('components/ReminderConversation.js');
+  assert.match(src, /C\.progress\(conv, health\b|C\.progress\(conv, h\b/, 'the screen passes the phone read to the count');
+});

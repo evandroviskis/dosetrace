@@ -290,7 +290,7 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     return <View key={m.id} style={s.markRow}>{mark()}{bubble}</View>;
   }
 
-  const prog = C.progress(conv);
+  const prog = C.progress(conv, health);
   const chipList = conv && !pending.current ? C.chips(conv, health) : [];
   const chipSig = chipList.concat(conv && health ? C.fixChips(conv, health) : []).map((c) => c.id).join(',');
   const lastSummaryId = conv ? (conv.messages.filter((m) => m.kind === 'summary').pop() || {}).id : null;
