@@ -656,7 +656,7 @@ function healthReader(syncing) {
   const protocol = { id: 7, reminder_time: '23:59', frequency: 'daily', start_date: '2020-01-01' };
   return loadFn('lib/notifications.js', 'export async function readReminderHealth(', 'readReminderHealth', {
     getNotifications: () => N, Platform: { OS: 'ios' }, AsyncStorage: store, DEEP_SLEEP_CHECKED_KEY: 'k1', DEVICE_VERDICT_KEY: 'k2', PENDING_CAP_KEY: 'k3', FG_SYNC_KEY: 'k4',
-    _notifSyncing: syncing, _notifSyncedOnce: true, SYNC_WAIT_MS: 8000, awaitSyncs: require('../lib/syncWait').awaitSyncs,
+    _notifSyncing: syncing, _notifSyncedOnce: true, SYNC_WAIT_MS: 8000, USER_WAIT_MS: 3000, peekCachedUser: () => null, awaitSyncs: require('../lib/syncWait').awaitSyncs,
     loadSnoozes: async () => [], nextScheduled: plan.nextScheduled, getCachedUser: async () => ({ id: 'u1', user_metadata: {} }),
     getActiveProtocols: () => [protocol], reminderTimes: plan.reminderTimes, getTodayLogs: () => [], ymd: plan.ymd,
     handledSlotIndexes: plan.handledSlotIndexes, doseBudget: plan.doseBudget, dueInWindow: R.dueInWindow, duePerProtocol: R.duePerProtocol,
@@ -812,4 +812,28 @@ test('RS-2 / RS-4: Samsung deep sleep already confirmed gets its own green line,
   for (const m of done) for (const l of LANGS) assert.ok(m.key && T[l][m.key] && T[l][m.key].trim(), `${m.item} has words in ${l}`);
   assert.equal(T.pt.rcv_ok_deep_sleep, 'Aplicativos em suspensão profunda conferidos');
   assert.equal(T.en.rcv_ok_deep_sleep, 'Deep sleeping apps checked');
+});
+
+// S25 2026-11-07 (second sighting, APK with the 8 s resync cap): the conversation stayed blank after a
+// language + theme change until a force-stop, with no JS error. The read's account lookup goes through
+// supabase.auth.getSession(), which waits on auth-js's lock — the same lock the language change's
+// updateUser holds while it talks to the network. A stalled write left every reminder read waiting
+// forever. The read now waits at most USER_WAIT_MS for the account and then uses the user the app
+// already knows (peekCachedUser, written on every auth event).
+test('S25 blank conversation: an account lookup stuck behind the auth lock cannot hold the reminder read', async () => {
+  const N = { getPermissionsAsync: async () => ({ status: 'granted' }), getAllScheduledNotificationsAsync: async () => [] };
+  const readH = loadFn('lib/notifications.js', 'export async function readReminderHealth(', 'readReminderHealth', {
+    getNotifications: () => N, Platform: { OS: 'ios' }, AsyncStorage: { getItem: async () => null },
+    DEEP_SLEEP_CHECKED_KEY: 'k1', DEVICE_VERDICT_KEY: 'k2', PENDING_CAP_KEY: 'k3', FG_SYNC_KEY: 'k4',
+    _notifSyncing: null, _notifSyncedOnce: true, awaitSyncs: require('../lib/syncWait').awaitSyncs, SYNC_WAIT_MS: 8000,
+    USER_WAIT_MS: 50, getCachedUser: () => new Promise(() => {}), peekCachedUser: () => ({ id: 'u1', user_metadata: {} }),
+    loadSnoozes: async () => [], nextScheduled: plan.nextScheduled, getActiveProtocols: () => [], reminderTimes: plan.reminderTimes,
+    getTodayLogs: () => [], ymd: plan.ymd, handledSlotIndexes: plan.handledSlotIndexes, doseBudget: plan.doseBudget,
+    dueInWindow: R.dueInWindow, duePerProtocol: R.duePerProtocol, canScheduleExactAlarms: () => null, isExemptFromHibernation: () => null,
+  });
+  const t0 = Date.now();
+  const h = await readH();
+  assert.ok(Date.now() - t0 < 1000, 'bounded');
+  assert.equal(h.userId, 'u1', 'the known user stands in');
+  assert.match(read('lib/notifications.js'), /import \{ getCachedUser, peekCachedUser, setStoredSessionOnly \} from '\.\/supabase';/);
 });
