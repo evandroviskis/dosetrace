@@ -611,7 +611,7 @@ test('review 6: chips do not lag after "Permitir"; scroll only when near the bot
   // The return read does not wait for the resync the new permission starts.
   const n = read('lib/notifications.js');
   assert.match(n, /export async function readReminderHealth\(\{ waitSync = true \} = \{\}\)/);
-  assert.match(n, /if \(waitSync\) await awaitSyncs\(\(\) => _notifSyncing\);/); // behaviour: "review2 1"
+  assert.match(n, /if \(waitSync\) await awaitSyncs\(\(\) => _notifSyncing, 5, SYNC_WAIT_MS\);/); // behaviour: "review2 1"
   assert.match(read('components/ReminderConversation.js'), /readReminderHealth\(\{ waitSync: false \}\)/);
   // Auto-scroll.
   assert.equal(C.shouldAutoScroll({ nearBottom: false, newMessage: false }), false, 'reading history: stay');
@@ -656,7 +656,7 @@ function healthReader(syncing) {
   const protocol = { id: 7, reminder_time: '23:59', frequency: 'daily', start_date: '2020-01-01' };
   return loadFn('lib/notifications.js', 'export async function readReminderHealth(', 'readReminderHealth', {
     getNotifications: () => N, Platform: { OS: 'ios' }, AsyncStorage: store, DEEP_SLEEP_CHECKED_KEY: 'k1', DEVICE_VERDICT_KEY: 'k2', PENDING_CAP_KEY: 'k3', FG_SYNC_KEY: 'k4',
-    _notifSyncing: syncing, _notifSyncedOnce: true, awaitSyncs: require('../lib/syncWait').awaitSyncs,
+    _notifSyncing: syncing, _notifSyncedOnce: true, SYNC_WAIT_MS: 8000, awaitSyncs: require('../lib/syncWait').awaitSyncs,
     loadSnoozes: async () => [], nextScheduled: plan.nextScheduled, getCachedUser: async () => ({ id: 'u1', user_metadata: {} }),
     getActiveProtocols: () => [protocol], reminderTimes: plan.reminderTimes, getTodayLogs: () => [], ymd: plan.ymd,
     handledSlotIndexes: plan.handledSlotIndexes, doseBudget: plan.doseBudget, dueInWindow: R.dueInWindow, duePerProtocol: R.duePerProtocol,
@@ -762,4 +762,21 @@ test('RS-1: "N de M" counts the items already OK from the opening, so it agrees 
   assert.deepEqual(C.progress(started, someOk), { n: 1, total: 5 }, 'after Começar the number does not move');
   const src = read('components/ReminderConversation.js');
   assert.match(src, /C\.progress\(conv, health\b|C\.progress\(conv, h\b/, 'the screen passes the phone read to the count');
+});
+
+// S25 2026-11-07 (peer session): after Concluir, "Agora não", then Light + Português in one Settings
+// visit, the conversation opened blank twice (header only) until a force-stop. The first read waits
+// for the reminder resync in flight; a resync that never settles left the read — and the screen —
+// waiting forever. The wait now has a time limit, and a failed first read still starts the conversation.
+test('S25 blank conversation: a resync that never settles cannot hold the read forever; a failed first read still draws the conversation', async () => {
+  const { awaitSyncs } = require('../lib/syncWait');
+  const never = new Promise(() => {});
+  const t0 = Date.now();
+  const r = await awaitSyncs(() => never, 5, 50);
+  assert.equal(r, false, 'still running: reported, not waited for');
+  assert.ok(Date.now() - t0 < 1000, 'bounded by time');
+  const n = read('lib/notifications.js');
+  assert.match(n, /awaitSyncs\(\(\) => _notifSyncing, 5, SYNC_WAIT_MS\)/);
+  const src = read('components/ReminderConversation.js');
+  assert.match(src, /\.catch\(\(\) => readReminderHealth\(\{ waitSync: false \}\)\)/, 'first read falls back to the quick read');
 });

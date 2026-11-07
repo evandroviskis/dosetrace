@@ -47,7 +47,7 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
 
   // The first read starts the conversation (never drawn before the phone is read).
   useEffect(() => {
-    readReminderHealth().then((h) => {
+    readReminderHealth().catch(() => readReminderHealth({ waitSync: false })).then((h) => {
       if (!timers.current.alive()) return;
       setHealth(h);
       setConv((c) => c || C.startConversation(h, { mode, resume }));
