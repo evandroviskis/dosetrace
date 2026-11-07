@@ -780,3 +780,22 @@ test('S25 blank conversation: a resync that never settles cannot hold the read f
   const src = read('components/ReminderConversation.js');
   assert.match(src, /\.catch\(\(\) => readReminderHealth\(\{ waitSync: false \}\)\)/, 'first read falls back to the quick read');
 });
+
+// S25 2026-11-07 (s25-en-dark-11-summary-top.png): the summary read "7 of 7" beside "3 settings still
+// need you". "N de M" is how many of the phone's items are ready (the old list's "N of M ready",
+// RG-2), at every phase: it always agrees with "Faltam N" and with the summary head.
+test('RS-1 / RS-9: "N de M" is the items ready now — the summary never says 7 of 7 while settings still need the person', () => {
+  const h = { ...fold, permission: 'granted' };
+  let conv = C.startConversation(h);
+  conv = C.choose(conv, 'start', h).conv;
+  for (let i = 0; i < 20 && conv.phase !== 'summary'; i++) {
+    if (conv.phase === 'step') conv = C.returned(C.choose(conv, 'act', h).conv, h);
+    else if (chipIds(conv, h).includes('skip')) conv = C.choose(conv, 'skip', h).conv;
+    else break;
+  }
+  assert.equal(conv.phase, 'summary');
+  const left = C.summaryHead(h, conv).params.n;
+  const p = C.progress(conv, h);
+  assert.equal(p.total - p.n, left, 'header and head agree');
+  assert.ok(p.n < p.total);
+});
