@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Image,
-  StyleSheet, BackHandler, Linking, Platform, AppState,
+  StyleSheet, BackHandler, Linking, Platform,
 } from 'react-native';
 import Modal from '../components/PresenceModal';
 import { useWindowSize } from '../lib/windowSize';
@@ -37,9 +37,7 @@ import AccumulationHero from '../components/AccumulationHero';
 import FeatureIcon from '../components/FeatureIcon';
 import CompoundPills, { compoundPillStyles } from '../components/CompoundPills';
 import { toggleKey } from '../lib/trackingTypes';
-import ReminderSetupList from '../components/ReminderSetupList';
-import { readReminderHealth } from '../lib/notifications';
-import { setupSteps } from '../lib/reminderHealth';
+import ReminderConversation from '../components/ReminderConversation';
 import { markSetupSeen } from '../lib/reminderSetup';
 import { askAndRemember } from '../lib/notifBlocked';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -168,17 +166,10 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const [legal, setLegal] = useState(false);
   // A-112 SP-4 (founder 2026-10-07): Android — after "Turn on notifications", "Make sure your reminders
   // arrive" (items only; there are no protocols yet). Showing it marks it seen on this phone
-  // (lib/reminderSetup markSetupSeen), so Today never opens it again.
+  // (lib/reminderSetup markSetupSeen), so Today never opens it again. RS-8 (2026-11-05): it is the
+  // conversation (components/ReminderConversation, mode onboarding), which reads the phone again on
+  // every return from Android by itself.
   const [showSetup, setShowSetup] = useState(false);
-  const [setupHealth, setSetupHealth] = useState(null);
-  useEffect(() => {
-    if (!showSetup) return undefined;
-    const load = () => { readReminderHealth().then(setSetupHealth).catch(() => {}); };
-    load();
-    // Back from an Android settings screen: read the phone again.
-    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
-    return () => sub.remove();
-  }, [showSetup]);
 
   // The steps to show (lib/onboardingSteps activeSteps).
   const missingKey = signedIn ? missingProfileFields(session.user).join(',') : '';
@@ -344,6 +335,11 @@ export default function OnboardingFlowScreen({ onDone, session }) {
       )}
 
       <Animated.View style={[{ flex: 1 }, stepStyle]}>
+        {/* RS-8: Android, after "Turn on notifications" — the conversation for the phone items only;
+            its last chip ("Continuar" / "Configurar depois") and "Agora não" go on exactly as before. */}
+        {cur === 'reminders' && showSetup ? (
+          <ReminderConversation mode="onboarding" onContinue={() => toAuth('create')} />
+        ) : (
         <ScrollView {...kb.scrollProps} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
           {cur === 'splash' && (
@@ -568,19 +564,6 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             </>
           )}
 
-          {cur === 'reminders' && showSetup && (
-            <View style={{ gap: 14 }}>
-              <View style={{ alignItems: 'center', gap: 10, paddingHorizontal: 8 }}>
-                <FeatureIcon name="shield" size={56} color={colors.ink} />
-                <Text style={[s.title, s.textCenter]}>{t('rc_setup_title')}</Text>
-                <Text style={[s.sub, s.textCenter]}>{t('rc_setup_intro')}</Text>
-              </View>
-              <View style={{ marginHorizontal: -16 }}>
-                <ReminderSetupList health={setupHealth} onChange={() => { readReminderHealth().then(setSetupHealth).catch(() => {}); }} />
-              </View>
-            </View>
-          )}
-
           {cur === 'reminders' && !showSetup && (
             <View style={s.centerStep}>
               <FeatureIcon name="bell" size={76} color={colors.data} />
@@ -599,9 +582,10 @@ export default function OnboardingFlowScreen({ onDone, session }) {
 
           {kb.spacer}
         </ScrollView>
+        )}
       </Animated.View>
 
-      <View style={s.footer}>
+      <View style={[s.footer, cur === 'reminders' && showSetup && s.footerNone]}>
         {cur === 'splash' && (
           <>
             <TouchableOpacity style={s.primaryBtn} onPress={next} accessibilityRole="button">
@@ -609,16 +593,6 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             </TouchableOpacity>
             <TouchableOpacity style={s.linkBtn} onPress={() => toAuth('signin')} accessibilityRole="button">
               <Text style={s.linkText}>{t('onboarding_already_have_account')}</Text>
-            </TouchableOpacity>
-          </>
-        )}
-        {cur === 'reminders' && showSetup && (
-          <>
-            <TouchableOpacity style={s.primaryBtn} onPress={() => toAuth('create')} accessibilityRole="button">
-              <Text style={s.primaryBtnText}>{t(setupHealth && setupSteps(setupHealth).done ? 'rc_setup_done' : 'ob_continue')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={s.linkBtn} onPress={() => toAuth('create')} accessibilityRole="button">
-              <Text style={s.linkText}>{t('ob_setup_later')}</Text>
             </TouchableOpacity>
           </>
         )}
@@ -825,6 +799,7 @@ function makeStyles(colors) {
 
     // Footer (obfoot): one ink capsule, then an underlined text button
     footer: { gap: 6, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, backgroundColor: c.ground, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+    footerNone: { paddingTop: 0, paddingBottom: 0 }, // RS-8: the conversation's chips are the step's buttons
     primaryBtn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
     primaryBtnDim: { opacity: 0.35 },
     primaryBtnText: { fontSize: 17, fontWeight: '700', color: c.onAct },

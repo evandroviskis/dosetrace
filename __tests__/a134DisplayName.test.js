@@ -34,7 +34,7 @@ test('A-134 (4): it is Today\'s rule', () => {
 });
 
 test('A-134 (4): the Reminder check names the next reminder\'s protocol with the display name', () => {
-  const screen = read('screens/ReminderCheckScreen.js');
+  const screen = read('components/ReminderConversation.js'); // RS-9: the conversation's summary
   assert.match(screen, /import \{ protocolDisplayName \} from '\.\.\/lib\/protocolName';/);
   assert.match(screen, /health\.next\.protocol \? protocolDisplayName\(health\.next\.protocol, t\) : health\.next\.title/);
   assert.doesNotMatch(screen, /\[health\.next\.title, /, 'never the raw notification title first');

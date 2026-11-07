@@ -118,7 +118,7 @@ test('the screens pick the new singulars with pluralKey', () => {
     'lib/vialExpiryText.js': ['today_alert_vial_expiry_days', 'notif_vial_exp_valid'], // 2026-10-27: the one expiry text builder
     'lib/paywallPlans.js': ['paywall_start_trial_months'],
     'lib/todayFormat.js': ['today_doses_taken'],
-    'components/ReminderSetupList.js': ['rc_setup_progress'],
+    'components/ReminderConversation.js': ['rc_count'],
     'screens/SettingsScreen.js': ['rc_setup_progress'],
     'screens/BodyScreen.js': ['blood_dropped_sub'],
   };

@@ -122,7 +122,8 @@ test('A-108: Silent mode is its own state — never "blocked", never a Today war
   assert.equal(R.shouldWarnLate(h), false, 'nothing is late while everything is paused');
   const { read } = require('./helpers/extractFn');
   assert.match(read('lib/notifications.js'), /out\.silent = user\.user_metadata\?\.silent_mode === true;/);
-  assert.match(read('screens/ReminderCheckScreen.js'), /sched === 'silent' \? \(\s*<Text style=\{s\.cardMain\}>\{t\('rc_silent_on'\)\}<\/Text>/);
+  // RS-9: the conversation's summary says it in place of the next reminder.
+  assert.match(read('components/ReminderConversation.js'), /if \(sched === 'silent'\) main = t\('rc_silent_on'\);/);
   const T = require('../i18n/translations.js').translations || require('../i18n/translations.js');
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(T[l].rc_silent_on, l);
 });

@@ -89,10 +89,12 @@ test('UX: "not refreshed" opens the full Check reminders at the refresh row (the
 test('RG-5: the screen opens at the item that needs attention (focus is read and the row is marked)', () => {
   const s = read('screens/ReminderCheckScreen.js');
   assert.match(s, /const focus = route\?\.params\?\.focus;/);
-  assert.match(s, /<ReminderSetupList [^>]*focus=\{focus\}/);
-  const l = read('components/ReminderSetupList.js'); // A-112: the rows live in the shared list
-  assert.match(l, /c\.id === focus && s\.rowFocus/);
-  assert.match(l, /rowFocus: \{ backgroundColor: c\.well/);
+  assert.match(s, /<ReminderConversation [^>]*focus=\{focus\}/);
+  // RS (2026-11-05): the conversation walks every item that is not OK in the approved order (the one
+  // a card pointed at among them); its summary marks that item as the list did.
+  const l = read('components/ReminderConversation.js');
+  assert.match(l, /c\.id === focus && s\.sumRowFocus/);
+  assert.match(l, /sumRowFocus: \{ backgroundColor: c\.well/);
 });
 
 // A-112 SP-5 (signed 2026-10-07): the protocol save no longer opens the step (Today does, once per
