@@ -141,11 +141,11 @@ test('council (5): a reading takes one scale for all its pieces', () => {
   // A little short: one line, every piece at the same smaller scale (never below the floor).
   const pieces = ['58', 'cápsulas'];
   const oneLine = w('58') + w('cápsulas') + READ.GAP;
-  const sOne = readScale(pieces, oneLine - 8);
+  const sOne = readScale(pieces, oneLine - 4);
   assert.ok(sOne < 1 && sOne >= READ.FLOOR, String(sOne));
-  assert.ok((w('58') + w('cápsulas')) * sOne + READ.GAP <= oneLine - 8 + 0.01, 'fits one line');
+  assert.ok((w('58') + w('cápsulas')) * sOne + READ.GAP <= (oneLine - 4) * READ.MARGIN + 0.01, 'fits one line');
   // Too short for one line at the floor: it wraps at the space, at full size while the longest piece fits.
-  assert.equal(readScale(pieces, w('cápsulas') + 1), 1);
+  assert.equal(readScale(pieces, (w('cápsulas') + 1) / READ.MARGIN), 1);
   // A single piece wider than the column: all shrink together, as far as the old floor (never a break in a word).
   const long = readPieces('120 cápsulas em gel');
   const sLong = readScale(long, 90);
@@ -182,4 +182,16 @@ test('council (5): the tracker\'s two side rows share one label size and one cou
   assert.match(src, /<Text style=\{\[s\.sideLabel, \{ fontSize: labelSize \}\]\} numberOfLines=\{1\}>\{label\}<\/Text>/);
   assert.match(src, /<Text style=\{\[s\.sideSub, \{ fontSize: subSize \}\]\} numberOfLines=\{1\}>\{sub\}<\/Text>/);
   assert.match(src, /onLayout=\{\(e\) => measureCol\(i, e\.nativeEvent\.layout\.width\)\}/);
+});
+
+// S25 2026-11-07 (pt, oral calculator): "Restam 30 comprimid…" was cut. The width model (Geist Mono
+// 0.6 em) put "30 comprimidos" at 106.7 of a 107.4 dp column — Android's pixel rounding needs more.
+// The scale keeps a 3% margin of the column, so a reading that is scaled down never ends in "…".
+test('S25: a scaled reading keeps a margin of its column ("30 comprimidos" in a 107 dp column)', () => {
+  const { readPieces, readScale, READ } = require('../lib/readPieces');
+  const w = (p) => p.length * (0.6 * READ.SIZE - 0.3);
+  const pieces = readPieces('30 comprimidos');
+  const k = readScale(pieces, 107.4);
+  assert.ok(w(pieces[0]) * k <= 107.4 * 0.97 + 0.01, `scaled ${w(pieces[0]) * k}`);
+  assert.equal(READ.MARGIN, 0.97);
 });
