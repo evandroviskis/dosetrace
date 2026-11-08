@@ -112,7 +112,10 @@ test('AP-16: the client never throws and maps failures to app-written notices', 
     { key: 'ap_err_quota', params: { limit: '10', date: 'Thu, Oct 8' } });
   assert.deepEqual(assistantErrorNotice({ status: 429, code: 'quota_exceeded', limit: 10 }, () => ''), { key: 'ap_err_quota_nodate', params: { limit: '10' } });
   assert.deepEqual(assistantErrorNotice({ online: false }), { key: 'ap_err_offline', params: {} });
-  assert.match(CLIENT, /try \{[\s\S]*supabase\.functions\.invoke\(FN, \{ body \}\)[\s\S]*\} catch \{\s*return \{ error:/);
+  // Never throws: the call goes through lib/aiWait invokeAI (bounded, catches every throw;
+  // __tests__/aiCallTimeout.test.js), and a missing answer reads as { status: null, code: null }.
+  assert.match(CLIENT, /const \{ data, error \} = await invokeAI\(fnInvoke, FN, body\);/);
+  assert.match(CLIENT, /return \{ error: \{ status: null, code: null, timedOut:/);
 });
 
 test('the development stand-in can never run in a production build', () => {

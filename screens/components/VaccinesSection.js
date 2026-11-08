@@ -24,6 +24,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCachedUser, supabase } from '../../lib/supabase';
+import { invokeAI, AI_DOC_WAIT_MS } from '../../lib/aiWait';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../../lib/aiConsent';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
@@ -215,17 +216,16 @@ export default function VaccinesSection({ draftRef = null, onSheetChange = null,
 
   async function extractVaccines(source) {
     try {
-      const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
-        body: { kind: 'vaccines', lang: language, ...source },
-      });
+      // The shared AI wait, the document limit (lib/aiWait, 120 s: a record can be a multi-page
+      // PDF): no answer in time → the existing "Scan service unavailable" sheet, and the scan again.
+      const fnInvoke = (name, o) => supabase.functions.invoke(name, o);
+      const { data, error } = await invokeAI(fnInvoke, 'extract-bloodwork', { kind: 'vaccines', lang: language, ...source }, { ms: AI_DOC_WAIT_MS });
       if (error) {
         setUploading(false);
         // Same distinction as lab scanning: a service outage is not the user's card; the
         // monthly limit names the limit the server sends (A-60).
-        const status = error.context?.status;
-        let errBody = null;
-        try { errBody = await error.context?.clone?.().json(); } catch { /* body unavailable */ }
-        notice(scanErrorSheet(scanErrorKind({ code: errBody?.code ?? null, status }), t, { what: 'vaccine', errBody }));
+        const errBody = error.body;
+        notice(scanErrorSheet(scanErrorKind({ code: error.code, status: error.status }), t, { what: 'vaccine', errBody }));
         return;
       }
       const raw = Array.isArray(data?.vaccines) ? data.vaccines : [];

@@ -25,6 +25,7 @@ import { anyTrial } from '../lib/paywallPlans';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
+import { invokeAI, AI_WAIT_MS } from '../lib/aiWait';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 // DV-051: every protocol / vial write re-plans through afterProtocolChange (doses, the morning
@@ -1965,19 +1966,18 @@ export default function ProtocolsScreen() {
       if (asset.base64.length > MAX_SCAN_BYTES * 1.4) return fail(errorTitle(t, 'photoBig'), t('scan_photo_too_large'));
       const mediaType = imageMediaType(asset.base64, asset); // A-205: the bytes decide
       setVialScanning(true);
-      const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
-        body: { kind: 'vial', lang: language, image_base64: asset.base64, media_type: mediaType },
-      });
+      const fnInvoke = (name, o) => supabase.functions.invoke(name, o);
+      // The shared AI wait (lib/aiWait, 60 s; S25 2026-11-07: "Lendo o rótulo…" spun 3 minutes):
+      // no answer in time → the existing "Scan service unavailable" message, and the button again.
+      const { data, error } = await invokeAI(fnInvoke, 'extract-bloodwork', { kind: 'vial', lang: language, image_base64: asset.base64, media_type: mediaType }, { ms: AI_WAIT_MS });
       setVialScanning(false);
       if (error) {
-        const status = error.context?.status;
-        let code = null;
-        let errBody = null;
-        try { errBody = await error.context?.clone?.().json(); code = errBody?.code; } catch { /* body unavailable */ }
+        const { status, code } = error;
+        const errBody = error.body;
         if (code === 'quota_exceeded' || status === 429) {
           return fail(t('vial_scan_quota_title'), fillQuotaMessage(t('vial_scan_quota_sub'), quotaLimitFrom(errBody)), { quota: true });
         }
-        const serviceDown = ['provider_error', 'not_configured', 'internal_error'].includes(code)
+        const serviceDown = ['provider_error', 'not_configured', 'internal_error', 'timeout'].includes(code)
           || (code == null && [500, 502, 503].includes(status));
         return fail(
           serviceDown ? t('blood_error_service') : t('vial_scan_error'),
