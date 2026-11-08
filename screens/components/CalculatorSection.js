@@ -56,7 +56,7 @@ import {
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { createScreenSave } from '../../lib/calcInputsSync';
-import { switchUnitField, fieldMetric, fieldSave, fieldLoad } from '../../lib/unitFields';
+import { switchUnitField, fieldMetric, fieldSave, fieldLoad, fieldFromMetric } from '../../lib/unitFields';
 import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource, checkAlert, rcStatusKey, closedCheckPatch, closedCheckShown, CLEAR_CLOSED_CHECK } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -659,9 +659,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const waistCmNew = fieldMetric(wiWaist, 'length', unit, m.wiWaist, language);
     // The weight and waist carry their typed source into Your numbers while they still show it.
     const carry = (memo, v) => (memo && v != null && memo.shown === inputNumber(v, language) ? memo : null);
+    // Only an accepted weigh-in replaces Your numbers' typed sources (review 2026-11-07).
+    if (!weighInValuesOk({ weightKg, bodyFatPct: bfv, waistCm: waistCmNew })) { setWiBad(true); return; }
     m.weight = m.weightField = carry(m.wiWeight, w);
     if (wc != null) m.waist = carry(m.wiWaist, wc);
-    if (!weighInValuesOk({ weightKg, bodyFatPct: bfv, waistCm: waistCmNew })) { setWiBad(true); return; }
     const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
     upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg, bodyFatPct: bfv, waistCm: waistCmNew }));
     requestSync?.();
@@ -967,9 +968,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   function openRcStart() {
     setRcStartDate(null);
     const w = weighInOn(snapshots, todayISO());
-    const snap = w == null ? null : inputNumber(Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10, language);
+    const pre = w == null ? null : fieldFromMetric(w, 'weight', unit, language);
+    const snap = pre ? pre.text : null;
     const v = prefillStartWeight(rcThen, rcThenAuto.current, snap);
-    if (v != null) { setRcThen(v); rcThenAuto.current = v || null; }
+    if (v != null) { setRcThen(v); rcThenAuto.current = v || null; unitMemo.current.rcThen = pre && v === snap ? pre.memo : null; }
     setRcStartOpen(true);
   }
   function shiftRcStartDate(delta) {
@@ -978,9 +980,10 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // A weigh-in saved on that day fills the start weight — only an empty field or
     // our own earlier prefill; a weight the user typed is never overwritten.
     const w = weighInOn(snapshots, next);
-    const snap = w == null ? null : inputNumber(Math.round((unit === 'imperial' ? kgToLb(w) : w) * 10) / 10, language);
+    const pre = w == null ? null : fieldFromMetric(w, 'weight', unit, language);
+    const snap = pre ? pre.text : null;
     const v = prefillStartWeight(rcThen, rcThenAuto.current, snap);
-    if (v != null) { setRcThen(v); rcThenAuto.current = v || null; }
+    if (v != null) { setRcThen(v); rcThenAuto.current = v || null; unitMemo.current.rcThen = pre && v === snap ? pre.memo : null; }
   }
   // The start can be a past weigh-in, at most 7 days back (FL-44, founder
   // 2026-09-27) — validated again here, never further back, never in the future.

@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const { switchUnitField, fieldMetric, fieldSave, fieldLoad } = require('../lib/unitFields');
 const { inToCm, lbToKg } = require('../lib/energyCalc');
+const read = (p) => fs.readFileSync(path.join(__dirname, '..', p), 'utf8');
 
 const trip = (text, kind, language, start = 'metric') => {
   const other = start === 'metric' ? 'imperial' : 'metric';
@@ -115,4 +116,27 @@ test('unit switch: Your numbers uses lib/unitFields for every unit-switchable fi
   const r = switchUnitField('80,25', 'weight', 'metric', 'imperial', null, 'pt');
   assert.equal(r.text, '176,9');
   assert.equal(fieldMetric(r.text, 'weight', 'imperial', r.memo, 'pt'), 80.25);
+});
+
+// Review 2026-11-07 (independent pass over the S25 batch): two side doors back to the drift.
+test('unit switch: a weigh-in prefilled in imperial keeps its exact kg (the reality-check start IS that weigh-in, A-212)', () => {
+  const U = require('../lib/unitFields');
+  const r = U.fieldFromMetric(80, 'weight', 'imperial', 'pt');
+  assert.equal(r.text, '176,4');
+  assert.equal(U.fieldMetric(r.text, 'weight', 'imperial', r.memo, 'pt'), 80, 'exactly the weigh-in, not lbToKg(176,4)');
+  const m = U.fieldFromMetric(80, 'weight', 'metric', 'pt');
+  assert.deepEqual(m, { text: '80', memo: null });
+  const src = read('screens/components/CalculatorSection.js');
+  const open = src.slice(src.indexOf('function openRcStart()'), src.indexOf('// The start can be a past weigh-in'));
+  assert.equal((open.match(/fieldFromMetric\(w, 'weight', unit, language\)/g) || []).length, 2, 'openRcStart and shiftRcStartDate');
+  assert.equal((open.match(/unitMemo\.current\.rcThen = /g) || []).length, 2);
+});
+
+test('unit switch: a weigh-in refused as out of range leaves Your numbers\' typed sources untouched', () => {
+  const src = read('screens/components/CalculatorSection.js');
+  const fn = src.slice(src.indexOf('function saveTodayWeighIn()'), src.indexOf('function saveTodayWeighIn()') + 2500);
+  const guard = fn.indexOf('if (!weighInValuesOk(');
+  const carry = fn.indexOf('m.weight = m.weightField = carry(');
+  assert.ok(guard > 0 && carry > 0);
+  assert.ok(carry > guard, 'the memos are replaced only after the weigh-in is accepted');
 });
