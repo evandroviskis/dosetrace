@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect, useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
 import useClock from '../components/useClock';
-import Svg, { Path, G, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Line, Rect, Circle, Text as SvgText } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedProps, useAnimatedStyle, useDerivedValue, useReducedMotion,
   withTiming, withDelay, withSequence, cancelAnimation, Easing,
@@ -64,7 +64,6 @@ import { notifyDataChanged, addSyncListener } from '../lib/sync';
 import { curveReloadOnSync, curveReloadPatch, keepSelection } from '../lib/curveReload';
 
 const APath = Animated.createAnimatedComponent(Path);
-const AG = Animated.createAnimatedComponent(G);
 const ALine = Animated.createAnimatedComponent(Line);
 const ARect = Animated.createAnimatedComponent(Rect);
 const ACircle = Animated.createAnimatedComponent(Circle);
@@ -744,12 +743,15 @@ export default function SerumCurveScreen({ embedded = false }) {
   const mNow = model ? model.nowIdx : 0;
   const mNowF = model ? model.nowF : 0;
   const mN = model ? model.nSteps : 1;
-  const gridProps = useAnimatedProps(() => ({ opacity: staticK.value }));
-  const markerProps = useAnimatedProps(() => {
+  // Android crash S25 2026-11-06 (+7d → +30d): react-native-svg draws a group whose opacity is not 1 through a
+  // layer bitmap that can be null (GroupView.drawGroup, 15.12.1). So no Svg group carries an opacity: each
+  // faded layer is its own Svg inside an Animated.View, and these fades are view styles (a plain view alpha).
+  const gridFade = useAnimatedStyle(() => ({ opacity: staticK.value }));
+  const markerFade = useAnimatedStyle(() => {
     const m = clamp01((clock.value - (C_DRAW + C_RISE + C_PROJ)) / 220);
     return { opacity: Math.min(staticK.value, m) };
   });
-  const readoutGProps = useAnimatedProps(() => {
+  const readoutFade = useAnimatedStyle(() => {
     const m = clamp01((clock.value - (C_DRAW + C_RISE + C_PROJ)) / 220);
     return { opacity: Math.min(staticK.value, m) };
   });
@@ -963,12 +965,17 @@ export default function SerumCurveScreen({ embedded = false }) {
             ) : null}
 
             {/* a touch on the chart skips the opening moment to its end */}
-            <View onTouchStart={finishIntro}>
-            <Svg width={chartWidth} height={chartHeight}>
+            {/* Layers, back to front, each the full chart: zone · gridlines (fade) · Now line · readout marker
+                (fade) · curves and the opening moment · Now dots (fade). A faded layer is an Animated.View
+                around its own Svg — never an Svg group with an opacity (the Android crash, see gridFade). */}
+            <View onTouchStart={finishIntro} style={{ width: chartWidth, height: chartHeight }}>
+            <Svg width={chartWidth} height={chartHeight} style={s.chartLayer} pointerEvents="none">
               {/* future projection zone — opens at Now during the opening moment */}
               <ARect y={PLOT_TOP} height={PLOT_BOTTOM - PLOT_TOP} fill={colors.well} animatedProps={zoneProps} />
-              {/* y-axis: gridlines + labels (dip and return during a rescale) */}
-              <AG animatedProps={gridProps}>
+            </Svg>
+            {/* y-axis: gridlines + labels (dip and return during a rescale) */}
+            <Animated.View pointerEvents="none" style={[s.chartLayer, gridFade]}>
+            <Svg width={chartWidth} height={chartHeight}>
               {ticksY.ticks.map((v, i) => (
                 <React.Fragment key={i}>
                   <Line x1={plotLeft} y1={yForLevel(v)} x2={plotRight} y2={yForLevel(v)} stroke={colors.line} strokeWidth={1} strokeDasharray="2,3" />
@@ -992,12 +999,16 @@ export default function SerumCurveScreen({ embedded = false }) {
               {model && model.max > 0 && model.estBefore && model.estBefore > model.start ? (
                 <Line x1={xForIndex((model.estBefore - model.start) / stepMs)} x2={xForIndex((model.estBefore - model.start) / stepMs)} y1={PLOT_TOP} y2={PLOT_BOTTOM} stroke={colors.ink3} strokeWidth={1} strokeDasharray="3,3" />
               ) : null}
-              </AG>
+            </Svg>
+            </Animated.View>
+            <Svg width={chartWidth} height={chartHeight} style={s.chartLayer} pointerEvents="none">
               {/* NOW line — rises from the baseline when the pen reaches today */}
               <ALine stroke={colors.ink} strokeWidth={1.4} animatedProps={nowLineProps} />
-              {/* readout date marker (a chosen blood-draw date) — labeled so a
-                  screenshot shows which date and level it represents */}
-              <AG animatedProps={readoutGProps}>
+            </Svg>
+            {/* readout date marker (a chosen blood-draw date) — labeled so a
+                screenshot shows which date and level it represents */}
+            <Animated.View pointerEvents="none" style={[s.chartLayer, readoutFade]}>
+            <Svg width={chartWidth} height={chartHeight}>
               {model && model.max > 0 && readoutInWindow && !isToday && (
                 <>
                   <Line x1={readoutX} y1={PLOT_TOP + 12} x2={readoutX} y2={PLOT_BOTTOM} stroke={colors.ink2} strokeWidth={1.2} strokeDasharray="2,3" />
@@ -1020,7 +1031,9 @@ export default function SerumCurveScreen({ embedded = false }) {
                   ))}
                 </>
               )}
-              </AG>
+            </Svg>
+            </Animated.View>
+            <Svg width={chartWidth} height={chartHeight} style={s.chartLayer} pointerEvents="none">
               {/* one overlaid curve per selected compound — drawn in time on open;
                   solid = estimate, dashed = projection */}
               {model && model.max > 0 && model.series.map(ser => (
@@ -1050,8 +1063,10 @@ export default function SerumCurveScreen({ embedded = false }) {
               {introFx && model && model.max > 0 && model.series.map(ser => (
                 <PenDot key={`pen-${ser.id}`} points={ser.points} pre={ser.pre} xs={ser.xs} clock={clock} domainN={domainN} yMaxS={yMaxS} geo={geo} nowIdx={model.nowIdx} nSteps={model.nSteps} color={lineColor(ser)} />
               ))}
-              {/* dots marking each line's level right now */}
-              <AG animatedProps={markerProps}>
+            </Svg>
+            {/* dots marking each line's level right now */}
+            <Animated.View pointerEvents="none" style={[s.chartLayer, markerFade]}>
+            <Svg width={chartWidth} height={chartHeight}>
               {model && model.max > 0 && model.series.map(ser => (
                 <Circle key={`d-${ser.id}`} cx={nowX} cy={yForLevel(ser.nowLevel)} r={3.5} fill={lineColor(ser)} />
               ))}
@@ -1066,8 +1081,8 @@ export default function SerumCurveScreen({ embedded = false }) {
                   <SvgText x={nowLabel.x} y={nowLabel.y0 + i * 12} fontSize={10} fontWeight="500" textAnchor={nowLabel.anchor} fill={colors.ink2}>{ln}</SvgText>
                 </React.Fragment>
               ))}
-              </AG>
             </Svg>
+            </Animated.View>
             </View>
 
             <Animated.View style={[{ height: 16, marginLeft: AXIS_W, marginTop: 6 }, axisStyle]} onLayout={(e) => setAxisW(e.nativeEvent.layout.width)}>
@@ -1383,6 +1398,8 @@ function makeStyles(c) {
     pickText: { flex: 1, fontSize: 17, fontWeight: '600', color: c.ink },
     dot: { width: 9, height: 9, borderRadius: 5 },
     notCharted: { fontSize: 13, color: c.ink2, lineHeight: 18, paddingHorizontal: 4 },
+    // One layer of the chart (each a full-size Svg, stacked; see gridFade).
+    chartLayer: { position: 'absolute', left: 0, top: 0 },
 
     card: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12 },
     cardIn: { padding: 18, gap: 12 }, // a CollapsibleSection's body (the section is the card)

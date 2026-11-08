@@ -165,3 +165,23 @@ test('what each answer writes: Sim / Quase todas / Não, for a mixed vial, a fin
   for (const k of ['no', 'yes', 'almost']) assert.match(block, new RegExp(`onPress: answer\\('${k}'\\)`));
   assert.doesNotMatch(block, /insertDoseLog/);
 });
+
+test('S25 2026-11-07 (pt): "Peptídeo #1", 2,5 mg every 7 days from 10 Oct — asked with the vial mixed 31 Oct, not with the vial mixed today (decisions.md 2026-10-27 12:22: asked when the curve question applies OR the vial count would move)', () => {
+  const { historyQuestion } = require('../lib/declared');
+  const s25 = new Date(2026, 10, 7, 15, 0).getTime();
+  const p = { id: 9, name: 'Peptídeo #1', type: 'recon', start_date: '2026-10-10', interval_days: 7, doses_per_day: 1, reminder_time: '08:00', dose: '2.5', dose_unit: 'mg' };
+  // a name with no half-life data has no curve, so the curve question does not apply
+  const curveAsk = !!historyQuestion(p, s25);
+  assert.equal(curveAsk, false);
+  // vial mixed today: none of the 4 past doses (10, 17, 24, 31 Oct) came from it — nothing either answer would change
+  assert.equal(pastStartAsk({ protocol: p, vial: { total_doses: 4, mixed_on: '2026-11-07' }, nowMs: s25, curveAsk }), null);
+  // vial mixed 31 Oct: the 31 Oct dose came from it, so the question shows (4 doses, 1 from this vial)
+  const a = pastStartAsk({ protocol: p, vial: { total_doses: 4, mixed_on: '2026-10-31' }, nowMs: s25, curveAsk });
+  assert.equal(a.n, 4);
+  assert.equal(a.vialUsed, 1);
+  // a compound the curve draws asks even with the vial mixed today (the curve question applies)
+  const sema = { ...p, name: 'Semaglutide', compound_id: 'Semaglutide' };
+  const b = pastStartAsk({ protocol: sema, vial: { total_doses: 4, mixed_on: '2026-11-07' }, nowMs: s25, curveAsk: !!historyQuestion(sema, s25) });
+  assert.equal(b.n, 4);
+  assert.equal(b.vialUsed, 0);
+});
