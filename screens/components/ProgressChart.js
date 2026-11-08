@@ -8,6 +8,10 @@
  *
  * Reports the user's own weigh-ins. No targets, no "good/bad" zones, no interpretation —
  * the user reads the divergence (waist falling while weight stalls) themselves.
+ *
+ * S25 2026-11-07: each side's gutter fits its widest axis label ("82,4" was cut to "32,4" by the
+ * fixed 26-unit gutter): the labels are measured on screen at the SVG's font size
+ * (components/useColumnWidth) and the gutter is lib/chartAxisGutter axisGutter.
  */
 
 import { View, Text, StyleSheet } from 'react-native';
@@ -16,8 +20,10 @@ import Svg, { Line, Polyline, Circle, Rect, Text as SvgText } from 'react-native
 import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
 import { formatDate, decimalText } from '../../lib/localeFormat';
+import { axisGutter } from '../../lib/chartAxisGutter';
+import useColumnWidth from '../../components/useColumnWidth';
 
-const W = 320, H = 150, L = 26, R = W - 26, TOP = 14, BOT = 114;
+const W = 320, H = 150, TOP = 14, BOT = 114, AXIS_FONT = 11;
 
 // Dates and axis numbers in the app language (lib/localeFormat, founder 2026-10-02).
 const shortDate = (dateStr, language) => formatDate(dateStr, language, 'dayMonth') || dateStr;
@@ -37,7 +43,19 @@ export default function ProgressChart({ series, language = 'en', width }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const active = series.filter(sr => sr.points.length > 0);
+  const weight = active.find(sr => sr.key === 'weight');
+  const waist = active.find(sr => sr.key === 'waist');
+  const wRange = weight ? rangeOf(weight.points) : null;
+  const cRange = waist ? rangeOf(waist.points) : null;
+  const labelsOf = (r) => (r ? [axis(r.hi, r.hi - r.lo, language), axis(r.lo, r.hi - r.lo, language)] : []);
+  const leftLabels = labelsOf(wRange);
+  const rightLabels = labelsOf(cRange);
+  // Measured on screen, per language and label set (a new set measures again).
+  const [leftMeasured, onLeftLayout] = useColumnWidth(0, `${language}|${leftLabels.join('|')}`);
+  const [rightMeasured, onRightLayout] = useColumnWidth(0, `${language}|${rightLabels.join('|')}`);
   if (!active.length) return null;
+  const L = axisGutter(leftLabels, { fontSize: AXIS_FONT, measured: leftMeasured });
+  const R = W - axisGutter(rightLabels, { fontSize: AXIS_FONT, measured: rightMeasured });
   const allDates = active.flatMap(sr => sr.points.map(p => p.date)).sort();
   const t0 = new Date(allDates[0] + 'T12:00:00').getTime();
   const t1 = new Date(allDates[allDates.length - 1] + 'T12:00:00').getTime();
@@ -45,34 +63,36 @@ export default function ProgressChart({ series, language = 'en', width }) {
   const X = d => L + ((new Date(d + 'T12:00:00').getTime() - t0) / span) * (R - L);
   const mid = allDates[Math.floor((allDates.length - 1) / 2)];
   const labels = [...new Set([allDates[0], mid, allDates[allDates.length - 1]])];
-  const weight = active.find(sr => sr.key === 'weight');
-  const waist = active.find(sr => sr.key === 'waist');
-  const draw = (sr) => {
-    const { lo, hi } = rangeOf(sr.points);
+  const draw = (sr, { lo, hi }) => {
     const Y = v => TOP + ((hi - v) / (hi - lo)) * (BOT - TOP);
     return { lo, hi, pts: sr.points.map(p => ({ x: X(p.date), y: Y(p.value) })) };
   };
-  const w = weight ? draw(weight) : null;
-  const c = waist ? draw(waist) : null;
+  const w = weight ? draw(weight, wRange) : null;
+  const c = waist ? draw(waist, cRange) : null;
   const h = Math.round(((width || W) * H) / W);
   return (
     <View style={s.wrap}>
+      {/* The axis labels laid out once, unseen, at the SVG's font size: their widths size the gutters. */}
+      <View style={s.measure} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        {leftLabels.map((l, i) => <Text key={`l${i}-${l}`} style={s.measureText} allowFontScaling={false} numberOfLines={1} onLayout={onLeftLayout}>{l}</Text>)}
+        {rightLabels.map((l, i) => <Text key={`r${i}-${l}`} style={s.measureText} allowFontScaling={false} numberOfLines={1} onLayout={onRightLayout}>{l}</Text>)}
+      </View>
       <Svg width="100%" height={h} viewBox={`0 0 ${W} ${H}`} accessibilityLabel={active.map(sr => sr.label).join(', ')}>
         {[14, 64, 114].map(y => <Line key={y} x1={L} x2={R} y1={y} y2={y} stroke={colors.line} strokeDasharray="2 3" />)}
         {c ? (
           <>
             <Polyline fill="none" stroke={colors.ink2} strokeWidth={1.3} points={c.pts.map(p => `${p.x},${p.y.toFixed(1)}`).join(' ')} />
             {c.pts.map((p, i) => <Rect key={`c${i}`} x={p.x - 3} y={p.y - 3} width={6} height={6} fill={colors.raised} stroke={colors.ink2} strokeWidth={1.3} />)}
-            <SvgText x={R + 4} y={18} fontFamily={MONO['400']} fontSize={11} fill={colors.ink2}>{axis(c.hi, c.hi - c.lo, language)}</SvgText>
-            <SvgText x={R + 4} y={118} fontFamily={MONO['400']} fontSize={11} fill={colors.ink2}>{axis(c.lo, c.hi - c.lo, language)}</SvgText>
+            <SvgText x={R + 4} y={18} fontFamily={MONO['400']} fontSize={AXIS_FONT} fill={colors.ink2}>{rightLabels[0]}</SvgText>
+            <SvgText x={R + 4} y={118} fontFamily={MONO['400']} fontSize={AXIS_FONT} fill={colors.ink2}>{rightLabels[1]}</SvgText>
           </>
         ) : null}
         {w ? (
           <>
             <Polyline fill="none" stroke={colors.data} strokeWidth={2} points={w.pts.map(p => `${p.x},${p.y.toFixed(1)}`).join(' ')} />
             {w.pts.map((p, i) => <Circle key={`w${i}`} cx={p.x} cy={p.y} r={4} fill={colors.data} />)}
-            <SvgText x={L - 4} y={18} textAnchor="end" fontFamily={MONO['400']} fontSize={11} fill={colors.data}>{axis(w.hi, w.hi - w.lo, language)}</SvgText>
-            <SvgText x={L - 4} y={118} textAnchor="end" fontFamily={MONO['400']} fontSize={11} fill={colors.data}>{axis(w.lo, w.hi - w.lo, language)}</SvgText>
+            <SvgText x={L - 4} y={18} textAnchor="end" fontFamily={MONO['400']} fontSize={AXIS_FONT} fill={colors.data}>{leftLabels[0]}</SvgText>
+            <SvgText x={L - 4} y={118} textAnchor="end" fontFamily={MONO['400']} fontSize={AXIS_FONT} fill={colors.data}>{leftLabels[1]}</SvgText>
           </>
         ) : null}
         {labels.map((d, i) => (
@@ -99,6 +119,8 @@ export default function ProgressChart({ series, language = 'en', width }) {
 
 const makeStyles = (c) => StyleSheet.create({
   wrap: { gap: 12 },
+  measure: { position: 'absolute', left: 0, top: 0, opacity: 0, alignItems: 'flex-start' },
+  measureText: { alignSelf: 'flex-start', fontFamily: MONO['400'], fontSize: AXIS_FONT, color: c.ink3 },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
