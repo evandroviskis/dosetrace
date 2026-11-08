@@ -31,7 +31,7 @@ import { Analytics } from '../lib/analytics';
 // DV-051: every protocol / vial write re-plans through afterProtocolChange (doses, the morning
 // summary that lists protocol names, the vial alerts).
 import { afterProtocolChange, cancelDoseReminder, dismissDeliveredDoseReminders } from '../lib/notifications';
-import { formatTime } from '../lib/timeFormat';
+import { formatTime, pickerButtons, pickerIs24Hour } from '../lib/timeFormat';
 import { formatDate, decimalText, inputNumber, MONTHS_SHORT, unitText } from '../lib/localeFormat';
 import { protocolDisplayName } from '../lib/protocolName';
 import { readPieces, readScale, READ } from '../lib/readPieces';
@@ -3739,6 +3739,7 @@ export default function ProtocolsScreen() {
                   </TouchableOpacity>
                   {!iosPicker && showStartPicker && (
                     <DateTimePicker
+                      {...pickerButtons(t)}
                       value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
                       mode="date"
                       display="default"
@@ -3823,9 +3824,10 @@ export default function ProtocolsScreen() {
                   </View>
                   {!iosPicker && showTimePicker && (
                     <DateTimePicker
+                      {...pickerButtons(t)}
                       value={timePickerValue()}
                       mode="time"
-                      is24Hour={false}
+                      is24Hour={pickerIs24Hour(timeFormat, language)}
                       minuteInterval={1}
                       display="default"
                       onChange={onAndroidTime}

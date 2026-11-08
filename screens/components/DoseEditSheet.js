@@ -12,8 +12,8 @@ import Modal from '../../components/PresenceModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/theme';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { formatTime, hour12Pref, LOCALES } from '../../lib/timeFormat';
-import { formatDate, formatNumber } from '../../lib/localeFormat';
+import { formatTime, hour12Pref, LOCALES, pickerButtons, pickerIs24Hour } from '../../lib/timeFormat';
+import { formatDate, formatNumber, unitText } from '../../lib/localeFormat';
 import { checkEditedTime, combineDateTime, parseDoseEdit, unitForDoseEdit } from '../../lib/doseEdit';
 
 // The local "HH:MM" of a moment, for formatTime.
@@ -42,7 +42,8 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
   if (!edit) return <Modal visible={false} transparent onRequestClose={onClose}><View /></Modal>;
   const { mode, log, name } = edit;
   const unit = unitForDoseEdit(log) || '';
-  const amountLine = log.dose_amount != null ? `${formatNumber(log.dose_amount, language, { trim: true, grouping: false })}\u00A0${unit}`.trim() : '';
+  const unitShown = unitText(unit, language);
+  const amountLine = log.dose_amount != null ? `${formatNumber(log.dose_amount, language, { trim: true, grouping: false })}\u00A0${unitShown}`.trim() : '';
   // The Dose log's own way of naming the day ("Ontem, 08:00"), passed in; the plain date otherwise.
   const whenLine = edit.when || `${formatDate(new Date(Date.parse(log.logged_at)), language, 'dayMonth')}, ${formatTime(hhmm(Date.parse(log.logged_at)), language, timeFormat)}`;
 
@@ -71,10 +72,10 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
       {mode === 'time' ? (
         Platform.OS === 'ios' ? (
           <View style={s.pickRow}>
-            <DateTimePicker value={new Date(at)} mode="date" display="spinner" maximumDate={now} style={s.pickDate} locale={pickerLocale}
+            <DateTimePicker {...pickerButtons(t)} value={new Date(at)} mode="date" display="spinner" maximumDate={now} style={s.pickDate} locale={pickerLocale}
               themeVariant={isDark ? 'dark' : 'light'} textColor={colors.ink}
               onChange={(e, d) => { if (d) { setAt(combineDateTime(d.getTime(), at)); setError(null); } }} />
-            <DateTimePicker value={new Date(at)} mode="time" display="spinner" style={s.pickTime} locale={pickerLocale}
+            <DateTimePicker {...pickerButtons(t)} value={new Date(at)} mode="time" display="spinner" style={s.pickTime} locale={pickerLocale}
               themeVariant={isDark ? 'dark' : 'light'} textColor={colors.ink}
               onChange={(e, d) => { if (d) { setAt(combineDateTime(at, d.getTime())); setError(null); } }} />
           </View>
@@ -87,8 +88,8 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
               <Text style={s.fieldText}>{formatTime(hhmm(at), language, timeFormat)}</Text>
             </TouchableOpacity>
             {androidPicker && (
-              <DateTimePicker value={new Date(at)} mode={androidPicker} display="default" maximumDate={androidPicker === 'date' ? now : undefined}
-                is24Hour={hour12Pref(timeFormat) === undefined ? language !== 'en' : !hour12Pref(timeFormat)}
+              <DateTimePicker {...pickerButtons(t)} value={new Date(at)} mode={androidPicker} display="default" maximumDate={androidPicker === 'date' ? now : undefined}
+                is24Hour={pickerIs24Hour(timeFormat, language)}
                 onChange={(e, d) => {
                   const which = androidPicker;
                   setAndroidPicker(null);
@@ -111,7 +112,7 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
             accessibilityLabel={t('log_sheet_dose')}
             placeholderTextColor={colors.ink3}
           />
-          {unit ? <Text style={s.unit}>{unit}</Text> : null}
+          {unit ? <Text style={s.unit}>{unitShown}</Text> : null}
         </View>
       )}
 

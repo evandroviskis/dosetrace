@@ -14,6 +14,8 @@ import { vialCells } from '../../lib/todayFormat';
 import { wheelSettle, dateColumns, dateAfter } from '../../lib/wheelPick';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { localISO } from '../../lib/localDate';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { pickerButtons } from '../../lib/timeFormat';
 
 // A button's action runs only after the sheet is gone: presenting the camera, the
 // photo library or another sheet while this one is still animating out fails on iOS.
@@ -178,10 +180,12 @@ export function DTActionSheet({ config, onClose }) {
 // date dialog — the DTWheel sheet is the iPhone's. Same bounds as the wheel (minISO / maxISO); a cancel
 // keeps the date.
 export function AndroidDateDialog({ visible, iso, minISO, maxISO, onPick, onClose }) {
+  const { t } = useLanguage();
   if (!visible) return null;
   const at = (x) => { const d = new Date(x + 'T12:00:00'); return isNaN(d.getTime()) ? null : d; };
   return (
     <DateTimePicker
+      {...pickerButtons(t)}
       value={at(iso) || new Date()}
       mode="date"
       display="default"
