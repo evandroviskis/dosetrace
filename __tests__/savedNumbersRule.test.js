@@ -30,12 +30,16 @@ test('a saved Your-numbers value is read with the comma-as-decimal rule it was s
 test('opening Your numbers in English never rewrites a saved "72,500": it saves 72.5', () => {
   const shown = savedFieldText('72,500', 'en');
   assert.equal(canonicalDecimal(shown, 'en', parseMeasure), '72.5');
-  for (const k of ['weight', 'bodyFat', 'height', 'waist']) {
-    const setter = 'set' + k[0].toUpperCase() + k.slice(1);
-    assert.match(CALC, new RegExp(`if \\(saved\\.${k} != null\\) ${setter}\\(savedFieldText\\(saved\\.${k}, language\\)\\);`), k);
+  // S25 2026-11-07: weight / height / waist load and save through lib/unitFields (same rule).
+  const { fieldLoad, fieldSave } = require('../lib/unitFields');
+  for (const kind of ['weight', 'length']) {
+    const loaded = fieldLoad('72,500', null, kind, 'metric', 'en');
+    assert.equal(loaded.text, '72.5');
+    assert.equal(fieldSave(loaded.text, kind, 'metric', loaded.memo, 'en').value, '72.5');
   }
-  assert.match(CALC, /saved\.weight != null \? savedFieldText\(saved\.weight, language\) : ''/);
-  assert.match(CALC, /weight: canonicalDecimal\(weight, language, parseMeasure\)/);
+  assert.match(CALC, /if \(saved\.bodyFat != null\) setBodyFat\(savedFieldText\(saved\.bodyFat, language\)\);/);
+  assert.match(CALC, /fieldLoad\(savedObj\[key\], typedAs\[key\], kind, savedUnit, language\)/);
+  assert.match(CALC, /const fw = fieldSave\(weight, 'weight', unit, m\.weight, language\);/);
 });
 
 test('the Journey tile and the Progress card read the same saved number', () => {

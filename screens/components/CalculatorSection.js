@@ -56,6 +56,7 @@ import {
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
 import { getRealityStart, setRealityStart, clearRealityStart, getCalcInputs, saveCalcInputs } from '../../lib/realityCheck';
 import { createScreenSave } from '../../lib/calcInputsSync';
+import { switchUnitField, fieldMetric, fieldSave, fieldLoad } from '../../lib/unitFields';
 import { validStartDate, stepStartDate, weighInOn, earliestStart, prefillStartWeight, checkOutcome, parseTypedKcal, typedIntakeFor, typedIntakePatch, resultSourcePatch, resultSource, checkAlert, rcStatusKey, closedCheckPatch, closedCheckShown, CLEAR_CLOSED_CHECK } from '../../lib/realityCheckRules';
 import { mergeCalcInputs } from '../../lib/realityCheckStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -142,6 +143,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [dateColW, onDateColLayout] = useColumnWidth(64, language);
 
   const [unit, setUnit] = useState('metric');       // 'metric' | 'imperial'
+  // S25 2026-11-07: per unit-switchable field, the exact text typed and its unit while the field shows
+  // a conversion (lib/unitFields) — a Metric / Imperial switch never changes the value.
+  const unitMemo = useRef({});
   const [weight, setWeight] = useState('');         // the weight the math uses (saved)
   // A-101e: when the weight was last typed / weighed (saved with the inputs); a newer weigh-in wins.
   const [weightAt, setWeightAt] = useState(null);
@@ -338,19 +342,26 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // Synced calc_inputs table (S-03); the old metadata only before migration.
     const saved = await getCalcInputs().catch(() => null);
     // A weight typed in Your numbers and not decided yet (PO-14) comes back from the draft.
-    const savedW = saved && typeof saved === 'object' && saved.weight != null ? savedFieldText(saved.weight, language) : ''; // read as saved (comma = decimal)
+    const savedObj = saved && typeof saved === 'object' ? saved : null;
+    const savedUnit = savedObj && savedObj.unit ? savedObj.unit : 'metric';
+    const typedAs = savedObj && savedObj.typedAs && typeof savedObj.typedAs === 'object' ? savedObj.typedAs : {};
+    // Read as saved (comma = decimal); a field saved as a conversion comes back with its typed source.
+    const load = (key, kind) => (savedObj && savedObj[key] != null ? fieldLoad(savedObj[key], typedAs[key], kind, savedUnit, language) : null);
+    const wLoad = load('weight', 'weight'), hLoad = load('height', 'length'), waLoad = load('waist', 'length');
+    const savedW = wLoad ? wLoad.text : '';
+    unitMemo.current = { weight: wLoad && wLoad.memo, weightField: wLoad && wLoad.memo, height: hLoad && hLoad.memo, waist: waLoad && waLoad.memo };
     setWeightField(wDraft && wDraft.text != null ? wDraft.text : savedW);
     // PO-13: decided once from what was saved before this version, then kept in the payload.
     setLegacyBurn(legacyBurnFromSaved({ saved, sexKnown: !!(body && body.profileSex), age: body ? body.age : null }));
     if (saved && typeof saved === 'object') {
       if (saved.unit) setUnit(saved.unit);
-      if (saved.weight != null) setWeight(savedFieldText(saved.weight, language));
+      if (wLoad) setWeight(wLoad.text);
       if (saved.weightAt) setWeightAt(saved.weightAt);
       if (saved.bfSource) setBfSource(saved.bfSource);
       if (saved.bodyFat != null) setBodyFat(savedFieldText(saved.bodyFat, language));
-      if (saved.height != null) setHeight(savedFieldText(saved.height, language));
+      if (hLoad) setHeight(hLoad.text);
       if (saved.goal) setGoal(saved.goal);
-      if (saved.waist != null) setWaist(savedFieldText(saved.waist, language));
+      if (waLoad) setWaist(waLoad.text);
     }
     // DV-010 (Gate B 1.3.1 item 5): what this screen shows; its saves send only the keys edited here.
     screenSave.current.loaded(saved);
@@ -359,14 +370,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   }
 
   // Convert display inputs → metric for the math.
-  const metric = useMemo(() => {
-    const w = num(weight);
-    const h = num(height);
-    return {
-      weightKg: w == null ? null : (unit === 'imperial' ? lbToKg(w) : w),
-      heightCm: h == null ? null : (unit === 'imperial' ? inToCm(h) : h),
-    };
-  }, [weight, height, unit]);
+  // The typed value at full precision, never a rounded conversion (lib/unitFields).
+  const metric = useMemo(() => ({
+    weightKg: fieldMetric(weight, 'weight', unit, unitMemo.current.weight, language),
+    heightCm: fieldMetric(height, 'length', unit, unitMemo.current.height, language),
+  }), [weight, height, unit, language]);
 
   // PO-12 / PO-13 (founder option A): the daily burn needs weight, height, age and sex (the
   // profile's — never the 'male' default); body fat only sharpens it (the engine then uses
@@ -420,17 +428,26 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // oneCard marks a payload saved by this version (PO-13: a weight + body fat payload
     // without it was saved before option A); legacyBurn keeps that decision.
     // Stored canonical ("86.5", never "86,5"): the payload never depends on the typing language.
-    inputsSave.current.schedule({ unit, weight: canonicalDecimal(weight, language, parseMeasure), bfSource, bodyFat: canonicalDecimal(bodyFat, language, parseMeasure), sex, age, height: canonicalDecimal(height, language, parseMeasure), activity, activitySetAt, goal, waist: canonicalDecimal(waist, language, parseMeasure), oneCard: 1, legacyBurn, weightAt, });
+    // A field shown as a conversion is saved as the exact conversion plus its typed source (typedAs),
+    // so a Metric / Imperial switch never changes the stored value (lib/unitFields).
+    const m = unitMemo.current;
+    const fw = fieldSave(weight, 'weight', unit, m.weight, language);
+    const fh = fieldSave(height, 'length', unit, m.height, language);
+    const fwa = fieldSave(waist, 'length', unit, m.waist, language);
+    const typedAs = {};
+    if (fw.typedAs) typedAs.weight = fw.typedAs;
+    if (fh.typedAs) typedAs.height = fh.typedAs;
+    if (fwa.typedAs) typedAs.waist = fwa.typedAs;
+    inputsSave.current.schedule({ unit, weight: fw.value, bfSource, bodyFat: canonicalDecimal(bodyFat, language, parseMeasure), sex, age, height: fh.value, activity, activitySetAt, goal, waist: fwa.value, typedAs: Object.keys(typedAs).length ? typedAs : null, oneCard: 1, legacyBurn, weightAt, });
   }, [unit, weight, weightAt, bfSource, bodyFat, sex, age, height, activity, activitySetAt, goal, waist, legacyBurn]);
 
   // A-101e: a newer weigh-in (edited, backfilled or from another phone) becomes the Your numbers weight.
   useEffect(() => {
     if (!loaded) return;
-    const typedNum = num(weight);
-    const weightKgNow = typedNum == null ? null : (unit === 'imperial' ? lbToKg(typedNum) : typedNum);
+    const weightKgNow = fieldMetric(weight, 'weight', unit, unitMemo.current.weight, language);
     const adopt = numbersWeight({ weightAt, typedKg: weightKgNow, snapshots });
     if (!adopt) return;
-    const v = inputNumber(unit === 'imperial' ? kgToLb(adopt.weightKg) : adopt.weightKg, language);
+    const v = weightFromKg(adopt.weightKg);
     setWeight(v);
     setWeightField(v);
     setWeightAt(adopt.date);
@@ -549,21 +566,18 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     weightFocusRef.current = null;
     const uid = userIdRef.current;
     if (!uid) return;
-    const typed = num(weightField);
-    const toKg = v => (unit === 'imperial' ? lbToKg(v) : v);
-    const old = num(weight);
-    const kg = typed == null ? null : toKg(typed);
+    const oldKg = fieldMetric(weight, 'weight', unit, unitMemo.current.weight, language);
+    const kg = fieldMetric(weightField, 'weight', unit, unitMemo.current.weightField, language);
     const text = weightField;
     if (kg != null && !weighInValuesOk({ weightKg: kg })) { const back = hasWeighIns ? weight : (entered || ''); if (!hasWeighIns) setWeightNow(back); setWeightField(back); setWeightBad(true); return; }
-    const d = weightEditAsk({ rows: getCalcSnapshots(uid), oldWeightKg: old == null ? null : toKg(old), newWeightKg: kg, todayISO: todayISO() });
+    const d = weightEditAsk({ rows: getCalcSnapshots(uid), oldWeightKg: oldKg, newWeightKg: kg, todayISO: todayISO() });
     if (d.kind === 'first') {
       // PO-17: no weigh-in yet — a weight the user changed here becomes the first one.
       if (kg == null || (entered != null && entered === text)) return;
       setWeightNow(text);
-      const wc = num(waist);
       applyWeightEdit('first', kg, text, {
         bodyFatPct: isUnknown ? null : num(bodyFat),
-        waistCm: wc == null ? null : (unit === 'imperial' ? inToCm(wc) : wc),
+        waistCm: fieldMetric(waist, 'length', unit, unitMemo.current.waist, language),
       });
       return;
     }
@@ -599,27 +613,31 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // Switching units must CONVERT the values already typed, not just relabel
   // them — otherwise "80" silently jumps from 80 kg to 80 lb and every result
   // changes. Body fat % and calories are unit-agnostic and stay put.
+  // A weigh-in's kg as the Your numbers weight: one decimal in lb, the exact kg kept (lib/unitFields).
+  function weightFromKg(kg) {
+    const r = switchUnitField(inputNumber(kg, language), 'weight', 'metric', unit, null, language);
+    unitMemo.current.weight = unitMemo.current.weightField = r.memo;
+    return r.text;
+  }
+  // S25 2026-11-07: only what the fields SHOW changes; each keeps the exact text typed and its unit,
+  // so Metric → Imperial → Metric gives back exactly what was typed (lib/unitFields).
   function changeUnit(next) {
     if (next === unit) return;
-    const toImp = next === 'imperial';
-    const fmt = v => (v == null ? '' : inputNumber(Math.round(v * 10) / 10, language));
-    const cw = str => { const n = num(str); return n == null ? str : fmt(toImp ? kgToLb(n) : lbToKg(n)); };
-    const ch = str => { const n = num(str); return n == null ? str : fmt(toImp ? cmToIn(n) : inToCm(n)); };
-    setWeight(cw(weight));
-    setWeightField(cw(weightField));
-    setHeight(ch(height));
-    setWaist(ch(waist));
-    setRcThen(cw(rcThen));
-    setWiWeight(cw(wiWeight));
-    setWiWaist(ch(wiWaist));
+    const m = unitMemo.current;
+    const sw = (key, text, kind) => { const r = switchUnitField(text, kind, unit, next, m[key], language); m[key] = r.memo; return r.text; };
+    setWeight(sw('weight', weight, 'weight'));
+    setWeightField(sw('weightField', weightField, 'weight'));
+    setHeight(sw('height', height, 'length'));
+    setWaist(sw('waist', waist, 'length'));
+    const rcNext = sw('rcThen', rcThen, 'weight');
+    if (rcThenAuto.current != null && rcThenAuto.current === rcThen) rcThenAuto.current = rcNext; // still our own prefill
+    setRcThen(rcNext);
+    setWiWeight(sw('wiWeight', wiWeight, 'weight'));
+    setWiWaist(sw('wiWaist', wiWaist, 'length'));
     setUnit(next);
   }
 
-  const waistCm = useMemo(() => {
-    const w = num(waist);
-    if (w == null) return null;
-    return unit === 'imperial' ? inToCm(w) : w;
-  }, [waist, unit]);
+  const waistCm = useMemo(() => fieldMetric(waist, 'length', unit, unitMemo.current.waist, language), [waist, unit, language]);
 
   // ── Log today's weight (redesign parts 5-6, Q10 = A) ─────────────
   // Every weigh-in is the user's own data: saved as TODAY's row in calc_snapshots, merged
@@ -634,10 +652,15 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const w = num(wiWeight);
     if (w == null) return;
     const date = todayISO();
-    const weightKg = unit === 'imperial' ? lbToKg(w) : w;
+    const m = unitMemo.current;
+    const weightKg = fieldMetric(wiWeight, 'weight', unit, m.wiWeight, language);
     const bfv = num(wiBf);
     const wc = num(wiWaist);
-    const waistCmNew = wc == null ? null : (unit === 'imperial' ? inToCm(wc) : wc);
+    const waistCmNew = fieldMetric(wiWaist, 'length', unit, m.wiWaist, language);
+    // The weight and waist carry their typed source into Your numbers while they still show it.
+    const carry = (memo, v) => (memo && v != null && memo.shown === inputNumber(v, language) ? memo : null);
+    m.weight = m.weightField = carry(m.wiWeight, w);
+    if (wc != null) m.waist = carry(m.wiWaist, wc);
     if (!weighInValuesOk({ weightKg, bodyFatPct: bfv, waistCm: waistCmNew })) { setWiBad(true); return; }
     const existing = getCalcSnapshots(uid).find(sn => sn.entry_date === date) || null;
     upsertCalcSnapshot(uid, mergeWeighIn(existing, { date, weightKg, bodyFatPct: bfv, waistCm: waistCmNew }));
@@ -776,7 +799,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // DV-062: the weigh-in Your numbers came from is gone — the newest one left becomes the weight.
     const next = afterWeighInDelete({ weightAt, deletedDate: weEdit.date, snapshots: rows });
     if (next) {
-      const v = inputNumber(unit === 'imperial' ? kgToLb(next.weightKg) : next.weightKg, language);
+      const v = weightFromKg(next.weightKg);
       setWeight(v);
       setWeightField(v);
       setWeightAt(next.date);
@@ -967,7 +990,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // already logged that day asks first (DoseTrace sheet over the start sheet); Cancel keeps the
   // sheet with the typed number. The same number, or no weigh-in that day, starts straight away.
   async function startRealityCheck() {
-    const kg = num(rcThen) == null ? null : (unit === 'imperial' ? lbToKg(num(rcThen)) : num(rcThen));
+    const kg = fieldMetric(rcThen, 'weight', unit, unitMemo.current.rcThen, language);
     if (kg == null) return;
     if (!weighInValuesOk({ weightKg: kg })) { setRcBad(true); return; }
     const date = rcStartDate && validStartDate(rcStartDate, todayISO()) ? rcStartDate : todayISO();
