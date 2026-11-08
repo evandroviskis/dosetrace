@@ -34,6 +34,12 @@ export function setWindowBackground(color) {
   try { return !!Native.setWindowBackground(color); } catch { return false; }
 }
 
+// S25 2026-11-07: the Android date and time pickers speak the app language (a BCP-47 tag, "pt-BR").
+export function setAppLocale(tag) {
+  if (!Native || !Native.setAppLocale) return false;
+  try { return !!Native.setAppLocale(String(tag)); } catch { return false; }
+}
+
 export function hasHeadlessRefresh() {
   return !!(Native && Native.scheduleRefresh);
 }

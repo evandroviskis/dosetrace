@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { translations, LANGUAGES } from './translations';
 import { resolveLanguage, deviceLanguage, LANGUAGE_KEY } from '../lib/appLanguage';
+import { LOCALES } from '../lib/timeFormat';
+import { setAppLocale } from '../modules/dt-exact-alarm';
 
 const LanguageContext = createContext({
   language: 'en',
@@ -37,6 +39,10 @@ export function LanguageProvider({ children }) {
       })
       .catch(() => {});
   }, []);
+
+  // S25 2026-11-07: Android's date and time pickers follow the process locale; it follows the app
+  // language once the stored one is read (the phone's language is read before, at the first render).
+  useEffect(() => { if (ready) setAppLocale(LOCALES[language] || 'en-US'); }, [language, ready]);
 
   // DV-050 (DL-13): a new language re-plans every scheduled notification (and renames the Android
   // channels) once it is stored, so pending reminders never keep the old language.
