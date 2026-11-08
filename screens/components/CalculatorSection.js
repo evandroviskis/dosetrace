@@ -50,7 +50,7 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { MONO } from '../../lib/fonts';
 import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
-  targetProjection, seriesRatePerWeek, goalsForTdee, TARGET_MIN_WINDOW_DAYS,
+  targetProjection, seriesRatePerWeek, goalsForTdee, planWarnings, TARGET_MIN_WINDOW_DAYS,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
@@ -1216,7 +1216,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // Warning codes from the engine → localized copy.
   const warnText = w => {
     if (w.code === 'calorie_floor' || w.code === 'bmr_floor') {
-      return t(`cal_warn_${w.code}`).replace('{kcal}', String(round10(w.values?.kcal ?? 0)));
+      return t(`cal_warn_${w.code}`).replace('{kcal}', fmtInt(round10(w.values?.kcal ?? 0))); // as the card prints it ("2.130")
     }
     if (w.code === 'protein_cap') return t('cal_warn_protein_cap').replace('{g}', String(w.values?.g ?? ''));
     if (w.code === 'protein_adjusted') return t('cal_warn_protein_adjusted');
@@ -1495,11 +1495,6 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           );
         })}
       </View>
-      {/* Re-emit the calorie-floor warning if the MEASURED-path lose target hit
-          the floor (the formula-path warning is already in plan.warnings). */}
-      {scoreCheck && effectiveGoals?.lose?.floorApplied ? (
-        <View style={s.warnbox}><Text style={s.warnText}>{warnText({ code: effectiveGoals.lose.floorSource === 'absolute' ? 'calorie_floor' : 'bmr_floor', values: { kcal: Math.round(effectiveGoals.lose.mid) } })}</Text></View>
-      ) : null}
       <View style={s.cell}>
         <Text style={s.cap2}>{t('cal_protein')}</Text>
         <Text style={s.val}>{round5(plan.protein.rec)} {t('cal_g_day')}</Text>
@@ -1514,8 +1509,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
         )}
       </View>
-      {/* Safety notes from the engine */}
-      {plan.warnings.map(w => {
+      {/* Safety notes from the engine; the floor warning from the goals the cards show (formula or
+          measured maintenance), once, with the card's number (S25 2026-11-07, lib/energyCalc). */}
+      {planWarnings(plan.warnings, effectiveGoals || plan.allGoals).map(w => {
         const txt = warnText(w);
         return txt ? <View key={w.code} style={s.warnbox}><Text style={s.warnText}>{txt}</Text></View> : null;
       })}
