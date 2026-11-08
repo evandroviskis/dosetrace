@@ -32,6 +32,7 @@ import { Analytics } from '../lib/analytics';
 import { handledSlotIndexes, ymd } from '../lib/notificationPlan';
 import { syncAllNotifications, afterProtocolChange, cancelTodaysDoseReminders, cancelDoseReminder, REALITY_CHECK_DAYS, readReminderHealth, addNotificationsSyncedListener, openReminderFix } from '../lib/notifications';
 import { blockedSheetStep, blockedSheet, NOTIF_BLOCKED_KEY } from '../lib/notifBlocked';
+import { combinedFixCount } from '../lib/reminderConversation';
 import { reminderChecks, scheduleState, shouldWarnToday, shouldWarnLate, shouldWarnStop, staleRefreshDays, shouldWarnSilent, reminderWarnings, shouldWarnBattery, shouldWarnWindow, windowAlertTitle } from '../lib/reminderHealth';
 import { maybeOpenSetupForExisting } from '../lib/reminderSetup';
 import {
@@ -221,13 +222,14 @@ export default function TodayScreen() {
   const [refreshStale, setRefreshStale] = useState(0); // A-110: days the background refresh is late
   const [remindersSilent, setRemindersSilent] = useState(false); // council 3 decision 2
   const [remindersBattery, setRemindersBattery] = useState(false); // A-112 SP-6: battery optimized (Android)
+  const [remindersHealth, setRemindersHealth] = useState(null); // the read itself: the combined card's count
   const [remindersWindow, setRemindersWindow] = useState(null); // AD-87 A: the iPhone window is short ({ days, atMs })
   // A-120: resolves once Today's first screen is shown (the content appeared after the first load).
   const firstShownRef = useRef(null);
   if (!firstShownRef.current) firstShownRef.current = deferred();
   const readReminders = useCallback(() => {
     readReminderHealth()
-      .then((h) => { const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h)); setRemindersBattery(shouldWarnBattery(h)); setRemindersWindow(shouldWarnWindow(h));
+      .then((h) => { setRemindersHealth(h); const checks = reminderChecks(h); setRemindersBlocked(shouldWarnToday({ ...h, checks, schedule: scheduleState(h) })); setRemindersLate(shouldWarnLate(h)); setRemindersStop(shouldWarnStop(h)); setRefreshStale(staleRefreshDays(h)); setRemindersSilent(shouldWarnSilent(h)); setRemindersBattery(shouldWarnBattery(h)); setRemindersWindow(shouldWarnWindow(h));
         // Decision 5: Android users who already have a reminder time see the setup step once.
         // A-120: never while Today is still loading its first screen.
         // NB-4: the Android setup screen goes first (it lists Notifications too); the blocked sheet
@@ -1990,7 +1992,7 @@ export default function TodayScreen() {
     if (warnings.length >= 2 && !(alertSnooze.reminders_combined && nowMs < alertSnooze.reminders_combined)) {
       list.push({
         id: 'reminders_combined', iconName: 'warning', due: true,
-        title: t('today_alert_combined_title').replace('{n}', String(warnings.length)),
+        title: t('today_alert_combined_title').replace('{n}', String(combinedFixCount(warnings, remindersHealth))),
         body: t('today_alert_combined_body'),
         onPress: () => navigation.navigate('ReminderCheck'),
         snoozeId: 'reminders_combined',
@@ -2064,7 +2066,7 @@ export default function TodayScreen() {
     }
     }
     return list;
-  }, [rcStart, rcNow, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent, remindersBattery, remindersWindow]);
+  }, [rcStart, rcNow, latestLabDate, protocols, vials, alertSnooze, language, offlinePending, remindersBlocked, remindersLate, remindersStop, refreshStale, remindersSilent, remindersBattery, remindersWindow, remindersHealth]);
 
   function formatTimeAMPM(time24) {
     return formatTime(time24, language, timeFormat);

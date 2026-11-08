@@ -837,3 +837,23 @@ test('S25 blank conversation: an account lookup stuck behind the auth lock canno
   assert.equal(h.userId, 'u1', 'the known user stands in');
   assert.match(read('lib/notifications.js'), /import \{ getCachedUser, peekCachedUser, setStoredSessionOnly \} from '\.\/supabase';/);
 });
+
+// ── S25 2026-11-07 (Dosetrace Ads walkthrough): Today said "4 ajustes para seus lembretes" and the
+// conversation it opens said "Faltam 5 ajustes" (Samsung deep sleep not confirmed counts there, SP-10).
+// One concept, one number: the card counts what the conversation will walk. ──
+test('S25: Today\'s "N fixes" card says the same number as the conversation it opens ("Faltam N")', () => {
+  const warnings = R.reminderWarnings({ blocked: true, late: true, stop: true, stale: 0, battery: true, window: false });
+  assert.equal(warnings.length, 4, 'the S25 case: four readable warnings');
+  const conv = C.startConversation(fold);
+  assert.equal(conv.messages[1].params.n, 5, 'the conversation walks five (deep sleep not confirmed)');
+  assert.equal(C.pendingCount(fold), 5);
+  assert.equal(C.combinedFixCount(warnings, fold), 5, 'the card says 5, like the conversation');
+  // A warning the conversation does not walk (late background refresh) keeps the card honest when
+  // fewer than two items are left to walk: never "1 ajustes" beside two warnings.
+  const one = { ...allOk, batteryOptimized: true };
+  assert.equal(C.pendingCount(one), 1);
+  assert.equal(C.combinedFixCount(['battery', 'stale'], one), 2);
+  assert.equal(C.combinedFixCount(['blocked', 'window'], null), 2, 'no read: the warnings');
+  const today = read('screens/TodayScreen.js');
+  assert.match(today, /today_alert_combined_title'\)\.replace\('\{n\}', String\(combinedFixCount\(warnings, remindersHealth\)\)\)/);
+});
