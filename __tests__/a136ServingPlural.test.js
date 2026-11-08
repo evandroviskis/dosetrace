@@ -49,11 +49,14 @@ test('A-136 (7): 1 cápsula, 2 cápsulas; French 0 and 1 gélule', () => {
 test('A-136 (7): the protocol page and the wizard pick the word by its count', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/ProtocolsScreen.js'), 'utf8');
   assert.doesNotMatch(src, /t\(r\.unitKey\)/, 'no count prints the plural word blindly');
-  assert.equal((src.match(/const unitWord = \(n\) => t\(pluralKey\(r\.unitKey, n, language\)\);/g) || []).length, 2, 'the page and the wizard');
+  // S25 2026-11-07: the amount rule (lib/plural servingPluralKey: "½ comprimido"), same counts as before.
+  assert.equal((src.match(/const unitWord = \(n\) => t\(servingPluralKey\(r\.unitKey, n, language\)\);/g) || []).length, 2, 'the page and the wizard');
   // take amount (page, a11y label, wizard), nearest low / high (page + wizard), left
   assert.equal((src.match(/\{unitWord\(r\.unitsNeeded\)\}/g) || []).length, 3, 'the big take word: page, its accessibility label, wizard');
   assert.match(src, /\\u00A0\$\{unitWord\(r\.unitsNeeded\)\}`\}>/, 'the accessibility label');
   assert.equal((src.match(/\{unitWord\(r\.nearest\.lowUnits\)\}/g) || []).length, 2);
   assert.equal((src.match(/\{unitWord\(r\.nearest\.highUnits\)\}/g) || []).length, 2);
-  assert.match(src, /value: `\$\{decimalText\(unitsLeft, language\)\}\\u00A0\$\{unitWord\(unitsLeft\)\}`/);
+  // "Left" is printed as a decimal ("0,5"), so its word follows the decimal rule (glyph: false).
+  assert.match(src, /const leftWord = \(n\) => t\(servingPluralKey\(r\.unitKey, n, language, \{ glyph: false \}\)\);/);
+  assert.match(src, /value: `\$\{decimalText\(unitsLeft, language\)\}\\u00A0\$\{leftWord\(unitsLeft\)\}`/);
 });
