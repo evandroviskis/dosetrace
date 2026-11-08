@@ -75,7 +75,7 @@ import { supplyState, bottleState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
+import { frequencyLabelFor, protocolFrequencyText, courseState, endDateRange } from '../lib/schedule';
 import { startNewVial, showsNewVialButton } from '../lib/newVial';
 import { applyVialEdit, showsEditVialButton, editMixDate, mixDateError } from '../lib/vialEdit';
 import NewVialPrompt, { EditVialPrompt } from './components/NewVialPrompt';
@@ -851,7 +851,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   // A-85 option A (picture column 4): "End protocol" at the end of the page, only on an active protocol.
   const endShown = !!onEndProtocol && p.active === 1 && !p.deleted_at;
   const scheduleRows = [
-    { label: t('protocols_frequency'), value: p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—') },
+    { label: t('protocols_frequency'), value: protocolFrequencyText(p, t) },
     { label: t('protocols_reminder'), value: (p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  '), mono: true },
     p.schedule_total ? { label: t('protocols_total_doses_schedule'), value: String(p.schedule_total), mono: true } : null,
     endRow,

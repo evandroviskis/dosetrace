@@ -71,6 +71,7 @@ import { getCalcInputs } from '../lib/realityCheck';
 import { activityParts } from '../lib/progressFormat';
 import { adherenceStats, fillPercent } from '../lib/adherenceReport';
 import { monthStart, slotCounts } from '../lib/adherenceRings';
+import { protocolFrequencyText } from '../lib/schedule';
 import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
@@ -790,7 +791,7 @@ export default function SettingsScreen({ navigation }) {
           // An ended protocol says so ("BPC-157 · Ended 20 Sep").
           name: isEnded(p) ? `${protocolDisplayName(p, t)} · ${t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}` : protocolDisplayName(p, t), // A-134: as on Today
           dose: `${p.dose ? decimalText(p.dose, language) : '—'}\u00A0${unitText(p.dose_unit || '', language)}`,
-          frequency: p.frequency || '—',
+          frequency: protocolFrequencyText(p, t),
           taken,
           skipped,
           missed,
