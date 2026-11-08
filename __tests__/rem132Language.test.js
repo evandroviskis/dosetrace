@@ -28,9 +28,8 @@ test('DV-196: the stored choice wins; an unsupported phone language falls back t
   assert.equal(resolveLanguage('xx', 'de'), 'de');
   // One rule for the screens and the notifications.
   const ctx = read('i18n/LanguageContext.js');
-  assert.match(ctx, /import \{ resolveLanguage, deviceLanguage, LANGUAGE_KEY, pickerLocaleTag \} from '\.\.\/lib\/appLanguage';/);
-  // S25 2026-11-07 (pickers): the phone's language is read once, then the same rule.
-  assert.match(ctx, /phoneLanguage\.current = deviceLanguage\(Localization\);\s*setLanguageState\(resolveLanguage\(saved, phoneLanguage\.current\)\)/);
+  assert.match(ctx, /import \{ resolveLanguage, deviceLanguage, LANGUAGE_KEY \} from '\.\.\/lib\/appLanguage';/);
+  assert.match(ctx, /setLanguageState\(resolveLanguage\(saved, deviceLanguage\(Localization\)\)\)/);
   assert.match(read('lib/notificationActions.js'), /const lang = await readAppLanguage\(\);/);
   assert.doesNotMatch(read('lib/notifications.js'), /getItem\('dosetrace_language'\)/);
 });

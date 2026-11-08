@@ -34,13 +34,10 @@ export function setWindowBackground(color) {
   try { return !!Native.setWindowBackground(color); } catch { return false; }
 }
 
-// S25 2026-11-07: the Android date and time pickers speak the app language (a BCP-47 tag, "pt-BR");
-// null gives the phone's own locale back. A phone never changed is never touched.
-let appLocaleSet = false;
+// S25 2026-11-07: the Android date and time pickers speak the app language (a BCP-47 tag, "pt-BR").
+// The native side changes nothing when the phone already speaks that language.
 export function setAppLocale(tag) {
   if (!Native || !Native.setAppLocale) return false;
-  if (tag == null && !appLocaleSet) return false;
-  appLocaleSet = tag != null;
   try { return !!Native.setAppLocale(tag == null ? null : String(tag)); } catch { return false; }
 }
 

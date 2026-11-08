@@ -1,6 +1,7 @@
 package expo.modules.dtexactalarm
 
 import android.app.AlarmManager
+import android.app.LocaleManager
 import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.res.Configuration
@@ -9,6 +10,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Handler
+import android.os.LocaleList
 import android.os.Looper
 import android.view.View
 import android.view.WindowInsetsController
@@ -119,12 +121,30 @@ class DtExactAlarmModule : Module() {
 
   private var appLocaleTag: String? = null
 
-  // tag null = the phone's own locale back. Always on the main thread, posted: from the JS thread
-  // never touches Resources off the main thread, and from a configuration change it runs after the
-  // activity has taken the new configuration (fold / unfold), so its metrics are the new ones.
+  // The app language for the date and time pickers (tag "pt-BR"; null = follow the phone).
+  // The same language as the phone changes nothing (the phone's own regional format stays).
+  // Android 13+: the official per-app language — every resource follows it (month names, weekday
+  // letters, OK / Cancel), it survives a restart, and MainActivity handles locale changes itself
+  // (configChanges locale|layoutDirection), so nothing restarts. Older Android: the process locale and
+  // the resources, applied again after each configuration change (fold / unfold resets them).
+  // Always on the main thread, posted after any configuration change in progress.
+  private var legacyApplied = false
+
   private fun applyLocale(tag: String?) {
     Handler(Looper.getMainLooper()).post {
-      val locale = if (tag != null) Locale.forLanguageTag(tag) else Resources.getSystem().configuration.locales.get(0)
+      val sys = Resources.getSystem().configuration.locales.get(0)
+      val want = tag?.let { Locale.forLanguageTag(it) }
+      val same = want == null || want.language == sys.language
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val ctx = appContext.reactContext?.applicationContext ?: return@post
+        val lm = ctx.getSystemService(LocaleManager::class.java) ?: return@post
+        val target = if (same) LocaleList.getEmptyLocaleList() else LocaleList(want!!)
+        if (lm.applicationLocales != target) lm.applicationLocales = target
+        return@post
+      }
+      if (same && !legacyApplied) return@post
+      legacyApplied = !same
+      val locale = if (same) sys else want!!
       Locale.setDefault(locale)
       val update = { res: Resources ->
         val cfg = Configuration(res.configuration)
