@@ -64,7 +64,7 @@ test('AP-17 / AP-26: Done saves through the form\'s own saveProtocol (same field
 test('AP-7: the label photo goes through the same vial-scan path (consent, shared quota, edge function)', () => {
   assert.match(SCREEN, /scanLabel=\{extractVialLabel\}/);
   const fn = SCREEN.slice(SCREEN.indexOf('async function extractVialLabel('), SCREEN.indexOf('// ── The AI protocol assistant'));
-  assert.match(fn, /supabase\.functions\.invoke\('extract-bloodwork', \{\s*body: \{ kind: 'vial'/);
+  assert.match(fn, /invokeAI\(fnInvoke, 'extract-bloodwork', \{ kind: 'vial'/); // the shared AI wait (lib/aiWait)
   assert.match(fn, /\{ quota: true \}/);
 });
 

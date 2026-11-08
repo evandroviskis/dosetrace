@@ -396,8 +396,10 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     touch();
 
     if (res.ok && res.refusal) {
+      // An advice question is not food: nothing is saved and the box stays empty, as after any
+      // sent message (S25 2026-11-07: the refused question stayed in the box). Only the fixed
+      // deflection card shows (FL-15).
       deleteFoodLog(id); requestSync?.(); refresh(userId);
-      setText(raw);            // never lose what they typed
       setNotice({ kind: 'deflect' }); return;
     }
     if (res.ok && (!res.items.length || !res.totals)) {

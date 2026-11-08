@@ -69,6 +69,7 @@ import { pluralKey } from '../lib/plural';
 import { latestVaccine, exportVisible, deleteValueCopy } from '../lib/bodyHub';
 import { validateExtraction, scanErrorKind, scanErrorSheet } from '../lib/bodyScan';
 import { errorSheet, errorTitle } from '../lib/errorSheet';
+import { invokeAI, AI_DOC_WAIT_MS } from '../lib/aiWait';
 import { scanResult, parseLabInput, labValueText, labNumberText, labInputText, chartPoints, isWordResult } from '../lib/labValue';
 import { todayLocal, wheelColumns, wheelAfter } from '../lib/bodyDates';
 import { fetchScanUsage, scanUsageLine, scanUsageShown } from '../lib/scanUsage';
@@ -693,19 +694,19 @@ export default function BodyScreen({ navigation, route }) {
       const reqBody = opts?.image
         ? { image_base64: base64, media_type: opts.mediaType, lang: language }
         : { pdf_base64: base64, lang: language };
-      const { data, error } = await supabase.functions.invoke('extract-bloodwork', {
-        body: reqBody,
-      });
+      // The shared AI wait, the document limit (lib/aiWait, 120 s: a long report takes up to about
+      // a minute; S25 2026-11-07 the scans spun for minutes): no answer in time → the existing
+      // "Scan service unavailable" sheet (code 'timeout'), and + Upload works again.
+      const fnInvoke = (name, o) => supabase.functions.invoke(name, o);
+      const { data, error } = await invokeAI(fnInvoke, 'extract-bloodwork', reqBody, { ms: AI_DOC_WAIT_MS });
 
       if (error) {
         setUploading(false);
         // The edge function tags failures with a `code`: a service-side failure (Anthropic
         // down, key/credit) is never blamed on the user's PDF; the monthly limit names the
         // limit the server sends (A-60).
-        const status = error.context?.status;
-        let errBody = null;
-        try { errBody = await error.context?.clone?.().json(); } catch { /* body unavailable */ }
-        notice(scanErrorSheet(scanErrorKind({ code: errBody?.code ?? null, status }), t, { what: 'lab', errBody }));
+        const errBody = error.body;
+        notice(scanErrorSheet(scanErrorKind({ code: error.code, status: error.status }), t, { what: 'lab', errBody }));
         return;
       }
 

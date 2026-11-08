@@ -65,7 +65,7 @@ test('A: a free lab upload goes to the server even after the old one-per-device 
   assert.doesNotMatch(BODY, /dosetrace_bloodwork_uploads|getUploadCount|incrementUploadCount|uploadCount/, 'the per-device counter is gone');
   const extract = fnCode(BODY, 'extractWithClaude');
   assert.doesNotMatch(extract, /hasPremium/, 'no client gate in front of the paid call');
-  assert.match(extract, /scanErrorSheet\(scanErrorKind\(\{ code: errBody\?\.code \?\? null, status \}\), t, \{ what: 'lab', errBody \}\)/, 'a refusal shows the server\'s limit');
+  assert.match(extract, /scanErrorSheet\(scanErrorKind\(\{ code: error\.code, status: error\.status \}\), t, \{ what: 'lab', errBody \}\)/, 'a refusal shows the server\'s limit');
 });
 
 test('A: a free vaccine-card scan goes to the server (the client Premium gate is gone)', async () => {
@@ -77,7 +77,7 @@ test('A: a free vaccine-card scan goes to the server (the client Premium gate is
   await run();
   assert.deepEqual(calls, ['choice']);
   assert.doesNotMatch(VAX, /hasPremium|premiumSheet|vax_scan_premium_title/, 'no Premium gate or "A Premium feature" sheet left');
-  assert.match(fnCode(VAX, 'extractVaccines'), /scanErrorSheet\(scanErrorKind\(\{ code: errBody\?\.code \?\? null, status \}\), t, \{ what: 'vaccine', errBody \}\)/);
+  assert.match(fnCode(VAX, 'extractVaccines'), /scanErrorSheet\(scanErrorKind\(\{ code: error\.code, status: error\.status \}\), t, \{ what: 'vaccine', errBody \}\)/);
 });
 
 test('A: vial labels already go straight to the server (unchanged)', () => {

@@ -40,7 +40,7 @@ test('A-60: the three scan screens read the server limit and fill the message', 
   assert.match(read('screens', 'ProtocolsScreen.js'), /fillQuotaMessage\(t\('vial_scan_quota_sub'\), quotaLimitFrom\(/);
   assert.match(read('lib', 'bodyScan.js'), /fillQuotaMessage\(t\('vial_scan_quota_sub'\), quotaLimitFrom\(errBody\)\)/);
   for (const f of [['screens', 'BodyScreen.js'], ['screens', 'components', 'VaccinesSection.js']]) {
-    assert.match(read(...f), /scanErrorSheet\(scanErrorKind\(\{ code: errBody\?\.code \?\? null, status \}\), t, \{ what: '(lab|vaccine)', errBody \}\)/, f.join('/'));
+    assert.match(read(...f), /scanErrorSheet\(scanErrorKind\(\{ code: error\.code, status: error\.status \}\), t, \{ what: '(lab|vaccine)', errBody \}\)/, f.join('/'));
   }
   for (const f of [['screens', 'BodyScreen.js'], ['screens', 'ProtocolsScreen.js'], ['screens', 'components', 'VaccinesSection.js']]) {
     assert.doesNotMatch(read(...f), /Alert\.alert\(t\('vial_scan_quota_title'\), t\('vial_scan_quota_sub'\)\)/, f.join('/'));
