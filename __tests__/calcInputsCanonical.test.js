@@ -26,13 +26,28 @@ test('canonicalDecimal stores a typed number as a dot-decimal string in every la
 
 test('Your numbers writes canonical numbers to calc_inputs', () => {
   // (second review: read with the body-number rule, lib/doseMath parseMeasure)
-  assert.match(CALC, /inputsSave\.current\.schedule\(\{ unit, weight: canonicalDecimal\(weight, language, parseMeasure\), bfSource, bodyFat: canonicalDecimal\(bodyFat, language, parseMeasure\), sex, age, height: canonicalDecimal\(height, language, parseMeasure\), activity, activitySetAt, goal, waist: canonicalDecimal\(waist, language, parseMeasure\),/);
+  // S25 2026-11-07: weight / height / waist go through lib/unitFields fieldSave (canonicalDecimal for a
+  // typed value; the exact conversion plus its typed source while a field shows the other unit).
+  const { fieldSave } = require('../lib/unitFields');
+  assert.equal(fieldSave('86,5', 'weight', 'metric', null, 'pt').value, '86.5');
+  assert.equal(fieldSave('177', 'length', 'metric', null, 'fr').value, '177');
+  assert.equal(fieldSave('86.5', 'weight', 'imperial', null, 'en').value, '86.5');
+  assert.match(CALC, /const fw = fieldSave\(weight, 'weight', unit, m\.weight, language\);/);
+  assert.match(CALC, /const fh = fieldSave\(height, 'length', unit, m\.height, language\);/);
+  assert.match(CALC, /const fwa = fieldSave\(waist, 'length', unit, m\.waist, language\);/);
+  assert.match(CALC, /inputsSave\.current\.schedule\(\{ unit, weight: fw\.value, bfSource, bodyFat: canonicalDecimal\(bodyFat, language, parseMeasure\), sex, age, height: fh\.value, activity, activitySetAt, goal, waist: fwa\.value,/);
 });
 
 test('Your numbers prefills a saved string in the app language too', () => {
-  for (const k of ['weight', 'bodyFat', 'height', 'waist']) {
-    const setter = 'set' + k[0].toUpperCase() + k.slice(1);
-    assert.match(CALC, new RegExp(`if \\(saved\\.${k} != null\\) ${setter}\\(savedFieldText\\(saved\\.${k}, language\\)\\);`), k);
+  // Body fat directly; weight / height / waist through lib/unitFields fieldLoad (savedFieldText).
+  const { fieldLoad } = require('../lib/unitFields');
+  assert.equal(fieldLoad('86.5', null, 'weight', 'metric', 'pt').text, '86,5');
+  assert.equal(fieldLoad(84.6, null, 'weight', 'metric', 'de').text, '84,6');
+  assert.equal(fieldLoad('177', undefined, 'length', 'imperial', 'it').text, '177');
+  assert.match(CALC, /if \(saved\.bodyFat != null\) setBodyFat\(savedFieldText\(saved\.bodyFat, language\)\);/);
+  assert.match(CALC, /fieldLoad\(savedObj\[key\], typedAs\[key\], kind, savedUnit, language\)/);
+  assert.match(CALC, /const wLoad = load\('weight', 'weight'\), hLoad = load\('height', 'length'\), waLoad = load\('waist', 'length'\);/);
+  for (const [l, setter] of [['wLoad', 'setWeight'], ['hLoad', 'setHeight'], ['waLoad', 'setWaist']]) {
+    assert.match(CALC, new RegExp(`if \\(${l}\\) ${setter}\\(${l}\\.text\\);`), setter);
   }
-  assert.match(CALC, /saved\.weight != null \? savedFieldText\(saved\.weight, language\) : ''/);
 });

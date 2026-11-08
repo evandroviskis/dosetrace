@@ -74,9 +74,9 @@ import FitExplainer from './components/FitExplainer';
 import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
 import { supplyState, bottleState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
-import { computeServings, supplyDaysLeft } from '../lib/oralMath';
+import { computeServings, servingText, supplyDaysLeft } from '../lib/oralMath';
 import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
-import { frequencyLabelFor, courseState, endDateRange } from '../lib/schedule';
+import { frequencyLabelFor, protocolFrequencyText, courseState, endDateRange } from '../lib/schedule';
 import { startNewVial, showsNewVialButton } from '../lib/newVial';
 import { applyVialEdit, showsEditVialButton, editMixDate, mixDateError } from '../lib/vialEdit';
 import NewVialPrompt, { EditVialPrompt } from './components/NewVialPrompt';
@@ -110,7 +110,7 @@ import { defaultSelection, paneWidths } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
-import { pluralKey } from '../lib/plural';
+import { pluralKey, servingPluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import { imageMediaType } from '../lib/imageType';
 import {
@@ -234,14 +234,6 @@ function sentenceCase(str) {
   return lower.charAt(0).toUpperCase() + lower.slice(1).replace(/-([a-zà-ÿ])/g, (m, ch) => '-' + ch.toUpperCase());
 }
 
-// Halves read as "½" / "1½"; anything else stays decimal.
-function fmtServing(v, language = 'en') {
-  if (Math.abs(v * 2 - Math.round(v * 2)) > 1e-9) return decimalText(Math.round(v * 100) / 100, language);
-  const whole = Math.floor(v + 1e-9);
-  const isHalf = Math.abs(v - whole - 0.5) < 1e-9;
-  if (!isHalf) return String(whole);
-  return whole > 0 ? `${whole}½` : '½';
-}
 
 // The dose in the other mass unit, so the mcg↔mg equivalence is read beside the draw.
 function altMass(dose, unit, language = 'en') {
@@ -563,8 +555,10 @@ function ProtocolServingHero({ p, t, onRefill, onLayout }) {
     return null; // not enough info yet — stay quiet
   }
 
-  // A-136 (7): the serving word agrees with its count (1 cápsula, 2 cápsulas; French 0 and 1).
-  const unitWord = (n) => t(pluralKey(r.unitKey, n, language));
+  // A-136 (7): the serving word agrees with its amount (1 cápsula, 2 cápsulas; French 0 and 1);
+  // S25 2026-11-07: "½ comprimido", each language's rule for fractions (lib/plural servingPluralKey).
+  const unitWord = (n) => t(servingPluralKey(r.unitKey, n, language));
+  const leftWord = (n) => t(servingPluralKey(r.unitKey, n, language, { glyph: false })); // printed as a decimal
   // Show the amount when it's achievable (continuous, whole, or a clean half on
   // a scored unit). Otherwise the unit can't hit the target, so explain instead.
   const canShowAmount = !r.discrete || r.isAchievable;
@@ -578,7 +572,7 @@ function ProtocolServingHero({ p, t, onRefill, onLayout }) {
   const daysLeft = unitsLeft != null ? supplyDaysLeft(unitsLeft, r.unitsNeeded, p.doses_per_day || 1, p.interval_days || 1) : null;
   const reads = [
     { label: t('protocols_serving_dose'), value: `${decimalText(p.dose, language)}\u00A0${unitText(p.dose_unit, language)}` },
-    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)}\u00A0${unitWord(unitsLeft)}` } : null,
+    unitsLeft != null ? { label: t('protocols_serving_left'), value: `${decimalText(unitsLeft, language)}\u00A0${leftWord(unitsLeft)}` } : null,
     daysLeft != null ? { label: t('protocols_serving_days_left'), value: String(daysLeft) } : null,
   ].filter(Boolean);
   while (reads.length < 3) reads.push(null);
@@ -589,8 +583,8 @@ function ProtocolServingHero({ p, t, onRefill, onLayout }) {
       {canShowAmount ? (
         <View style={[s.drawWell, s.drawWellServing]}>
           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
-          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${fmtServing(r.unitsNeeded, language)}\u00A0${unitWord(r.unitsNeeded)}`}>
-            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded, language)}</Text>
+          <View style={s.bigRow} accessible accessibilityLabel={`${t('protocols_serving_take')} ${servingText(r.unitsNeeded, language)}\u00A0${unitWord(r.unitsNeeded)}`}>
+            <Text style={s.drawBig}>{servingText(r.unitsNeeded, language)}</Text>
             <Text style={s.drawBigUnit}>{unitWord(r.unitsNeeded)}</Text>
           </View>
         </View>
@@ -599,7 +593,7 @@ function ProtocolServingHero({ p, t, onRefill, onLayout }) {
       )}
       {r.nearest && (
         <Text style={s.nearest}>
-          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitWord(r.nearest.lowUnits)} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitWord(r.nearest.highUnits)} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)}
+          {r.nearest.lowUnits != null ? <>{servingText(r.nearest.lowUnits, language)}{'\u00A0'}{unitWord(r.nearest.lowUnits)} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)} · </> : null}{servingText(r.nearest.highUnits, language)}{'\u00A0'}{unitWord(r.nearest.highUnits)} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(p.dose_unit, language)}
         </Text>
       )}
       <View style={s.reads}>
@@ -852,7 +846,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   // A-85 option A (picture column 4): "End protocol" at the end of the page, only on an active protocol.
   const endShown = !!onEndProtocol && p.active === 1 && !p.deleted_at;
   const scheduleRows = [
-    { label: t('protocols_frequency'), value: p.interval_days ? frequencyLabelFor(p.interval_days, t) : (p.frequency || '—') },
+    { label: t('protocols_frequency'), value: protocolFrequencyText(p, t) },
     { label: t('protocols_reminder'), value: (p.reminder_time || '—').split(',').filter(Boolean).map(t24 => formatTime(t24, language, timeFormat)).join('  ·  '), mono: true },
     p.schedule_total ? { label: t('protocols_total_doses_schedule'), value: String(p.schedule_total), mono: true } : null,
     endRow,
@@ -2367,7 +2361,7 @@ export default function ProtocolsScreen() {
             targetDose: protocolData.dose, doseUnit: protocolData.dose_unit, servingStrength: protocolData.serving_strength,
             servingStrengthUnit: protocolData.serving_strength_unit, servingUnits: protocolData.serving_units, form: protocolData.notes,
           });
-          const word = sv && sv.unitKey ? `\u00A0${t(pluralKey(sv.unitKey, ask.unitsUsed, language))}` : '';
+          const word = sv && sv.unitKey ? `\u00A0${t(servingPluralKey(sv.unitKey, ask.unitsUsed, language, { glyph: false }))}` : '';
           body = bk('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
         }
         const supplyChanged = () => {
@@ -3685,7 +3679,7 @@ export default function ProtocolsScreen() {
                 {wizServing && wizServing.unitMismatch && <View style={s.live}><WarnBox s={s} text={t('protocols_serving_unit_mismatch')} /></View>}
                 {wizServing && wizServing.valid && (() => {
                   const r = wizServing;
-                  const unitWord = (n) => t(pluralKey(r.unitKey, n, language));
+                  const unitWord = (n) => t(servingPluralKey(r.unitKey, n, language));
                   const canShowAmount = !r.discrete || r.isAchievable;
                   return (
                     <View style={s.live}>
@@ -3693,7 +3687,7 @@ export default function ProtocolsScreen() {
                         <>
                           <Text style={s.drawLabel}>{t('protocols_syringe_based_on')}</Text>
                           <View style={s.bigRow}>
-                            <Text style={s.drawBig}>{fmtServing(r.unitsNeeded, language)}</Text>
+                            <Text style={s.drawBig}>{servingText(r.unitsNeeded, language)}</Text>
                             <Text style={s.drawBigUnit}>{unitWord(r.unitsNeeded)}</Text>
                           </View>
                         </>
@@ -3707,7 +3701,7 @@ export default function ProtocolsScreen() {
                       )}
                       {r.nearest && (
                         <Text style={s.nearest}>
-                          {fmtServing(r.nearest.lowUnits, language)}{'\u00A0'}{unitWord(r.nearest.lowUnits)} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(doseUnit, language)} · {fmtServing(r.nearest.highUnits, language)}{'\u00A0'}{unitWord(r.nearest.highUnits)} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(doseUnit, language)}
+                          {r.nearest.lowUnits != null ? <>{servingText(r.nearest.lowUnits, language)}{'\u00A0'}{unitWord(r.nearest.lowUnits)} = {decimalText(r.nearest.lowDose, language)}{'\u00A0'}{unitText(doseUnit, language)} · </> : null}{servingText(r.nearest.highUnits, language)}{'\u00A0'}{unitWord(r.nearest.highUnits)} = {decimalText(r.nearest.highDose, language)}{'\u00A0'}{unitText(doseUnit, language)}
                         </Text>
                       )}
                     </View>

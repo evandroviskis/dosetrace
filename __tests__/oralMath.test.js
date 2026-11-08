@@ -20,7 +20,8 @@ test('vitamin C example: 800mg target, 1600mg per capsule → 0.5 capsule (not w
   assert.equal(r.isWhole, false);
   assert.equal(r.discrete, true);
   assert.equal(r.splittable, false); // capsules aren't reliably splittable
-  assert.deepEqual(r.nearest, { lowUnits: 0, lowDose: 0, highUnits: 1, highDose: 1600 });
+  // S25 2026-11-07: no "0 capsules = 0 mg" option below one step.
+  assert.deepEqual(r.nearest, { lowUnits: null, lowDose: null, highUnits: 1, highDose: 1600 });
 });
 
 test('vitamin C: capsule holds 2x the dose (ratio) and is not splittable by default', () => {
@@ -50,7 +51,7 @@ test('not divisible capsule: only whole units are achievable', () => {
   const r = computeServings({ targetDose: 800, doseUnit: 'mg', servingStrength: 1600, servingStrengthUnit: 'mg', servingUnits: 1, form: 'Capsule', divisible: false });
   assert.equal(r.step, 1);
   assert.equal(r.isAchievable, false);
-  assert.deepEqual(r.nearest, { lowUnits: 0, lowDose: 0, highUnits: 1, highDose: 1600 });
+  assert.deepEqual(r.nearest, { lowUnits: null, lowDose: null, highUnits: 1, highDose: 1600 }); // never a 0 option
 });
 
 test('serving = N units: 750mg target, 500mg per serving of 2 gummies → 3 gummies', () => {
