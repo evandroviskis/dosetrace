@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protocolo encerrado</title>
+<style>
+  :root { --page:#F4F5F2; --fg:#111315; --muted:#53585D; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page:#0B0C0D; --fg:#EEEFEB; --muted:#9A9F9A; color-scheme: dark; } }
+  :root[data-theme="dark"] { --page:#0B0C0D; --fg:#EEEFEB; --muted:#9A9F9A; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding-block:24px 48px; padding-inline:16px; background:var(--page); color:var(--fg); font:14px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size:22px; margin:0 0 6px; text-wrap:balance; }
+  .lead { color:var(--muted); max-width:70ch; margin:0 0 10px; }
+  h2 { font-size:13px; margin:28px 0 10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .row { display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .col { width:290px; max-width:100%; min-width:0; }
+  .cap { font-weight:700; margin:0 0 4px; }
+  .note { color:var(--muted); font-size:12.5px; margin:0 0 8px; min-height:54px; }
+  .light { --ground:#DDE0DB; --raised:#FFFFFF; --well:#EEF0EC; --line:#C3C7C0; --ink:#111315; --ink2:#454A4F; --ink3:#53585D; --act:#111315; --onAct:#FFFFFF; --risk:#9E1F19; --scrim:rgba(17,19,21,.42); --dot:#2F6FB0; }
+  .dark  { --ground:#121416; --raised:#282B30; --well:#1D2024; --line:#3C4147; --ink:#EEEFEB; --ink2:#B5B9B4; --ink3:#9A9F9A; --act:#EEEFEB; --onAct:#121416; --risk:#F08A80; --scrim:rgba(0,0,0,.55); --dot:#6FA6DE; }
+  .phone { position:relative; width:290px; max-width:100%; height:560px; border-radius:30px; overflow:hidden; background:var(--ground); color:var(--ink); border:1px solid var(--line); }
+  .page { padding:40px 18px 0; }
+  .back { font-size:14px; margin-bottom:10px; }
+  .h { font-size:24px; font-weight:800; margin:0 0 12px; }
+  .meta { color:var(--ink3); font-size:12px; margin:0 0 2px; display:flex; align-items:center; gap:6px; }
+  .meta i { width:9px; height:9px; border-radius:50%; background:var(--dot); display:inline-block; }
+  .title { font-size:22px; font-weight:800; margin:0 0 8px; }
+  .tag { display:inline-block; font-size:11.5px; border:1px solid var(--line); border-radius:10px; padding:1px 8px; color:var(--ink2); margin-bottom:12px; }
+  .card { background:var(--raised); border-radius:20px; padding:14px; margin-bottom:12px; }
+  .card h4 { margin:0 0 6px; font-size:13px; color:var(--ink2); font-weight:600; }
+  .small { font-size:13px; color:var(--ink2); }
+  .kv { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:6px 0; border-top:1px solid var(--line); }
+  .kv:first-of-type { border-top:0; }
+  .kv b { font-weight:600; color:var(--ink); }
+  .kv span { color:var(--ink2); }
+  .btn { min-height:44px; border-radius:22px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; text-align:center; padding:0 10px; }
+  .primary { background:var(--act); color:var(--onAct); }
+  .secondary { background:var(--well); color:var(--ink); }
+  .rowbtn { background:var(--raised); border-radius:20px; padding:14px; font-weight:700; color:var(--risk); text-align:center; }
+  .sect { background:var(--raised); border-radius:20px; padding:6px 14px; opacity:.92; margin-bottom:10px; }
+  .sect-h { display:flex; justify-content:space-between; font-size:13px; color:var(--ink2); padding:8px 0; }
+  .lrow { display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--line); }
+  .ring { width:12px; height:12px; border-radius:50%; border:2px solid var(--dot); flex:none; }
+  .ltext { flex:1; min-width:0; }
+  .lname { font-weight:700; font-size:14px; }
+  .lago { color:var(--ink3); font-size:12px; }
+  .pill { font-size:12px; font-weight:700; background:var(--well); border-radius:14px; padding:5px 10px; }
+  .trash { color:var(--risk); font-size:16px; }
+  .chev { color:var(--ink3); font-size:18px; }
+  .fake { background:var(--raised); border-radius:20px; height:74px; margin-bottom:10px; }
+  .scrim { position:absolute; inset:0; background:var(--scrim); display:flex; align-items:center; justify-content:center; padding:18px; }
+  .sheet { background:var(--raised); border-radius:24px; padding:20px 18px 16px; width:100%; display:flex; flex-direction:column; gap:10px; }
+  .s-title { font-size:18px; font-weight:800; margin:0; }
+  .s-body { color:var(--ink2); font-size:13.5px; margin:0 0 6px; }
+  .hl { outline:2px dashed #2350D8; outline-offset:3px; border-radius:20px; }
+  .rolled { margin-top:-6px; }
+</style>
+</head>
+<body>
+<h1>Protocolo encerrado: tocar abre a página, com "Retomar"</h1>
+<p class="lead">Sua escolha: tocar num protocolo da lista <b>Encerrados</b> abre a página dele só para leitura, com o botão "Retomar". A linha pontilhada azul marca o que muda. Na página do encerrado não aparece o que só faz sentido para um protocolo ativo: frasco, "Adicionar lembrete", "Encerrar protocolo" e os links de editar. Continuam visíveis a dose, a calculadora da seringa, a frequência, o horário que ele tinha e a anotação (só leitura). "Retomar" abre a mesma pergunta de hoje (frasco novo ou o mesmo).</p>
+<div id="out"><h2>Tema claro</h2><div class="row">
+  <div class="col"><p class="cap">1 · App hoje</p><p class="note">Tocar no nome não faz nada; só "Retomar" e a lixeira respondem.</p><div class="phone light"><div class="page"><p class="h">Meus protocolos</p><div class="fake"></div><div class="fake"></div>
+  <div class="sect"><div class="sect-h"><span>Encerrados</span><span>1 protocolo ⌃</span></div>
+  <div class="lrow "><div class="ring"></div><div class="ltext"><div class="lname">Testosterone Cypionate</div><div class="lago">Encerrado em 3 de nov.</div></div><div class="pill">Retomar</div><svg class="trash" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></div></div></div></div></div>
+  <div class="col"><p class="cap">2 · Lista: a linha abre a página</p><p class="note">A linha inteira passa a abrir a página (com "›"); "Retomar" e a lixeira continuam iguais.</p><div class="phone light"><div class="page"><p class="h">Meus protocolos</p><div class="fake"></div><div class="fake"></div>
+  <div class="sect"><div class="sect-h"><span>Encerrados</span><span>1 protocolo ⌃</span></div>
+  <div class="lrow hl"><div class="ring"></div><div class="ltext"><div class="lname">Testosterone Cypionate</div><div class="lago">Encerrado em 3 de nov.</div></div><div class="pill">Retomar</div><svg class="trash" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><div class="chev">›</div></div></div></div></div></div>
+  <div class="col"><p class="cap">3 · Página do encerrado (topo)</p><p class="note">Cartão novo no topo: quando encerrou, o que parou, e "Retomar".</p><div class="phone light"><div class="page"><div class="back">‹ Protocolos</div>
+  <p class="meta"><i></i>Frasco 2000 mg · dose de 70 mg</p><p class="title">Testosterone Cypionate</p><span class="tag">Pronto para uso</span>
+  <div class="card hl"><h4>Encerrado em 3 de nov.</h4><div class="small" style="margin-bottom:10px">Sem lembretes e sem frasco. As doses continuam no Diário de doses e nos relatórios.</div><div class="btn primary">Retomar</div></div>
+  <div class="card"><h4>Calculadora da seringa</h4><div class="small">Puxar até 35,0 unidades</div></div>
+  <div class="card"><h4>Agenda</h4><div class="kv"><b>Frequência</b><span>A cada 7 dias</span></div><div class="kv"><b>Lembrete</b><span>08:00</span></div></div></div></div></div>
+  <div class="col"><p class="cap">4 · Página (fim)</p><p class="note">Dose e anotação só leitura; "Excluir protocolo" leva a Excluídos recentemente, como a lixeira da lista.</p><div class="phone light"><div class="page rolled"><div class="card"><h4>Agenda</h4><div class="kv"><b>Frequência</b><span>A cada 7 dias</span></div><div class="kv"><b>Lembrete</b><span>08:00</span></div></div>
+  <div class="card"><div class="sect-h" style="padding:0"><span>Dose</span><span>70 mg ⌄</span></div></div>
+  <div class="card"><h4>Anotações</h4><div class="small">Aplicar no glúteo, alternando os lados.</div></div>
+  <div class="rowbtn">Excluir protocolo</div>
+  <p class="small" style="margin-top:12px;color:var(--ink3)">Não aparecem: frasco, "Adicionar lembrete", "Encerrar protocolo", links de editar.</p></div></div></div>
+  <div class="col"><p class="cap">5 · "Retomar"</p><p class="note">A mesma pergunta de hoje. Depois de retomar, abre a página do protocolo ativo.</p><div class="phone light"><div class="page"><div class="back">‹ Protocolos</div><p class="title">Testosterone Cypionate</p><div class="fake"></div><div class="fake"></div></div>
+  <div class="scrim"><div class="sheet"><p class="s-title">Retomar Testosterone Cypionate?</p><p class="s-body">Um novo ciclo começa hoje; o ciclo anterior fica no histórico. Vai usar um frasco novo ou continuar com o mesmo?</p>
+  <div class="btn primary">Frasco novo</div><div class="btn secondary">Continuar com o mesmo frasco</div><div class="btn secondary">Cancelar</div></div></div></div></div></div><h2>Tema escuro</h2><div class="row">
+  <div class="col"><p class="cap">1 · App hoje</p><p class="note">Tocar no nome não faz nada; só "Retomar" e a lixeira respondem.</p><div class="phone dark"><div class="page"><p class="h">Meus protocolos</p><div class="fake"></div><div class="fake"></div>
+  <div class="sect"><div class="sect-h"><span>Encerrados</span><span>1 protocolo ⌃</span></div>
+  <div class="lrow "><div class="ring"></div><div class="ltext"><div class="lname">Testosterone Cypionate</div><div class="lago">Encerrado em 3 de nov.</div></div><div class="pill">Retomar</div><svg class="trash" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></div></div></div></div></div>
+  <div class="col"><p class="cap">2 · Lista: a linha abre a página</p><p class="note">A linha inteira passa a abrir a página (com "›"); "Retomar" e a lixeira continuam iguais.</p><div class="phone dark"><div class="page"><p class="h">Meus protocolos</p><div class="fake"></div><div class="fake"></div>
+  <div class="sect"><div class="sect-h"><span>Encerrados</span><span>1 protocolo ⌃</span></div>
+  <div class="lrow hl"><div class="ring"></div><div class="ltext"><div class="lname">Testosterone Cypionate</div><div class="lago">Encerrado em 3 de nov.</div></div><div class="pill">Retomar</div><svg class="trash" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><div class="chev">›</div></div></div></div></div></div>
+  <div class="col"><p class="cap">3 · Página do encerrado (topo)</p><p class="note">Cartão novo no topo: quando encerrou, o que parou, e "Retomar".</p><div class="phone dark"><div class="page"><div class="back">‹ Protocolos</div>
+  <p class="meta"><i></i>Frasco 2000 mg · dose de 70 mg</p><p class="title">Testosterone Cypionate</p><span class="tag">Pronto para uso</span>
+  <div class="card hl"><h4>Encerrado em 3 de nov.</h4><div class="small" style="margin-bottom:10px">Sem lembretes e sem frasco. As doses continuam no Diário de doses e nos relatórios.</div><div class="btn primary">Retomar</div></div>
+  <div class="card"><h4>Calculadora da seringa</h4><div class="small">Puxar até 35,0 unidades</div></div>
+  <div class="card"><h4>Agenda</h4><div class="kv"><b>Frequência</b><span>A cada 7 dias</span></div><div class="kv"><b>Lembrete</b><span>08:00</span></div></div></div></div></div>
+  <div class="col"><p class="cap">4 · Página (fim)</p><p class="note">Dose e anotação só leitura; "Excluir protocolo" leva a Excluídos recentemente, como a lixeira da lista.</p><div class="phone dark"><div class="page rolled"><div class="card"><h4>Agenda</h4><div class="kv"><b>Frequência</b><span>A cada 7 dias</span></div><div class="kv"><b>Lembrete</b><span>08:00</span></div></div>
+  <div class="card"><div class="sect-h" style="padding:0"><span>Dose</span><span>70 mg ⌄</span></div></div>
+  <div class="card"><h4>Anotações</h4><div class="small">Aplicar no glúteo, alternando os lados.</div></div>
+  <div class="rowbtn">Excluir protocolo</div>
+  <p class="small" style="margin-top:12px;color:var(--ink3)">Não aparecem: frasco, "Adicionar lembrete", "Encerrar protocolo", links de editar.</p></div></div></div>
+  <div class="col"><p class="cap">5 · "Retomar"</p><p class="note">A mesma pergunta de hoje. Depois de retomar, abre a página do protocolo ativo.</p><div class="phone dark"><div class="page"><div class="back">‹ Protocolos</div><p class="title">Testosterone Cypionate</p><div class="fake"></div><div class="fake"></div></div>
+  <div class="scrim"><div class="sheet"><p class="s-title">Retomar Testosterone Cypionate?</p><p class="s-body">Um novo ciclo começa hoje; o ciclo anterior fica no histórico. Vai usar um frasco novo ou continuar com o mesmo?</p>
+  <div class="btn primary">Frasco novo</div><div class="btn secondary">Continuar com o mesmo frasco</div><div class="btn secondary">Cancelar</div></div></div></div></div></div></div>
+</body>
+</html>
