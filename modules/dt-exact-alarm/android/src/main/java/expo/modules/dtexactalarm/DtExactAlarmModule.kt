@@ -8,6 +8,8 @@ import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.WindowInsetsController
 import com.facebook.react.uimanager.DisplayMetricsHolder
@@ -83,7 +85,7 @@ class DtExactAlarmModule : Module() {
     // (datetimepicker has no locale on Android). The app language becomes the process locale and the
     // resources' locale (month names, "OK" / "Cancel"); a configuration change resets both to the
     // phone's, so the callback above applies it again.
-    Function("setAppLocale") { tag: String ->
+    Function("setAppLocale") { tag: String? ->
       appLocaleTag = tag
       applyLocale(tag)
       true
@@ -117,16 +119,21 @@ class DtExactAlarmModule : Module() {
 
   private var appLocaleTag: String? = null
 
-  private fun applyLocale(tag: String) {
-    val locale = Locale.forLanguageTag(tag)
-    Locale.setDefault(locale)
-    val update = { res: Resources ->
-      val cfg = Configuration(res.configuration)
-      cfg.setLocale(locale)
-      @Suppress("DEPRECATION")
-      res.updateConfiguration(cfg, res.displayMetrics)
+  // tag null = the phone's own locale back. Always on the main thread, posted: from the JS thread
+  // never touches Resources off the main thread, and from a configuration change it runs after the
+  // activity has taken the new configuration (fold / unfold), so its metrics are the new ones.
+  private fun applyLocale(tag: String?) {
+    Handler(Looper.getMainLooper()).post {
+      val locale = if (tag != null) Locale.forLanguageTag(tag) else Resources.getSystem().configuration.locales.get(0)
+      Locale.setDefault(locale)
+      val update = { res: Resources ->
+        val cfg = Configuration(res.configuration)
+        cfg.setLocale(locale)
+        @Suppress("DEPRECATION")
+        res.updateConfiguration(cfg, res.displayMetrics)
+      }
+      appContext.reactContext?.applicationContext?.resources?.let(update)
+      appContext.currentActivity?.let { update(it.resources) }
     }
-    appContext.reactContext?.applicationContext?.resources?.let(update)
-    appContext.currentActivity?.let { a -> a.runOnUiThread { update(a.resources) } }
   }
 }

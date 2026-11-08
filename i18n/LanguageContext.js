@@ -1,9 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { translations, LANGUAGES } from './translations';
-import { resolveLanguage, deviceLanguage, LANGUAGE_KEY } from '../lib/appLanguage';
-import { LOCALES } from '../lib/timeFormat';
+import { resolveLanguage, deviceLanguage, LANGUAGE_KEY, pickerLocaleTag } from '../lib/appLanguage';
 import { setAppLocale } from '../modules/dt-exact-alarm';
 
 const LanguageContext = createContext({
@@ -25,11 +24,14 @@ export function LanguageProvider({ children }) {
   const [timeFormat, setTimeFormatState] = useState('auto');
   // A-135: true once the stored language was read, so the opening never draws English first.
   const [ready, setReady] = useState(false);
+  // The phone's own language, read once before the app changes the process locale (pickers below).
+  const phoneLanguage = useRef(null);
 
   useEffect(() => {
     AsyncStorage.getItem(LANGUAGE_KEY)
       .then(saved => {
-        setLanguageState(resolveLanguage(saved, deviceLanguage(Localization)));
+        phoneLanguage.current = deviceLanguage(Localization);
+        setLanguageState(resolveLanguage(saved, phoneLanguage.current));
       })
       .catch(() => setLanguageState('en'))
       .finally(() => setReady(true));
@@ -41,8 +43,8 @@ export function LanguageProvider({ children }) {
   }, []);
 
   // S25 2026-11-07: Android's date and time pickers follow the process locale; it follows the app
-  // language once the stored one is read (the phone's language is read before, at the first render).
-  useEffect(() => { if (ready) setAppLocale(LOCALES[language] || 'en-US'); }, [language, ready]);
+  // language when that differs from the phone's (lib/appLanguage pickerLocaleTag).
+  useEffect(() => { if (ready) setAppLocale(pickerLocaleTag(language, phoneLanguage.current)); }, [language, ready]);
 
   // DV-050 (DL-13): a new language re-plans every scheduled notification (and renames the Android
   // channels) once it is stored, so pending reminders never keep the old language.
