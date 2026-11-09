@@ -230,5 +230,5 @@ test('PN-5 deleting a Taken dose of a single-dose pen gives the pen back; a vial
   assert.equal(JSON.parse(plan.penRestore.pen).stock, 3);
   assert.equal(plan.supply, 'pen');
   const skipped = planDeleteDose({ id: 8, protocol_id: 1, outcome: 'Skipped', logged_at: '2026-11-09T12:00:00Z' }, { protocol, vials: [], takenLogs: [] });
-  assert.equal(skipped.penRestore, null, 'PN-19: a skip never took a pen');
+  assert.equal(skipped.penRestore, undefined, 'PN-19: a skip never took a pen');
 });
