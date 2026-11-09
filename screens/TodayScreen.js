@@ -1001,7 +1001,7 @@ export default function TodayScreen() {
       const record = {
         logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, prevOutcomeByPerson: res.prevOutcomeByPerson, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
-        oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null, text: toastText || null,
+        oralPrevUnitsTaken: res.oralPrevUnitsTaken, penTaken: !!res.penTaken, prevPen: res.prevPen || null, timer, fx: null, text: toastText || null,
       };
       setUndoData(record);
       keepUndo(record);
@@ -1426,7 +1426,7 @@ export default function TodayScreen() {
       const vialNow = record.vialId ? getVialById(record.vialId) : null;
       const otherActiveVial = !!(record.vialId && proto
         && (getActiveVials(proto.user_id) || []).some(v => v.protocol_id === record.protocolId && v.id !== record.vialId));
-      const plan = planUndoTake(record, { vialNow, otherActiveVial, unitsNow: proto ? (proto.units_taken || 0) : null });
+      const plan = planUndoTake(record, { vialNow, otherActiveVial, unitsNow: proto ? (proto.units_taken || 0) : null, penNow: proto ? proto.pen || null : null });
       // A-78: a logged skip goes back to Skipped at its own time, with its own site.
       // UP-36: with who had written it (the app's Missed row stays the app's).
       if (plan.restoreMissedId != null) updateDoseLog(plan.restoreMissedId, { outcome: plan.restoreOutcome, outcome_by_person: plan.restoreOutcomeByPerson, injection_site: plan.restoreSite, ...(plan.restoreLoggedAt ? { logged_at: plan.restoreLoggedAt } : {}) });
@@ -1451,6 +1451,10 @@ export default function TodayScreen() {
       }
       if (plan.oralRestore) {
         updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
+        fetchProtocols();
+      }
+      if (plan.penRestore) { // CP-1: the single-dose pen this dose took comes back
+        updateProtocol(plan.penRestore.protocolId, { pen: plan.penRestore.pen });
         fetchProtocols();
       }
       // A-141 (6) (DL-09): the reminders follow the outcome the Undo restored — back to Skipped

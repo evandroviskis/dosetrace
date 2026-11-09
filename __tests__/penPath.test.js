@@ -197,3 +197,38 @@ test('PN-12 the pen data and its closed pens sync with the protocol (never Async
   assert.match(fs.readFileSync(path.join(__dirname, '../lib/schema.js'), 'utf8'), /\bpen TEXT\b/);
   assert.match(fs.readFileSync(path.join(__dirname, '../supabase/migrations/20261109200000_protocol_pen.sql'), 'utf8'), /add column if not exists pen text/);
 });
+
+test('PN-5 / PN-9 marking taken: a single-dose pen takes one pen; a new pen opens on its first dose; undo gives the pen back', () => {
+  const { planMarkTaken, planUndoTake } = require('../lib/markTaken');
+  const nowMs = new Date(2026, 10, 9, 9, 0).getTime();
+  const base = { id: 1, user_id: 'u', type: 'pen', dose: '5', dose_unit: 'mg', interval_days: 7, doses_per_day: 1, start_date: '2026-11-02', reminder_time: '08:00' };
+  const single = { ...base, pen: JSON.stringify({ kind: 'single', stock: 3, fridgeOut: { count: 1, since: '2026-11-08' } }) };
+  const plan = planMarkTaken({ protocol: single, vial: null, dayKey: '2026-11-09', atNow: true, nowMs });
+  assert.ok(plan.insert);
+  assert.equal(JSON.parse(plan.penUpdate.pen).stock, 2);
+  assert.equal(JSON.parse(plan.penUpdate.pen).fridgeOut, null);
+  assert.equal(plan.vialFinished, false);
+  const undo = planUndoTake({ logId: 9, protocolId: 1, penTaken: true, prevPen: single.pen }, { penNow: plan.penUpdate.pen });
+  assert.equal(JSON.parse(undo.penRestore.pen).stock, 3);
+  assert.deepEqual(JSON.parse(undo.penRestore.pen).fridgeOut, { count: 1, since: '2026-11-08' });
+
+  const fixed = { ...base, pen: JSON.stringify({ kind: 'fixed', perPen: 4, stock: 1 }) };
+  const fresh = planMarkTaken({ protocol: fixed, vial: { id: 4, total_doses: 4, doses_taken: 0, mixed_on: null, created_at: '2026-11-01T10:00:00Z' }, dayKey: '2026-11-09', atNow: true, nowMs });
+  assert.equal(fresh.vialUpdate.doses_taken, 1);
+  assert.equal(fresh.vialUpdate.mixed_on, '2026-11-09');
+  assert.equal(fresh.penUpdate, null);
+  // a started pen whose opening day the person does not remember never gets an invented date
+  const unknown = planMarkTaken({ protocol: fixed, vial: { id: 5, total_doses: 4, doses_taken: 2, mixed_on: null, created_at: '2026-11-01T10:00:00Z' }, dayKey: '2026-11-09', atNow: true, nowMs });
+  assert.equal('mixed_on' in unknown.vialUpdate, false);
+});
+
+test('PN-5 deleting a Taken dose of a single-dose pen gives the pen back; a vial pen goes back on its vial', () => {
+  const { planDeleteDose } = require('../lib/deleteDose');
+  const protocol = { id: 1, type: 'pen', dose: '5', dose_unit: 'mg', interval_days: 7, doses_per_day: 1, pen: JSON.stringify({ kind: 'single', stock: 2 }) };
+  const plan = planDeleteDose({ id: 7, protocol_id: 1, outcome: 'Taken', logged_at: '2026-11-09T12:00:00Z' }, { protocol, vials: [], takenLogs: [] });
+  assert.deepEqual(plan.deleteIds, [7]);
+  assert.equal(JSON.parse(plan.penRestore.pen).stock, 3);
+  assert.equal(plan.supply, 'pen');
+  const skipped = planDeleteDose({ id: 8, protocol_id: 1, outcome: 'Skipped', logged_at: '2026-11-09T12:00:00Z' }, { protocol, vials: [], takenLogs: [] });
+  assert.equal(skipped.penRestore, null, 'PN-19: a skip never took a pen');
+});

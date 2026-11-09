@@ -485,7 +485,8 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
           updateVial(id, fields);
         }
         if (plan.oralRestore) updateProtocol(plan.oralRestore.protocolId, { units_taken: plan.oralRestore.units_taken });
-        if (plan.vialRestore || plan.oralRestore) syncAllNotifications().catch(() => {});
+        if (plan.penRestore) updateProtocol(plan.penRestore.protocolId, { pen: plan.penRestore.pen }); // CP-1
+        if (plan.vialRestore || plan.oralRestore || plan.penRestore) syncAllNotifications().catch(() => {});
       } catch { /* supply update is best-effort */ }
       // Test build 3 council item 2: a deleted Taken row of a slot still ahead is owed again.
       syncAllNotifications().catch(() => {});
