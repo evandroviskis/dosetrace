@@ -128,7 +128,7 @@ test('FE-3: the button and the card call the same open handler (FoodChat, or the
 test('FE-2: Evolução renders the same card (same component, same props; the treatment comes from inside it)', () => {
   const uses = JOURNEY.match(/<FoodLogHero[^>]*\/>/g) || [];
   assert.equal(uses.length, 2, 'phone + book');
-  for (const u of uses) assert.equal(u, '<FoodLogHero variant="journey" />');
+  for (const u of uses) assert.equal(u, '<FoodLogHero variant="journey" planKcal={tile ? tile.planKcal : null} />'); // FW-8: both hand it the Progress plan
   // the emphasis does not depend on the variant
   assert.doesNotMatch(HERO, /emph[^\n]*variant|variant[^\n]*emph/);
   // and Today keeps the card in its place, under the tracker

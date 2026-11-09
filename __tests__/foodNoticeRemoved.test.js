@@ -42,7 +42,7 @@ test('A-133: a notice with no rows (deflect, fix, offline…) is kept; no notice
 
 test('A-133: the chat links each Updated notice to its rows and filters it by the live rows', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'FoodChatScreen.js'), 'utf8');
-  assert.match(src, /withNotice\(th, liveNotice\(/);
+  assert.match(src, /withNotice\(withDayTotal\(th, dayFoodTotal\(rows, today\), today\), liveNotice\(/);
   const updates = src.match(/setNotice\(\{ kind: 'updated'[^)]*\}\)/g) || [];
   assert.ok(updates.length >= 3, 'all Updated notices found');
   for (const u of updates) assert.match(u, /rowIds/, 'carries rowIds: ' + u);

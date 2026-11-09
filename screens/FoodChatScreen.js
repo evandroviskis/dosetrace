@@ -35,7 +35,7 @@ import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker, quotaWaitDay,
 } from '../lib/nutrition';
-import { buildThread, withNotice, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
+import { buildThread, withNotice, withDayTotal, dayFoodTotal, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
@@ -50,7 +50,7 @@ import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 const EDITOR_OPEN_KEY = 'foodChat:editorOpen';
 import { FoodDemo } from './components/NutritionLogger';
 
-import { formatDate } from '../lib/localeFormat';
+import { formatDate, formatInt } from '../lib/localeFormat';
 import { pluralKey } from '../lib/plural';
 import { ERROR_ICON, errorTitle } from '../lib/errorSheet';
 // Per-device conveniences (not user data): today's asked questions (+ the one on
@@ -521,7 +521,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (lastDiv >= 0 && th[lastDiv].day === today && !th.slice(lastDiv).some((x) => x.type === 'user')) th.splice(lastDiv + 1, 0, { type: 'intro', key: 'intro:' + today });
     // A-133: the notice goes before the next prompt (live order = the order on reopen).
     // A-133: an Updated notice whose row was removed is stale and goes (liveNotice).
-    const live = withNotice(th, liveNotice(notice ? { type: 'notice', key: 'notice', ...notice } : null, rows));
+    // FW-9: today's total after today's messages, before the notice and the next prompt.
+    const live = withNotice(withDayTotal(th, dayFoodTotal(rows, today), today), liveNotice(notice ? { type: 'notice', key: 'notice', ...notice } : null, rows));
     if (busy || fuBusy) live.push({ type: 'typing', key: 'typing' });
     return live;
   }, [rows, today, question, closedSet, eveningOpen, evening, notice, busy, fuBusy]);
@@ -624,6 +625,14 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
               <Text style={s.entryMacro}>{Math.round(x.carb_g || 0)} g {t('nutri_carbs')} · {Math.round(x.protein_g || 0)} g {t('nutri_protein')}{x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}</Text>
             </View>
           </TouchableOpacity>
+        );
+      case 'day_total':
+        // FW-9 (picture docs/design/food-week-fiber-pace.html column 4): the day's total, fiber only when known.
+        return (
+          <View style={s.dayTotal} accessibilityRole="summary">
+            <Text style={s.dayTotalHead}>{t('nutri_today')}</Text>
+            <Text style={s.dayTotalText}>{`~${formatInt(x.kcal, language)} ${t('cal_kcal')} · ${x.carb_g} g ${t('nutri_carbs')} · ${x.protein_g} g ${t('nutri_protein')}${x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}`}</Text>
+          </View>
         );
       case 'echo': {
         const e = echoFor(x.items, x.raw);
@@ -893,6 +902,9 @@ const makeStyles = (c) => StyleSheet.create({
   entryTot: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8, marginTop: 2, gap: 2 },
   entryTotText: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   entryMacro: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  dayTotal: { alignSelf: 'stretch', paddingHorizontal: 4, paddingVertical: 6, gap: 2 },
+  dayTotalHead: { fontSize: 12, fontWeight: '600', color: c.ink2, letterSpacing: 0.4, textTransform: 'uppercase' },
+  dayTotalText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   // The fixed "no diet advice" card: an outline, never a tinted box.
   deflect: { alignSelf: 'stretch', borderWidth: 1, borderColor: c.line, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 4 },
   deflectTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },

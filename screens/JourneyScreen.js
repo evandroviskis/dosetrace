@@ -200,12 +200,12 @@ export default function JourneyScreen() {
           {book ? (
             <View onLayout={(e) => setHeroH(e.nativeEvent.layout.height)}>
               <NavigationContext.Provider value={heroNav}>
-                <FoodLogHero variant="journey" />
+                <FoodLogHero variant="journey" planKcal={tile ? tile.planKcal : null} />
               </NavigationContext.Provider>
               {page === 'food' && heroH > 0 ? outline : null}
             </View>
           ) : (
-            <FoodLogHero variant="journey" />
+            <FoodLogHero variant="journey" planKcal={tile ? tile.planKcal : null} />
           )}
         </View>
 

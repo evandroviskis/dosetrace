@@ -89,7 +89,7 @@ test('BK-2: on a phone (one column) Journey renders the dashboard alone, no Book
   // Phone taps push the stack screens exactly as before.
   assert.match(src, /book \? open\('progress'\) : navigation\.navigate\('Progress'\)/);
   assert.match(src, /if \(book\) open\('curve'\); else navigation\.navigate\('SerumCurve'\);/);
-  assert.match(src, /\) : \(\s*<FoodLogHero variant="journey" \/>\s*\)\}/, 'on a phone the food card is used as-is');
+  assert.match(src, /\) : \(\s*<FoodLogHero variant="journey" planKcal=\{tile \? tile\.planKcal : null\} \/>\s*\)\}/, 'on a phone the food card is used as-is');
 });
 
 test('BK-5: BookPanes only under book, left = the dashboard, right keyed by the open page', () => {
@@ -130,7 +130,7 @@ test('BK-5 / BK-11: a free user tapping Dose accumulation gets the animated prev
 
 test('BK-5: the food log card opens the chat on the right page; other routes (Paywall) pass through', () => {
   const src = journey();
-  assert.match(src, /<NavigationContext\.Provider value=\{heroNav\}>\s*<FoodLogHero variant="journey" \/>/);
+  assert.match(src, /<NavigationContext\.Provider value=\{heroNav\}>\s*<FoodLogHero variant="journey" planKcal=\{tile \? tile\.planKcal : null\} \/>/);
   const memo = src.match(/const heroNav = useMemo\(\(\) => \{([\s\S]*?)\}, \[book, navigation\]\);/);
   assert.ok(memo, 'heroNav is memoised on book + navigation (stable, so the card does not reload each render)');
   // Run the memo body against a fake navigation to prove the behaviour.

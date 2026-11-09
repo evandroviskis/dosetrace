@@ -325,6 +325,9 @@ export const translations = {
     nutri_week_days: "{n} days",
     nutri_week_days_one: "{n} day", // singular (lib/plural.js)
     nutri_week_talk: "To change protein, carbs, or calories, talk to the trainer or health professional who follows you. DoseTrace only shows your numbers.",
+    nutri_week_plan: "your plan: {plan} ({day} × 7)",
+    nutri_week_plan_days: "plan for these {n} days: {plan}",
+    nutri_week_plan_days_one: "plan for {n} day: {plan}", // singular (lib/plural.js)
     nutri_hero_today_one: 'Today: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Today is closed · ~{kcal} kcal',
     nutri_hero_day: 'Reality check · day {n} of {total}',
@@ -1504,6 +1507,7 @@ export const translations = {
     cal_tgt_away: 'Moving away from this target at your current pace — no timeline yet.',
     cal_tgt_no_rate: 'Log two weigh-ins about two weeks apart (or add past ones under Weigh-ins) to project a timeline.',
     cal_tgt_basis: 'Based on your weigh-ins {from}–{to}.',
+    cal_tgt_pace: 'Pace: {change} {unit} per week ({pct}% of body weight)',
     cal_tgt_healthy: 'WHO BMI range of 18.5–24.9 for your height: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Remove target?',
     cal_tgt_clear_body: 'This clears your goal. Your weigh-ins and history are kept.',
@@ -3172,6 +3176,9 @@ export const translations = {
     nutri_week_days: "{n} días",
     nutri_week_days_one: "{n} día", // singular (lib/plural.js)
     nutri_week_talk: "Para cambiar proteína, carbohidratos o calorías, habla con el entrenador o el profesional de salud que te acompaña. DoseTrace solo muestra tus números.",
+    nutri_week_plan: "tu plan: {plan} ({day} × 7)",
+    nutri_week_plan_days: "plan de estos {n} días: {plan}",
+    nutri_week_plan_days_one: "plan de {n} día: {plan}", // singular (lib/plural.js)
     nutri_hero_today_one: 'Hoy: {n} alimento · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoy: día cerrado · ~{kcal} kcal',
     nutri_hero_day: 'Tus cifras reales · día {n} de {total}',
@@ -4350,6 +4357,7 @@ export const translations = {
     cal_tgt_away: 'Te alejas de este objetivo a tu ritmo actual; aún no hay previsión.',
     cal_tgt_no_rate: 'Registra dos pesajes con unas dos semanas de diferencia (o añade anteriores en Pesajes) para estimar un plazo.',
     cal_tgt_basis: 'Según tus pesajes del {from} al {to}.',
+    cal_tgt_pace: 'Ritmo: {change} {unit} por semana ({pct}% del peso)',
     cal_tgt_healthy: 'Rango de IMC de 18,5 a 24,9 (OMS) para tu altura: {min}–{max} {unit}.',
     cal_tgt_clear_title: '¿Quitar objetivo?',
     cal_tgt_clear_body: 'Se borrará tu objetivo. Tus pesajes y tu historial se conservan.',
@@ -6018,6 +6026,9 @@ export const translations = {
     nutri_week_days: "{n} dias",
     nutri_week_days_one: "{n} dia", // singular (lib/plural.js)
     nutri_week_talk: "Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você. O DoseTrace só mostra os seus números.",
+    nutri_week_plan: "seu plano: {plan} ({day} × 7)",
+    nutri_week_plan_days: "plano desses {n} dias: {plan}",
+    nutri_week_plan_days_one: "plano de {n} dia: {plan}", // singular (lib/plural.js)
     nutri_hero_today_one: 'Hoje: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoje está fechado · ~{kcal} kcal',
     nutri_hero_day: 'Seus números reais · dia {n} de {total}',
@@ -7196,6 +7207,7 @@ export const translations = {
     cal_tgt_away: 'No ritmo atual, você está se afastando desta meta — ainda sem previsão.',
     cal_tgt_no_rate: 'Registre duas pesagens com cerca de duas semanas de intervalo (ou adicione anteriores em Pesagens) para estimar um prazo.',
     cal_tgt_basis: 'Com base nas suas pesagens {from}–{to}.',
+    cal_tgt_pace: 'Ritmo: {change} {unit} por semana ({pct}% do peso)',
     cal_tgt_healthy: 'Faixa de IMC de 18,5 a 24,9 (OMS) para sua altura: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Remover meta?',
     cal_tgt_clear_body: 'Isso apaga sua meta. Suas pesagens e seu histórico continuam salvos.',
@@ -8863,6 +8875,9 @@ export const translations = {
     nutri_week_days: "{n} jours",
     nutri_week_days_one: "{n} jour", // singular (lib/plural.js)
     nutri_week_talk: "Pour modifier les protéines, les glucides ou les calories, parlez-en à l’entraîneur ou au professionnel de santé qui vous suit. DoseTrace affiche seulement vos chiffres.",
+    nutri_week_plan: "votre plan : {plan} ({day} × 7)",
+    nutri_week_plan_days: "plan pour ces {n} jours : {plan}",
+    nutri_week_plan_days_one: "plan pour {n} jour : {plan}", // singular (lib/plural.js)
     nutri_hero_today_one: "Aujourd'hui : {n} élément · ~{kcal} kcal", // singular (lib/plural.js)
     nutri_hero_closed: 'Journée clôturée · ~{kcal} kcal',
     nutri_hero_day: 'Vos vrais chiffres · jour {n} sur {total}',
@@ -10041,6 +10056,7 @@ export const translations = {
     cal_tgt_away: 'Vous vous éloignez de cet objectif à votre rythme actuel — pas encore d\'estimation.',
     cal_tgt_no_rate: 'Enregistrez deux pesées à environ deux semaines d\'intervalle (ou ajoutez-en d\'anciennes dans Pesées) pour estimer un délai.',
     cal_tgt_basis: "D'après vos pesées du {from} au {to}.",
+    cal_tgt_pace: 'Rythme : {change} {unit} par semaine ({pct} % du poids)',
     cal_tgt_healthy: "Fourchette d'IMC de 18,5 à 24,9 (OMS) pour votre taille : {min}–{max} {unit}.",
     cal_tgt_clear_title: 'Retirer l\'objectif ?',
     cal_tgt_clear_body: 'Cela efface votre objectif. Vos pesées et votre historique sont conservés.',
@@ -11708,6 +11724,9 @@ export const translations = {
     nutri_week_days: "{n} Tage",
     nutri_week_days_one: "{n} Tag", // singular (lib/plural.js)
     nutri_week_talk: "Wenn du Eiweiß, Kohlenhydrate oder Kalorien ändern willst, sprich mit dem Trainer oder der Gesundheitsfachperson, die dich begleitet. DoseTrace zeigt nur deine Zahlen.",
+    nutri_week_plan: "dein Plan: {plan} ({day} × 7)",
+    nutri_week_plan_days: "Plan für diese {n} Tage: {plan}",
+    nutri_week_plan_days_one: "Plan für {n} Tag: {plan}", // singular (lib/plural.js)
     nutri_hero_today_one: 'Heute: {n} Eintrag · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Heute abgeschlossen · ~{kcal} kcal',
     nutri_hero_day: 'Deine echten Zahlen · Tag {n} von {total}',
@@ -12886,6 +12905,7 @@ export const translations = {
     cal_tgt_away: 'Du entfernst dich in deinem aktuellen Tempo von diesem Ziel – noch keine Prognose.',
     cal_tgt_no_rate: 'Trage zwei Wägungen im Abstand von etwa zwei Wochen ein (oder füge frühere unter Wägungen hinzu), um eine Prognose zu erhalten.',
     cal_tgt_basis: 'Basierend auf deinen Wägungen {from}–{to}.',
+    cal_tgt_pace: 'Tempo: {change} {unit} pro Woche ({pct} % des Gewichts)',
     cal_tgt_healthy: 'BMI-Bereich von 18,5 bis 24,9 (WHO) für deine Größe: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Ziel entfernen?',
     cal_tgt_clear_body: 'Das löscht dein Ziel. Deine Wägungen und dein Verlauf bleiben erhalten.',
@@ -14554,6 +14574,9 @@ export const translations = {
     nutri_week_days: "{n} giorni",
     nutri_week_days_one: "{n} giorno", // singular (lib/plural.js)
     nutri_week_talk: "Per cambiare proteine, carboidrati o calorie, parla con l’allenatore o il professionista della salute che ti segue. DoseTrace mostra solo i tuoi numeri.",
+    nutri_week_plan: "il tuo piano: {plan} ({day} × 7)",
+    nutri_week_plan_days: "piano di questi {n} giorni: {plan}",
+    nutri_week_plan_days_one: "piano di {n} giorno: {plan}", // singular (lib/plural.js)
     nutri_hero_today_one: 'Oggi: {n} voce · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Giornata chiusa · ~{kcal} kcal',
     nutri_hero_day: 'I tuoi numeri reali · giorno {n} di {total}',
@@ -15732,6 +15755,7 @@ export const translations = {
     cal_tgt_away: 'Ti stai allontanando da questo obiettivo al ritmo attuale — nessuna stima per ora.',
     cal_tgt_no_rate: 'Registra due pesate a circa due settimane di distanza (o aggiungi quelle passate in Pesate) per stimare i tempi.',
     cal_tgt_basis: 'In base alle tue pesate {from}–{to}.',
+    cal_tgt_pace: 'Ritmo: {change} {unit} a settimana ({pct}% del peso)',
     cal_tgt_healthy: 'Fascia di IMC da 18,5 a 24,9 (OMS) per la tua altezza: {min}–{max} {unit}.',
     cal_tgt_clear_title: 'Rimuovere l\'obiettivo?',
     cal_tgt_clear_body: "L'obiettivo viene rimosso. Le pesate e lo storico restano salvati.",

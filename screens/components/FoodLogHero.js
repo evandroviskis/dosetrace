@@ -66,7 +66,8 @@ function reloadOnSync(addListener, reload, waitMs = 300) {
 
 // onReady (A-120, Today): called once the card's first read is done (also when it fails), so Today
 // shows its first screen complete, with this card already in place.
-export default function FoodLogHero({ variant = 'journey', onChanged, onReady }) {
+// planKcal (FW-8, Journey): the daily plan of Progress (lib/progressTile), or null — then no plan line.
+export default function FoodLogHero({ variant = 'journey', onChanged, onReady, planKcal }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -146,6 +147,13 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
   const fiberLabel = week && week.avgFiber != null
     ? (week.fiberDays < week.foodDays ? t('nutri_fiber') + ' · ' + t(pluralKey('nutri_week_days', week.fiberDays, language)).replace('{n}', String(week.fiberDays)) : t('nutri_fiber'))
     : null;
+  // FW-8: the plan beside the week's calories — 7 days of food: "your plan: 15,400 (2,200 × 7)"; fewer:
+  // the plan of those days. No plan (Your numbers not filled) → only the calories.
+  const planText = week && planKcal > 0
+    ? (week.foodDays >= 7
+      ? t('nutri_week_plan').replace('{plan}', formatInt(planKcal * 7, language)).replace('{day}', formatInt(planKcal, language))
+      : t(pluralKey('nutri_week_plan_days', week.foodDays, language)).replace('{n}', String(week.foodDays)).replace('{plan}', formatInt(planKcal * week.foodDays, language)))
+    : null;
   const weekTiles = week ? [
     { k: 'p', v: week.avgProtein, label: t('nutri_protein') },
     { k: 'c', v: week.avgCarb, label: t('nutri_carbs') },
@@ -179,7 +187,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
       {week ? (
         <View style={s.week}>
           <Text style={s.weekHead}>{t(pluralKey('nutri_week_head', week.foodDays, language)).replace('{n}', String(week.foodDays))}</Text>
-          <Text style={s.weekKcal}>{t('nutri_week_kcal').replace('{total}', formatInt(week.kcal, language))}</Text>
+          <Text style={s.weekKcal}>{t('nutri_week_kcal').replace('{total}', formatInt(week.kcal, language))}{planText ? ' · ' + planText : ''}</Text>
           <Text style={s.weekAvg}>{t(week.foodDays < 7 ? 'nutri_week_avg_food' : 'nutri_week_avg')}</Text>
           <View style={s.tiles}>
             {weekTiles.map((x) => (

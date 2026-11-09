@@ -50,7 +50,7 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { MONO } from '../../lib/fonts';
 import {
   energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
-  targetProjection, seriesRatePerWeek, goalsForTdee, planWarnings, TARGET_MIN_WINDOW_DAYS,
+  targetProjection, seriesRatePerWeek, goalsForTdee, planWarnings, TARGET_MIN_WINDOW_DAYS, weeklyPace,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
 import { syncAllNotifications, REALITY_CHECK_DAYS } from '../../lib/notifications';
@@ -1342,6 +1342,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // ETA toward a below-range weight (App Store 1.4 / eating-disorder exposure).
     const belowRange = isW && plan?.healthyRange && targetCanon != null && targetCanon < plan.healthyRange.min;
     const eta = proj.state === 'eta' ? fmtEta(proj.etaWeeks) : null;
+    // FW-11 (founder 2026-11-08): the measured pace above the forecast, in kg and in % of the weight per
+    // week — Premium like the forecast, never toward a below-range target, only with a usable weigh-in window.
+    const pace = isW && showEta && !belowRange && rateInfo && (proj.state === 'eta' || proj.state === 'away') ? weeklyPace({ ratePerWeek: rateInfo.ratePerWeek, currentKg: curCanon }) : null;
     const one = v => (v == null ? '—' : isW ? formatNumber(Number(v), language, { digits: 1 }) : decimalText(v, language));
     return (
       <View style={s.tgtMetric} key={kind}>
@@ -1351,6 +1354,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         </View>
         {frac != null ? (
           <TargetScale start={disp(startCanon)} goal={tgt} frac={frac} colors={colors} width={CHART_WIDTH} label={one} />
+        ) : null}
+        {pace ? (
+          <Text style={[s.body, s.tnum]}>{t('cal_tgt_pace').replace('{change}', signed(toDisplayW(pace.kgPerWeek))).replace('{unit}', wUnit).replace('{pct}', signed(pace.pctPerWeek))}</Text>
         ) : null}
         {/* reached is a pure current-vs-target fact — free. */}
         {proj.state === 'reached' ? (

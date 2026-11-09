@@ -150,7 +150,7 @@ test('A-120 (c) / A-135: Today waits for every first read; no spinner, no false 
   assert.match(today, /hiddenUntilLoaded: \{ display: 'none' \}/);
   assert.match(left, /<FoodLogHero variant="today" onReady=\{heroReadyRef\.current\.resolve\} \/>/);
   const hero = read('screens/components/FoodLogHero.js');
-  assert.match(hero, /export default function FoodLogHero\(\{ variant = 'journey', onChanged, onReady \}\)/);
+  assert.match(hero, /export default function FoodLogHero\(\{ variant = 'journey', onChanged, onReady, planKcal \}\)/);
   assert.match(hero, /try \{ await read\(\); \} finally \{ if \(onReady\) onReady\(\); \}/);
   // The ring still fills from zero where the user can see it: once more when the content appears.
   assert.match(today, /useEffect\(\(\) => \{ if \(firstLoaded\) playRingIntro\(\); \}, \[firstLoaded\]\);/);

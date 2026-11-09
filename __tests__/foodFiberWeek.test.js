@@ -108,3 +108,73 @@ test('FW-7: texts in 6 languages, pt as approved, never "muito/pouco" or a targe
   assert.equal(T.pt.nutri_week_talk, 'Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você. O DoseTrace só mostra os seus números.');
   for (const l of LANGS) assert.doesNotMatch(Object.values({ a: T[l].nutri_week_avg, b: T[l].nutri_week_avg_food, c: T[l].nutri_week_talk }).join(' '), /muito|pouco|too much|too little|meta|target|goal|objetivo/i, l);
 });
+
+// ── The rest of the approved picture (founder "pode publicar", 2026-11-09): FW-8 plan line, FW-9 the
+// chat's day total, FW-11 weight pace in kg and in % per week. ──
+const { progressTile } = require('../lib/progressTile');
+const { energyPlan, goalsForTdee, weeklyPace } = require('../lib/energyCalc');
+const { dayFoodTotal, withDayTotal } = require('../lib/foodThread');
+
+test('FW-8: the plan is the Progress plan card\'s number (chosen goal, measured burn when a check exists), or null', () => {
+  const saved = { unit: 'metric', weight: '86', height: '180', goal: 'lose', bodyFat: '', bfSource: 'unknown', activity: 1.55 };
+  const meta = { gender: 'male', birth_year: 1985 };
+  const now = new Date('2026-11-09T12:00:00Z');
+  const tile = progressTile({ saved, meta, snapshots: [], checks: [], now });
+  assert.ok(tile && Number.isFinite(tile.planKcal), 'a plan when the numbers give one');
+  assert.equal(tile.planKcal % 10, 0, 'as the card prints it (rounded to 10)');
+  // With a reality check the plan comes from the measured burn through the same floored engine.
+  const withCheck = progressTile({ saved, meta, snapshots: [], checks: [{ entry_date: '2026-11-01', tdee: 2600 }], now });
+  const plan = energyPlan({ weightKg: 86, heightCm: 180, age: 41, sex: 'male', bodyFatPct: null, activity: 1.55, goal: 'lose' });
+  assert.equal(withCheck.planKcal, Math.round(goalsForTdee(2600, { bmr: plan.bmr, sex: 'male' }).lose.mid / 10) * 10);
+  // No numbers → no plan → the card shows only the week's kcal.
+  assert.equal(progressTile({ saved: {}, meta: {}, snapshots: [], checks: [], now }), null);
+});
+
+test('FW-8: the food card shows the plan beside the week\'s calories; Journey hands it the plan', () => {
+  const hero = read('screens/components/FoodLogHero.js');
+  assert.match(hero, /export default function FoodLogHero\(\{ variant = 'journey', onChanged, onReady, planKcal \}\)/);
+  assert.match(hero, /week\.foodDays >= 7\s*\? t\('nutri_week_plan'\)\.replace\('\{plan\}', formatInt\(planKcal \* 7, language\)\)\.replace\('\{day\}', formatInt\(planKcal, language\)\)/);
+  assert.match(hero, /t\(pluralKey\('nutri_week_plan_days', week\.foodDays, language\)\)\.replace\('\{n\}', String\(week\.foodDays\)\)\.replace\('\{plan\}', formatInt\(planKcal \* week\.foodDays, language\)\)/);
+  assert.match(hero, /\{t\('nutri_week_kcal'\)\.replace\('\{total\}', formatInt\(week\.kcal, language\)\)\}\{planText \? ' · ' \+ planText : ''\}/);
+  const journey = read('screens/JourneyScreen.js');
+  assert.equal((journey.match(/<FoodLogHero variant="journey" planKcal=\{tile \? tile\.planKcal : null\} \/>/g) || []).length, 2, 'both Journey layouts');
+  for (const l of LANGS) {
+    assert.ok(T[l].nutri_week_plan.includes('{plan}') && T[l].nutri_week_plan.includes('{day}'), l);
+    for (const k of ['nutri_week_plan_days', 'nutri_week_plan_days_one']) assert.ok(T[l][k].includes('{plan}'), `${l}.${k}`);
+    assert.ok(T[l].nutri_week_plan_days.includes('{n}'), l);
+  }
+  assert.equal(T.pt.nutri_week_plan, 'seu plano: {plan} ({day} × 7)');
+  assert.equal(T.pt.nutri_week_plan_days, 'plano desses {n} dias: {plan}');
+});
+
+test('FW-9: the chat shows today\'s total (kcal, carbs, protein, fiber when known) before the next prompt', () => {
+  const rows = [
+    row(TODAY, 350, [{ food: 'ovos', fiber_g: 2 }], { p: 18, c: 28 }),
+    row(TODAY, 80, [{ food: 'maçã', fiber_g: 4 }], { p: 0, c: 21 }),
+    row('2026-11-08', 999, [{ food: 'ontem', fiber_g: 9 }], { p: 9, c: 9 }),
+  ];
+  assert.deepEqual(dayFoodTotal(rows, TODAY), { kcal: 430, carb_g: 49, protein_g: 18, fiber_g: 6 });
+  assert.equal(dayFoodTotal([row(TODAY, 300, [{ food: 'old' }])], TODAY).fiber_g, null, 'no fiber number → no fiber');
+  assert.equal(dayFoodTotal(rows, '2026-11-07'), null, 'no food that day → no total');
+  const th = [{ type: 'divider', day: TODAY }, { type: 'entry' }, { type: 'echo' }, { type: 'question' }];
+  const out = withDayTotal(th, dayFoodTotal(rows, TODAY), TODAY);
+  assert.deepEqual(out.map((x) => x.type), ['divider', 'entry', 'echo', 'day_total', 'question']);
+  assert.deepEqual(withDayTotal(th, null, TODAY), th);
+  const chat = read('screens/FoodChatScreen.js');
+  assert.match(chat, /withNotice\(withDayTotal\(th, dayFoodTotal\(rows, today\), today\)/);
+  assert.match(chat, /case 'day_total':/);
+  assert.match(chat, /`~\$\{formatInt\(x\.kcal, language\)\} \$\{t\('cal_kcal'\)\} · \$\{x\.carb_g\} g \$\{t\('nutri_carbs'\)\} · \$\{x\.protein_g\} g \$\{t\('nutri_protein'\)\}\$\{x\.fiber_g != null \? ` · \$\{Math\.round\(x\.fiber_g\)\} g \$\{t\('nutri_fiber'\)\}` : ''\}`/);
+});
+
+test('FW-11: weight pace in kg and in % of the weight per week, from the weigh-ins; Premium; never below the healthy range', () => {
+  assert.deepEqual(weeklyPace({ ratePerWeek: 0.4, currentKg: 80 }), { kgPerWeek: -0.4, pctPerWeek: -0.5 });
+  assert.deepEqual(weeklyPace({ ratePerWeek: -0.25, currentKg: 50 }), { kgPerWeek: 0.25, pctPerWeek: 0.5 });
+  assert.equal(weeklyPace({ ratePerWeek: null, currentKg: 80 }), null);
+  assert.equal(weeklyPace({ ratePerWeek: 0.4, currentKg: 0 }), null);
+  const calc = read('screens/components/CalculatorSection.js');
+  assert.match(calc, /const pace = isW && showEta && !belowRange && rateInfo && \(proj\.state === 'eta' \|\| proj\.state === 'away'\) \? weeklyPace\(\{ ratePerWeek: rateInfo\.ratePerWeek, currentKg: curCanon \}\) : null;/);
+  assert.match(calc, /t\('cal_tgt_pace'\)\.replace\('\{change\}', signed\(toDisplayW\(pace\.kgPerWeek\)\)\)\.replace\('\{unit\}', wUnit\)\.replace\('\{pct\}', signed\(pace\.pctPerWeek\)\)/);
+  for (const l of LANGS) for (const p of ['{change}', '{unit}', '{pct}']) assert.ok(T[l].cal_tgt_pace.includes(p), `${l} ${p}`);
+  assert.equal(T.pt.cal_tgt_pace, 'Ritmo: {change} {unit} por semana ({pct}% do peso)');
+  for (const l of LANGS) assert.doesNotMatch(T[l].cal_tgt_pace, /saud|healthy|bom|good|ideal|too|demais/i, l);
+});
