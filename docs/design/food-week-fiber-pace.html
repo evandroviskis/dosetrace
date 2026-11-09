@@ -1,0 +1,162 @@
+<title>Semana, fibra e ritmo</title>
+<style>
+:root{--pg:#F4F5F2;--pgink:#111315;--pgink2:#454A4F}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pg:#0B0C0E;--pgink:#EEEFEB;--pgink2:#B5B9B4;color-scheme:dark}}
+:root[data-theme="dark"]{--pg:#0B0C0E;--pgink:#EEEFEB;--pgink2:#B5B9B4;color-scheme:dark}
+body{background:var(--pg);color:var(--pgink);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding-block:24px;padding-inline:16px}
+h1{font-size:22px;margin:0 0 4px}
+.lead{color:var(--pgink2);max-width:70ch;margin:0 0 18px}
+h2{font-size:17px;margin:26px 0 10px}
+.row{display:flex;gap:18px;overflow-x:auto;padding-bottom:10px}
+.col{flex:0 0 300px;min-width:0}
+.cap{font-weight:700;margin:0 0 2px;font-size:14px}
+.note{color:var(--pgink2);font-size:13px;margin:0 0 10px;min-height:54px}
+.phone{border-radius:34px;padding:18px 14px 22px;min-height:470px;box-sizing:border-box}
+.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--tick:#71766F;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--data:#2350D8;--emph:#2350D8;--act:#111315;--onAct:#FFFFFF}
+.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--tick:#747A7F;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--data:#8AA8FF;--emph:#8AA8FF;--act:#EEEFEB;--onAct:#121416}
+.phone{background:var(--ground);color:var(--ink)}
+.h{font-size:26px;font-weight:800;margin:4px 4px 14px}
+.back{font-size:16px;margin:0 4px 12px;color:var(--ink)}
+.card{background:var(--raised);border-radius:24px;padding:16px;margin-bottom:12px}
+.card.emph{box-shadow:inset 0 0 0 2px var(--emph)}
+.badge{font-size:13px;color:var(--ink2);font-weight:600;margin-bottom:6px}
+.big{font-size:18px;font-weight:700;margin-bottom:4px}
+.sub{font-size:14px;color:var(--ink2)}
+.mono{font-variant-numeric:tabular-nums}
+.sep{height:1px;background:var(--line);margin:12px 0}
+.wk{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2);margin-bottom:6px}
+.line{font-size:15px;margin:3px 0}
+.line b{font-weight:700}
+.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.m{background:var(--well);border-radius:14px;padding:8px 6px;text-align:center}
+.m .v{font-size:17px;font-weight:700}
+.m .k{font-size:12px;color:var(--ink2)}
+.fine{font-size:12.5px;color:var(--ink2);margin-top:10px;line-height:1.35}
+.new{outline:2px dashed var(--data);outline-offset:3px;border-radius:10px}
+.btn{background:var(--act);color:var(--onAct);border-radius:22px;text-align:center;padding:11px;font-weight:700;margin-top:12px}
+.bubble{background:var(--raised);border-radius:18px;padding:12px 14px;margin-bottom:10px}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:1px 7px;font-size:12px;color:var(--ink2);margin-left:6px}
+.scale{height:6px;background:var(--well);border-radius:3px;margin:10px 0 4px;position:relative}
+.scale i{position:absolute;left:0;top:0;bottom:0;width:38%;background:var(--data);border-radius:3px}
+.sl{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.rowkv{display:flex;justify-content:space-between;gap:8px}
+</style>
+
+<h1>Semana, fibra e ritmo do peso</h1>
+<p class="lead">Decisão do Evandro (2026-11-08): só mostrar os números da pessoa, sem recomendar. O tracejado azul marca o que é novo. Textos em português; os outros 5 idiomas seguem o mesmo sentido.</p>
+
+<!-- LIGHT -->
+<h2>Tema claro</h2>
+<div class="row">
+  <div class="col"><p class="cap">1 · App hoje (Evolução)</p><p class="note">O cartão do diário mostra o dia e a soma dos últimos 7 dias.</p>
+    <div class="phone light"><div class="h">Evolução</div>
+      <div class="card emph"><div class="badge">Diário de comida com IA</div>
+        <div class="big mono">Hoje: 4 itens · ~1.650 kcal</div>
+        <div class="sub mono">Últimos 7 dias: ~14.300 kcal · ≈ 2.040/dia</div>
+        <div class="btn">Registrar comida</div></div>
+    </div></div>
+
+  <div class="col"><p class="cap">2 · Proposta: a semana no cartão</p><p class="note">Calorias da semana ao lado do plano da pessoa (Seu objetivo) e a média por dia de proteína, carboidrato e fibra. A fibra é só número, sem meta.</p>
+    <div class="phone light"><div class="h">Evolução</div>
+      <div class="card emph"><div class="badge">Diário de comida com IA</div>
+        <div class="big mono">Hoje: 4 itens · ~1.650 kcal</div>
+        <div class="sep"></div>
+        <div class="new"><div class="wk">Últimos 7 dias · comida em 7 dias</div>
+          <div class="line mono"><b>14.300 kcal</b> · seu plano: 15.400 (2.200 × 7)</div>
+          <div class="sub">Média por dia</div>
+          <div class="macros mono"><div class="m"><div class="v">95 g</div><div class="k">proteína</div></div><div class="m"><div class="v">210 g</div><div class="k">carboidrato</div></div><div class="m"><div class="v">14 g</div><div class="k">fibra</div></div></div>
+          <div class="fine">Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você. O DoseTrace só mostra os seus números.</div></div>
+        <div class="btn">Registrar comida</div></div>
+    </div></div>
+
+  <div class="col"><p class="cap">3 · Semana incompleta e sem plano</p><p class="note">Com comida em só alguns dias, o plano é contado para esses dias. Sem "Seu objetivo", a linha do plano não aparece. Fibra só dos itens que já a têm.</p>
+    <div class="phone light"><div class="h">Evolução</div>
+      <div class="card emph"><div class="badge">Diário de comida com IA</div>
+        <div class="big mono">Hoje: nada registrado</div>
+        <div class="sep"></div>
+        <div class="new"><div class="wk">Últimos 7 dias · comida em 4 dias</div>
+          <div class="line mono"><b>9.800 kcal</b> · plano desses 4 dias: 8.800</div>
+          <div class="sub">Média por dia com comida</div>
+          <div class="macros mono"><div class="m"><div class="v">88 g</div><div class="k">proteína</div></div><div class="m"><div class="v">240 g</div><div class="k">carboidrato</div></div><div class="m"><div class="v">11 g</div><div class="k">fibra · 3 dias</div></div></div>
+          <div class="fine">Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você. O DoseTrace só mostra os seus números.</div></div>
+        <div class="line mono sub" style="margin-top:12px">Sem plano: só "<b>9.800 kcal</b>"</div>
+      </div>
+    </div></div>
+
+  <div class="col"><p class="cap">4 · Fibra no dia (conversa da comida)</p><p class="note">Cada item ganha a fibra ao lado de carboidrato e proteína; o total do dia também. Itens antigos ficam sem fibra (a IA não lia).</p>
+    <div class="phone light"><div class="back">‹ Evolução</div>
+      <div class="bubble"><div class="line">2 ovos mexidos e 1 pão francês · ~350 kcal<span class="chip">refeição</span></div>
+        <div class="sub mono">28 g carboidrato · 18 g proteína · <span class="new">2 g fibra</span></div></div>
+      <div class="bubble"><div class="line">1 maçã · ~80 kcal<span class="chip">lanche</span></div>
+        <div class="sub mono">21 g carboidrato · 0 g proteína · <span class="new">4 g fibra</span></div></div>
+      <div class="card" style="margin-top:14px"><div class="wk">Hoje</div>
+        <div class="line mono"><b>~1.650 kcal</b> · 190 g carboidrato · 96 g proteína · <span class="new">16 g fibra</span></div></div>
+    </div></div>
+
+  <div class="col"><p class="cap">5 · Ritmo do peso (Progresso)</p><p class="note">Em "Sua meta", o ritmo medido nas pesagens em kg e em % do peso por semana, acima da previsão. Premium, como a previsão. Some se a meta está abaixo da faixa saudável (regra de hoje).</p>
+    <div class="phone light"><div class="h">Progresso</div>
+      <div class="card"><div class="rowkv"><span class="sub">Peso</span><span class="mono"><b>86,0 → 79,0 kg</b></span></div>
+        <div class="scale"><i></i></div><div class="sl mono"><span>88,6</span><span>79,0</span></div>
+        <div class="line mono new" style="margin-top:10px">Ritmo: −0,4 kg por semana (−0,5% do peso)</div>
+        <div class="line mono">Faltam ~17 semanas · por volta de março, se mantiver este ritmo</div>
+        <div class="fine mono">Pelas pesagens de 12 de out. a 8 de nov.</div></div>
+    </div></div>
+</div>
+
+<!-- DARK -->
+<h2>Tema escuro</h2>
+<div class="row">
+  <div class="col"><p class="cap">1 · App hoje (Evolução)</p><p class="note">&nbsp;</p>
+    <div class="phone dark"><div class="h">Evolução</div>
+      <div class="card emph"><div class="badge">Diário de comida com IA</div>
+        <div class="big mono">Hoje: 4 itens · ~1.650 kcal</div>
+        <div class="sub mono">Últimos 7 dias: ~14.300 kcal · ≈ 2.040/dia</div>
+        <div class="btn">Registrar comida</div></div>
+    </div></div>
+
+  <div class="col"><p class="cap">2 · Proposta: a semana no cartão</p><p class="note">&nbsp;</p>
+    <div class="phone dark"><div class="h">Evolução</div>
+      <div class="card emph"><div class="badge">Diário de comida com IA</div>
+        <div class="big mono">Hoje: 4 itens · ~1.650 kcal</div>
+        <div class="sep"></div>
+        <div class="new"><div class="wk">Últimos 7 dias · comida em 7 dias</div>
+          <div class="line mono"><b>14.300 kcal</b> · seu plano: 15.400 (2.200 × 7)</div>
+          <div class="sub">Média por dia</div>
+          <div class="macros mono"><div class="m"><div class="v">95 g</div><div class="k">proteína</div></div><div class="m"><div class="v">210 g</div><div class="k">carboidrato</div></div><div class="m"><div class="v">14 g</div><div class="k">fibra</div></div></div>
+          <div class="fine">Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você. O DoseTrace só mostra os seus números.</div></div>
+        <div class="btn">Registrar comida</div></div>
+    </div></div>
+
+  <div class="col"><p class="cap">3 · Semana incompleta e sem plano</p><p class="note">&nbsp;</p>
+    <div class="phone dark"><div class="h">Evolução</div>
+      <div class="card emph"><div class="badge">Diário de comida com IA</div>
+        <div class="big mono">Hoje: nada registrado</div>
+        <div class="sep"></div>
+        <div class="new"><div class="wk">Últimos 7 dias · comida em 4 dias</div>
+          <div class="line mono"><b>9.800 kcal</b> · plano desses 4 dias: 8.800</div>
+          <div class="sub">Média por dia com comida</div>
+          <div class="macros mono"><div class="m"><div class="v">88 g</div><div class="k">proteína</div></div><div class="m"><div class="v">240 g</div><div class="k">carboidrato</div></div><div class="m"><div class="v">11 g</div><div class="k">fibra · 3 dias</div></div></div>
+          <div class="fine">Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você. O DoseTrace só mostra os seus números.</div></div>
+        <div class="line mono sub" style="margin-top:12px">Sem plano: só "<b>9.800 kcal</b>"</div>
+      </div>
+    </div></div>
+
+  <div class="col"><p class="cap">4 · Fibra no dia (conversa da comida)</p><p class="note">&nbsp;</p>
+    <div class="phone dark"><div class="back">‹ Evolução</div>
+      <div class="bubble"><div class="line">2 ovos mexidos e 1 pão francês · ~350 kcal<span class="chip">refeição</span></div>
+        <div class="sub mono">28 g carboidrato · 18 g proteína · <span class="new">2 g fibra</span></div></div>
+      <div class="bubble"><div class="line">1 maçã · ~80 kcal<span class="chip">lanche</span></div>
+        <div class="sub mono">21 g carboidrato · 0 g proteína · <span class="new">4 g fibra</span></div></div>
+      <div class="card" style="margin-top:14px"><div class="wk">Hoje</div>
+        <div class="line mono"><b>~1.650 kcal</b> · 190 g carboidrato · 96 g proteína · <span class="new">16 g fibra</span></div></div>
+    </div></div>
+
+  <div class="col"><p class="cap">5 · Ritmo do peso (Progresso)</p><p class="note">&nbsp;</p>
+    <div class="phone dark"><div class="h">Progresso</div>
+      <div class="card"><div class="rowkv"><span class="sub">Peso</span><span class="mono"><b>86,0 → 79,0 kg</b></span></div>
+        <div class="scale"><i></i></div><div class="sl mono"><span>88,6</span><span>79,0</span></div>
+        <div class="line mono new" style="margin-top:10px">Ritmo: −0,4 kg por semana (−0,5% do peso)</div>
+        <div class="line mono">Faltam ~17 semanas · por volta de março, se mantiver este ritmo</div>
+        <div class="fine mono">Pelas pesagens de 12 de out. a 8 de nov.</div></div>
+    </div></div>
+</div>
