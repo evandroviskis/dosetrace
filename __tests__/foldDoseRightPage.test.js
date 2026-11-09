@@ -71,7 +71,7 @@ test('A-115 FR-3: ProtocolDetail follows the rule; the right page passes without
   assert.match(det, /export function ProtocolDetail\(\{[^}]*\bwithoutVial\b[^}]*\bnotice\b[^}]*\}\)/, 'withoutVial and notice props');
   assert.match(det, /const blocks = detailBlocks\(p, withoutVial\);/);
   assert.match(det, /\{blocks\.draw && <ProtocolDrawHero /, 'the syringe only when the rule allows it');
-  assert.match(det, /const vialShown = blocks\.vialBlock && /, 'the vial block only when the rule allows it');
+  assert.match(det, /const vialShown = !ended && blocks\.vialBlock && /, 'the vial block only when the rule allows it');
   assert.ok(!/isInjectable && <ProtocolDrawHero/.test(det), 'no unconditional syringe left');
   // The notice sits under the name and tags (picture a115), before the syringe / serving blocks.
   const iTags = det.indexOf('</View>\n      </View>\n');

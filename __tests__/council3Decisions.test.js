@@ -66,6 +66,6 @@ test('the app-refresh mark is written only when a user was known for that resync
 // Ship-check review: the Retomar question looked at vials including deleted ones.
 test('1: the container question ignores deleted vials', () => {
   const p = read('screens/ProtocolsScreen.js');
-  const i = p.indexOf('function askRestart(p) {');
+  const i = p.indexOf('function askRestart(p, { openAfter = false } = {}) {');
   assert.match(p.slice(i, i + 600), /getVialsForProtocol\(p\.id\)\.length > 0/);
 });

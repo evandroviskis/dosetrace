@@ -54,7 +54,7 @@ import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
 import { pastStartAsk, pastStartWrites, editStartAsk, editStartWrites } from '../lib/pastDoses';
 import { tsMs, vialToReopen } from '../lib/deleteDose';
-import { startAfterEnd } from '../lib/protocolEnd';
+import { startAfterEnd, isEnded } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
 import { endProtocolFully } from '../lib/endProtocolFlow';
 import T from '../lib/trashSelection';
@@ -403,10 +403,12 @@ function ProtocolDrawHero({ p, t, onDoseDetails, onZoom, onLayout }) {
             ? t('protocols_syringe_no_data_conc')
             : t('protocols_syringe_no_data')}
         </Text>
-        <TouchableOpacity style={s.hobjFoot} onPress={onDoseDetails} accessibilityRole="button">
-          <Text style={s.hobjFootText}>{t('protocols_step_dose')}</Text>
-          <RowChevron color={c.tick} />
-        </TouchableOpacity>
+        {onDoseDetails ? (
+          <TouchableOpacity style={s.hobjFoot} onPress={onDoseDetails} accessibilityRole="button">
+            <Text style={s.hobjFootText}>{t('protocols_step_dose')}</Text>
+            <RowChevron color={c.tick} />
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   }
@@ -804,11 +806,14 @@ export function noteDraftKey(id) {
 // protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
 // A-121 (option A, docs/design/a121-telas/4-*): onEndDate(p) — the "Termina em" row under Schedule & reminders on
 // every ACTIVE protocol (the planned end in the app language's format, or "Sem data"); null = no row.
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null, onEndProtocol = null, onBlockY = null }) {
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null, onEndProtocol = null, onBlockY = null, onRestart = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
   const name = p.compound_id ? t(p.compound_id) : p.name;
+  // Ended protocol page (founder 2026-11-08, docs/design/ended-protocol-page.html): read-only, with
+  // the ended card and Retomar; no vial, no reminder or edit links, no End.
+  const ended = isEnded(p);
   const isInjectable = p.type === 'recon' || p.type === 'rtu';
   const sz = sizeLabel(p, vial, t, language);
 
@@ -832,7 +837,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   const goals = p.goal ? p.goal.split(',').filter(Boolean) : [];
   const blocks = detailBlocks(p, withoutVial);
   // The vial block draws only when there is something to count (ProtocolVialBlock's rule).
-  const vialShown = blocks.vialBlock && (supplyState(vial, p).capacity != null
+  const vialShown = !ended && blocks.vialBlock && (supplyState(vial, p).capacity != null
     || dosesPerVial({ amount: p.amount, unit: p.unit, dose: p.dose, doseUnit: p.dose_unit }) != null
     || vialDaysLeftFor(p, vial) != null);
   // SG-6 / SG-25: only on an active protocol (never Ended or Recently deleted).
@@ -904,15 +909,29 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
       </View>
       {notice || null}
 
+      {ended ? (
+        <View style={s.hobj}>
+          <Text style={s.hobjTitle}>{t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}</Text>
+          <Text style={s.hobjSub}>{t(p.type === 'oral' ? 'protocols_ended_page_body_oral' : 'protocols_ended_page_body')}</Text>
+          {onRestart ? (
+            <TouchableOpacity style={s.btnPrimary} onPress={() => onRestart(p)} accessibilityRole="button">
+              <Text style={s.btnPrimaryText}>{t('protocols_restart')}</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
+
       {/* App search (AS-8): the calculator and the vial report where they sit, so a result lands there. */}
-      {blocks.draw && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={() => openEdit(p, 3)} onZoom={() => onZoom(p.id)} onLayout={onBlockY ? onBlockY('calc') : undefined} />}
+      {blocks.draw && <ProtocolDrawHero key={`syr-${p.type}`} p={p} t={t} onDoseDetails={ended ? null : () => openEdit(p, 3)} onZoom={() => onZoom(p.id)} onLayout={onBlockY ? onBlockY('calc') : undefined} />}
       {vialShown && <ProtocolVialBlock p={p} vial={vial} t={t} onRefillVial={onRefillVial} onEditVial={onEditVial} onLayout={onBlockY ? onBlockY('vial') : undefined} />}
-      <ProtocolServingHero p={p} t={t} onRefill={onRefill} onLayout={onBlockY ? onBlockY('serving') : undefined} />
+      <ProtocolServingHero p={p} t={t} onRefill={ended ? null : onRefill} onLayout={onBlockY ? onBlockY('serving') : undefined} />
 
       <RowsBlock s={s} title={t('protocols_step_schedule')} rows={scheduleRows} style={vialShown ? [s.blkD, s.blkNext] : s.blkD} />
-      <TouchableOpacity style={s.obtn2} onPress={() => openEdit(p, 4)} accessibilityRole="button">
-        <Text style={s.obtn2Text}>{t('protocols_add_reminder')}</Text>
-      </TouchableOpacity>
+      {!ended ? (
+        <TouchableOpacity style={s.obtn2} onPress={() => openEdit(p, 4)} accessibilityRole="button">
+          <Text style={s.obtn2Text}>{t('protocols_add_reminder')}</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* Founder 2026-10-27 (collapse rule): the dose details arrive closed (the header and the syringe
           above already show the dose); the note arrives closed while none is saved. */}
@@ -923,6 +942,12 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
         </CollapsibleSection>
       ) : null}
 
+      {ended ? (p.note ? (
+        <View style={[s.blkD, s.blkNext]}>
+          <Text style={s.secth}>{t('protocols_notes')}</Text>
+          <Text style={s.noteRead}>{p.note}</Text>
+        </View>
+      ) : null) : (
       <NoteFrame saved={!!p.note} dirty={noteDirty} s={s} title={t('protocols_notes')} empty={t('protocols_notes_empty')}>
         <TextInput
           style={[s.noteWell, noteFocus && s.noteWellOn]}
@@ -946,6 +971,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
           </View>
         )}
       </NoteFrame>
+      )}
 
       {endShown ? (
         <TouchableOpacity style={s.endRowBtn} onPress={() => onEndProtocol(p)} accessibilityRole="button">
@@ -954,7 +980,7 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
       ) : null}
 
       {deleteProtocol ? (
-        <TouchableOpacity style={s.dangerBtn} onPress={() => deleteProtocol(p.id)} accessibilityRole="button">
+        <TouchableOpacity style={s.dangerBtn} onPress={() => deleteProtocol(p.id, p)} accessibilityRole="button">
           <Text style={s.dangerText}>{t('protocols_delete_title')}</Text>
         </TouchableOpacity>
       ) : null}
@@ -976,8 +1002,9 @@ function protocolListOrder(sortBy, sorted) {
 
 // BK-4: the protocol on the right page. The chosen one while it still exists, else the
 // default (opened from Today / a notification, else the first card), else nothing.
-function bookProtocolId(sel, fallback, ids) {
-  if (sel != null && ids.includes(sel)) return sel;
+// An Ended protocol (extra) the user opened stays there too; it is never the default.
+function bookProtocolId(sel, fallback, ids, extra = []) {
+  if (sel != null && (ids.includes(sel) || extra.includes(sel))) return sel;
   if (fallback != null && ids.includes(fallback)) return fallback;
   return ids.length ? ids[0] : null;
 }
@@ -1302,7 +1329,7 @@ export default function ProtocolsScreen() {
     openProtocolId: route.params?.openProtocolId,
   }));
   const searchPageOn = book && bookSel.sel === SEARCH_PAGE; // AS-18: the search is the right page (no card outlined)
-  const bookOpenId = searchPageOn ? null : bookProtocolId(bookSel.sel, defaultSelection('Protocols', { protocolIds: listOrderIds }), listOrderIds);
+  const bookOpenId = searchPageOn ? null : bookProtocolId(bookSel.sel, defaultSelection('Protocols', { protocolIds: listOrderIds }), listOrderIds, endedProtocols.map(p => p.id));
 
   // App search landings (AS-8, AS-10, AS-11): open the list, Novo protocolo (its Cancel saves
   // nothing), a protocol's page at its calculator or vial block, its Novo / Editar frasco window or
@@ -1517,7 +1544,7 @@ export default function ProtocolsScreen() {
   // Founder 2026-10-07 (council 3 decision 1): Retomar asks which container — a new vial/bottle (full,
   // mixed today) or the same one (moved to the new run unchanged) — and warns first when the same
   // protocol is already active (a second run would double its reminders).
-  async function askRestart(p) {
+  async function askRestart(p, { openAfter = false } = {}) {
     // DV-217: the free limit first — never a question whose answer would then be refused.
     if (await isOverFreeLimit()) { promptUpgrade(); return; }
     const name = protocolName(p);
@@ -1528,11 +1555,11 @@ export default function ProtocolsScreen() {
       title: t('protocols_restart_title').replace('{name}', name),
       body: t(container ? 'protocols_restart_body' : 'protocols_restart_body_plain'),
       buttons: container ? [
-        { label: t(container === 'vial' ? 'protocols_restart_new_vial_btn' : 'protocols_restart_new_bottle_btn'), kind: 'primary', onPress: () => restartProtocol(p.id) },
-        { label: t(container === 'vial' ? 'protocols_restart_same_vial' : 'protocols_restart_same_bottle'), kind: 'secondary', onPress: () => restartProtocol(p.id, { sameContainer: true }) },
+        { label: t(container === 'vial' ? 'protocols_restart_new_vial_btn' : 'protocols_restart_new_bottle_btn'), kind: 'primary', onPress: () => restartProtocol(p.id, {}, openAfter) },
+        { label: t(container === 'vial' ? 'protocols_restart_same_vial' : 'protocols_restart_same_bottle'), kind: 'secondary', onPress: () => restartProtocol(p.id, { sameContainer: true }, openAfter) },
         { label: t('cancel'), kind: 'secondary' },
       ] : [
-        { label: t('protocols_restart_confirm'), kind: 'primary', onPress: () => restartProtocol(p.id) },
+        { label: t('protocols_restart_confirm'), kind: 'primary', onPress: () => restartProtocol(p.id, {}, openAfter) },
         { label: t('cancel'), kind: 'secondary' },
       ],
     });
@@ -1551,7 +1578,8 @@ export default function ProtocolsScreen() {
 
   // One restart at a time (council 3 F1): a double tap used to create two identical active runs.
   const restartingRef = useRef(false);
-  async function restartProtocol(id, opts = {}) {
+  // openAfter (Ended page, founder 2026-11-08): the new active run's page opens afterwards.
+  async function restartProtocol(id, opts = {}, openAfter = false) {
     if (restartingRef.current) return;
     restartingRef.current = true;
     try {
@@ -1564,9 +1592,10 @@ export default function ProtocolsScreen() {
     }
     const restarted = newId ? getProtocolById(newId) : null;
     if (restarted) afterProtocolChange({ saved: restarted }).catch(() => {});
-    fetchProtocols();
     notifyDataChanged('protocol');
     requestSync();
+    await fetchProtocols();
+    if (openAfter && newId != null) openProtocolById(newId);
     } finally { restartingRef.current = false; }
   }
 
@@ -2745,10 +2774,12 @@ export default function ProtocolsScreen() {
   };
 
   // Which view the tab shows: the two heroes, the list, or one protocol's screen.
-  const openProtocol = showList && openId != null ? (protocols.find(p => p.id === openId) || null) : null;
+  // An Ended protocol opens its read-only page too (founder 2026-11-08); a deleted one never does.
+  const shownProtocol = (id) => protocols.find(p => p.id === id) || endedProtocols.find(p => p.id === id) || null;
+  const openProtocol = showList && openId != null ? shownProtocol(openId) : null;
   const view = openProtocol ? 'detail' : showList ? 'list' : 'heroes';
   // Book: the protocol on the right page (BK-4).
-  const bookProtocol = book && bookOpenId != null ? (protocols.find(p => p.id === bookOpenId) || null) : null;
+  const bookProtocol = book && bookOpenId != null ? shownProtocol(bookOpenId) : null;
   const zoomProtocol = zoom.id != null ? (protocols.find(p => p.id === zoom.id) || null) : null;
 
   // The protocol screen, shared by the phone column and the book's right page.
@@ -2760,6 +2791,7 @@ export default function ProtocolsScreen() {
       openEdit={inBook ? (q, st) => { claimBookProtocol(q.id); openEdit(q, st); } : openEdit}
       onEndDate={inBook ? (q) => { claimBookProtocol(q.id); openEndDate(q); } : openEndDate}
       onEndProtocol={askEndProtocol}
+      onRestart={(q) => askRestart(q, { openAfter: true })}
       deleteProtocol={deleteProtocol}
       onSaveNote={saveProtocolNote} onRefill={askRefillBottle} onRefillVial={askRefillVial} onEditVial={openEditVial}
       onZoom={(id) => { if (inBook) claimBookProtocol(id); setZoom({ id, open: true }); }}
@@ -2818,11 +2850,14 @@ export default function ProtocolsScreen() {
       <View style={s.delListIn}>
         {endedProtocols.map((p, idx) => (
           <View key={p.id} style={[s.delRow, idx > 0 && s.delRowLine]}>
-            <View style={[s.delRing, { borderColor: displayColor(p.color) || colors.ink3 }]} />
-            <View style={s.delText}>
-              <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
-              <Text style={s.delAgo}>{t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}</Text>
-            </View>
+            {/* Founder 2026-11-08: the row opens the protocol's read-only page (ended-protocol-page.html col. 2). */}
+            <TouchableOpacity style={s.endedOpen} onPress={() => openProtocolById(p.id)} accessibilityRole="button" accessibilityLabel={protocolName(p)}>
+              <View style={[s.delRing, { borderColor: displayColor(p.color) || colors.ink3 }]} />
+              <View style={s.delText}>
+                <Text style={s.delName} numberOfLines={2}>{protocolName(p)}</Text>
+                <Text style={s.delAgo}>{t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}</Text>
+              </View>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => askRestart(p)} style={s.restoreBtn} accessibilityRole="button" accessibilityLabel={`${t('protocols_restart')} ${protocolName(p)}`}>
               <Text style={s.restoreBtnText}>{t('protocols_restart')}</Text>
             </TouchableOpacity>
@@ -2835,6 +2870,9 @@ export default function ProtocolsScreen() {
               style={s.deleteForeverBtn}
             >
               <FeatureIcon name="trash" size={22} color={colors.risk} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openProtocolById(p.id)} accessible={false} importantForAccessibility="no" hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }} style={s.endedChev}>
+              <RowChevron color={colors.tick} />
             </TouchableOpacity>
           </View>
         ))}
@@ -3036,9 +3074,11 @@ export default function ProtocolsScreen() {
           right={searchPageOn ? <AppSearchScreen embedded tab="Protocols" /> : bookProtocol ? (
             <>
               <View style={[s.header, s.headerEnd]}>
-                <TouchableOpacity style={s.addBtn} onPress={() => { claimBookProtocol(bookProtocol.id); openEdit(bookProtocol); }} accessibilityRole="button">
-                  <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
-                </TouchableOpacity>
+                {!isEnded(bookProtocol) ? (
+                  <TouchableOpacity style={s.addBtn} onPress={() => { claimBookProtocol(bookProtocol.id); openEdit(bookProtocol); }} accessibilityRole="button">
+                    <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
               <ScrollView {...detailLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered}>
                 {renderDetail(bookProtocol, true)}
@@ -3057,9 +3097,11 @@ export default function ProtocolsScreen() {
               <View style={s.backChev}><RowChevron color={colors.ink} /></View>
               <Text style={s.backText}>{t('today_protocols')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={s.addBtn} onPress={() => openEdit(openProtocol)} accessibilityRole="button">
-              <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
-            </TouchableOpacity>
+            {!isEnded(openProtocol) ? (
+              <TouchableOpacity style={s.addBtn} onPress={() => openEdit(openProtocol)} accessibilityRole="button">
+                <Text style={s.addBtnText}>{t('protocols_edit')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </>
         ) : view === 'list' ? (
           <TouchableOpacity style={s.backBtn} onPress={() => setShowList(false)} accessibilityRole="button" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -4099,6 +4141,8 @@ const protocolsGraduated = (c) => ({
   delListIn: { paddingHorizontal: 16 },
   delRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
   delRowLine: { borderTopWidth: 1, borderTopColor: c.line },
+  endedOpen: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }, // the Ended row opens its page (founder 2026-11-08)
+  endedChev: { width: 20, height: 40, alignItems: 'center', justifyContent: 'center' },
   delRing: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, backgroundColor: 'transparent' }, // archive: a hollow color ring
   archive: { marginTop: 40, marginBottom: 26, gap: 10 },
   archiveHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4 },
@@ -4217,6 +4261,7 @@ const protocolsGraduated = (c) => ({
   rwValInTap: { maxWidth: '100%', flexShrink: 1 },
   rwValMuted: { fontWeight: '400', color: c.ink2 },
   noteIn: { padding: 12, gap: 10 },
+  noteRead: { paddingHorizontal: 4, fontSize: 17, lineHeight: 24, color: c.ink }, // an Ended page: the saved note, read-only
   noteWell: { minHeight: 72, borderRadius: 16, backgroundColor: c.well, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink, textAlignVertical: 'top', borderWidth: 1.5, borderColor: c.well },
   noteWellOn: { borderColor: c.ink },
   acts2: { flexDirection: 'row', gap: 10 },

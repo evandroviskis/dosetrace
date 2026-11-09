@@ -147,7 +147,7 @@ test('F7: reminders of a protocol that is no longer active are found and cancell
 
 test('F8 + Restart wiring: the free limit is checked first; the new run gets its reminders', () => {
   const s = read('screens/ProtocolsScreen.js');
-  const i = s.indexOf('async function restartProtocol(id, opts = {}) {');
+  const i = s.indexOf('async function restartProtocol(id, opts = {}, openAfter = false) {');
   assert.ok(i > 0);
   const body = s.slice(i, i + 900);
   assert.match(body, /if \(await isOverFreeLimit\(\)\) \{ promptUpgrade\(\); return; \}/);
@@ -186,7 +186,7 @@ test('Restart: an oral protocol starts with zero units taken', () => {
 // Council 3 journey F1: a double tap on Restart created two identical active runs.
 test('Restart: a second tap while the first restart runs does nothing', () => {
   const s = read('screens/ProtocolsScreen.js');
-  const i = s.indexOf('async function restartProtocol(id, opts = {}) {');
+  const i = s.indexOf('async function restartProtocol(id, opts = {}, openAfter = false) {');
   const body = s.slice(i, i + 900);
   assert.match(body, /if \(restartingRef\.current\) return;\s*restartingRef\.current = true;/);
   assert.match(body, /finally \{ restartingRef\.current = false; \}/);
@@ -221,14 +221,14 @@ test('Restart with the same bottle (oral): the units taken carry over', () => {
 
 test('Restart asks first: the container question, and a warning when the same protocol is already active', () => {
   const s = read('screens/ProtocolsScreen.js');
-  const i = s.indexOf('function askRestart(p) {');
+  const i = s.indexOf('function askRestart(p, { openAfter = false } = {}) {');
   assert.ok(i > 0);
   const body = s.slice(i, i + 3200);
   assert.match(body, /protocols_restart_new_vial_btn/);
   assert.match(body, /protocols_restart_same_vial/);
   assert.match(body, /protocols_restart_same_bottle/);
   assert.match(body, /protocols_restart_dup_title/);
-  assert.match(body, /restartProtocol\(p\.id, \{ sameContainer: true \}\)/);
+  assert.match(body, /restartProtocol\(p\.id, \{ sameContainer: true \}, openAfter\)/);
   assert.match(s, /onPress=\{\(\) => askRestart\(p\)\}/, 'the Restart pill asks first');
   const T = require('../i18n/translations.js').translations || require('../i18n/translations.js');
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['protocols_restart_title', 'protocols_restart_body', 'protocols_restart_body_plain', 'protocols_restart_new_vial_btn', 'protocols_restart_same_vial', 'protocols_restart_new_bottle_btn', 'protocols_restart_same_bottle', 'protocols_restart_confirm', 'protocols_restart_dup_title', 'protocols_restart_dup_body', 'protocols_restart_dup_go']) assert.ok(T[l][k], `${l} ${k}`);

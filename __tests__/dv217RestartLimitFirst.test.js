@@ -8,7 +8,7 @@ const path = require('node:path');
 
 test('DV-217: askRestart checks the free limit before any question', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/ProtocolsScreen.js'), 'utf8');
-  const fn = src.slice(src.indexOf('async function askRestart(p) {'), src.indexOf('const restartingRef = useRef(false);'));
+  const fn = src.slice(src.indexOf('async function askRestart(p, { openAfter = false } = {}) {'), src.indexOf('const restartingRef = useRef(false);'));
   assert.ok(fn.length > 0, 'askRestart is async');
   const limit = fn.indexOf('if (await isOverFreeLimit()) { promptUpgrade(); return; }');
   assert.ok(limit > 0 && limit < fn.indexOf('setScreenSheet('), 'the limit before the first sheet');

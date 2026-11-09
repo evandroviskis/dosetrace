@@ -508,6 +508,8 @@ export const translations = {
     protocols_restart_same_vial: "Keep using the same vial",
     protocols_restart_new_bottle_btn: "New bottle",
     protocols_restart_same_bottle: "Keep using the same bottle",
+    protocols_ended_page_body: "No reminders and no vial. Its doses stay in the Dose log and the reports.", // Ended protocol page (founder 2026-11-08)
+    protocols_ended_page_body_oral: "No reminders. Its doses stay in the Dose log and the reports.",
     protocols_restart_confirm: "Resume",
     protocols_restart_dup_title: "{name} is already active",
     protocols_restart_dup_body: "You already have an active {name} protocol. Resuming creates another one, with duplicate reminders.",
@@ -3343,6 +3345,8 @@ export const translations = {
     protocols_restart_same_vial: "Seguir con el mismo vial",
     protocols_restart_new_bottle_btn: "Envase nuevo",
     protocols_restart_same_bottle: "Seguir con el mismo envase",
+    protocols_ended_page_body: "Sin recordatorios y sin vial. Sus dosis siguen en el Registro de dosis y en los informes.", // Ended protocol page (founder 2026-11-08)
+    protocols_ended_page_body_oral: "Sin recordatorios. Sus dosis siguen en el Registro de dosis y en los informes.",
     protocols_restart_confirm: "Reanudar",
     protocols_restart_dup_title: "{name} ya está activo",
     protocols_restart_dup_body: "Ya tienes un protocolo activo de {name}. Reanudar crea otro, con recordatorios duplicados.",
@@ -6178,6 +6182,8 @@ export const translations = {
     protocols_restart_same_vial: 'Continuar com o mesmo frasco',
     protocols_restart_new_bottle_btn: "Frasco novo",
     protocols_restart_same_bottle: 'Continuar com o mesmo frasco',
+    protocols_ended_page_body: "Sem lembretes e sem frasco. As doses continuam no Registro de doses e nos relatórios.", // Ended protocol page (founder 2026-11-08)
+    protocols_ended_page_body_oral: "Sem lembretes. As doses continuam no Registro de doses e nos relatórios.",
     protocols_restart_confirm: "Retomar",
     protocols_restart_dup_title: "{name} já está ativo",
     protocols_restart_dup_body: "Você já tem um protocolo ativo de {name}. Retomar cria outro, com lembretes duplicados.",
@@ -9012,6 +9018,8 @@ export const translations = {
     protocols_restart_same_vial: "Garder le même flacon",
     protocols_restart_new_bottle_btn: "Nouveau flacon",
     protocols_restart_same_bottle: "Garder le même flacon",
+    protocols_ended_page_body: "Plus de rappels ni de flacon. Ses doses restent dans le Journal des doses et les rapports.", // Ended protocol page (founder 2026-11-08)
+    protocols_ended_page_body_oral: "Plus de rappels. Ses doses restent dans le Journal des doses et les rapports.",
     protocols_restart_confirm: "Reprendre",
     protocols_restart_dup_title: "{name} est déjà actif",
     protocols_restart_dup_body: "Vous avez déjà un protocole actif de {name}. Le reprendre en crée un autre, avec des rappels en double.",
@@ -11846,6 +11854,8 @@ export const translations = {
     protocols_restart_same_vial: "Gleiches Fläschchen weiter",
     protocols_restart_new_bottle_btn: "Neue Packung",
     protocols_restart_same_bottle: "Gleiche Packung weiter",
+    protocols_ended_page_body: "Keine Erinnerungen und kein Fläschchen mehr. Die Dosen bleiben im Dosisprotokoll und in den Berichten.", // Ended protocol page (founder 2026-11-08)
+    protocols_ended_page_body_oral: "Keine Erinnerungen mehr. Die Dosen bleiben im Dosisprotokoll und in den Berichten.",
     protocols_restart_confirm: "Fortsetzen",
     protocols_restart_dup_title: "{name} ist schon aktiv",
     protocols_restart_dup_body: "Du hast schon ein aktives Protokoll für {name}. Fortsetzen legt ein zweites an, mit doppelten Erinnerungen.",
@@ -14681,6 +14691,8 @@ export const translations = {
     protocols_restart_same_vial: "Continua con lo stesso flacone",
     protocols_restart_new_bottle_btn: "Nuova confezione",
     protocols_restart_same_bottle: "Continua con la stessa confezione",
+    protocols_ended_page_body: "Niente più promemoria né flacone. Le dosi restano nel Registro delle dosi e nei report.", // Ended protocol page (founder 2026-11-08)
+    protocols_ended_page_body_oral: "Niente più promemoria. Le dosi restano nel Registro delle dosi e nei report.",
     protocols_restart_confirm: "Riprendi",
     protocols_restart_dup_title: "{name} è già attivo",
     protocols_restart_dup_body: "Hai già un protocollo attivo di {name}. Riprenderlo ne crea un altro, con promemoria doppi.",
