@@ -23,6 +23,50 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/styles.css" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "DoseTrace",
+      "applicationCategory": "HealthApplication",
+      "operatingSystem": "iOS, Android",
+      "url": "https://dosetrace.io/",
+      "isAccessibleForFree": true,
+      "description": "DoseTrace is a private journal and arithmetic calculator for medications, injectables, and supplements on iPhone and Android. It logs doses, reminders, vials, lab results, weigh-ins, and food, and it does the arithmetic you enter. It does not recommend a dose, diagnose, or interpret results. Free to download. Optional paid Premium is sold inside the app.",
+      "featureList": [
+        "Dose log with reminders and history",
+        "Syringe and reconstitution arithmetic",
+        "Vial supply alert when about 7 days of use are left",
+        "Lab results by marker, charted over time, without interpretation",
+        "Weigh-ins and a food log",
+        "Estimated dose-accumulation curve",
+        "30-day adherence report",
+        "English, Spanish, Portuguese, French, German, and Italian"
+      ],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "description": "Free to download. Optional paid Premium is sold inside the app. This site does not publish a Premium price."
+      },
+      "sameAs": [
+        "https://apps.apple.com/app/id6761788157",
+        "https://play.google.com/store/apps/details?id=io.outcom.dosetrace"
+      ],
+      "publisher": { "@id": "https://dosetrace.io/#organization" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://dosetrace.io/#organization",
+      "name": "Outcom",
+      "url": "https://dosetrace.io/",
+      "email": "hello@dosetrace.io"
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -320,6 +364,13 @@
         <a href="#pricing" data-i18n="nav_pricing">Pricing</a>
         <a href="/privacy-policy" data-i18n="f_privacypolicy">Privacy Policy</a>
       </div>
+      <div class="f-col" id="calculators-nav">
+        <h4>Calculators</h4>
+        <a href="/how-to-convert-mg-to-ml-for-a-syringe">mg or mcg to mL</a>
+        <a href="/how-to-calculate-reconstitution-concentration">Reconstitution concentration</a>
+        <a href="/how-to-convert-mcg-and-mg">mcg and mg</a>
+        <a href="/how-to-calculate-a-tablet-fraction">Tablet fraction</a>
+      </div>
       <div class="f-col">
         <h4 data-i18n="f_getapp">Get the app</h4>
         <a href="https://apps.apple.com/app/id6761788157" target="_blank" rel="noopener">App Store</a>
@@ -328,7 +379,16 @@
       <div class="f-col">
         <h4 data-i18n="f_company">Company</h4>
         <a href="https://outcom.io" target="_blank" rel="noopener">Outcom</a>
+        <a href="/about-outcom-help-and-limits">Help and limits</a>
         <a href="mailto:hello@dosetrace.io">hello@dosetrace.io</a>
+      </div>
+      <div class="f-col" id="guides-nav">
+        <h4>Guides</h4>
+        <a href="/how-dosetrace-tracks-vials">Vial tracking</a>
+        <a href="/how-dosetrace-charts-a-lab-marker">Lab markers</a>
+        <a href="/how-dosetrace-reminders-work">Reminders</a>
+        <a href="/how-dosetrace-keeps-a-dose-history">Dose history</a>
+        <a href="/tutorials">Tutorials</a>
       </div>
     </div>
     <div class="footer-bottom">
