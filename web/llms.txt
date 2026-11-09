@@ -1,0 +1,34 @@
+# DoseTrace
+
+> DoseTrace is a free personal journal and arithmetic calculator for iPhone and Android, published by Outcom. It records what you enter. It does not recommend a dose, diagnose, or interpret lab results. Optional paid Premium is sold inside the app. This file is a short summary. It does not control search ranking.
+
+DoseTrace is for a person's own records. It is not for a healthcare professional dosing a patient.
+
+## What the app does
+
+- Dose log with reminders and history
+- Syringe and reconstitution calculators that only do arithmetic
+- Vial tracking, with an alert when about 7 days of use are left
+- Lab results stored by marker, with a chart over time and no interpretation
+- Weigh-ins and a food log
+- An estimated accumulation curve from logged doses
+- A 30-day adherence report
+- Six languages: English, Spanish, Portuguese, French, German, and Italian
+
+## Free arithmetic pages
+
+- [How do I convert mg or mcg to mL for a syringe?](https://dosetrace.io/how-to-convert-mg-to-ml-for-a-syringe): volume from an amount and a concentration, plus insulin-syringe units only for the calibration printed on that syringe (U-100 or U-40).
+- [How do I calculate a reconstitution concentration?](https://dosetrace.io/how-to-calculate-reconstitution-concentration): mass divided by liquid volume.
+- [How do I convert mcg to mg and mg to mcg?](https://dosetrace.io/how-to-convert-mcg-and-mg): the factor is 1000.
+- [How do I calculate a fraction of a tablet?](https://dosetrace.io/how-to-calculate-a-tablet-fraction): fraction arithmetic only. It does not say that a tablet can be split.
+
+## Pages and apps
+
+- [DoseTrace home](https://dosetrace.io/): private journal for medications, injectables, and supplements.
+- [Privacy policy](https://dosetrace.io/privacy-policy)
+- [App Store](https://apps.apple.com/app/id6761788157)
+- [Google Play](https://play.google.com/store/apps/details?id=io.outcom.dosetrace)
+
+## Publisher
+
+Outcom. Contact: hello@dosetrace.io
