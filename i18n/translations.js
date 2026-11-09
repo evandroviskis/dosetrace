@@ -447,7 +447,7 @@ export const translations = {
     end_protocol_confirm_title: 'End {name}?',
     end_protocol_confirm_body: 'End moves the protocol to Ended, with all its doses kept in your history. Its reminders stop.',
     today_tx_over_title: 'Still going?',
-    today_tx_over_body: 'No doses logged for this one in a while. Is the protocol finished? Its doses stay in your history, and you can restart it from Ended in My Protocols.',
+    today_tx_over_body: 'No doses logged for this one in a while. Is the protocol finished? Its doses stay in your history, and you can resume it from Ended in My Protocols.',
     today_tx_over_end: 'Yes, it\'s finished',
     today_tx_over_keep: 'Still going',
     today_tx_over_until: 'Still going, until a date…',
@@ -500,7 +500,7 @@ export const translations = {
     protocols_count_n_one: '{n} protocol',
     protocols_ended_title: 'Ended',
     protocols_ended_on: 'Ended {date}',
-    protocols_restart: 'Restart',
+    protocols_restart: 'Resume',
     protocols_restart_title: "Resume {name}?",
     protocols_restart_body: "A new run starts today; the previous run stays in your history. Will you start a new one or keep using the same one?", // DV-024: the same container keeps its count
     protocols_restart_body_plain: "A new run starts today with zero doses taken; the previous run stays in your history.",

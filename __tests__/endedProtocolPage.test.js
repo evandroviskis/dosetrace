@@ -106,3 +106,11 @@ test('(5) Retomar from the page asks the same question, then opens the new activ
   const rs = sliceBlock(PROT, 'async function restartProtocol(');
   assert.match(rs, /await fetchProtocols\(\);\s*if \(openAfter && newId != null\) openProtocolById\(newId\);/);
 });
+
+// Simulator 2026-11-08: the English page said "Restart" and its question "Resume {name}?" / "Resume"
+// (the other 5 languages use one verb, pt Retomar). One term per concept.
+test('one verb for Retomar in every language: the button, the question and its confirm', () => {
+  for (const l of LANGS) assert.equal(translations[l].protocols_restart, translations[l].protocols_restart_confirm, l);
+  assert.equal(translations.en.protocols_restart, 'Resume');
+  assert.match(translations.en.today_tx_over_body, /you can resume it from Ended/);
+});
