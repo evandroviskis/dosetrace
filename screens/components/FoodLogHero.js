@@ -138,6 +138,19 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
   const weekLine = !locked && state.week && state.week.kcal > 0
     ? t('nutri_hero_week').replace('{total}', formatInt(state.week.kcal, language)).replace('{avg}', formatInt(state.week.avgKcal, language))
     : null;
+  // Food week on Journey (founder 2026-11-08, docs/specs/food-fiber-week.md, picture
+  // docs/design/food-week-fiber-pace.html): the week's calories and the daily averages of protein, carbs
+  // and fiber, only the person's own numbers — never "too much / too little" — and the line pointing to
+  // the trainer or health professional. Today keeps its one week line.
+  const week = variant === 'journey' && weekLine ? state.week : null;
+  const fiberLabel = week && week.avgFiber != null
+    ? (week.fiberDays < week.foodDays ? t('nutri_fiber') + ' · ' + t(pluralKey('nutri_week_days', week.fiberDays, language)).replace('{n}', String(week.fiberDays)) : t('nutri_fiber'))
+    : null;
+  const weekTiles = week ? [
+    { k: 'p', v: week.avgProtein, label: t('nutri_protein') },
+    { k: 'c', v: week.avgCarb, label: t('nutri_carbs') },
+    ...(fiberLabel ? [{ k: 'f', v: week.avgFiber, label: fiberLabel }] : []),
+  ] : null;
 
   return (
     <View style={variant === 'today' && s.cardToday}>
@@ -163,7 +176,23 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady })
         <RowChevron color={colors.tick} />
       </View>
       <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
-      {weekLine ? <Text style={s.check}>{weekLine}</Text> : null}
+      {week ? (
+        <View style={s.week}>
+          <Text style={s.weekHead}>{t(pluralKey('nutri_week_head', week.foodDays, language)).replace('{n}', String(week.foodDays))}</Text>
+          <Text style={s.weekKcal}>{t('nutri_week_kcal').replace('{total}', formatInt(week.kcal, language))}</Text>
+          <Text style={s.weekAvg}>{t(week.foodDays < 7 ? 'nutri_week_avg_food' : 'nutri_week_avg')}</Text>
+          <View style={s.tiles}>
+            {weekTiles.map((x) => (
+              <View key={x.k} style={s.tile}>
+                <Text style={s.tileV}>{formatInt(x.v, language)} g</Text>
+                <Text style={s.tileK}>{x.label}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={s.weekNote}>{t('nutri_week_talk')}</Text>
+        </View>
+      ) : null}
+      {weekLine && !week ? <Text style={s.check}>{weekLine}</Text> : null}
       {checkLine && <Text style={s.check}>{checkLine}</Text>}
       {locked && <View style={s.cta}><Text style={s.ctaText}>{t('nutri_locked_cta')}</Text></View>}
       {emph && (
@@ -187,6 +216,16 @@ const makeStyles = (c) => StyleSheet.create({
   // app maps Geist from 22 pt up).
   line: { fontSize: 19, fontFamily: fontFamilyFor('600'), lineHeight: 24, letterSpacing: -0.19, color: c.ink, fontVariant: ['tabular-nums'] },
   check: { fontSize: 15, lineHeight: 20, color: c.ink2, fontVariant: ['tabular-nums'] },
+  // Food week (picture food-week-fiber-pace.html, column 2): a hairline, the week, three wells.
+  week: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 12, marginTop: 4, gap: 4 },
+  weekHead: { fontSize: 13, lineHeight: 18, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', color: c.ink2 },
+  weekKcal: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  weekAvg: { fontSize: 15, lineHeight: 20, color: c.ink2, marginTop: 4 },
+  tiles: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  tile: { flex: 1, minWidth: 0, backgroundColor: c.well, borderRadius: 14, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center' },
+  tileV: { fontSize: 17, lineHeight: 22, fontWeight: '700', color: c.ink, fontVariant: ['tabular-nums'] },
+  tileK: { fontSize: 12, lineHeight: 16, color: c.ink2, textAlign: 'center' },
+  weekNote: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: 8 },
   cta: { alignSelf: 'flex-start', backgroundColor: c.act, borderRadius: 22, paddingHorizontal: 18, minHeight: 44, justifyContent: 'center', marginTop: 6 },
   ctaText: { color: c.onAct, fontWeight: '700', fontSize: 15 },
   // A-124 (picture A1): the 2 pt line sits inside the card (inset), so nothing moves.

@@ -621,7 +621,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             ))}
             <View style={s.entryTot}>
               <Text style={s.entryTotText}>≈ {Math.round(x.kcal || 0)} {t('cal_kcal')}</Text>
-              <Text style={s.entryMacro}>{Math.round(x.carb_g || 0)} g {t('nutri_carbs')} · {Math.round(x.protein_g || 0)} g {t('nutri_protein')}</Text>
+              <Text style={s.entryMacro}>{Math.round(x.carb_g || 0)} g {t('nutri_carbs')} · {Math.round(x.protein_g || 0)} g {t('nutri_protein')}{x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}</Text>
             </View>
           </TouchableOpacity>
         );

@@ -87,9 +87,9 @@ test('A-133 server: the follow-up text gives the model the stored macros, not on
   for (const k of ['protein_g', 'carb_g', 'fat_g']) assert.ok(line.includes(`it.${k}`), `the line carries ${k}`);
 });
 
-test('A-133 server: FOLLOWUP_SYSTEM asks for all four numbers and never a 0 for a nutrient the food has', () => {
+test('A-133 server: FOLLOWUP_SYSTEM asks for all the numbers (four, five with fiber since 2026-11-09) and never a 0 for a nutrient the food has', () => {
   const m = server.match(/const FOLLOWUP_SYSTEM = `([\s\S]*?)`;/);
   assert.ok(m);
-  assert.match(m[1], /ALWAYS return all four numbers/);
+  assert.match(m[1], /ALWAYS return all five numbers \(kcal, protein_g, carb_g, fat_g, fiber_g\)/);
   assert.match(m[1], /never 0 for a nutrient the food contains/i);
 });

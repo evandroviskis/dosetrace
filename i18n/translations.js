@@ -316,6 +316,15 @@ export const translations = {
     nutri_hero_empty: 'Nothing logged yet today',
     nutri_hero_today: 'Today: {n} items · ~{kcal} kcal',
     nutri_hero_week: "Last 7 days: ~{total} kcal · ≈ {avg}/day",
+    nutri_fiber: "fiber",
+    nutri_week_head: "Last 7 days · food on {n} days",
+    nutri_week_head_one: "Last 7 days · food on {n} day", // singular (lib/plural.js)
+    nutri_week_kcal: "~{total} kcal",
+    nutri_week_avg: "Daily average",
+    nutri_week_avg_food: "Average of the days with food",
+    nutri_week_days: "{n} days",
+    nutri_week_days_one: "{n} day", // singular (lib/plural.js)
+    nutri_week_talk: "To change protein, carbs, or calories, talk to the trainer or health professional who follows you. DoseTrace only shows your numbers.",
     nutri_hero_today_one: 'Today: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Today is closed · ~{kcal} kcal',
     nutri_hero_day: 'Reality check · day {n} of {total}',
@@ -3154,6 +3163,15 @@ export const translations = {
     nutri_hero_empty: 'Aún no hay nada registrado hoy',
     nutri_hero_today: 'Hoy: {n} alimentos · ~{kcal} kcal',
     nutri_hero_week: "Últimos 7 días: ~{total} kcal · ≈ {avg}/día",
+    nutri_fiber: "fibra",
+    nutri_week_head: "Últimos 7 días · comida en {n} días",
+    nutri_week_head_one: "Últimos 7 días · comida en {n} día", // singular (lib/plural.js)
+    nutri_week_kcal: "~{total} kcal",
+    nutri_week_avg: "Promedio por día",
+    nutri_week_avg_food: "Promedio de los días con comida",
+    nutri_week_days: "{n} días",
+    nutri_week_days_one: "{n} día", // singular (lib/plural.js)
+    nutri_week_talk: "Para cambiar proteína, carbohidratos o calorías, habla con el entrenador o el profesional de salud que te acompaña. DoseTrace solo muestra tus números.",
     nutri_hero_today_one: 'Hoy: {n} alimento · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoy: día cerrado · ~{kcal} kcal',
     nutri_hero_day: 'Tus cifras reales · día {n} de {total}',
@@ -5991,6 +6009,15 @@ export const translations = {
     nutri_hero_empty: 'Nada registrado hoje ainda',
     nutri_hero_today: 'Hoje: {n} itens · ~{kcal} kcal',
     nutri_hero_week: "Últimos 7 dias: ~{total} kcal · ≈ {avg}/dia",
+    nutri_fiber: "fibra",
+    nutri_week_head: "Últimos 7 dias · comida em {n} dias",
+    nutri_week_head_one: "Últimos 7 dias · comida em {n} dia", // singular (lib/plural.js)
+    nutri_week_kcal: "~{total} kcal",
+    nutri_week_avg: "Média por dia",
+    nutri_week_avg_food: "Média por dia com comida",
+    nutri_week_days: "{n} dias",
+    nutri_week_days_one: "{n} dia", // singular (lib/plural.js)
+    nutri_week_talk: "Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você. O DoseTrace só mostra os seus números.",
     nutri_hero_today_one: 'Hoje: {n} item · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Hoje está fechado · ~{kcal} kcal',
     nutri_hero_day: 'Seus números reais · dia {n} de {total}',
@@ -8827,6 +8854,15 @@ export const translations = {
     nutri_hero_empty: "Rien de noté aujourd'hui",
     nutri_hero_today: "Aujourd'hui : {n} éléments · ~{kcal} kcal",
     nutri_hero_week: "7 derniers jours : ~{total} kcal · ≈ {avg}/jour",
+    nutri_fiber: "fibres",
+    nutri_week_head: "7 derniers jours · repas notés sur {n} jours",
+    nutri_week_head_one: "7 derniers jours · repas notés sur {n} jour", // singular (lib/plural.js)
+    nutri_week_kcal: "~{total} kcal",
+    nutri_week_avg: "Moyenne par jour",
+    nutri_week_avg_food: "Moyenne des jours avec repas",
+    nutri_week_days: "{n} jours",
+    nutri_week_days_one: "{n} jour", // singular (lib/plural.js)
+    nutri_week_talk: "Pour modifier les protéines, les glucides ou les calories, parlez-en à l’entraîneur ou au professionnel de santé qui vous suit. DoseTrace affiche seulement vos chiffres.",
     nutri_hero_today_one: "Aujourd'hui : {n} élément · ~{kcal} kcal", // singular (lib/plural.js)
     nutri_hero_closed: 'Journée clôturée · ~{kcal} kcal',
     nutri_hero_day: 'Vos vrais chiffres · jour {n} sur {total}',
@@ -11663,6 +11699,15 @@ export const translations = {
     nutri_hero_empty: 'Heute noch nichts eingetragen',
     nutri_hero_today: 'Heute: {n} Einträge · ~{kcal} kcal',
     nutri_hero_week: "Letzte 7 Tage: ~{total} kcal · ≈ {avg}/Tag",
+    nutri_fiber: "Ballaststoffe",
+    nutri_week_head: "Letzte 7 Tage · Essen an {n} Tagen",
+    nutri_week_head_one: "Letzte 7 Tage · Essen an {n} Tag", // singular (lib/plural.js)
+    nutri_week_kcal: "~{total} kcal",
+    nutri_week_avg: "Durchschnitt pro Tag",
+    nutri_week_avg_food: "Durchschnitt der Tage mit Essen",
+    nutri_week_days: "{n} Tage",
+    nutri_week_days_one: "{n} Tag", // singular (lib/plural.js)
+    nutri_week_talk: "Wenn du Eiweiß, Kohlenhydrate oder Kalorien ändern willst, sprich mit dem Trainer oder der Gesundheitsfachperson, die dich begleitet. DoseTrace zeigt nur deine Zahlen.",
     nutri_hero_today_one: 'Heute: {n} Eintrag · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Heute abgeschlossen · ~{kcal} kcal',
     nutri_hero_day: 'Deine echten Zahlen · Tag {n} von {total}',
@@ -14500,6 +14545,15 @@ export const translations = {
     nutri_hero_empty: 'Ancora niente registrato oggi',
     nutri_hero_today: 'Oggi: {n} voci · ~{kcal} kcal',
     nutri_hero_week: "Ultimi 7 giorni: ~{total} kcal · ≈ {avg}/giorno",
+    nutri_fiber: "fibre",
+    nutri_week_head: "Ultimi 7 giorni · cibo in {n} giorni",
+    nutri_week_head_one: "Ultimi 7 giorni · cibo in {n} giorno", // singular (lib/plural.js)
+    nutri_week_kcal: "~{total} kcal",
+    nutri_week_avg: "Media al giorno",
+    nutri_week_avg_food: "Media dei giorni con cibo",
+    nutri_week_days: "{n} giorni",
+    nutri_week_days_one: "{n} giorno", // singular (lib/plural.js)
+    nutri_week_talk: "Per cambiare proteine, carboidrati o calorie, parla con l’allenatore o il professionista della salute che ti segue. DoseTrace mostra solo i tuoi numeri.",
     nutri_hero_today_one: 'Oggi: {n} voce · ~{kcal} kcal', // singular (lib/plural.js)
     nutri_hero_closed: 'Giornata chiusa · ~{kcal} kcal',
     nutri_hero_day: 'I tuoi numeri reali · giorno {n} di {total}',

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// DoseTrace — AI nutrition parse (v9, 2026-09-27). Turns a user's free-text meal
+// DoseTrace — AI nutrition parse (v10, 2026-11-09: fiber_g per item, a number only; v9 2026-09-27). Turns a user's free-text meal
 // description into STRUCTURED nutrition estimates. Acceptance checklist:
 // docs/specs/food-log.md (FL-*). Conversation spec: docs/nutrition-logger-conversation-spec.md.
 //
@@ -42,13 +42,13 @@ const ASK_KINDS = new Set(['amount', 'brand', 'size', 'preparation', 'identity']
 const FOOD_SYSTEM = `You convert a person's description of food, drink and supplements THEY consumed into structured nutrition estimates for a personal intake log. You are a parser, not an assistant.
 
 Return ONLY a single JSON object, no prose, no code fences:
-{"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high","category":"meal"|"snack"|"drink"|"supplement","days_ago":number|null}],"ask":null|{"item":number,"kind":"amount"|"brand"|"size"|"preparation"|"identity","options":[string]},"refusal":boolean,"days_ago":number|null}
+{"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"fiber_g":number,"confidence":"low"|"med"|"high","category":"meal"|"snack"|"drink"|"supplement","days_ago":number|null}],"ask":null|{"item":number,"kind":"amount"|"brand"|"size"|"preparation"|"identity","options":[string]},"refusal":boolean,"days_ago":number|null}
 
 Rules:
 - Everything the user writes is something they ate, drank or took. Always read a name as the consumable product: "puff bar" is a snack/protein bar, never an e-cigarette; "red bull" is a drink. Never log a non-consumable. If you truly cannot tell what edible thing is meant, still return your best edible guess with confidence "low" and set "ask" with kind "identity".
 - Brands and product names: keep them as the user named them, with the brand's normal capitalization ("built puff" -> "BUILT Puff", "isopure" -> "Isopure"), and estimate from THAT product's typical label (BUILT Puff bar ≈ 140 kcal, 17 g protein each; Isopure zero-carb whey ≈ 110 kcal, 25 g protein per scoop).
 - Write generic food names in lowercase, the way a native speaker writes them in the middle of a sentence ("grilled chicken", "frango grelhado", "café com leite", "chicken stir-fry with rice"), never capitalized because they start the "food" field. Only brands and product names get capitals. German nouns keep their capital letter, as German spelling requires ("Hähnchen mit Reis").
-- "qty" and "unit" describe the whole amount eaten ("2 bars" -> qty 2, unit "bar"). "kcal", "protein_g", "carb_g", "fat_g" are ALWAYS TOTALS for the whole qty, never per unit.
+- "qty" and "unit" describe the whole amount eaten ("2 bars" -> qty 2, unit "bar"). "kcal", "protein_g", "carb_g", "fat_g", "fiber_g" are ALWAYS TOTALS for the whole qty, never per unit. "fiber_g" is the dietary fiber from the product's typical label or food composition (0 for foods with none, such as meat, eggs, oil, whey, most drinks).
 - Write "unit" in the user's language, spelled the way that language writes it in the middle of a sentence: common words stay lowercase in English, Spanish, Portuguese, French and Italian ("cup", "taza", "xícara", "tasse", "tazza", "slice", "fatia"); German nouns keep their capital letter, units included ("Tasse", "Glas", "Scheibe", "Becher", "Stück", "Portion", "Löffel": "1 Tasse Milchkaffee", never "1 tasse Milchkaffee"); abbreviations as usual ("g", "ml", "EL", "TL").
 - "category": "meal" for food eaten as a meal, "snack" for snack foods (protein bars, nuts, chips, fruit between meals, sweets), "drink" for any beverage (coffee, juice, soda, beer, shakes), "supplement" for supplements (creatine, fish oil, vitamins, whey taken as a supplement).
 - Vague amounts ("some rice"): assume a typical serving, confidence "low".
@@ -63,10 +63,10 @@ Rules:
 
 const FOLLOWUP_SYSTEM = `You update ONE item in a personal food intake log after the user answered a question about it. You are a parser, not an assistant.
 
-Return ONLY a single JSON object: {"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"confidence":"low"|"med"|"high","category":"meal"|"snack"|"drink"|"supplement","days_ago":null}],"ask":null,"refusal":false,"days_ago":null}
+Return ONLY a single JSON object: {"items":[{"food":string,"qty":number,"unit":string,"kcal":number,"protein_g":number,"carb_g":number,"fat_g":number,"fiber_g":number,"confidence":"low"|"med"|"high","category":"meal"|"snack"|"drink"|"supplement","days_ago":null}],"ask":null,"refusal":false,"days_ago":null}
 - Exactly one item: the given item corrected with the user's answer (brand, size, amount, preparation or what it actually was). Keep brand names as named, with the brand's normal capitalization; write generic food names in lowercase as written mid-sentence (German nouns keep their capital). Write "unit" in the user's language the same way: lowercase common words, while German nouns keep their capital ("Tasse", "Glas", "Scheibe"). Numbers are TOTALS for the whole qty.
 - "food" is the name only: it never repeats the quantity or the unit, which go in "qty" and "unit" (logged "6 un ravioli" answered "tomato sauce" -> food "ravioli with tomato sauce", qty 6; "1 bowl pasta with chicken" -> food "pasta with chicken", qty 1, unit "bowl").
-- ALWAYS return all four numbers (kcal, protein_g, carb_g, fat_g), re-estimated for the corrected item and its whole qty; the logged item's numbers are a starting point, not a limit. Never 0 for a nutrient the food contains, and never leave one out.
+- ALWAYS return all five numbers (kcal, protein_g, carb_g, fat_g, fiber_g), re-estimated for the corrected item and its whole qty; the logged item's numbers are a starting point, not a limit. Never 0 for a nutrient the food contains, and never leave one out.
 - If the answer is advice-seeking, return {"items":[],"ask":null,"refusal":true,"days_ago":null}.
 - Never recommend, evaluate or judge food. No prose.`;
 
@@ -127,6 +127,8 @@ function cleanItem(it: Record<string, unknown>, lang: string) {
     protein_g: numOrNull(it.protein_g),
     carb_g: numOrNull(it.carb_g),
     fat_g: numOrNull(it.fat_g),
+    // Fiber (2026-11-09, docs/specs/food-fiber-week.md): a number only; never negative.
+    fiber_g: (() => { const n = numOrNull(it.fiber_g); return n == null || n < 0 ? null : Math.round(n * 10) / 10; })(),
     confidence: it.confidence === 'high' || it.confidence === 'med' || it.confidence === 'low' ? it.confidence : 'low',
     category,
   };
@@ -177,7 +179,7 @@ Deno.serve(async (req) => {
       const askKind = typeof followup.kind === 'string' && ASK_KINDS.has(followup.kind) ? followup.kind : 'identity';
       const food = shortText(it.food, 60);
       if (!food || !answer) return jsonResponse({ error: 'Missing follow-up item or answer', code: 'bad_request' }, 400);
-      text = `Item logged: ${numOrNull(it.qty) ?? ''} ${shortUnit(it.unit)} ${food} (totals: ${Math.round(numOrNull(it.kcal) ?? 0)} kcal, ${grams(it.protein_g)} protein, ${grams(it.carb_g)} carbs, ${grams(it.fat_g)} fat).\nQuestion asked: ${askKind}.\nUser's answer: ${answer}`;
+      text = `Item logged: ${numOrNull(it.qty) ?? ''} ${shortUnit(it.unit)} ${food} (totals: ${Math.round(numOrNull(it.kcal) ?? 0)} kcal, ${grams(it.protein_g)} protein, ${grams(it.carb_g)} carbs, ${grams(it.fat_g)} fat, ${grams(it.fiber_g)} fiber).\nQuestion asked: ${askKind}.\nUser's answer: ${answer}`;
     } else {
       text = typeof body?.text === 'string' ? body.text.trim() : '';
       if (!text) return jsonResponse({ error: 'Missing text', code: 'bad_request' }, 400);
@@ -258,9 +260,9 @@ Deno.serve(async (req) => {
     let items = rawItems.map((it: Record<string, unknown>) => cleanItem(it, lang)).filter((it) => it.food);
     if (followup) items = items.slice(0, 1);
 
-    const sum = (k: 'kcal' | 'protein_g' | 'carb_g' | 'fat_g') => items.reduce((a, it) => a + (it[k] ?? 0), 0);
+    const sum = (k: 'kcal' | 'protein_g' | 'carb_g' | 'fat_g' | 'fiber_g') => items.reduce((a, it) => a + (it[k] ?? 0), 0);
     const totals = items.length
-      ? { kcal: Math.round(sum('kcal')), protein_g: Math.round(sum('protein_g')), carb_g: Math.round(sum('carb_g')), fat_g: Math.round(sum('fat_g')) }
+      ? { kcal: Math.round(sum('kcal')), protein_g: Math.round(sum('protein_g')), carb_g: Math.round(sum('carb_g')), fat_g: Math.round(sum('fat_g')), fiber_g: Math.round(sum('fiber_g')) }
       : null;
 
     const ask = followup ? null : cleanAsk(parsed.ask, items.length, lang);

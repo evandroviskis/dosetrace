@@ -26,7 +26,7 @@ test('three days of food this week: the total is their sum, the average is per d
   assert.equal(w.kcal, 2000 + 300 + 1800 + 1840);
   assert.equal(w.foodDays, 3);
   assert.equal(w.avgKcal, Math.round((2000 + 300 + 1800 + 1840) / 3));
-  assert.deepEqual(weekSummary([], TODAY), { kcal: 0, foodDays: 0, avgKcal: 0 });
+  assert.deepEqual(weekSummary([], TODAY), { kcal: 0, foodDays: 0, avgKcal: 0, avgProtein: 0, avgCarb: 0, fiberDays: 0, avgFiber: null }); // + the food week (foodFiberWeek.test.js)
 });
 
 test('the card reads 6 days back and shows the week line under the day total', async () => {
@@ -46,7 +46,8 @@ test('the card reads 6 days back and shows the week line under the day total', a
   assert.equal(state.week.foodDays, 3);
 
   const hero = read('screens/components/FoodLogHero.js');
-  const line = hero.indexOf('{weekLine ? <Text style={s.check}>{weekLine}</Text> : null}');
+  // Today keeps this line; Journey shows the food week block in its place (foodFiberWeek.test.js FW-6).
+  const line = hero.indexOf('{weekLine && !week ? <Text style={s.check}>{weekLine}</Text> : null}');
   assert.ok(line > 0, 'the week line is drawn');
   assert.ok(line > hero.indexOf('<Text style={s.line}>'), 'under the day total');
   assert.ok(line < hero.indexOf('{checkLine && <Text style={s.check}>'), 'above the check line');
