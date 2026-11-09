@@ -232,3 +232,13 @@ test('PN-5 deleting a Taken dose of a single-dose pen gives the pen back; a vial
   const skipped = planDeleteDose({ id: 8, protocol_id: 1, outcome: 'Skipped', logged_at: '2026-11-09T12:00:00Z' }, { protocol, vials: [], takenLogs: [] });
   assert.equal(skipped.penRestore, undefined, 'PN-19: a skip never took a pen');
 });
+
+test('PN-4 label facts: Ozempic counts as printed; Saxenda and Victoza print none, so none is invented', () => {
+  const low = pen.catalogEntry('ozempic_low');
+  assert.equal(pen.dosesPerPen(low, 0.25), 4);
+  assert.equal(pen.dosesPerPen(pen.catalogEntry('ozempic_8'), 1), 8);
+  assert.equal(pen.dosesPerPen(pen.catalogEntry('saxenda'), 3), null);
+  assert.equal(pen.dosesPerPen(pen.catalogEntry('victoza'), 1.8), null);
+  assert.equal(pen.validDaysFor(pen.catalogEntry('ozempic_1'), 'US'), 56);
+  assert.equal(pen.validDaysFor(pen.catalogEntry('ozempic_1'), 'BR'), 42);
+});
