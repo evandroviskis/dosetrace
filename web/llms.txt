@@ -22,6 +22,26 @@ DoseTrace is for a person's own records. It is not for a healthcare professional
 - [How do I convert mcg to mg and mg to mcg?](https://dosetrace.io/how-to-convert-mcg-and-mg): the factor is 1000.
 - [How do I calculate a fraction of a tablet?](https://dosetrace.io/how-to-calculate-a-tablet-fraction): fraction arithmetic only. It does not say that a tablet can be split.
 
+## Guides
+
+- [How does DoseTrace track a vial?](https://dosetrace.io/how-dosetrace-tracks-vials): supply and the expiry date you enter, with an alert when about 7 days of use are left.
+- [How does DoseTrace chart a lab marker over time?](https://dosetrace.io/how-dosetrace-charts-a-lab-marker): results stored by marker and charted. No interpretation.
+- [How do DoseTrace reminders work?](https://dosetrace.io/how-dosetrace-reminders-work): a reminder for a dose you already plan, plus a check that the phone can deliver it.
+- [How does DoseTrace keep a dose history?](https://dosetrace.io/how-dosetrace-keeps-a-dose-history): the doses you mark, and a 30-day adherence report. Not a tool for treating a patient.
+- [Who publishes DoseTrace, and what are its limits?](https://dosetrace.io/about-outcom-help-and-limits): Outcom publishes it. Help is hello@dosetrace.io. It does not choose a dose, interpret a lab result, or check drug interactions.
+
+## Tutorials
+
+Written examples only. Numbers are examples.
+
+- [Is 250 mcg the same as 250 mg?](https://dosetrace.io/is-250-mcg-the-same-as-250-mg)
+- [How is half of a tablet calculated?](https://dosetrace.io/how-is-half-of-a-tablet-calculated)
+- [How is a lab marker charted over time?](https://dosetrace.io/how-a-lab-marker-is-charted-over-time)
+- [How do I mark a vitamin dose?](https://dosetrace.io/how-do-i-mark-a-vitamin-dose)
+- [How do I log a vaccine?](https://dosetrace.io/how-do-i-log-a-vaccine)
+- [How do I log a weigh-in?](https://dosetrace.io/how-do-i-log-a-weigh-in)
+- [All tutorials](https://dosetrace.io/tutorials)
+
 ## Pages and apps
 
 - [DoseTrace home](https://dosetrace.io/): private journal for medications, injectables, and supplements.

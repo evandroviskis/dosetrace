@@ -509,3 +509,18 @@ p { margin: 0; }
 @media (max-width: 600px) {
   body:has(.calc-page) .nav-actions .btn-primary { display: inline-flex; }
 }
+
+/* ---------- Guide and tutorial pages ---------- */
+.guide-shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 300px)); gap: 18px; align-items: start; margin-top: 16px; }
+.guide-shot { margin: 0; }
+.guide-shot img { width: 100%; height: auto; border-radius: 22px; border: 1px solid var(--line); background: var(--surface-2); }
+.article .guide-shot figcaption { color: var(--muted); font-size: 13.5px; margin-top: 8px; }
+.placeholder {
+  margin-top: 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  padding: 18px 16px;
+  background: var(--surface);
+  color: var(--muted);
+}
+.article .placeholder p { margin-top: 0; color: var(--muted); }

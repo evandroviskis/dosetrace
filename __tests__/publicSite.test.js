@@ -260,3 +260,72 @@ test('calculator pages keep the safety text, real store links, and public routes
   assert.match(tablet, /enteric-coated/);
   assert.match(tablet, /1\/2 × a tablet labeled 10 mg = 5 mg/);
 });
+
+test('new guide and tutorial pages are public, limited, and free of banned terms', () => {
+  const LIMITS = 'DoseTrace calculates with the numbers you type. It does not choose a dose, does not interpret a lab result, and does not check drug interactions. It is for your own records, not a clinical tool for treating patients.';
+  const TODO = '<!-- TODO: real Demo screenshot coming from Claude -->';
+  const extraBanned = [/tirzepatide/i, /\bbpc\b/i, /glp-?1/i, /semaglutide/i, /compared with other apps/i];
+  const pages = [
+    'how-dosetrace-tracks-vials.html',
+    'how-dosetrace-charts-a-lab-marker.html',
+    'how-dosetrace-reminders-work.html',
+    'how-dosetrace-keeps-a-dose-history.html',
+    'about-outcom-help-and-limits.html',
+    'tutorials.html',
+    'is-250-mcg-the-same-as-250-mg.html',
+    'how-is-half-of-a-tablet-calculated.html',
+    'how-a-lab-marker-is-charted-over-time.html',
+    'how-do-i-mark-a-vitamin-dose.html',
+    'how-do-i-log-a-vaccine.html',
+    'how-do-i-log-a-weigh-in.html',
+  ];
+  const todoPages = new Set([
+    'how-dosetrace-tracks-vials.html',
+    'how-dosetrace-keeps-a-dose-history.html',
+  ]);
+  const xml = read('sitemap.xml');
+  const llms = read('llms.txt');
+  const home = read('index.html');
+  for (const rel of pages) {
+    assert.equal(fs.existsSync(path.join(WEB, rel)), true, rel);
+    const html = read(rel);
+    const url = canonical(rel);
+    assert.ok(xml.includes('<loc>' + url + '</loc>'), url);
+    assert.ok(llms.includes(url), 'llms ' + url);
+    assert.ok(html.includes(LIMITS), rel);
+    assert.equal(html.includes(TODO), todoPages.has(rel), rel + ' TODO spot');
+    assertClean(rel, html);
+    for (const pattern of extraBanned) assert.doesNotMatch(html, pattern, rel);
+    const blocks = jsonLdBlocks(html);
+    assert.ok(blocks.length >= 1, rel);
+    for (const key of ['aggregateRating', 'review', 'reviewCount', 'ratingValue', 'ratingCount']) {
+      assert.equal(hasKey(blocks[0], key), false, rel + ' ' + key);
+    }
+    const imgs = [...html.matchAll(/\bsrc="(\/img\/[^"]+)"/g)].map((m) => m[1]);
+    for (const src of imgs) {
+      assert.equal(fs.existsSync(path.join(WEB, src.slice(1))), true, src);
+    }
+    for (const raw of [...html.matchAll(/\bhref="([^"]+)"/g)].map((m) => m[1])) {
+      if (raw.startsWith('mailto:') || raw.startsWith('#')) continue;
+      if (raw.startsWith('https://outcom.io')) continue;
+      let urlPath = raw;
+      if (urlPath.startsWith('https://dosetrace.io')) urlPath = urlPath.slice('https://dosetrace.io'.length) || '/';
+      if (urlPath.startsWith('https://')) {
+        const origin = new URL(urlPath).origin;
+        assert.ok([APPLE, PLAY, 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'].includes(urlPath) || ['https://fonts.googleapis.com', 'https://fonts.gstatic.com'].includes(origin), raw);
+        continue;
+      }
+      const clean = urlPath.split('#')[0].split('?')[0];
+      const relPath = clean === '/' ? 'index.html' : clean.replace(/^\//, '');
+      assert.ok([relPath, relPath + '.html'].some((c) => fs.existsSync(path.join(WEB, c))), rel + ' -> ' + raw);
+    }
+  }
+  assert.ok(read('how-dosetrace-charts-a-lab-marker.html').includes('Vitamin D'));
+  assert.match(read('how-dosetrace-charts-a-lab-marker.html'), /24, then 31, then 36 ng\/mL/);
+  assert.ok(read('how-dosetrace-reminders-work.html').includes('/img/reminders-check.webp'));
+  assert.ok(read('how-is-half-of-a-tablet-calculated.html').includes(calc.TABLET_NOTICE));
+  assert.ok(home.includes('/about-outcom-help-and-limits'));
+  assert.ok(home.includes('id="guides-nav"'));
+  assert.ok(read('is-250-mcg-the-same-as-250-mg.html').includes('/how-to-convert-mcg-and-mg'));
+  assert.ok(read('is-250-mcg-the-same-as-250-mg.html').includes('/how-to-convert-mg-to-ml-for-a-syringe'));
+});
