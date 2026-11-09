@@ -27,7 +27,7 @@ CURVA DE ACÚMULO (PREMIUM)
 SEU CORPO
 • Diário de exames: tire uma foto ou envie o PDF de um laudo de qualquer laboratório, em qualquer idioma, e os valores são lidos para você — você confere antes de salvar. Veja qualquer marcador num gráfico ao longo do tempo (Premium).
 • Vacinas: registre ou escaneie seu cartão de vacinação
-• Pesagens, estimativa de energia e proteína do dia e "Seus números reais" em 7 dias (grátis por 7 dias, depois Premium)
+• Pesagens e estimativa de energia e proteína do dia (grátis), e "Seus números reais" em cerca de 3 semanas (resultado: Premium)
 • Registro de comida com IA: conte o que comeu com suas palavras (grátis por 7 dias, depois Premium)
 
 RELATÓRIOS

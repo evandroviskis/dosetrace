@@ -27,7 +27,7 @@ CURVA DI ACCUMULO (PREMIUM)
 IL TUO CORPO
 • Diario degli esami: fotografa o carica il PDF di un referto di qualsiasi laboratorio, in qualsiasi lingua, e i valori vengono letti per te — li controlli prima di salvare. Segui ogni valore in un grafico (Premium).
 • Vaccini: registrali o scansiona il tuo libretto vaccinale
-• Pesate, stima giornaliera di energia e proteine e «I tuoi numeri reali» in 7 giorni (gratis per 7 giorni, poi Premium)
+• Pesate e stima giornaliera di energia e proteine (gratis), e «I tuoi numeri reali» in circa 3 settimane (risultato: Premium)
 • Diario alimentare con IA: racconta cosa hai mangiato con parole tue (gratis per 7 giorni, poi Premium)
 
 REPORT

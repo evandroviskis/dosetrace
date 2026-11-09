@@ -27,7 +27,7 @@ CURVA DE ACUMULACIÓN (PREMIUM)
 TU CUERPO
 • Diario de análisis: haz una foto o sube el PDF de un informe de cualquier laboratorio, en cualquier idioma, y se leen los valores por ti; los revisas antes de guardar. Sigue cualquier marcador en un gráfico (Premium).
 • Vacunas: regístralas o escanea tu cartilla de vacunación
-• Pesajes, estimación diaria de energía y proteína, y «Tus cifras reales» en 7 días (gratis 7 días, luego Premium)
+• Pesajes y estimación diaria de energía y proteína (gratis), y «Tus cifras reales» en unas 3 semanas (resultado: Premium)
 • Registro de comidas con IA: cuéntale lo que comiste con tus palabras (gratis 7 días, luego Premium)
 
 INFORMES

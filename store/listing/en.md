@@ -27,7 +27,7 @@ ESTIMATED LEVELS (PREMIUM)
 YOUR BODY
 • Lab journal: snap a photo or upload a PDF of a report from any lab, in any language, and the values are read for you — you check them before saving. Chart any marker over time (Premium).
 • Vaccine records: log them or scan your vaccine card
-• Weigh-ins, daily energy and protein estimates, and a 7-day reality check (free for 7 days, then Premium)
+• Weigh-ins and daily energy and protein estimates (free), and a reality check in about 3 weeks (result: Premium)
 • AI food log: tell it what you ate in your own words (free for 7 days, then Premium)
 
 REPORTS

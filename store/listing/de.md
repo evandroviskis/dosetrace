@@ -27,7 +27,7 @@ AKKUMULATIONSKURVE (PREMIUM)
 DEIN KÖRPER
 • Labortagebuch: Fotografiere einen Befund oder lade das PDF hoch – aus jedem Labor, in jeder Sprache – und die Werte werden für dich ausgelesen; du prüfst sie vor dem Speichern. Verfolge jeden Wert in einem Diagramm (Premium).
 • Impfungen: eintragen oder deinen Impfpass scannen
-• Wägungen, geschätzter Tagesbedarf an Energie und Protein und „Deine echten Zahlen“ in 7 Tagen (7 Tage gratis, dann Premium)
+• Wägungen und geschätzter Tagesbedarf an Energie und Protein (gratis) sowie „Deine echten Zahlen“ in etwa 3 Wochen (Ergebnis: Premium)
 • KI-Essensprotokoll: erzähl in deinen Worten, was du gegessen hast (7 Tage gratis, dann Premium)
 
 BERICHTE

@@ -27,7 +27,7 @@ COURBE D'ACCUMULATION (PREMIUM)
 VOTRE CORPS
 • Journal d'analyses : prenez en photo ou importez le PDF d'un compte rendu de n'importe quel laboratoire, dans n'importe quelle langue, et les valeurs sont lues pour vous — vous les vérifiez avant d'enregistrer. Suivez chaque marqueur sur un graphique (Premium).
 • Vaccins : saisissez-les ou scannez votre carnet de vaccination
-• Pesées, estimation de l'énergie et des protéines du jour, et « Vos vrais chiffres » sur 7 jours (gratuit 7 jours, puis Premium)
+• Pesées et estimation de l'énergie et des protéines du jour (gratuit), et « Vos vrais chiffres » en environ 3 semaines (résultat : Premium)
 • Journal alimentaire IA : dites ce que vous avez mangé avec vos mots (gratuit 7 jours, puis Premium)
 
 RAPPORTS
