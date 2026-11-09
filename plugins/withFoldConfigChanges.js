@@ -8,8 +8,7 @@
 
 const { withAndroidManifest } = require('@expo/config-plugins');
 
-// locale|layoutDirection: the per-app language (pickers, S25 2026-11-07) never recreates the activity.
-const NEEDED = ['screenSize', 'smallestScreenSize', 'screenLayout', 'orientation', 'locale', 'layoutDirection'];
+const NEEDED = ['screenSize', 'smallestScreenSize', 'screenLayout', 'orientation'];
 
 function addFoldConfigChanges(androidManifest) {
   const app = androidManifest.manifest && androidManifest.manifest.application && androidManifest.manifest.application[0];
