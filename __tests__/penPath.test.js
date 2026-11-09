@@ -184,3 +184,16 @@ test('PN-8 what already happened: doses left is 0 up to the printed number', () 
   assert.equal(v.doses_taken, 2);
   assert.equal(v.mixed_on, null);
 });
+
+test('PN-12 the pen data and its closed pens sync with the protocol (never AsyncStorage alone)', () => {
+  const { toCloudPayload, OPTIONAL_COLUMNS } = require('../lib/syncMappers');
+  assert.ok(OPTIONAL_COLUMNS.protocols.includes('pen'));
+  const data = JSON.stringify({ kind: 'fixed', perPen: 4, stock: 2 });
+  const payload = toCloudPayload('protocols', { id: 1, name: 'Mounjaro', type: 'pen', pen: data, user_id: 'u' }, 'u');
+  assert.equal(payload.pen, data);
+  assert.equal(payload.type, 'pen');
+  const fs = require('fs');
+  const path = require('path');
+  assert.match(fs.readFileSync(path.join(__dirname, '../lib/schema.js'), 'utf8'), /\bpen TEXT\b/);
+  assert.match(fs.readFileSync(path.join(__dirname, '../supabase/migrations/20261109200000_protocol_pen.sql'), 'utf8'), /add column if not exists pen text/);
+});

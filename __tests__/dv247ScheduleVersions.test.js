@@ -50,7 +50,7 @@ test('DV-247: weekly → daily — the 30-day ring and the streak keep the days 
 test('DV-247: the write, the sync, the restart and Today use the history', () => {
   const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
   assert.match(read('lib/database.js'), /const sh = nextScheduleHistory\(prev, safe, now\);/);
-  assert.match(read('lib/syncMappers.js'), /'dose_history', 'schedule_history'(, 'unrecorded_unknown')?\]/); // UP-35 joined after it
+  assert.match(read('lib/syncMappers.js'), /'dose_history', 'schedule_history'(, 'unrecorded_unknown')?(, 'pen')?\]/); // UP-35 and CP-1 (pen) joined after it
   assert.match(read('lib/syncMappers.js'), /if \(row\.schedule_history\) base\.schedule_history = row\.schedule_history;/);
   assert.match(read('lib/schema.js'), /schedule_history TEXT,/);
   assert.match(read('lib/schema.js'), /ALTER TABLE protocols ADD COLUMN schedule_history TEXT;/);
