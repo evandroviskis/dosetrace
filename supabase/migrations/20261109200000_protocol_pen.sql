@@ -5,7 +5,6 @@
 alter table public.protocols add column if not exists pen text;
 
 -- Delete forever (AD-67 / DV-221): the blanking trigger also blanks the pen (same body as 20261104000000 plus pen).
---    20261101030000 plus unrecorded_unknown); old tombstones are blanked again.
 create or replace function public.protocols_blank_purged()
 returns trigger language plpgsql security invoker set search_path = public, pg_temp as $$
 begin
@@ -31,3 +30,6 @@ $$;
 
 -- ROLLBACK: run the function body of 20261104000000_unrecorded_period.sql again; then
 --   alter table public.protocols drop column if exists pen;
+
+-- Tombstones written before this migration.
+update public.protocols set name = name where purged_at is not null;
