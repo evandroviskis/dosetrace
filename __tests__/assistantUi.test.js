@@ -113,7 +113,7 @@ test('AP-21: Ready to use gets the option-B row and grouped list; a powder keeps
   assert.match(SCREEN, /setSyringeSize\(\(sz\) => allowedSyringe\(typeOpt\.val, sz\)\)/, 'switching to a powder drops an ml syringe');
   // over the syringe still blocks a powder only (as before); ready to use shows it
   assert.match(SCREEN, /const drawExceedsSyringe = type === 'recon' && wizardDraw\.exceedsSyringe;/);
-  assert.match(SCREEN, /const drawOver = type !== 'oral' && wizardDraw\.exceedsSyringe;/);
+  assert.match(SCREEN, /const drawOver = type !== 'oral' && (type !== 'pen' && )?wizardDraw\.exceedsSyringe;/);
 });
 
 test('AP-10: fields the user set by hand are tracked (the form\'s defaults are not answers)', () => {

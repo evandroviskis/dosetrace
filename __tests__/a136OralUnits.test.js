@@ -57,6 +57,6 @@ test('A-136 (6): the wizard reads the rule (Next, Save, Check values; new and ed
   assert.match(src, /import \{ doseUnitCheck \} from '\.\.\/lib\/doseUnitCheck'/);
   assert.doesNotMatch(src, /unitsCompatible\(concentrationUnit \|\| 'mg', doseUnit\)/, 'the old every-type check is gone');
   assert.match(src, /const unitCheck = doseUnitCheck\(\{\s*type, unit, concentrationUnit, doseUnit, dose,\s*servingStrength, servingStrengthUnit, servingUnits, form: notes, language,\s*\}\);/);
-  assert.match(src, /const unitMismatch = !unitCheck\.ok;/);
+  assert.match(src, /const unitMismatch = (type !== 'pen' && )?!unitCheck\.ok;/);
   assert.match(src, /body: unitMismatch \? t\(unitCheck\.messageKey\) : drawExceedsMsg,/);
 });

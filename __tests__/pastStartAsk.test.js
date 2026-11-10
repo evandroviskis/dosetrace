@@ -44,7 +44,7 @@ test('texts ×6 (one / many), and the screen asks it after saving a new protocol
     assert.match(translations[l].protocols_past_body_vial, /\{v\}.*\{total\}|\{total\}.*\{v\}/, l);
   }
   const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
-  assert.match(src, /pastStartAsk\(\{ protocol: protocolData, vial: newVial, nowMs: Date\.now\(\), curveAsk: !!hq \}\)/);
+  assert.match(src, /pastStartAsk\(\{ protocol: protocolData, vial: (type === 'pen' \? null : )?newVial, nowMs: Date\.now\(\), curveAsk: !!hq \}\)/);
   assert.match(src, /updateVial\(newVial\.id, w\.vialUpdate\)/); // what it writes: pastStartWrites (behaviour test below)
   assert.match(src, /openEditVialRef\.current\(newId\)/);
 });

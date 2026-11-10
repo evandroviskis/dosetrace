@@ -115,7 +115,7 @@ import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import { imageMediaType } from '../lib/imageType';
 import {
   isoDay, firstDoseChoice, resizeTimes, wheelStartTime, timeDoneDisabled, timeDoneValue, timeRowLabel, newProtocolForm, formFromProtocol, protocolPayload,
-  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass,
+  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass, penVialFields, penCreateExtras,
 } from '../lib/protocolForm';
 
 
@@ -1137,6 +1137,7 @@ export default function ProtocolsScreen() {
   const compositionForRef = useRef(null);
   // The edit form as it was opened (lib/protocolForm formFromProtocol): Save diffs against it.
   const editStartRef = useRef(null);
+  const penExtraRef = useRef(null); // CP-1: the pen answers from the assistant (pen, penVial, doseHistory)
   const [type, setType] = useState('recon');
   const [color, setColor] = useState(DEFAULT_PROTOCOL_COLOR);
   const [amount, setAmount] = useState('');
@@ -1687,6 +1688,7 @@ export default function ProtocolsScreen() {
   // The whole add / edit form as plain data (lib/protocolForm): what the steps hold now.
   function currentForm() {
     return {
+      ...(type === 'pen' && penExtraRef.current ? penExtraRef.current : {}), // CP-1: pen, penVial, doseHistory
       name, compoundId, type, color, amount, unit, water, diluentChoice, diluentOther,
       dose, doseUnit, syringeSize, concentration, concentrationUnit,
       intervalDays, customIntervalOpen, customIntervalText, dosesPerDay, startDate, reminderTimes,
@@ -1706,6 +1708,8 @@ export default function ProtocolsScreen() {
     setServingStrength(f.servingStrength); setServingStrengthUnit(f.servingStrengthUnit); setServingUnits(f.servingUnits);
     setContainerUnits(f.containerUnits); setDivisible(f.divisible);
     setVialValidDays(f.vialValidDays); setVialMl(f.vialMl); setVialExpMonth(f.vialExpMonth); setVialExpYear(f.vialExpYear);
+    // CP-1: the pen answers of the assistant (lib/penAssistant formPatch) ride along until the save.
+    penExtraRef.current = f.type === 'pen' && f.pen ? { pen: f.pen, penVial: f.penVial || null, doseHistory: f.doseHistory || null } : null;
   }
 
   // A new protocol: the first dose is Today (founder decision 2, 2026-10-02).
@@ -2133,13 +2137,13 @@ export default function ProtocolsScreen() {
   const drawML = wizardDraw.drawML;
   const drawUnits = wizardDraw.drawUnits;
   const drawValid = wizardDraw.valid;
-  const unitMismatch = !unitCheck.ok;
+  const unitMismatch = type !== 'pen' && !unitCheck.ok; // CP-1: a pen dose is a printed one, no syringe math
   // A recon draw that overflows the chosen syringe is almost always a data-entry
   // slip (wrong water volume, dose, or syringe). Flag it and block saving.
   const drawExceedsSyringe = type === 'recon' && wizardDraw.exceedsSyringe;
   // Ready to use: over the chosen syringe is shown (red syringe, the warning, the explainer and
   // the AI help, AP-12 / AP-21) but, as before, it does not block saving.
-  const drawOver = type !== 'oral' && wizardDraw.exceedsSyringe;
+  const drawOver = type !== 'oral' && type !== 'pen' && wizardDraw.exceedsSyringe;
   // The dose step can't be left until the entered values produce a drawable dose.
   const doseStepBlocked = unitMismatch || drawExceedsSyringe;
   const drawExceedsMsg = drawUnits ? exceedsMessage(t, wizardDraw, syringeSize, language)
@@ -2358,6 +2362,13 @@ export default function ProtocolsScreen() {
       // expiry from the box (month/year → last day of that month).
       const rtuVial = rtuVialFields(currentForm(), language);
       if (rtuVial) newVialId = insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
+      // CP-1: the pen in use (its count is the person's answer) and the dose steps before setup (founder P1).
+      if (type === 'pen') {
+        const pv = penVialFields(currentForm());
+        if (pv) newVialId = insertVial({ user_id: user.id, protocol_id: newId, ...pv });
+        const extras = penCreateExtras(currentForm());
+        if (extras) updateProtocol(newId, extras);
+      }
       setSaving(false);
       const protocolData = getProtocolById(newId);
       if (protocolData) afterProtocolChange({ saved: protocolData }).catch(() => {});
@@ -2371,7 +2382,8 @@ export default function ProtocolsScreen() {
       const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
       const hq = historyQuestion(protocolData, Date.now());
       const newVial = newVialId != null ? getVialById(newVialId) : null;
-      const ask = protocolData ? pastStartAsk({ protocol: protocolData, vial: newVial, nowMs: Date.now(), curveAsk: !!hq }) : null;
+      // CP-1: a pen's count came from the person (doses left), so the past question is about the curve only.
+      const ask = protocolData ? pastStartAsk({ protocol: protocolData, vial: type === 'pen' ? null : newVial, nowMs: Date.now(), curveAsk: !!hq }) : null;
       // A-112 SP-5: no setup opening here any more — Today opens "Make sure your reminders arrive"
       // once per phone (lib/reminderSetup), and onboarding offers it first.
       if (ask) {

@@ -148,3 +148,23 @@ test('PN-27 every pen text of the assistant exists in the 6 languages', () => {
   assert.ok(keys.size > 40);
   for (const lang of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of keys) assert.ok(typeof translations[lang][k] === 'string' && translations[lang][k].length > 0, `${lang} ${k}`);
 });
+
+test('PN-11/12 saving a pen protocol: the pen data, no syringe or ml, the pen in use, the dose steps', () => {
+  const F = require('../lib/protocolForm');
+  const f = { ...F.newProtocolForm(NOW), name: 'Mounjaro', compoundId: 'rtu_tirzepatide', type: 'pen', dose: '7,5', doseUnit: 'mg', intervalDays: 7, dosesPerDay: 1, startDate: '2026-08-10', reminderTimes: ['08:00'],
+    pen: JSON.stringify({ kind: 'fixed', perPen: 4, stock: 1 }), vialValidDays: 30, penVial: { total_doses: 4, doses_taken: 2, mixed_on: '2026-10-26', water_ml: null, expires_on: null },
+    doseHistory: JSON.stringify([{ from: null, dose: 2.5, unit: 'mg' }, { from: '2026-09-07T00:00:00', dose: 5, unit: 'mg' }, { from: '2026-10-05T00:00:00', dose: 7.5, unit: 'mg' }]) };
+  const p = F.protocolPayload(f, () => 'Weekly', 'pt');
+  assert.equal(p.type, 'pen');
+  assert.equal(p.pen, f.pen);
+  assert.equal(p.dose, 7.5);
+  assert.equal(p.vial_valid_days, 30);
+  assert.equal(p.syringe_size, null);
+  assert.equal(p.concentration, null);
+  assert.equal(p.amount, null);
+  assert.deepEqual(F.penVialFields(f), { total_doses: 4, doses_taken: 2, mixed_on: '2026-10-26', water_ml: null, expires_on: null });
+  assert.equal(F.penVialFields({ ...f, pen: JSON.stringify({ kind: 'single', stock: 3 }), penVial: undefined }), null);
+  assert.equal(F.penCreateExtras(f).dose_history, f.doseHistory);
+  // a ready-to-use form never carries the pen
+  assert.equal(F.protocolPayload({ ...f, type: 'rtu' }, () => 'Weekly', 'pt').pen, null);
+});
