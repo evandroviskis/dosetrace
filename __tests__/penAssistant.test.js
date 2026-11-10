@@ -136,3 +136,15 @@ test('PN-5 single-dose pen: no validity or started questions; closed pens counte
   assert.equal(JSON.parse(out.form.pen).stock, 3);
   assert.equal(out.form.penVial, undefined, 'no vial for a single-dose pen');
 });
+
+test('PN-27 every pen text of the assistant exists in the 6 languages', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { translations } = require('../i18n/translations');
+  const src = fs.readFileSync(path.join(__dirname, '../lib/penAssistant.js'), 'utf8') + fs.readFileSync(path.join(__dirname, '../lib/protocolAssistant.js'), 'utf8');
+  const keys = new Set([...src.matchAll(/'(ap_(?:pen_[a-z0-9_]+|opt_pen|row_pen|q_form(?:_named)?_pen))'/g)].map((m) => m[1]));
+  for (const id of ['ozempic_low', 'ozempic_1', 'ozempic_2', 'ozempic_8', 'wegovy_single', 'wegovy_flextouch']) keys.add(`ap_pen_device_${id}`);
+  keys.add('ap_q_form_pen'); keys.add('ap_q_form_named_pen');
+  assert.ok(keys.size > 40);
+  for (const lang of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of keys) assert.ok(typeof translations[lang][k] === 'string' && translations[lang][k].length > 0, `${lang} ${k}`);
+});

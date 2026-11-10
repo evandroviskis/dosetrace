@@ -173,7 +173,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
           <Text style={s.reviewTitle}>{tr(m.key, m.params)}</Text>
           {(m.rows || []).map((r, i) => (
             <View key={i} style={s.kv}>
-              <Text style={s.kvLabel}>{t(r.key)}</Text>
+              <Text style={s.kvLabel}>{r.label != null ? r.label : t(r.key)}</Text>
               <Text style={s.kvValue}>{unitText(typeof r.value === 'string' ? r.value : renderParam(t, r.value), language)}</Text>
             </View>
           ))}
