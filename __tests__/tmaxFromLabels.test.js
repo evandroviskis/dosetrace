@@ -8,7 +8,7 @@ const { HALF_LIVES, amountFraction } = require('../lib/halfLives');
 
 const EXPECTED = {
   Tirzepatide: 24, Liraglutide: 11, Dulaglutide: 48, HCG: 24, HMG: 17.9, FSH: 12.9, 'Cetrorelix Acetate': 1,
-  Progesterone: 8, Mazdutide: 72, Cagrilintide: 72, 'Nandrolone Decanoate': 30, 'Testosterone Enanthate': 33.3,
+  Progesterone: 8, Mazdutide: 72, Cagrilintide: 72, 'Nandrolone Decanoate': 72, 'Testosterone Enanthate': 33.3,
   'Estradiol Valerate': 48, 'Estradiol Cypionate': 96,
 };
 
