@@ -52,6 +52,12 @@ import { outcomeCounts } from '../lib/declared';
 import { NO_DOSE } from '../lib/noDose';
 import { logListState } from '../lib/firstLoad';
 import { localISO } from '../lib/localDate';
+import { clearDraft } from '../lib/draftStore';
+
+// The draft store key of one dose's unsaved site choice in the site editor (A-77 / BK-14).
+export function siteDraftKey(logId) {
+  return 'logSite:' + logId;
+}
 
 const WEEKDAY_KEYS = ['today_sun', 'today_mon', 'today_tue', 'today_wed', 'today_thu', 'today_fri', 'today_sat'];
 const INJECTABLE = ['recon', 'rtu'];
@@ -338,6 +344,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     if (!tgt) return;
     const plan = planSitePickerAction({ mode: tgt.mode, action });
     if (!plan.close) return;
+    clearDraft(siteDraftKey(tgt.logId)); // a deliberate way out ends the kept choice (A-77)
     setBodyMapVisible(false);
     setBodyMapTarget(null);
     releasePopup(); // BK-20: a question of Today's that waited may open now
@@ -932,6 +939,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         recentLogs={bodyMapTarget?.recentLogs || []}
         sheet={siteSheet}
         onSheetClose={() => setSiteSheet(null)}
+        draftKey={bodyMapTarget && bodyMapTarget.logId ? siteDraftKey(bodyMapTarget.logId) : null}
       />
     </SafeAreaView>
   );
