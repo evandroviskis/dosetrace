@@ -35,7 +35,7 @@ import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker, quotaWaitDay,
 } from '../lib/nutrition';
-import { buildThread, withNotice, withDayTotal, dayFoodTotal, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion } from '../lib/foodThread';
+import { buildThread, withNotice, withDayTotal, dayFoodTotal, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion, pendingNoteShown } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
@@ -442,7 +442,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       setText(raw);
       setNotice(fail === 'ceiling' ? { kind: 'ceiling', at: res.retryAt || null } : { kind: 'quota' });
     } else {
-      setNotice({ kind: fail });
+      setNotice({ kind: fail, rowId: id });
       // The saved row is really retried (FL-46): shortly while online, and as soon
       // as the connection comes back when offline (NetInfo listener below).
       if (fail === 'retry') scheduleCatchUp(20000);
@@ -577,7 +577,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
           <TouchableOpacity activeOpacity={x.status === 'done' || x.status === 'too_old' ? 1 : 0.7} disabled={x.status === 'done' || x.status === 'too_old'} onPress={() => confirmRemove(x.rowId, x.status)} style={s.userWrap}>
             <View style={s.user}><Text style={s.userText}>{x.text}</Text></View>
             {/* A row being read right now is not "saved offline" (FL-46). */}
-            {x.status === 'pending' && x.rowId !== sendingId && <Text style={s.userNote}>{t(isOnlineNow() === false ? 'nutri_offline_saved' : 'nutri_retry_later')}</Text>}
+            {pendingNoteShown(x, notice) && x.rowId !== sendingId && <Text style={s.userNote}>{t(isOnlineNow() === false ? 'nutri_offline_saved' : 'nutri_retry_later')}</Text>}
             {x.status === 'unparsed' && <Text style={[s.userNote, s.userNoteWarn]}>{t('nutri_unparsed')}</Text>}
             {/* DV-066: the day's reads were used up; read on a later day, the text kept. */}
             {x.status === 'quota_wait' && <Text style={[s.userNote, s.userNoteWarn]}>{t('nutri_quota_wait_note')}</Text>}
