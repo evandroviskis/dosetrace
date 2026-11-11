@@ -161,7 +161,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const { changed, updatedItems, updatedRowIds } = await catchUpFood(uid, language);
     if (changed) refresh(uid);
     const e = echoFor(updatedItems, rawOfRows(updatedRowIds));
-    if (e) setNotice({ kind: 'updated', text: e, rowIds: updatedRowIds || [] });
+    if (e) setNotice({ kind: 'updated', text: e, rowIds: updatedRowIds || [], catchUp: true });
   }
 
   // Retry what waited for the network (offline rows, offline follow-up answers).
@@ -175,7 +175,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       const { changed, updatedItems, updatedRowIds } = await catchUpFood(uid, language);
       if (changed) refresh(uid);
       const e = echoFor(updatedItems, rawOfRows(updatedRowIds));
-      if (e) setNotice({ kind: 'updated', text: e, rowIds: updatedRowIds || [] });
+      if (e) setNotice({ kind: 'updated', text: e, rowIds: updatedRowIds || [], catchUp: true });
     }, ms);
   }
   useEffect(() => {
