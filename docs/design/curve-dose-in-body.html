@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curva: dose no corpo</title>
+<style>
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #e9e9e6; color: #1b1c1e; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { font-size: 15px; line-height: 1.5; max-width: 760px; margin: 0 0 22px; color: #3a3c40; }
+  h2 { font-size: 17px; margin: 30px 0 10px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .col-title { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #5b5e63; margin-bottom: 6px; }
+  /* phone card, two themes */
+  .phone { border-radius: 22px; padding: 16px 16px 14px; }
+  .light { background: #ffffff; color: #1b1c1e; --muted: #5d6066; --grid: #e3e3e0; --line: #2f5bd8; --band: rgba(47,91,216,.18); --depot: rgba(170,120,40,.16); --depotLine: #a8782a; --chip: #f0f0ed; }
+  .dark  { background: #24262a; color: #f2f2f0; --muted: #a3a6ad; --grid: #3a3d43; --line: #7f9cff; --band: rgba(127,156,255,.22); --depot: rgba(230,180,90,.16); --depotLine: #e2b25a; --chip: #2f3237; }
+  .lbl { font-size: 13px; color: var(--muted); }
+  .big { font-size: 40px; font-weight: 700; color: var(--line); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .big small { font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .sub { font-size: 13px; color: var(--muted); margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+  .note { font-size: 12.5px; line-height: 1.45; color: var(--muted); margin-top: 8px; }
+  .chip { display: inline-block; font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--chip); color: var(--muted); margin-top: 6px; }
+  .depotline { font-size: 13px; margin-top: 6px; color: var(--depotLine); }
+  svg { width: 100%; height: auto; display: block; }
+  .tag { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; display: inline-block; margin-bottom: 8px; }
+  .tag.hoje { background: #ddd; color: #333; }
+  .tag.prop { background: #2f5bd8; color: #fff; }
+  .q { background: #fff; border-radius: 14px; padding: 14px 16px; margin-top: 26px; font-size: 14.5px; line-height: 1.55; }
+  .q b { color: #2f5bd8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Curva: o que fica no corpo de cada dose</h1>
+  <p class="lead">Sua decisão de 11/11: a curva mostra o mais próximo da realidade a quantidade da dose que ainda está no corpo. Abaixo, três exemplos com as doses de um usuário típico: <b>como está hoje</b> × <b>como ficaria</b>, cada um no tema claro e no escuro. Números do farmacometrista, com fonte (bula e estudos). Nada é construído antes da sua escolha.</p>
+
+  <div id="examples"></div>
+
+  <div class="q">
+    <b>Escolha 1 — o nome:</b> "dose no corpo" (recomendado: inclui o que já saiu do sangue para os tecidos, é o número que o cálculo sustenta) ou "dose no sangue" (só o plasma; na testosterona dá cerca de 0,03 mg, pequeno demais para ler).<br>
+    <b>Escolha 2 — quando os estudos discordam</b> (testosterona: a meia-vida dela no sangue vai de 10 a 100 minutos): mostrar a <b>faixa</b> (recomendado: é o que os estudos dizem) ou um número só (exigiria escolher um valor sem fonte única).<br>
+    <b>Escolha 3 — ésteres em óleo:</b> mostrar também, em outra cor, o que <b>ainda está no local da aplicação</b> (recomendado: sem isso, 0,5 mg ao lado de uma dose de 100 mg parece erro).
+  </div>
+</div>
+
+<script>
+// One-compartment model, as the app (lib/halfLives.js): each dose rises with kr (solved from Tmax) and falls with kd (half-life).
+const H = 24;
+function krFromTmax(kd, tmaxH) { // solve ln(kr/kd)/(kr-kd) = tmax
+  let lo = kd * 1.0001, hi = 1000;
+  for (let i = 0; i < 200; i++) { const m = (lo + hi) / 2; (Math.log(m / kd) / (m - kd) > tmaxH) ? lo = m : hi = m; }
+  return (lo + hi) / 2;
+}
+function series({ dose, everyH, halfH, tmaxH, days }) {
+  const kd = Math.log(2) / halfH, kr = tmaxH ? krFromTmax(kd, tmaxH) : null;
+  const pts = []; const n = days * H;
+  for (let t = 0; t <= n; t += 2) {
+    let a = 0;
+    for (let td = 0; td <= t; td += everyH) {
+      const dt = t - td;
+      a += kr ? dose * kr / (kr - kd) * (Math.exp(-kd * dt) - Math.exp(-kr * dt)) : dose * Math.exp(-kd * dt);
+    }
+    pts.push([t, a]);
+  }
+  return pts;
+}
+const fmt = (v) => v >= 10 ? Math.round(v).toString() : v >= 1 ? v.toFixed(1).replace('.', ',') : v.toFixed(2).replace('.', ',');
+
+function chart(pts, opts) {
+  const W = 300, Hh = 130, padL = 34, padB = 18, padT = 8;
+  const tMax = pts[pts.length - 1][0];
+  const yMax = opts.yMax;
+  const X = (t) => padL + (t / tMax) * (W - padL - 6);
+  const Y = (v) => padT + (1 - v / yMax) * (Hh - padT - padB);
+  let s = `<svg viewBox="0 0 ${W} ${Hh}" role="img">`;
+  [0, .5, 1].forEach((f) => { const y = Y(yMax * f); s += `<line x1="${padL}" x2="${W - 6}" y1="${y}" y2="${y}" stroke="var(--grid)" stroke-dasharray="3 3"/><text x="${padL - 4}" y="${y + 4}" font-size="9" text-anchor="end" fill="var(--muted)">${fmt(yMax * f)}</text>`; });
+  if (opts.depot) {
+    const d = opts.depot.map(([t, v]) => `${X(t)},${Y(Math.min(v, yMax))}`).join(' ');
+    s += `<polygon points="${X(0)},${Y(0)} ${d} ${X(tMax)},${Y(0)}" fill="var(--depot)" stroke="none"/>`;
+    s += `<polyline points="${d}" fill="none" stroke="var(--depotLine)" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  }
+  if (opts.lo) {
+    const up = pts.map(([t, v]) => `${X(t)},${Y(v)}`).join(' ');
+    const dn = opts.lo.slice().reverse().map(([t, v]) => `${X(t)},${Y(v)}`).join(' ');
+    s += `<polygon points="${up} ${dn}" fill="var(--band)" stroke="none"/>`;
+    s += `<polyline points="${opts.lo.map(([t, v]) => `${X(t)},${Y(v)}`).join(' ')}" fill="none" stroke="var(--line)" stroke-width="1.2"/>`;
+  }
+  s += `<polyline points="${pts.map(([t, v]) => `${X(t)},${Y(v)}`).join(' ')}" fill="none" stroke="var(--line)" stroke-width="2"/>`;
+  s += `<text x="${padL}" y="${Hh - 4}" font-size="9" fill="var(--muted)">0</text><text x="${W - 6}" y="${Hh - 4}" font-size="9" text-anchor="end" fill="var(--muted)">${opts.days} dias</text>`;
+  return s + '</svg>';
+}
+const scale = (pts, f) => pts.map(([t, v]) => [t, v * f]);
+const last = (pts) => pts[pts.length - 1][1];
+const peakLast = (pts, everyH) => Math.max(...pts.filter(([t]) => t >= pts[pts.length - 1][0] - everyH).map(([, v]) => v));
+
+const EX = [
+  {
+    title: 'Testosterona cipionato · 100 mg por semana (éster em óleo)',
+    p: { dose: 100, everyH: 168, halfH: 8 * H, tmaxH: 3 * H, days: 42 },
+    // proposal: x S (0.70 testosterone in the ester) x F (1, assumption) x t1/2 true / t1/2 apparent (10-100 min over 8 d)
+    lo: 0.70 * (10 / 60) / (8 * H), hi: 0.70 * (100 / 60) / (8 * H),
+    unitToday: 'mg', unitProp: 'mg de testosterona',
+    labelProp: 'Testosterona no corpo agora (estimativa)',
+    depot: true,
+    noteProp: 'Faixa: a testosterona sai do sangue em 10 a 100 minutos (bula do enantato); o depósito no óleo libera aos poucos. Só o que você aplicou; a produção do seu corpo não entra. O exame de sangue mede concentração, não esta quantidade.',
+    noteToday: 'Hoje: o número soma o que ainda está no óleo, no local da aplicação, com o que está no corpo.',
+  },
+  {
+    title: 'Tirzepatida · 5 mg por semana (caneta)',
+    p: { dose: 5, everyH: 168, halfH: 5 * H, tmaxH: 24, days: 42 },
+    lo: null, f: 0.80,
+    unitToday: 'mg', unitProp: 'mg',
+    labelProp: 'Tirzepatida no corpo agora (estimativa)',
+    noteProp: 'Cerca de 80% de cada dose chega ao corpo (bula do Mounjaro, item 12.3). A forma da curva não muda.',
+    noteToday: 'Hoje: conta 100% da dose como se chegasse toda ao corpo.',
+  },
+  {
+    title: 'BPC-157 · 250 mcg por dia (sem estudo em pessoas)',
+    p: { dose: 250, everyH: 24, halfH: 0.5, tmaxH: 0.05, days: 7 },
+    lo: null, f: 1, ceiling: true,
+    unitToday: 'mcg', unitProp: 'mcg',
+    labelProp: 'BPC-157 no corpo agora (no máximo)',
+    noteProp: 'Não há medida em pessoas de quanto da dose chega ao corpo (só em ratos e cães, por outra via). A curva supõe que tudo chega: é um teto, nunca um valor. O selo diz "sem dado em pessoas".',
+    noteToday: 'Hoje: o mesmo desenho, sem dizer que é um teto.',
+  },
+];
+
+let html = '';
+for (const ex of EX) {
+  const today = series(ex.p);
+  const yToday = Math.max(...today.map(([, v]) => v)) * 1.1;
+  let card = (theme) => {
+    const nowV = last(today);
+    const todayCard = `<div class="phone ${theme}"><span class="tag hoje">HOJE</span><div class="lbl">Nível estimado · agora</div><div class="big">${fmt(nowV)}<small>${ex.unitToday}</small></div><div class="sub">pico ≈ ${fmt(peakLast(today, ex.p.everyH))} ${ex.unitToday}</div>${chart(today, { yMax: yToday, days: ex.p.days })}<div class="note">${ex.noteToday}</div></div>`;
+    let prop;
+    if (ex.lo !== null && ex.lo !== undefined && ex.hi) {
+      const hi = scale(today, ex.hi), lo = scale(today, ex.lo);
+      const yMax = Math.max(...hi.map(([, v]) => v)) * 1.1;
+      const depotNow = nowV * 0.70; // what is still in the oil, as testosterone mass
+      prop = `<div class="phone ${theme}"><span class="tag prop">PROPOSTA</span><div class="lbl">${ex.labelProp}</div><div class="big">${fmt(last(lo))}–${fmt(last(hi))}<small>${ex.unitProp}</small></div><div class="sub">pico ≈ ${fmt(peakLast(lo, ex.p.everyH))}–${fmt(peakLast(hi, ex.p.everyH))} mg · faixa dos estudos</div>${chart(hi, { yMax, lo, days: ex.p.days })}<div class="depotline">Ainda no local da aplicação, não liberado: ≈ ${fmt(depotNow)} mg</div><span class="chip">Meia-vida: dados clínicos · faixa</span><div class="note">${ex.noteProp}</div></div>`;
+    } else {
+      const f = ex.f;
+      const p = scale(today, f);
+      prop = `<div class="phone ${theme}"><span class="tag prop">PROPOSTA</span><div class="lbl">${ex.labelProp}</div><div class="big">${ex.ceiling ? '≤ ' : ''}${fmt(last(p))}<small>${ex.unitProp}</small></div><div class="sub">pico ${ex.ceiling ? '≤' : '≈'} ${fmt(peakLast(p, ex.p.everyH))} ${ex.unitProp}</div>${chart(p, { yMax: yToday, days: ex.p.days })}<span class="chip">${ex.ceiling ? 'Sem dado em pessoas · teto' : 'Bula: 80% chega ao corpo'}</span><div class="note">${ex.noteProp}</div></div>`;
+    }
+    return [todayCard, prop];
+  };
+  const [tl, pl] = card('light'), [td, pd] = card('dark');
+  html += `<h2>${ex.title}</h2><div class="row"><div><div class="col-title">Hoje · claro</div>${tl}</div><div><div class="col-title">Proposta · claro</div>${pl}</div><div><div class="col-title">Hoje · escuro</div>${td}</div><div><div class="col-title">Proposta · escuro</div>${pd}</div></div>`;
+}
+document.getElementById('examples').innerHTML = html;
+</script>
+</body>
+</html>
