@@ -29,9 +29,13 @@
  *                   (the Android back "stay or leave?") is presented FROM the picker, never
  *                   beside it (one popup at a time, M1/M4)
  *   onSheetClose:   () => void — clears `sheet`
+ *   draftKey:       string (optional) — lib/draftStore key of this dose's unsaved choice
+ *                   (A-77 / BK-14): the picked spots and typed site come back when the picker
+ *                   opens again for that dose after a fold, unfold or leaving the screen; the
+ *                   screen clears it on every deliberate way out (Save, Skip, Cancel, Back)
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { DTSheet } from './ProtocolParts';
 import {
   View,
@@ -55,6 +59,7 @@ import useSheetKeyboard from '../../components/useSheetKeyboard';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { getCachedUser } from '../../lib/supabase';
 import { profileMeta } from '../../lib/pendingGateStore';
+import { getDraft, setDraft, clearDraft } from '../../lib/draftStore';
 import {
   getSiteById,
   parseStored,
@@ -120,6 +125,7 @@ export default function BodyMapModal({
   recentLogs = [],
   sheet = null,
   onSheetClose = null,
+  draftKey = null,
 }) {
   const { t, language } = useLanguage();
   const { colors } = useTheme();
@@ -146,16 +152,34 @@ export default function BodyMapModal({
 
   // Hydrate from initialStored each time the modal opens; open on the saved route, else the
   // route this protocol last used in the log, else subcutaneous.
+  // A choice kept for this dose (draftKey, A-77) opens instead, as it was left.
+  const opened = useRef(null); // what the picker opened on from the saved site: { type, selected, other }
   useEffect(() => {
     if (!visible) return;
     const parsed = parseStored(initialStored);
     const route = openingRoute({ initialStored, protocolId, logs: recentLogs || [] });
+    opened.current = { type: route, selected: parsed.sites || [], other: null };
+    const kept = draftKey ? getDraft(draftKey) : null;
+    if (kept) {
+      setType(kept.type); setView(kept.view); setSelected(kept.selected || []); setOther(kept.other != null ? kept.other : null);
+      return;
+    }
     setType(route);
     setView(defaultView(route));
     setSelected(parsed.sites || []);
     setOther(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initialStored]);
+
+  // Every change of the choice while open is kept for this dose; back to what it opened on is
+  // no draft. Closing on purpose is the screen's to clear (it knows Save from a fold).
+  useEffect(() => {
+    if (!visible || !draftKey) return;
+    const o = opened.current;
+    const same = o && o.type === type && o.other === other && JSON.stringify(o.selected) === JSON.stringify(selected);
+    if (!same) setDraft(draftKey, { type, view, selected, other });
+    else clearDraft(draftKey);
+  }, [visible, draftKey, type, view, selected, other]);
 
   // The figure follows the profile's "Sex at birth" (user_metadata.gender); male when unknown.
   useEffect(() => {

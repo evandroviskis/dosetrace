@@ -108,7 +108,7 @@ import AppSearchScreen from './AppSearchScreen';
 const PROTOCOLS_HEADER_TOP = 14;
 import { defaultSelection, paneWidths } from '../lib/bookLayout';
 import { getSelection, clearSelection } from '../lib/bookSelection';
-import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
+import { getDraft, setDraft, clearDraft, noteDraftText, noteDraftValue, noteDraftOutdated } from '../lib/draftStore';
 import { PALETTE, DEFAULT_PROTOCOL_COLOR, displayColor, sameColor, colorNameKey } from '../lib/protocolColors';
 import { pluralKey, servingPluralKey } from '../lib/plural';
 import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
@@ -818,15 +818,18 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
   const sz = sizeLabel(p, vial, t, language);
 
   // Inline, editable note — saved straight from the protocol screen, no need to open Edit.
-  const noteDraft = draft != null ? draft : (p.note || '');
-  const setNoteDraft = (text) => onDraft(p.id, text);
+  // The draft is { text, base }: base is the saved note it was typed over (lib/draftStore).
+  const noteDraft = noteDraftText(draft, p.note);
+  const setNoteDraft = (text) => onDraft(p.id, noteDraftValue(draft, text, p.note));
   const [noteFocus, setNoteFocus] = useState(false);
   const noteRef = useRef(null); // A-136 (9): the page lifts the focused note above the keyboard
-  // A saved or synced note replaces the draft (as before). Only a real change of the
-  // stored note does: remounting after a fold or unfold keeps what was typed.
+  // A note saved over the draft (the Edit form, a sync) replaces it. Only a real change of the
+  // stored note away from the draft's base does: remounting after a fold or unfold, or this
+  // page's older copy catching up with a note saved on the other page (A-77, 2026-11-11),
+  // keeps what was typed.
   const lastNote = useRef(p.note);
   useEffect(() => {
-    if (lastNote.current !== p.note) { lastNote.current = p.note; onDraft(p.id, null); }
+    if (lastNote.current !== p.note) { lastNote.current = p.note; if (noteDraftOutdated(draft, p.note)) onDraft(p.id, null); }
   }, [p.note]); // eslint-disable-line react-hooks/exhaustive-deps
   const noteDirty = noteDraft !== (p.note || '');
   const saveNote = () => {

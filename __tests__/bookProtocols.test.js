@@ -193,8 +193,9 @@ test('BK-10, BK-11: every sheet sits outside the book switch, so a fold or unfol
 test('BK-10: a typed protocol note survives the protocol screen moving between the column and the right page', () => {
   const detail = slice(topFn('ProtocolDetail'));
   assert.doesNotMatch(detail, /useState\(p\.note/, 'the draft is not local to the protocol screen');
-  assert.match(detail, /const noteDraft = draft != null \? draft : \(p\.note \|\| ''\);/);
-  assert.match(detail, /if \(lastNote\.current !== p\.note\)/, 'a remount does not reset it, a changed stored note does');
+  // A-77 (2026-11-11): the draft is { text, base } (lib/draftStore noteDraftText / noteDraftValue).
+  assert.match(detail, /const noteDraft = noteDraftText\(draft, p\.note\);/);
+  assert.match(detail, /if \(lastNote\.current !== p\.note\) \{ lastNote\.current = p\.note; if \(noteDraftOutdated\(draft, p\.note\)\)/, 'a remount does not reset it, a stored note saved over it does');
   // BK-14 / A-77: the draft now lives per protocol in lib/draftStore (see below).
   assert.match(src, /draft=\{getDraft\(noteDraftKey\(p\.id\)\)\}/);
 });
@@ -250,7 +251,7 @@ test('A-77 / BK-14: the protocol screen reads the draft from the store, so a rem
   assert.doesNotMatch(src, /useState\(null\);\s*const \[zoom/, 'no single screen-state note draft left');
   assert.doesNotMatch(src, /setNoteDraft\(null\)/, 'nothing throws a draft away except Save / Cancel');
   const detail = slice(topFn('ProtocolDetail'));
-  assert.match(detail, /const noteDraft = draft != null \? draft : \(p\.note \|\| ''\);/);
+  assert.match(detail, /const noteDraft = noteDraftText\(draft, p\.note\);/);
   assert.match(detail, /onPress=\{\(\) => onDraft\(p\.id, null\)\}/, 'Cancel discards on purpose, as today');
 });
 

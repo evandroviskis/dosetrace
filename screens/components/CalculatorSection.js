@@ -765,8 +765,14 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // (lib/weighInEdit, synced calc_snapshots); Delete asks first and leaves a synced tombstone.
   // The weigh-in that started the open reality check can be fixed but not deleted; fixing it
   // moves the check's start weight with it.
-  const [weEdit, setWeEdit] = useState(null); // { date, weight, bodyFat, waist, original }
+  // A-77 / BK-14 (2026-11-11): the open sheet and its typed values are kept in lib/draftStore
+  // until Save, Delete or Cancel, so a fold, unfold or leaving Progress brings it back.
+  const [weEdit, setWeEdit] = useState(() => getDraft('progress:weighInEdit') || null); // { date, weight, bodyFat, waist, original }
   const [weBad, setWeBad] = useState(false);
+  useEffect(() => {
+    if (weEdit) setDraft('progress:weighInEdit', weEdit);
+    else clearDraft('progress:weighInEdit');
+  }, [weEdit]);
   function openWeighInEdit(date) {
     const uid = userIdRef.current;
     if (!uid) return;
