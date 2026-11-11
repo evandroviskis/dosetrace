@@ -8,8 +8,10 @@
 // The field is measured when the finger goes down, before anything moves (iPhone 2026-10-31: typing
 // the first letter reshaped the screen above the field; measured after the touch, the tap that had
 // focused it read as "away"). A tap that starts with no field focused never closes anything.
+import { useLayoutEffect } from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { tapLeavesField } from '../lib/keyboardLift';
+import { releaseFieldBehind } from '../lib/fieldBehind';
 
 let start = null;
 
@@ -34,3 +36,16 @@ export const tapAwayProps = {
     setTimeout(() => { if (focusedInput() === input) Keyboard.dismiss(); }, 80);
   },
 };
+
+// A-155 (Fold, build 54): a sheet opened while a page field was being typed (Waist, then Set a
+// target) left that field focused behind it; on Android the page window took the focus back when
+// the sheet closed and the keyboard returned over a field out of sight. Every overlay ends the
+// typing behind it as it opens: a layout effect on the opening only, so it runs before the sheet's
+// own fields take focus (autoFocus reports later) and a re-render of an open sheet never closes its
+// keyboard. Used by components/PresenceModal (every Modal) and ProtocolParts SystemPicker (the
+// Android system date / time dialog). Rule: lib/fieldBehind (a155KeyboardAfterSheet.test.js).
+export function useReleaseFieldBehind(open) {
+  useLayoutEffect(() => {
+    if (open) releaseFieldBehind({ focused: focusedInput, dismiss: () => Keyboard.dismiss() });
+  }, [!!open]); // eslint-disable-line react-hooks/exhaustive-deps
+}

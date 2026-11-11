@@ -56,7 +56,8 @@ test('1 drift guard: every file that draws a <Modal> takes it from components/Pr
 
 test('1 the wrapper counts a Modal while it is visible (also with no visible prop: React Native shows it) and stops on close / unmount', () => {
   const src = read('components/PresenceModal.js');
-  assert.match(src, /useSheetPresence\(props\.visible === undefined \? true : !!props\.visible\)/);
+  // A-155: the same "shown" also ends the typing behind the Modal as it opens.
+  assert.match(src, /const shown = props\.visible === undefined \? true : !!props\.visible;\s*useSheetPresence\(shown\);/);
   // A-204: every prop still goes to React Native's Modal; its content sits in the tap-away view.
   assert.match(src, /<RNModal \{\.\.\.props\}>\s*<View style=\{s\.fill\} \{\.\.\.tapAwayProps\}>\{children\}<\/View>/);
 });

@@ -62,9 +62,11 @@ test('S25 pickers: every system date / time picker carries the app\'s own Cancel
   assert.deepEqual(pt, { positiveButton: { label: 'OK' }, negativeButton: { label: 'Cancelar' } });
   assert.equal(pickerButtons((k) => T.es[k]).positiveButton.label, 'Aceptar');
   for (const f of ['screens/ProtocolsScreen.js', 'screens/components/ProtocolParts.js', 'screens/components/DoseEditSheet.js']) {
-    const src = read(f);
-    const n = (src.match(/<DateTimePicker\b/g) || []).length;
-    const withButtons = (src.match(/<DateTimePicker\b[^>]*?\{\.\.\.pickerButtons\(t\)\}/gs) || []).length;
+    // A-155: the Android dialogs are drawn through ProtocolParts SystemPicker, a pass-through
+    // (<DateTimePicker {...props} />) that gets the buttons from each caller.
+    const src = read(f).replace('<DateTimePicker {...props} />', '');
+    const n = (src.match(/<(DateTimePicker|SystemPicker)\b/g) || []).length;
+    const withButtons = (src.match(/<(DateTimePicker|SystemPicker)\b[^>]*?\{\.\.\.pickerButtons\(t\)\}/gs) || []).length;
     assert.equal(withButtons, n, f);
   }
 });

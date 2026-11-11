@@ -17,7 +17,6 @@ import { useWindowSize } from '../lib/windowSize';
 import { MONO } from '../lib/fonts';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { getCachedUser, supabase } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { getOfferings, checkTrialEligibility } from '../lib/purchases';
@@ -91,7 +90,7 @@ import FeatureIcon from '../components/FeatureIcon';
 import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
-import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler, StepGlyph, RULER, rulerX, EndDateSheet } from './components/ProtocolParts';
+import { DTSheet, DTActionSheet, DTPickerSheet, DTWheel, VialCells, SyringeRuler, StepGlyph, RULER, rulerX, EndDateSheet, SystemPicker } from './components/ProtocolParts';
 import { dateColumns, dateAfter, timeColumns, timeAfter, WHEEL_IDLE, wheelMotion } from '../lib/wheelPick';
 import RowChevron from '../components/RowChevron';
 import FoldChevron from '../components/FoldChevron';
@@ -3780,7 +3779,7 @@ export default function ProtocolsScreen() {
                     <Text style={s.pickText}>{formatStartDate(startDate)}</Text>
                   </TouchableOpacity>
                   {!iosPicker && showStartPicker && (
-                    <DateTimePicker
+                    <SystemPicker
                       {...pickerButtons(t)}
                       value={(() => { const d = new Date(startDate + 'T12:00:00'); return isNaN(d.getTime()) ? new Date() : d; })()}
                       mode="date"
@@ -3865,7 +3864,7 @@ export default function ProtocolsScreen() {
                     ))}
                   </View>
                   {!iosPicker && showTimePicker && (
-                    <DateTimePicker
+                    <SystemPicker
                       {...pickerButtons(t)}
                       value={timePickerValue()}
                       mode="time"

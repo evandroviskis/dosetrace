@@ -16,6 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { localISO } from '../../lib/localDate';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { pickerButtons } from '../../lib/timeFormat';
+import { useReleaseFieldBehind } from '../../components/tapAwayKeyboard';
 
 // A button's action runs only after the sheet is gone: presenting the camera, the
 // photo library or another sheet while this one is still animating out fails on iOS.
@@ -179,12 +180,20 @@ export function DTActionSheet({ config, onClose }) {
 // DV-234 (decisions 2026-10-02): on Android a date (curve date, past weigh-in, target) opens the system
 // date dialog — the DTWheel sheet is the iPhone's. Same bounds as the wheel (minISO / maxISO); a cancel
 // keeps the date.
+// SystemPicker: the Android system date / time dialog is its own window, like a Modal. Mounted only
+// while it is shown, it ends the typing behind it as it opens (A-155). Every Android dialog in the
+// app is drawn through it (a155KeyboardAfterSheet.test.js); the iPhone's inline spinners are not.
+export function SystemPicker(props) {
+  useReleaseFieldBehind(true);
+  return <DateTimePicker {...props} />;
+}
+
 export function AndroidDateDialog({ visible, iso, minISO, maxISO, onPick, onClose }) {
   const { t } = useLanguage();
   if (!visible) return null;
   const at = (x) => { const d = new Date(x + 'T12:00:00'); return isNaN(d.getTime()) ? null : d; };
   return (
-    <DateTimePicker
+    <SystemPicker
       {...pickerButtons(t)}
       value={at(iso) || new Date()}
       mode="date"

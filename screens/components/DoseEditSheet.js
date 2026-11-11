@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Pressable, Platform, KeyboardAvoidingView, Keyboard, TouchableWithoutFeedback, StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Modal from '../../components/PresenceModal';
+import { SystemPicker } from './ProtocolParts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/theme';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -88,7 +89,7 @@ export default function DoseEditSheet({ edit, onClose, onSave }) {
               <Text style={s.fieldText}>{formatTime(hhmm(at), language, timeFormat)}</Text>
             </TouchableOpacity>
             {androidPicker && (
-              <DateTimePicker {...pickerButtons(t)} value={new Date(at)} mode={androidPicker} display="default" maximumDate={androidPicker === 'date' ? now : undefined}
+              <SystemPicker {...pickerButtons(t)} value={new Date(at)} mode={androidPicker} display="default" maximumDate={androidPicker === 'date' ? now : undefined}
                 is24Hour={pickerIs24Hour(timeFormat, language)}
                 onChange={(e, d) => {
                   const which = androidPicker;

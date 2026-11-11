@@ -4,12 +4,16 @@
 // __tests__/updateNoticeReview.test.js). React Native shows a Modal whose visible prop is missing.
 // A-204: a Modal is its own root (touches in it never reach App's view), so its content sits in one
 // view that closes the keyboard on a tap away from the field being typed (components/tapAwayKeyboard).
+// A-155: opening it ends the typing behind it (on Android the page field kept its focus and its
+// keyboard came back once the sheet closed): useReleaseFieldBehind.
 import { Modal as RNModal, View, StyleSheet } from 'react-native';
 import { useSheetPresence } from '../lib/sheetPresence';
-import { tapAwayProps } from './tapAwayKeyboard';
+import { tapAwayProps, useReleaseFieldBehind } from './tapAwayKeyboard';
 
 export default function Modal({ children, ...props }) {
-  useSheetPresence(props.visible === undefined ? true : !!props.visible);
+  const shown = props.visible === undefined ? true : !!props.visible;
+  useSheetPresence(shown);
+  useReleaseFieldBehind(shown);
   return (
     <RNModal {...props}>
       <View style={s.fill} {...tapAwayProps}>{children}</View>
