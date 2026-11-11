@@ -23,6 +23,9 @@ const { translations: T } = require('../i18n/translations');
 function serverHandler(usage) {
   let src = fs.readFileSync(path.join(__dirname, '..', 'supabase/functions/parse-food/index.ts'), 'utf8');
   src = src.replace(/^import \{ createClient \} from 'https:\/\/esm\.sh\/[^']+';$/m, '');
+  // ./usage.ts (the delivered-or-given-back slot, 2026-11-11) is inlined: the handler runs as one script.
+  const usageSrc = fs.readFileSync(path.join(__dirname, '..', 'supabase/functions/parse-food/usage.ts'), 'utf8').replace(/^export /gm, '');
+  src = src.replace(/^import \{ countIfDelivered \} from '\.\/usage\.ts';$/m, usageSrc);
   const js = ts.transpileModule(src, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   const calls = { dayQueries: [], inserts: [] };
   const query = () => {
@@ -30,7 +33,7 @@ function serverHandler(usage) {
     const b = {
       select: () => b, gte: (c, v) => { q.filters[c] = v; q.gte = true; return b; },
       eq: (c, v) => { q.filters[c] = v; return b; }, order: () => b, limit: () => b,
-      insert: (row) => { calls.inserts.push(row); return Promise.resolve({ error: null }); },
+      insert: (row) => { calls.inserts.push(row); const r = { error: null, data: { id: calls.inserts.length } }; return { select: () => ({ single: () => Promise.resolve(r) }), then: (res, rej) => Promise.resolve(r).then(res, rej) }; },
       then: (res, rej) => {
         if (q.gte) return Promise.resolve({ count: 0, error: null, data: [] }).then(res, rej); // the rolling 24 h ceiling
         calls.dayQueries.push({ ...q.filters });
@@ -46,7 +49,7 @@ function serverHandler(usage) {
   const Deno = { env: { get: (k) => env[k] }, serve: (fn) => { handler = fn; } };
   const model = { items: [{ food: 'ovos mexidos', qty: 2, unit: 'un', kcal: 180, protein_g: 12, carb_g: 1, fat_g: 14, confidence: 'med', category: 'meal' }], ask: null, refusal: false, days_ago: null };
   const fetch = async () => ({ ok: true, json: async () => ({ content: [{ text: JSON.stringify(model) }] }) });
-  const quiet = { error: () => {}, log: () => {} };
+  const quiet = { error: () => {}, log: () => {}, warn: () => {} };
   // eslint-disable-next-line no-new-func
   new Function('createClient', 'Deno', 'fetch', 'console', 'exports', js)(createClient, Deno, fetch, quiet, {});
   const call = async (body) => {

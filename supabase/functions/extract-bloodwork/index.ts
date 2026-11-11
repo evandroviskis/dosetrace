@@ -411,10 +411,14 @@ Deno.serve(async (req) => {
         const response = await runExtraction();
         return { ok: response.status === 200 && usable, response };
       },
+      // A scan counts only if it reaches the phone: if the client disconnected while
+      // the AI was working (phone timeout, app closed), the reserved row is given back.
+      abandoned: () => req.signal?.aborted === true,
     });
     if (outcome.status === 'refused') {
       return jsonResponse({ error: 'Monthly scan limit reached', code: 'quota_exceeded', limit: outcome.limit }, 429);
     }
+    if (outcome.status === 'abandoned') console.warn('[extract] client_gone', kind, 'scan not counted');
     return outcome.response;
   } catch (err) {
     console.error('[extract] internal_error', err?.message);
