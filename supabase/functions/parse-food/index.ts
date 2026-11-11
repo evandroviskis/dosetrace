@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { countIfDelivered } from './usage.ts';
 
 // DoseTrace — AI nutrition parse (v9, 2026-09-27). Turns a user's free-text meal
 // description into STRUCTURED nutrition estimates. Acceptance checklist:
@@ -176,52 +177,66 @@ Deno.serve(async (req) => {
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) return jsonResponse({ error: 'Service not configured', code: 'not_configured' }, 500);
 
-    // Reserve the slot BEFORE the model call so refusals / junk / provider errors count.
-    if (adminClient) {
-      const { error: usageErr } = await adminClient.from('ai_food_usage').insert({ user_id: user.id, entry_date: entryDate, kind });
-      if (usageErr) console.error('[parse-food] usage insert failed:', usageErr.code);
-    }
+    // Reserve the slot BEFORE the model call so refusals / junk / provider errors count;
+    // only a parse the phone never received (client disconnected) gives it back (./usage.ts).
+    const db = adminClient;
+    return await countIfDelivered<Response>({
+      signal: req.signal,
+      reserve: async () => {
+        if (!db) return null;
+        const { data, error: usageErr } = await db.from('ai_food_usage').insert({ user_id: user.id, entry_date: entryDate, kind }).select('id').single();
+        if (usageErr || !data) { console.error('[parse-food] usage insert failed:', usageErr?.code); return null; }
+        return (data as { id: string | number }).id;
+      },
+      release: async (id) => {
+        if (!db) return;
+        const { error } = await db.from('ai_food_usage').delete().eq('id', id).eq('user_id', user.id);
+        if (error) console.error('[parse-food] usage release failed:', error.code);
+        else console.warn('[parse-food] client_gone', kind, 'parse not counted');
+      },
+      work: async () => {
+        const system = (followup ? FOLLOWUP_SYSTEM : FOOD_SYSTEM + recentContext(body?.recent))
+          + `\n\nThe user writes in language code "${lang}"; food names may stay in their language.`
+          + (entryDate ? `\nThe entry date (the user's "today") is ${entryDate}, a ${weekdayOf(entryDate)}.` : '');
 
-    const system = (followup ? FOLLOWUP_SYSTEM : FOOD_SYSTEM + recentContext(body?.recent))
-      + `\n\nThe user writes in language code "${lang}"; food names may stay in their language.`
-      + (entryDate ? `\nThe entry date (the user's "today") is ${entryDate}, a ${weekdayOf(entryDate)}.` : '');
+        const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicApiKey, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, system, messages: [{ role: 'user', content: text }] }),
+        });
 
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicApiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, system, messages: [{ role: 'user', content: text }] }),
+        if (!anthropicResponse.ok) {
+          console.error('[parse-food] provider_error', anthropicResponse.status); // status only, never the body
+          return jsonResponse({ error: 'Parser returned an error', code: 'provider_error', provider_status: anthropicResponse.status }, 502);
+        }
+
+        const anthropicData = await anthropicResponse.json();
+        const raw = anthropicData?.content?.[0]?.text ?? '';
+        const clean = String(raw).replace(/```json|```/g, '').trim();
+
+        let parsed: { items?: unknown; ask?: unknown; refusal?: unknown; days_ago?: unknown };
+        try { parsed = JSON.parse(clean); }
+        catch { console.error('[parse-food] non_json_output'); return jsonResponse({ error: 'Parser output was not valid JSON', code: 'invalid_parse' }, 502); }
+        if (!parsed || typeof parsed !== 'object') return jsonResponse({ error: 'Unexpected shape', code: 'invalid_parse' }, 502);
+
+        if (parsed.refusal === true) {
+          return jsonResponse({ refusal: true, items: [], totals: null, clarify: null, ask: null, days_ago: null }, 200);
+        }
+
+        const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+        let items = rawItems.map((it: Record<string, unknown>) => cleanItem(it)).filter((it) => it.food);
+        if (followup) items = items.slice(0, 1);
+
+        const sum = (k: 'kcal' | 'protein_g' | 'carb_g' | 'fat_g') => items.reduce((a, it) => a + (it[k] ?? 0), 0);
+        const totals = items.length
+          ? { kcal: Math.round(sum('kcal')), protein_g: Math.round(sum('protein_g')), carb_g: Math.round(sum('carb_g')), fat_g: Math.round(sum('fat_g')) }
+          : null;
+
+        const ask = followup ? null : cleanAsk(parsed.ask, items.length);
+        // clarify stays null: the app renders its own wording from `ask` (FL-10, FL-16).
+        return jsonResponse({ refusal: false, items, totals, clarify: null, ask, days_ago: daysAgoOf(parsed.days_ago) }, 200);
+      },
     });
-
-    if (!anthropicResponse.ok) {
-      console.error('[parse-food] provider_error', anthropicResponse.status); // status only, never the body
-      return jsonResponse({ error: 'Parser returned an error', code: 'provider_error', provider_status: anthropicResponse.status }, 502);
-    }
-
-    const anthropicData = await anthropicResponse.json();
-    const raw = anthropicData?.content?.[0]?.text ?? '';
-    const clean = String(raw).replace(/```json|```/g, '').trim();
-
-    let parsed: { items?: unknown; ask?: unknown; refusal?: unknown; days_ago?: unknown };
-    try { parsed = JSON.parse(clean); }
-    catch { console.error('[parse-food] non_json_output'); return jsonResponse({ error: 'Parser output was not valid JSON', code: 'invalid_parse' }, 502); }
-    if (!parsed || typeof parsed !== 'object') return jsonResponse({ error: 'Unexpected shape', code: 'invalid_parse' }, 502);
-
-    if (parsed.refusal === true) {
-      return jsonResponse({ refusal: true, items: [], totals: null, clarify: null, ask: null, days_ago: null }, 200);
-    }
-
-    const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
-    let items = rawItems.map((it: Record<string, unknown>) => cleanItem(it)).filter((it) => it.food);
-    if (followup) items = items.slice(0, 1);
-
-    const sum = (k: 'kcal' | 'protein_g' | 'carb_g' | 'fat_g') => items.reduce((a, it) => a + (it[k] ?? 0), 0);
-    const totals = items.length
-      ? { kcal: Math.round(sum('kcal')), protein_g: Math.round(sum('protein_g')), carb_g: Math.round(sum('carb_g')), fat_g: Math.round(sum('fat_g')) }
-      : null;
-
-    const ask = followup ? null : cleanAsk(parsed.ask, items.length);
-    // clarify stays null: the app renders its own wording from `ask` (FL-10, FL-16).
-    return jsonResponse({ refusal: false, items, totals, clarify: null, ask, days_ago: daysAgoOf(parsed.days_ago) }, 200);
   } catch (err) {
     console.error('[parse-food] internal_error', err?.message);
     return jsonResponse({ error: 'Internal error', code: 'internal_error' }, 500);

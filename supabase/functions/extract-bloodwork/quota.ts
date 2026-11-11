@@ -96,6 +96,11 @@ export async function lookupEntitlement({ fetchFn, secret, userId, nowMs, timeou
 // position among this month's rows, so requests fired together cannot all pass on
 // the same stale count: exactly `limit` of them win. A failed extraction releases
 // its row (a bad photo never costs a scan).
+// A scan counts only if it reached the phone: when `abandoned()` says the client
+// disconnected while the AI was working (phone timeout, app sent away), the row is
+// given back too. The protection above is unchanged: the row is still held for the
+// whole AI call, so a parallel request can never take a slot that is still in use;
+// releasing only frees a slot whose result nobody received.
 //
 // `store` is the month's usage for ONE user (index.ts backs it with ai_scan_usage
 // through the service role):
@@ -115,13 +120,15 @@ export interface ScanStore {
 export type BudgetOutcome<T> =
   | { status: 'refused'; limit: number }
   | { status: 'done'; response: T }
-  | { status: 'failed'; response: T };
+  | { status: 'failed'; response: T }
+  | { status: 'abandoned'; response: T };
 
-export async function withScanBudget<T>({ store, email, lookup, work }: {
+export async function withScanBudget<T>({ store, email, lookup, work, abandoned }: {
   store: ScanStore;
   email?: string | null;
   lookup: () => Promise<Lookup>; // asks RevenueCat; called at most once, only when it matters
   work: () => Promise<{ ok: boolean; response: T }>;
+  abandoned?: () => boolean; // true once the client has disconnected (index.ts: req.signal)
 }): Promise<BudgetOutcome<T>> {
   const finish = (r: { ok: boolean; response: T }): BudgetOutcome<T> =>
     (r.ok ? { status: 'done', response: r.response } : { status: 'failed', response: r.response });
@@ -158,6 +165,10 @@ export async function withScanBudget<T>({ store, email, lookup, work }: {
   } catch (err) {
     await store.release(id).catch(() => {});
     throw err;
+  }
+  if (outcome.status === 'done' && abandoned && abandoned()) {
+    await store.release(id).catch(() => {});
+    return { status: 'abandoned', response: outcome.response };
   }
   if (outcome.status === 'failed') await store.release(id).catch(() => {});
   return outcome;
