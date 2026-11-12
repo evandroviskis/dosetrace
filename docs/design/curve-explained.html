@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curva explicada</title>
+<style>
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #e9e9e6; color: #1b1c1e; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 56px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { font-size: 15px; line-height: 1.5; max-width: 820px; margin: 0 0 8px; color: #3a3c40; }
+  h2 { font-size: 17px; margin: 34px 0 6px; }
+  .why { font-size: 13.5px; color: #4a4d52; margin: 0 0 12px; max-width: 820px; line-height: 1.45; }
+  .row { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .col-title { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #5b5e63; margin-bottom: 6px; }
+  .phone { width: 340px; max-width: 100%; border-radius: 30px; padding: 18px 16px 18px; box-sizing: border-box; border: 6px solid #111; }
+  .light { background: #e8e8e4; color: #18191b; --card: #ffffff; --muted: #5d6066; --ink2: #3c3f44; --grid: #e3e3e0; --line: #2f5bd8; --chip: #f0f0ed; --hair: #dcdcd8; --fill: #18191b; --onfill: #fff; }
+  .dark  { background: #131416; color: #f2f2f0; --card: #24262a; --muted: #a3a6ad; --ink2: #c9cbd0; --grid: #3a3d43; --line: #7f9cff; --chip: #2f3237; --hair: #34373c; --fill: #f2f2ee; --onfill: #131416; }
+  .back { font-size: 15px; color: var(--ink2); margin-bottom: 10px; }
+  .titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .title { font-size: 30px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; }
+  .help { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--ink2); color: var(--ink2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; margin-top: 4px; }
+  .subtitle { font-size: 13.5px; color: var(--muted); margin-top: 4px; }
+  .fixed { font-size: 14px; line-height: 1.45; color: var(--ink2); margin: 10px 0 12px; }
+  .card { background: var(--card); border-radius: 20px; padding: 14px; margin-bottom: 10px; }
+  .lbl { font-size: 13px; color: var(--muted); }
+  .big { font-size: 38px; font-weight: 700; color: var(--line); line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .big small { font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .foot { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  svg { width: 100%; height: auto; display: block; }
+  /* sheet */
+  .dim { position: relative; }
+  .sheet { background: var(--card); border-radius: 24px; padding: 16px 16px 14px; }
+  .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--hair); margin: 0 auto 12px; }
+  .step { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .ctitle { font-size: 19px; font-weight: 700; margin-bottom: 6px; }
+  .cbody { font-size: 14.5px; line-height: 1.5; color: var(--ink2); }
+  .dots { display: flex; gap: 6px; justify-content: center; margin: 14px 0 12px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hair); }
+  .dot.on { background: var(--fill); }
+  .btns { display: flex; gap: 8px; }
+  .btn { flex: 1; text-align: center; padding: 12px; border-radius: 99px; font-weight: 600; font-size: 14.5px; }
+  .btn.pri { background: var(--fill); color: var(--onfill); }
+  .btn.sec { background: var(--chip); color: var(--ink2); }
+  .link { font-size: 14px; color: var(--line); text-decoration: underline; margin-top: 10px; display: inline-block; }
+  /* learn more */
+  .q { border-top: 1px solid var(--hair); padding: 12px 2px; }
+  .q:first-child { border-top: 0; }
+  .qh { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 15px; }
+  .qh span:last-child { color: var(--muted); }
+  .qa { font-size: 13.8px; line-height: 1.5; color: var(--ink2); margin-top: 6px; }
+  .src { font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+  .note { background: #fff; border-radius: 14px; padding: 14px 16px; margin-top: 26px; font-size: 14px; line-height: 1.55; max-width: 1180px; }
+  .note b { color: #2f5bd8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Curva explicada: nome, cartões e "Saiba mais"</h1>
+  <p class="lead">Nome do conselho com a ciência à vista: <b>Dose no corpo</b>, e logo abaixo <b>"estimativa por modelo farmacocinético (curva de Bateman)"</b>. Três camadas: (1) a tela, com uma frase fixa e o "?"; (2) três cartões na primeira abertura, que o "?" reabre; (3) "Saiba mais", com as perguntas e as fontes. Textos conferidos pelo farmacometrista (citações) e pelo regulatório (nada de recomendação). Tema claro e escuro lado a lado.</p>
+
+  <h2>1 · A tela da curva</h2>
+  <p class="why">O nome diz o que a pessoa vê; a linha de baixo mostra que é um modelo conhecido, não invenção. A frase fixa explica sem precisar tocar em nada. O aviso de estimativa fica na própria tela.</p>
+  <div class="row" id="screens"></div>
+
+  <h2>2 · Os três cartões (primeira abertura; o "?" reabre)</h2>
+  <p class="why">Um cartão por vez, "Próximo" e "Pular". Cada cartão termina com o aviso de estimativa.</p>
+  <div class="row" id="cards"></div>
+
+  <h2>3 · "Saiba mais"</h2>
+  <p class="why">Perguntas que abrem e fecham (chegam fechadas, regra do app). Duas aparecem abertas como exemplo. A busca do app encontra cada pergunta.</p>
+  <div class="row" id="learn"></div>
+
+  <div class="note">
+    <b>Para você decidir:</b> (1) o nome e a linha "curva de Bateman" como estão; (2) os três cartões; (3) as perguntas do "Saiba mais" — quer tirar ou incluir alguma? (4) o "Saiba mais" fica como perguntas do FAQ (recomendado; a busca já encontra) ou numa área "Aprenda" própria.<br>
+    <b>O que ficou de fora de propósito</b> (regulatório): "melhor hora para aplicar ou colher o exame", "otimizar", "ideal", e qualquer frase que leia o resultado do exame da pessoa pela curva.
+  </div>
+</div>
+
+<script>
+const T = {
+  name: 'Dose no corpo',
+  sub: 'estimativa por modelo farmacocinético (curva de Bateman)',
+  fixed: 'Estimativa de quanto de cada dose já chegou à circulação e ainda não foi eliminado, dia a dia, a partir das doses que você registrou.',
+  foot: 'Estimativa a partir de médias de estudos publicados. Não é medição nem orientação médica.',
+  cards: [
+    ['Picos e vales', 'Depois de cada dose, a quantidade sobe até um pico e depois cai até o ponto mais baixo, pouco antes da dose seguinte.'],
+    ['Acúmulo', 'Quando uma dose chega antes de a anterior sair toda, as duas se somam. Com a mesma dose no mesmo intervalo, a quantidade sobe e se acomoda numa faixa estável depois de cerca de 4 a 5 meias-vidas (94% a 97% do patamar).'],
+    ['O exame mede um momento', 'O exame de sangue mede o nível no momento da coleta. A curva é uma estimativa feita a partir dos seus registros e não substitui o exame nem a orientação do profissional de saúde.'],
+  ],
+  qs: [
+    ['O que é a curva de Bateman?', 'É uma fórmula publicada em 1910 pelo matemático Harry Bateman. Ele a criou para o decaimento radioativo em cadeia; a mesma equação descreve um medicamento que passa do local da aplicação para o sangue e depois é eliminado. Na farmacologia ela é chamada de "função de Bateman".'],
+    ['Como o DoseTrace faz a conta?', 'Para cada dose registrada, o DoseTrace desenha uma curva de Bateman com a meia-vida e, quando publicados, o tempo até o pico e a fração que chega ao corpo. Sem tempo até o pico, a dose entra de uma vez e só cai. Depois soma as curvas de todas as doses — é o princípio da superposição. O resultado é o desenho em dente de serra.'],
+    ['O que é meia-vida?', 'É o tempo para a quantidade cair pela metade. Depois de 1 meia-vida resta 50%; depois de 2, 25%; depois de 5, cerca de 3%. Em ésteres em óleo, essa meia-vida é a da liberação do depósito, não a do hormônio.'],
+    ['Para que serve?', 'Para ver uma estimativa, feita a partir dos seus registros, de como as doses se somam ao longo do tempo. É um retrato do seu histórico para levar ao profissional de saúde que acompanha você. Não indica quando nem quanto aplicar.'],
+    ['Por que a meia-vida muda a curva?', 'Cada composto tem uma meia-vida diferente. Alguns saem do corpo em horas (muitos peptídeos); outros ficam semanas (hormônios em óleo, algumas vitaminas injetáveis). Com a mesma dose e o mesmo intervalo, um composto de meia-vida longa acumula muito mais do que um de meia-vida curta. A curva mostra essa diferença para os compostos que você registrou.'],
+    ['E o exame de sangue?', 'O exame mede a concentração no sangue no momento da coleta. O DoseTrace marca na curva a data de cada coleta registrada, só como referência de tempo. A curva não explica o resultado do exame; quem interpreta o exame é o profissional de saúde que acompanha você. O exame e a curva medem coisas diferentes: o exame é concentração (por exemplo ng/dL); a curva é quantidade (mg) do composto como registrado — nos ésteres, parte desse peso é o éster, não o hormônio. Para hormônios que o corpo também produz, o exame inclui essa produção, que a curva não conta.'],
+    ['Por que é uma estimativa?', 'Cada pessoa absorve e elimina de um jeito (idade, peso, fígado, rins, local da aplicação). Os números vêm de médias de estudos. A curva mostra o padrão, não o seu valor exato.'],
+    ['Por que alguns compostos não aparecem ou aparecem como teto?', 'Quando não há meia-vida confiável publicada, o composto fica fora da curva. Quando não há medida em pessoas de quanto chega ao corpo, a curva supõe que tudo chega: é um teto, nunca um valor.'],
+    ['Quem criou essa ciência?', 'Harry Bateman escreveu a fórmula (1910). Erik Widmark estudou como o álcool sai do sangue (1932). Torsten Teorell publicou o primeiro modelo do caminho de um medicamento no corpo (1937) e é chamado de pai da farmacocinética. Friedrich Dost deu o nome "farmacocinética" (1953). John Wagner (1971) e Milo Gibaldi com Donald Perrier (1975) escreveram os livros que tornaram a disciplina o que se ensina hoje.'],
+    ['Fontes', '<span class="src">Bateman H. Proc Cambridge Philos Soc 1910;15:423–427 · Teorell T. Arch Int Pharmacodyn Ther 1937;57:205–240 · Widmark EMP. Die wissenschaftlichen Grundlagen… der gerichtlich-medizinischen Alkoholbestimmung. Berlin, 1932 · Dost FH. Der Blutspiegel. Leipzig, 1953 · Wagner JG. Biopharmaceutics and Relevant Pharmacokinetics, 1971 · Gibaldi M, Perrier D. Pharmacokinetics, 1975 · Weiss M. Pharm Res 2023;40:2147 (função de Bateman)</span>'],
+  ],
+};
+
+function curve(theme) {
+  // illustrative sawtooth (example numbers), weekly dose, rise then fall
+  const W = 300, H = 120, pts = [];
+  const kd = Math.log(2) / 8, kr = 0.9;
+  for (let t = 0; t <= 42; t += 0.25) {
+    let a = 0; for (let d = 0; d <= t; d += 7) { const dt = t - d; a += kr / (kr - kd) * (Math.exp(-kd * dt) - Math.exp(-kr * dt)); }
+    pts.push([t, a]);
+  }
+  const ymax = Math.max(...pts.map(p => p[1])) * 1.1;
+  const X = t => 6 + t / 42 * (W - 12), Y = v => 8 + (1 - v / ymax) * (H - 24);
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  [0, .5, 1].forEach(f => { const y = Y(ymax * f); s += `<line x1="6" x2="${W - 6}" y1="${y}" y2="${y}" stroke="var(--grid)" stroke-dasharray="3 3"/>`; });
+  s += `<polyline points="${pts.map(([t, v]) => X(t) + ',' + Y(v)).join(' ')}" fill="none" stroke="var(--line)" stroke-width="2"/>`;
+  s += `<line x1="${X(30)}" x2="${X(30)}" y1="6" y2="${H - 14}" stroke="var(--ink2)" stroke-width="1"/><text x="${X(30)}" y="${H - 3}" font-size="9" text-anchor="middle" fill="var(--muted)">Agora</text>`;
+  return s + '</svg>';
+}
+
+function screen(theme) {
+  return `<div><div class="col-title">${theme === 'light' ? 'Claro' : 'Escuro'}</div><div class="phone ${theme}">
+    <div class="back">‹ Evolução</div>
+    <div class="titlerow"><div class="title">${T.name}</div><div class="help" aria-label="Ajuda">?</div></div>
+    <div class="subtitle">${T.sub}</div>
+    <div class="fixed">${T.fixed}</div>
+    <div class="card"><div class="lbl">Nível est. · agora</div><div class="big">2,1<small>mg</small></div>${curve(theme)}<div class="foot">${T.foot}</div></div>
+  </div></div>`;
+}
+function cardSheet(theme, i) {
+  const [h, b] = T.cards[i];
+  const dots = T.cards.map((_, j) => `<div class="dot ${j === i ? 'on' : ''}"></div>`).join('');
+  return `<div><div class="col-title">${theme === 'light' ? 'Claro' : 'Escuro'} · cartão ${i + 1} de 3</div><div class="phone ${theme}" style="padding-top:220px">
+    <div class="sheet"><div class="grab"></div><div class="step">${T.name} · ${i + 1} de 3</div><div class="ctitle">${h}</div><div class="cbody">${b}</div>
+    <div class="foot">${T.foot}</div><div class="dots">${dots}</div>
+    <div class="btns"><div class="btn sec">${i === 0 ? 'Pular' : 'Voltar'}</div><div class="btn pri">${i === 2 ? 'Entendi' : 'Próximo'}</div></div>
+    ${i === 2 ? '<span class="link">Saiba mais</span>' : ''}</div>
+  </div></div>`;
+}
+function learn(theme, open) {
+  const qs = T.qs.map(([q, a], j) => `<div class="q"><div class="qh"><span>${q}</span><span>${open.includes(j) ? '⌃' : '⌄'}</span></div>${open.includes(j) ? `<div class="qa">${a}</div>` : ''}</div>`).join('');
+  return `<div><div class="col-title">${theme === 'light' ? 'Claro' : 'Escuro'}</div><div class="phone ${theme}">
+    <div class="back">‹ ${T.name}</div><div class="title" style="font-size:24px">Sobre esta curva</div>
+    <div class="subtitle" style="margin-bottom:10px">${T.sub}</div>
+    <div class="card">${qs}</div><div class="foot">${T.foot}</div>
+  </div></div>`;
+}
+document.getElementById('screens').innerHTML = screen('light') + screen('dark');
+document.getElementById('cards').innerHTML = [0, 1, 2].map(i => cardSheet('light', i)).join('') + [0, 1, 2].map(i => cardSheet('dark', i)).join('');
+document.getElementById('learn').innerHTML = learn('light', [0, 5]) + learn('dark', [1, 8]) + learn('light', [2, 3]) + learn('dark', [4, 9]);
+</script>
+</body>
+</html>
