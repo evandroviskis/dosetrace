@@ -16,6 +16,11 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText } from '../lib/storeText';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
+import { faqTarget, faqGroupIndex } from '../lib/faqLinks';
+
+// A group's own lines (CE-6, docs/specs/curve-explained.md): under the curve group's name the Bateman
+// line, under its questions the estimate footer, the same words as the curve screen.
+const GROUP_LINES = { curve: { sub: 'curve_sub', note: 'curve_foot' } };
 
 // Graduated (Settings part 2, prototype faqScreen): back row, large title, each
 // category is a plain raised list card with hairlines between questions, the open
@@ -38,24 +43,29 @@ function Chevron({ dir, color }) {
   );
 }
 
-// App search (AS-27): route.params.openQuestion = { ci, qi } opens that question in view; mark = the
-// typed words, marked in its question and answer (lib/appSearchText; the text never changes) until
-// the person scrolls or closes it.
+// App search (AS-27): route.params.openQuestion = { id } (CE-6: by the question's stable id; an old
+// { ci, qi } still works, lib/faqLinks) opens that question in view; mark = the typed words, marked in
+// its question and answer (lib/appSearchText; the text never changes) until the person scrolls or
+// closes it. route.params.openGroup = a group id (the curve's "Saiba mais") scrolls to that group, its
+// questions closed.
 export default function FAQScreen({ navigation, route }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const hit = route && route.params && route.params.openQuestion ? route.params.openQuestion : null;
+  const faqData = t('faq_categories') || [];
+  const hit = route && route.params && route.params.openQuestion ? faqTarget(faqData, route.params.openQuestion) : null;
   const hitKey = hit ? `${hit.ci}-${hit.qi}` : null;
+  const groupAt = !hit && route && route.params && route.params.openGroup ? faqGroupIndex(faqData, route.params.openGroup) : -1;
+  const landOn = hit || groupAt >= 0;
   const [openItem, setOpenItem] = useState(hitKey);
   const [mark, setMark] = useState(hit && route.params.mark ? route.params.mark : null);
   const scrollRef = useRef(null);
   const pos = useRef({ section: {}, list: {}, item: {} });
   const landed = useRef(false);
   const land = () => {
-    if (!hit || landed.current || !scrollRef.current) return;
+    if (!landOn || landed.current || !scrollRef.current) return;
     const p = pos.current;
-    const y = [p.section[hit.ci], p.list[hit.ci], p.item[hitKey]];
+    const y = hit ? [p.section[hit.ci], p.list[hit.ci], p.item[hitKey]] : [p.section[groupAt], 0, 0];
     if (y.some((v) => v == null)) return;
     landed.current = true;
     requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTo({ y: Math.max(0, y[0] + y[1] + y[2] - 12), animated: false }); });
@@ -65,8 +75,6 @@ export default function FAQScreen({ navigation, route }) {
     if (!mark || key !== hitKey) return text;
     return markedPieces(text, markRanges(text, mark)).map((p, i) => (p.mark ? <Text key={i} style={s.mark}>{p.text}</Text> : p.text));
   };
-
-  const faqData = t('faq_categories') || [];
 
   function toggle(key) {
     setMark(null);
@@ -92,15 +100,16 @@ export default function FAQScreen({ navigation, route }) {
         <Text style={s.intro}>{t('faq_intro')}</Text>
 
         {faqData.map((section, si) => (
-          <View key={si} style={s.section} onLayout={hit ? at('section', si) : undefined}>
+          <View key={section.id || si} style={s.section} onLayout={landOn ? at('section', si) : undefined}>
             <Text style={s.sectionLabel}>{section.category}</Text>
+            {GROUP_LINES[section.id] ? <Text style={s.sectionSub}>{t(GROUP_LINES[section.id].sub)}</Text> : null}
             <View style={s.list} onLayout={hit ? at('list', si) : undefined}>
               {section.questions.map((item, qi) => {
                 const key = `${si}-${qi}`;
                 const isOpen = openItem === key;
                 return (
                   <TouchableOpacity
-                    key={qi}
+                    key={item.id || qi}
                     onLayout={hit ? at('item', key) : undefined}
                     style={[s.item, qi > 0 && s.itemDivider]}
                     onPress={() => toggle(key)}
@@ -124,6 +133,7 @@ export default function FAQScreen({ navigation, route }) {
                 );
               })}
             </View>
+            {GROUP_LINES[section.id] ? <Text style={s.sectionNote}>{t(GROUP_LINES[section.id].note)}</Text> : null}
           </View>
         ))}
 
@@ -156,6 +166,8 @@ const makeStyles = (c) => StyleSheet.create({
   intro: { fontSize: 15, lineHeight: 20, color: c.ink2, marginHorizontal: 20, marginTop: 4, marginBottom: 4 },
   section: { marginTop: 18 },
   sectionLabel: { fontSize: 17, fontWeight: '600', color: c.ink, marginHorizontal: 20, marginBottom: 10 },
+  sectionSub: { fontSize: 13, lineHeight: 18, color: c.ink3, marginHorizontal: 20, marginTop: -6, marginBottom: 10 },
+  sectionNote: { fontSize: 13, lineHeight: 18, color: c.ink3, marginHorizontal: 20, marginTop: 8 },
   list: { marginHorizontal: 16, backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
   item: { paddingVertical: 14, minHeight: 56, justifyContent: 'center' },
   itemDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
