@@ -1050,7 +1050,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   {heroParts.note ? <Text style={s.heroNote}>{heroParts.note}</Text> : (
                     <>
                       {heroParts.pre ? <Text style={s.heroPre}>{heroParts.pre}</Text> : null}
-                      <Text style={[s.heroNum, { color: colors.data, fontSize: heroFontSize(heroParts.num, 56), lineHeight: heroFontSize(heroParts.num, 56) + 4 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                      <Text style={[s.heroNum, { color: colors.data, fontSize: heroFontSize(heroParts.num, 56), lineHeight: heroFontSize(heroParts.num, 56) + 4 }]} numberOfLines={1}>
                         {heroParts.num}
                       </Text>
                       <Text style={s.heroUnit}>{heroParts.unit}</Text>

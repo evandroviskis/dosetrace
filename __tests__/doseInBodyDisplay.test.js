@@ -194,6 +194,8 @@ test('DB-9 (simulator): the large range keeps a readable size (length-based, flo
   const curve = read('screens/SerumCurveScreen.js');
   const journey = read('screens/JourneyScreen.js');
   assert.match(curve, /heroFontSize\(heroParts\.num/);
-  assert.match(curve, /minimumFontScale=\{0\.5\}/);
+  // iOS shrank the hero to a few points even with minimumFontScale (lineHeight set): the hero is sized by
+  // length only, no automatic shrink.
+  assert.doesNotMatch(curve.slice(curve.indexOf("heroFontSize(heroParts.num") - 200, curve.indexOf("heroFontSize(heroParts.num") + 300), /adjustsFontSizeToFit/);
   assert.match(journey, /heroFontSize\(bp\.num/);
 });
