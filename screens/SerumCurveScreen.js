@@ -31,10 +31,11 @@ import { getHistoryProtocols, getBiomarkers, getLogsSince } from '../lib/databas
 import { getHalfLifeEntry, curveUnit, doseInCurveUnit, amountFraction } from '../lib/halfLives';
 import { parseDecimal } from '../lib/doseMath';
 import {
-  STEP_HOURS, matchName, seriesName, compoundName, curveLabels, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt, levelLabel,
-  curveWindowDays, curveTicks, axisLabel, displayScale, curveDrawMax, seriesLevelText, upcomingDoseDays, lineSamples, combinedLine, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, levelOnDate, dosesInLevel,
-  hasLoggedDose, nowLabelLines, nowLabelPlacement,
+  STEP_HOURS, matchName, seriesName, compoundName, curveLabels, splitCurveProtocols, curveHistoryProtocols, estimatedBeforeMs, curveGridStart, curvePlan, levelAt,
+  curveWindowDays, curveTicks, axisLabel, displayScale, curveDrawMax, upcomingDoseDays, doseTicks, readoutMoment, CURVE_LOG_LOOKBACK_DAYS, curveOldestReadoutISO, dosesInLevel,
+  hasLoggedDose, nowLabelLines, nowLabelPlacement, curveAxisKind, bodyOnDate, bodyLineSamples, bodyCombinedLine,
 } from '../lib/serumModel';
+import { bodyLines, bodyLevel, addBodyLevels, bodyLevelParts, bodyLevelText, depotText, bodyNoteKeys, sig2 } from '../lib/doseInBody';
 import { curveNoticeShown, dismissCurveNotice } from '../lib/curveNoticeRuntime';
 import { isOne } from '../lib/plural';
 import { formatDate, formatNumber, decimalText, MONTHS_SHORT, numberSymbols, unitText } from '../lib/localeFormat';
@@ -139,7 +140,8 @@ function levelAtStep(pts, pre, xs, s) {
 
 // One curve (a compound or a combined total), driven entirely on the UI thread:
 // solid up to Now (the estimate), dashed after it (the projection).
-function CurveLine({ points, pre, xs, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, stroke, strokeWidth }) {
+// dashPast: the dash of the estimate up to Now ("0" = solid; tesamorelin's ceiling is dashed, DB-6).
+function CurveLine({ points, pre, xs, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, stroke, strokeWidth, dashPast = '0' }) {
   const past = useAnimatedProps(() => ({
     d: seriesD(points, pre, xs, Math.min(revealAt(clock.value, nowIdx, nSteps), nowIdx), domainN.value, yMaxS.value, geo, 0),
     opacity: ready.value,
@@ -151,10 +153,43 @@ function CurveLine({ points, pre, xs, clock, domainN, yMaxS, ready, geo, nowIdx,
   // Explicit dash on both: react-native-svg keeps a prior dash when the prop returns to undefined.
   return (
     <>
-      <APath animatedProps={past} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeDasharray="0" strokeLinejoin="round" strokeLinecap="round" />
+      <APath animatedProps={past} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={dashPast} strokeLinejoin="round" strokeLinecap="round" />
       <APath animatedProps={ahead} fill="none" stroke={stroke} strokeWidth={strokeWidth * 0.8} strokeDasharray="5,4" strokeLinejoin="round" strokeLinecap="round" />
     </>
   );
+}
+
+// DB-1 (docs/design/curve-dose-in-body.html): the band between the studies' edges — the upper edge forward, the
+// lower edge back, drawn up to the reveal like the lines (each dose a vertical jump on both edges).
+function bandD(pts, pre, lo, loPre, xs, rev, domN, yMax, g) {
+  'worklet';
+  const n = pts.length;
+  const empty = 'M ' + g.L + ' ' + g.B;
+  if (!n || !lo || yMax <= 0 || domN <= 0) return empty;
+  const last = Math.min(rev, xs[n - 1], domN);
+  const w = g.R - g.L, h = g.B - g.T;
+  let d = '';
+  let k = -1;
+  for (let i = 0; i < n && xs[i] <= last; i++) {
+    const x = (g.L + (xs[i] / domN) * w).toFixed(1);
+    if (i > 0 && pre[i] !== pts[i]) d += ' L ' + x + ' ' + (g.B - (pre[i] / yMax) * h).toFixed(1);
+    d += (i === 0 ? 'M ' : ' L ') + x + ' ' + (g.B - (pts[i] / yMax) * h).toFixed(1);
+    k = i;
+  }
+  if (k < 1) return empty;
+  for (let i = k; i >= 0; i--) {
+    const x = (g.L + (xs[i] / domN) * w).toFixed(1);
+    d += ' L ' + x + ' ' + (g.B - (lo[i] / yMax) * h).toFixed(1);
+    if (i > 0 && loPre[i] !== lo[i]) d += ' L ' + x + ' ' + (g.B - (loPre[i] / yMax) * h).toFixed(1);
+  }
+  return d + ' Z';
+}
+function BandFill({ points, pre, lo, loPre, xs, clock, domainN, yMaxS, ready, geo, nowIdx, nSteps, fill, fillOpacity }) {
+  const band = useAnimatedProps(() => ({
+    d: bandD(points, pre, lo, loPre, xs, revealAt(clock.value, nowIdx, nSteps), domainN.value, yMaxS.value, geo),
+    opacity: ready.value,
+  }), [points, pre, lo, loPre, xs, nowIdx, nSteps, geo]);
+  return <APath animatedProps={band} fill={fill} fillOpacity={fillOpacity} stroke="none" />;
 }
 
 // The pen dot that leads each line while it draws, then a soft "breath" at Now.
@@ -282,9 +317,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const { t, language, timeFormat } = useLanguage();
   const du = t('unit_day_short');
   const hu = t('unit_hour_short');
-  // Levels and dates in the app language ("3,5 mg", "19 de out."; lib/localeFormat).
-  // Council 2026-10-27: under 1 mg the curve reads in mcg (lib/serumModel displayScale, dispF below).
-  const mgLabel = (v) => levelLabel(v * dispF, language);
+  // Levels and dates in the app language ("3,5 mg", "19 de out."; lib/localeFormat). Council 2026-10-27: under
+  // 1 mg the curve reads in mcg (lib/serumModel displayScale, dispF below); DB-9: every level is a body level
+  // (lib/doseInBody, bodyText below).
   const decSep = numberSymbols(language).decimal; // for the UI-thread number below
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -394,7 +429,8 @@ export default function SerumCurveScreen({ embedded = false }) {
     // Opens exactly as the user left it (lib/curveView, founder 2026-10-02): the remembered
     // compounds still on the chart (one unit per chart), Combined and the horizon; nothing
     // remembered or valid → the first compound. Reading the view writes nothing.
-    const u = (id) => { const p = d.protocols.find(x => x.id === id); return p ? curveUnit(entryOf(p)) : null; };
+    // DB-3: a depot-only ester has its own axis (lib/serumModel curveAxisKind), like mg and IU.
+    const u = (id) => { const p = d.protocols.find(x => x.id === id); return p ? curveAxisKind(entryOf(p)) : null; };
     const view = restoreCurveView({ saved: savedView, active: d.protocols, unitOf: u });
     setSelectedIds(view.selectedIds);
     setShowCombined(view.showCombined);
@@ -438,10 +474,10 @@ export default function SerumCurveScreen({ embedded = false }) {
     return out;
   }
 
-  // Unit a protocol charts in ('mg' or 'IU').
+  // The axis a protocol charts on ('mg', 'IU', or 'mg:depot' for a depot-only ester, DB-3).
   function unitOf(id) {
     const p = protocols.find(x => x.id === id);
-    return p ? curveUnit(getHalfLifeEntry(matchName(p))) : 'mg';
+    return p ? curveAxisKind(getHalfLifeEntry(matchName(p))) : 'mg';
   }
 
   // Only a change the user makes is remembered (per user), never the opening itself.
@@ -536,10 +572,15 @@ export default function SerumCurveScreen({ embedded = false }) {
     const series = base.map(({ p, entry, doses, planned }) => {
       const doseMg = doseInCurveUnit(parseDecimal(p.dose), p.dose_unit, entry) || 0;
       const halfLifeMs = entry.hours * 3600 * 1000;
-      // A-93: sorted doses in a moving window (same numbers, far fewer calls — lib/curveSampling).
-      const { points, pre, xs, times, instants } = lineSamples(doses, doseMg, entry, ctx, amountFraction);
-      // Exact level at this moment, for the numbers.
-      const nowLevel = levelAt(doses, doseMg, entry, now);
+      // DB-1…DB-9 (docs/specs/dose-in-body.md): the line is the amount in the body (lib/doseInBody) — the upper
+      // edge, with the lower edge where the studies disagree (a band); a depot-only ester draws what is still at
+      // the injection site. A-93: sorted doses in a moving window (lib/curveSampling).
+      const lines = bodyLines(entry);
+      const bs = bodyLineSamples(lines, doses, doseMg, ctx, amountFraction);
+      const { points, pre, xs, times, instants } = bs;
+      // The body level at this moment, for the numbers; nowLevel is the drawn line's own value (the Now dot).
+      const body = bodyLevel(lines, doses, doseMg, entry, now, levelAt);
+      const nowLevel = levelAt(bs.mainDoses, doseMg, bs.mainEntry, now);
       const dosesInWindow = doses.filter(ts => ts >= start && ts <= now).length;
       // A-160 (founder 2026-10-26, option B): the doses that still add at least 1% of their amount to
       // the level now (lib/serumModel dosesInLevel) — the number beside the level; with AD-96 B the
@@ -559,6 +600,18 @@ export default function SerumCurveScreen({ embedded = false }) {
         times,
         instants,
         nowLevel,
+        lines,
+        body,
+        parent: lines.parent,
+        drawKind: bs.drawKind,
+        loPoints: bs.loPoints,
+        loPre: bs.loPre,
+        mainEntry: bs.mainEntry,
+        mainDoses: bs.mainDoses,
+        loEntry: bs.loEntry,
+        loDoses: bs.loDoses,
+        peakHi: Math.max(0, ...points),
+        peakLo: bs.loPoints ? Math.max(0, ...bs.loPoints) : null,
         dosesInWindow,
         levelDoses,
         dosesInLevel: levelDoses.length,
@@ -587,9 +640,11 @@ export default function SerumCurveScreen({ embedded = false }) {
       .filter(([, members]) => members.length >= 2)
       .map(([sub, members]) => {
         // Point by point; no second pass when no member has dose instants (lib/serumModel).
-        const { points, pre, xs } = combinedLine(members, ctx, amountFraction);
+        // DB-9: the body edges add edge to edge (one parent, one elimination; lib/serumModel bodyCombinedLine).
+        const { points, pre, xs, loPoints, loPre, drawKind } = bodyCombinedLine(members, ctx, amountFraction);
         const nowLevel = members.reduce((sum, m) => sum + m.nowLevel, 0);
-        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), memberDoses: members.map(m => m.doseMg), points, pre, xs, nowLevel };
+        const body = addBodyLevels(members.map((m) => m.body));
+        return { id: `combined:${sub}`, substance: sub, members: members.map(m => m.id), memberDoses: members.map(m => m.doseMg), points, pre, xs, loPoints, loPre, drawKind, nowLevel, body, parent: members[0].parent };
       });
 
     // Shared vertical scale spans the individual series and, when shown, the
@@ -624,8 +679,11 @@ export default function SerumCurveScreen({ embedded = false }) {
   const dispF = disp.factor;
   // Pharmacometrician 2026-11-01: each compound's own number in its own unit (250 mcg next to 2 mg reads
   // "16 mcg", not "< 0,1 mg"); the axis and the peak keep the shared unit.
-  const serLevel = (ser, v) => seriesLevelText(v, model ? model.unit : 'mg', [ser.doseMg], language);
-  const levelText = (x) => x.num + '\u00A0' + unitText(x.unit, language);
+  // DB-9 (docs/specs/dose-in-body.md): the body level in the same words everywhere — "entre X e Y mg de
+  // testosterona", "no máximo X", "Parte já no corpo: sem estudo" — and the depot layer's own line.
+  const bodyOpts = (ser) => ({ t, language, unit: model ? model.unit : 'mg', parent: ser.parent, doses: ser.memberDoses || [ser.doseMg] });
+  const bodyText = (ser, lv) => bodyLevelText(lv, bodyOpts(ser));
+  const bodyDepot = (ser, lv) => depotText(lv, bodyOpts(ser));
   const ticksRaw = curveTicks(model ? model.max * dispF : 0);
   const ticksY = { top: ticksRaw.top / dispF, ticks: ticksRaw.ticks.map((v) => v / dispF) };
   if (model && model.max > 0) plotMax = ticksY.top;
@@ -640,8 +698,24 @@ export default function SerumCurveScreen({ embedded = false }) {
   })();
   const axisShow = axisLabels({ plotW: axisW, nowLeft: nowLabelLeft, nowW: axisNowW, leftW: axisLeftW, rightW: axisRightW });
   const single = model && model.series.length === 1 ? model.series[0] : null;
-  // One compound draws in data blue (prototype curveScreen); several keep their protocol colors.
-  const lineColor = (ser) => (single ? colors.data : ser.color);
+  // One compound draws in data blue (prototype curveScreen); several keep their protocol colors. DB-3: a depot-only
+  // ester alone draws in the depot colour (what is still at the injection site, never the body).
+  const lineColor = (ser) => (single ? (ser.drawKind === 'depotOnly' ? colors.depot : colors.data) : ser.color);
+  const heroParts = single ? bodyLevelParts(single.body, bodyOpts(single)) : null;
+  // The peak on the range line, in the body's words: a band's edges, a ceiling's "no máximo"; none where the line
+  // is the depot (it is not the body).
+  const peakText = (() => {
+    if (!model || !(model.max > 0) || model.series.some((x) => x.drawKind === 'depotOnly')) return null;
+    if (single) {
+      if (single.drawKind === 'band') return '≈ ' + bodyText(single, { kind: 'band', lo: single.peakLo, hi: single.peakHi });
+      if (single.drawKind === 'ceiling') return bodyText(single, { kind: 'ceiling', hi: single.peakHi });
+      return '≈ ' + bodyText(single, { kind: 'value', hi: single.peakHi });
+    }
+    const top = sig2(model.max * dispF, language);
+    const u = unitText(disp.unit, language);
+    if (model.series.some((x) => x.drawKind !== 'value')) return t('body_at_most').replace('{v}', top).replace('{unit}', u);
+    return `≈ ${top}\u00A0${u}`;
+  })();
 
   // ── Date readout (cross-reference a blood-draw date) ──
   const now = Date.now();
@@ -657,11 +731,13 @@ export default function SerumCurveScreen({ embedded = false }) {
   // local noon, exact (doses are no longer on the 6 h grid, so neither is the readout).
   const readoutT = readoutMoment(readoutISO, todayISO(), model ? model.now : now);
   // Estimated mg of one series at an arbitrary timestamp (direct decay sum).
-  const levelAtDate = (ser, T) => levelAt(ser.doses, ser.doseMg, ser.entry, T);
+  // DB-9: the drawn line's own value (the body's upper edge, or the depot) — where the date dot sits.
+  const levelAtDate = (ser, T) => levelAt(ser.mainDoses, ser.doseMg, ser.mainEntry, T);
   // The date estimate (lib/serumModel levelOnDate): the drawn doses inside the longest window; a
   // date past the projection or before that window uses its own doses up to that date (the logged
   // past and the plan, AD-96 B), with the full history before it (curve fix 2).
-  const readoutLevel = (ser, T) => (model ? levelOnDate(ser.p, ser.entry, ser.doseMg, ser.doses, T, model.now, winEnd, ser.curveData) : 0);
+  // DB-9: the body level on that date, from the same doses (lib/serumModel bodyOnDate).
+  const readoutBody = (ser, T) => (model ? bodyOnDate(ser.p, ser.entry, ser.doseMg, ser.doses, T, model.now, winEnd, ser.curveData) : null);
   // Part 19: the next three days with a planned dose, as chips (a dose of today already logged
   // leaves today out, R7).
   const upcoming = useMemo(
@@ -672,7 +748,6 @@ export default function SerumCurveScreen({ embedded = false }) {
   const customDate = !!readoutDate && !upcoming.includes(readoutDate) && !labDates.includes(readoutDate);
   const pickDate = (iso) => setReadoutDate(prev => (prev === iso ? null : iso));
   const seriesById = {};
-  const combLevel = (c, v) => seriesLevelText(v, model ? model.unit : 'mg', c.members.map((mid) => (seriesById[mid] ? seriesById[mid].doseMg : 0)), language);
   if (model) for (const ser of model.series) seriesById[ser.id] = ser;
   // Marker x only when the readout date sits inside the plotted window.
   const readoutInWindow = readoutT >= winStart && readoutT <= winEnd;
@@ -809,7 +884,8 @@ export default function SerumCurveScreen({ embedded = false }) {
   const hitsSingle = introFx ? introFx.hitsSingle : [];
   const statBump = useAnimatedStyle(() => ({ transform: [{ scale: bumpScale(clock.value, hitsSingle, 500, 0.12) }] }), [hitsSingle]);
   const unitLbl = unitText(disp.unit, language); // A-134: UI / IE in the app language; mcg under 1 mg
-  const numFmt = (v) => { 'worklet'; const x = v * dispF; return !isFinite(x) || x <= 0 ? '0' : x < 0.05 ? '< 0' + decSep + '1' : x < 10 ? x.toFixed(1).replace('.', decSep) : String(Math.round(x)); };
+  // DB-9: 2 significant figures below 10, as lib/doseInBody sig2 (0,081 never reads 0,1).
+  const numFmt = (v) => { 'worklet'; const x = v * dispF; if (!isFinite(x) || x <= 0) return '0'; if (x < 0.001) return '< 0' + decSep + '001'; const r = Number(x.toPrecision(2)); if (r >= 10) return String(Math.round(x)); const dg = Math.max(0, 1 - Math.floor(Math.log10(r) + 1e-12)); return r.toFixed(dg).replace('.', decSep); };
   const cntFmt = (v) => { 'worklet'; return String(Math.round(v)); };
 
   // Dropdown button label: the single compound's name, or "N compounds".
@@ -855,6 +931,23 @@ export default function SerumCurveScreen({ embedded = false }) {
   // Founder 2026-11-01 (option A): a compound with no human study is named under the chart, with where its
   // estimate comes from; in a chart in days, why its line falls to zero within hours (lib/curveEvidence).
   const noStudy = model ? noStudyWarning(model.series, { hourMode, t }) : null; // also on an empty chart (no dose in the window)
+  // DB-2 / DB-3 / DB-6: where each body number comes from, under the chart (lib/doseInBody bodyNoteKeys) — the
+  // band's studies, F = 1 for IM oil, the depot drawn alone, a ceiling; named per compound when several.
+  const bodyNotes = (() => {
+    if (!model) return [];
+    const seen = new Set();
+    const out = [];
+    for (const ser of model.series) {
+      for (const n of bodyNoteKeys(ser.lines, ser.body, ser.doseMg, language)) {
+        const text = t(n.key).replace('{pct}', n.pct || '');
+        const line = model.series.length > 1 && n.key !== 'body_depot_note' ? `${ser.compound}: ${text}` : text;
+        if (seen.has(line)) continue;
+        seen.add(line);
+        out.push({ id: `${ser.id}-${n.key}`, text: line });
+      }
+    }
+    return out;
+  })();
   const fastNotes = model && model.max > 0 ? model.series.filter(isFastNote)
     .filter((ser, i, all) => all.findIndex((o) => o.compound === ser.compound) === i) // a compound once, by its own name
     .map((ser) => ({ id: ser.id, text: t('curve_fast_note').replace('{names}', ser.compound) })) : [];
@@ -953,12 +1046,20 @@ export default function SerumCurveScreen({ embedded = false }) {
               <View style={s.heroRow}>
                 <View style={s.heroCol}>
                   <Text style={s.foot}>{t('curve_level_now')}</Text>
-                  <Text style={[s.heroNum, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>
-                    {mgLabel(single.nowLevel)}<Text style={s.unitInline}> {unitLbl}</Text>
-                  </Text>
+                  {/* DB-9: the body level — the band's words small, its numbers large (lib/doseInBody bodyLevelParts) */}
+                  {heroParts.note ? <Text style={s.heroNote}>{heroParts.note}</Text> : (
+                    <>
+                      {heroParts.pre ? <Text style={s.heroPre}>{heroParts.pre}</Text> : null}
+                      <Text style={[s.heroNum, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>
+                        {heroParts.num}<Text style={s.unitInline}> {heroParts.unit}</Text>
+                      </Text>
+                    </>
+                  )}
                 </View>
                 <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
               </View>
+              {/* DB-2 / DB-3: the oil still at the injection site — its own colour, its own line, never added to the body */}
+              {single.body && single.body.depot != null ? <Text style={s.depotLine}>{bodyDepot(single, single.body)}</Text> : null}
               {/* PK-11 (founder 2026-10-26): the same line as the Journey tile while nothing is marked complete */}
               {!hasLoggedDose(single.p, doseLogs, model.now) ? <Text style={s.heroFoot}>{t('curve_no_logs')}</Text> : null}
               </>
@@ -968,7 +1069,10 @@ export default function SerumCurveScreen({ embedded = false }) {
                   <View key={`h-${ser.id}`} style={s.heroMultiRow}>
                     <View style={[s.dot, { backgroundColor: ser.color }]} />
                     <Text style={s.readoutName} numberOfLines={2}>{ser.name}</Text>
-                    <Text style={s.readoutVal}>{levelText(serLevel(ser, ser.nowLevel))}</Text>
+                    <View style={s.valCol}>
+                      <Text style={s.readoutVal}>{bodyText(ser, ser.body)}</Text>
+                      {ser.body && ser.body.depot != null ? <Text style={s.depotSmall}>{bodyDepot(ser, ser.body)}</Text> : null}
+                    </View>
                   </View>
                 ))}
                 {model && model.series.filter(ser => !hasLoggedDose(ser.p, doseLogs, model.now)).map(ser => (
@@ -979,7 +1083,7 @@ export default function SerumCurveScreen({ embedded = false }) {
             )}
             <Text style={s.rangeLabel}>
               {hourMode ? `${t('curve_last_hours')} ${hourWin.past}\u00A0${hu}` : `${t('curve_last_days')} ${pastDays}${du}`}{single ? ` · ${single.dosesInWindow} ${t(isOne(single.dosesInWindow, language) ? 'log_dose' : 'log_doses')}` : ''} · {hourMode ? `+${hourWin.future}\u00A0${hu}` : `+${futureDays}${du}`} {t('curve_projection')}
-              {model && model.max > 0 ? ` · ${t('curve_peak')} ≈ ${mgLabel(model.max)}\u00A0${unitLbl}` : ''}
+              {model && model.max > 0 && peakText ? ` · ${t('curve_peak')} ${peakText}` : ''}
             </Text>
             {/* A-30 (a): a fixed label — the part before the protocol was added is estimated from
                 the start date (the dashed line on the chart marks where it ends) */}
@@ -1059,6 +1163,26 @@ export default function SerumCurveScreen({ embedded = false }) {
             <Svg width={chartWidth} height={chartHeight} style={s.chartLayer} pointerEvents="none">
               {/* one overlaid curve per selected compound — drawn in time on open;
                   solid = estimate, dashed = projection */}
+              {/* DB-1: where the studies disagree, the band between the two edges and its lower edge */}
+              {model && model.max > 0 && model.series.filter((ser) => ser.drawKind === 'band' && ser.loPoints).map(ser => (
+                <BandFill
+                  key={`band-${ser.id}`}
+                  points={ser.points} pre={ser.pre} lo={ser.loPoints} loPre={ser.loPre} xs={ser.xs}
+                  clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
+                  nowIdx={model.nowIdx} nSteps={model.nSteps}
+                  fill={single ? colors.dataBand : lineColor(ser)} fillOpacity={single ? 1 : 0.16}
+                />
+              ))}
+              {model && model.max > 0 && model.series.filter((ser) => ser.drawKind === 'band' && ser.loPoints).map(ser => (
+                <CurveLine
+                  key={`lo-${ser.id}`}
+                  points={ser.loPoints} pre={ser.loPre} xs={ser.xs}
+                  clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
+                  nowIdx={model.nowIdx} nSteps={model.nSteps}
+                  stroke={lineColor(ser)}
+                  strokeWidth={1.2}
+                />
+              ))}
               {model && model.max > 0 && model.series.map(ser => (
                 <CurveLine
                   key={ser.id}
@@ -1067,9 +1191,19 @@ export default function SerumCurveScreen({ embedded = false }) {
                   nowIdx={model.nowIdx} nSteps={model.nSteps}
                   stroke={lineColor(ser)}
                   strokeWidth={2.2}
+                  dashPast={ser.lines.dashed ? '2,3' : '0'}
                 />
               ))}
               {/* combined total per substance group — bold, on top */}
+              {model && model.max > 0 && showCombined && model.combined.filter((c) => c.drawKind === 'band' && c.loPoints).map(c => (
+                <CurveLine
+                  key={`lo-${c.id}`}
+                  points={c.loPoints} pre={c.loPre} xs={c.xs}
+                  clock={clock} domainN={domainN} yMaxS={yMaxS} ready={ready} geo={geo}
+                  nowIdx={model.nowIdx} nSteps={model.nSteps}
+                  stroke={colors.ink} strokeWidth={1.4}
+                />
+              ))}
               {model && model.max > 0 && showCombined && model.combined.map(c => (
                 <CurveLine
                   key={c.id}
@@ -1129,10 +1263,25 @@ export default function SerumCurveScreen({ embedded = false }) {
                 <Text style={s.noStudyText}>{noStudy}</Text>
               </View>
             ) : null}
+            {bodyNotes.length ? (
+              <View style={s.bodyNotes}>
+                {bodyNotes.map((n) => <Text key={n.id} style={s.foot}>{n.text}</Text>)}
+              </View>
+            ) : null}
 
             {/* Legend (part 17): estimate · projection · scheduled doses */}
             <View style={s.legendKeys}>
               <View style={s.legendKey}><View style={s.lgSolid} /><Text style={s.legendKeyText}>{t('curve_lg_estimate')}</Text></View>
+              {/* DB-1 / DB-3 / DB-6: the band, the ceiling and the depot each name themselves */}
+              {model && model.series.some((x) => x.drawKind === 'band') ? (
+                <View style={s.legendKey}><View style={s.lgBand} /><Text style={s.legendKeyText}>{t('body_lg_band')}</Text></View>
+              ) : null}
+              {model && model.series.some((x) => x.drawKind === 'ceiling') ? (
+                <View style={s.legendKey}><View style={s.lgSolid} /><Text style={s.legendKeyText}>{t('body_lg_ceiling')}</Text></View>
+              ) : null}
+              {model && model.series.some((x) => x.drawKind === 'depotOnly') ? (
+                <View style={s.legendKey}><View style={s.lgDepot} /><Text style={s.legendKeyText}>{t('body_lg_depot')}</Text></View>
+              ) : null}
               {/* AD-96 B copy: the start-date line's own key, only while that line is inside the window */}
               {model && model.max > 0 && model.estBefore && model.estBefore > model.start ? (
                 <View style={s.legendKey}><View style={s.lgEst}>{[0, 1].map(k => <View key={k} style={s.lgEstBit} />)}</View><Text style={s.legendKeyText}>{t('curve_lg_declared')}</Text></View>
@@ -1165,13 +1314,18 @@ export default function SerumCurveScreen({ embedded = false }) {
             <View style={s.curvestats}>
               <View style={s.statCol}>
                 <Text style={s.statCap}>{t('curve_current_level')}</Text>
+                {single.drawKind === 'value' && single.body.kind === 'value' && heroParts.unit === unitLbl ? (
                 <View style={s.statNumRow}>
-                  <Text style={[s.statNum, s.measure]} onLayout={(e) => setLevelW(Math.ceil(e.nativeEvent.layout.width) + 2)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{mgLabel(singleNow)}</Text>
+                  <Text style={[s.statNum, s.measure]} onLayout={(e) => setLevelW(Math.ceil(e.nativeEvent.layout.width) + 2)} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">{heroParts.num}</Text>
                   <Animated.View style={statBump}>
-                    <AnimatedNumber key={language} value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={levelW != null ? levelW : numW(mgLabel(singleNow))} />
+                    <AnimatedNumber key={language} value={statLevel} format={numFmt} style={[s.statNum, { color: colors.data }]} width={levelW != null ? levelW : numW(heroParts.num)} />
                   </Animated.View>
-                  <Text style={s.statUnit}>{unitLbl}</Text>
+                  <Text style={s.statUnit}>{heroParts.unit}</Text>
                 </View>
+                ) : (
+                  // DB-9: a band, a ceiling or "sem estudo" is words and two numbers — set as text, never one number
+                  <Text style={s.statText} numberOfLines={4}>{heroParts.note || [heroParts.pre, heroParts.num].filter(Boolean).join(' ')}{heroParts.note ? '' : `\u00A0${heroParts.unit}`}</Text>
+                )}
               </View>
               <View style={s.statCol}>
                 <Text style={s.statCap}>{t('curve_half_life')}</Text>
@@ -1201,7 +1355,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                       {tierCfg[ser.entry.tier].label}
                     </Text>
                   </View>
-                  <Text style={s.legendLevel}>{serLevel(ser, ser.nowLevel).num}<Text style={s.unitInline}> {unitText(serLevel(ser, ser.nowLevel).unit, language)}</Text></Text>
+                  <Text style={s.legendLevel} numberOfLines={3}>{bodyText(ser, ser.body)}</Text>
                   <Text style={s.legendHalf}>t½ {halfLifeLabel(ser.entry.hours, language, du)}</Text>
                 </View>
               ))}
@@ -1211,7 +1365,7 @@ export default function SerumCurveScreen({ embedded = false }) {
                   <Text style={[s.legendName, { flex: 1, fontWeight: '700' }]} numberOfLines={1}>
                     {t('curve_combined')} · {t(`substance_${c.substance}`)}
                   </Text>
-                  <Text style={[s.legendLevel, { fontWeight: '700' }]}>{combLevel(c, c.nowLevel).num}<Text style={s.unitInline}> {unitText(combLevel(c, c.nowLevel).unit, language)}</Text></Text>
+                  <Text style={[s.legendLevel, { fontWeight: '700' }]} numberOfLines={3}>{bodyText(c, c.body)}</Text>
                   <Text style={s.legendHalf}> </Text>
                 </View>
               ))}
@@ -1284,7 +1438,10 @@ export default function SerumCurveScreen({ embedded = false }) {
                     <View key={`ro-${ser.id}`} style={s.readoutRow}>
                       <View style={[s.dot, { backgroundColor: ser.color }]} />
                       <Text style={s.readoutName} numberOfLines={3}>{ser.name} · {readoutShort}</Text>
-                      <Text style={s.readoutVal}>{readoutT < model.start ? '—' : levelText(serLevel(ser, readoutLevel(ser, readoutT)))}</Text>
+                      <View style={s.valCol}>
+                        <Text style={s.readoutVal}>{readoutT < model.start ? '—' : bodyText(ser, readoutBody(ser, readoutT))}</Text>
+                        {readoutT >= model.start && ser.lines.depotLayer ? <Text style={s.depotSmall}>{bodyDepot(ser, readoutBody(ser, readoutT))}</Text> : null}
+                      </View>
                     </View>
                   ))}
                   {showCombined && model && model.combined.map(c => (
@@ -1294,10 +1451,12 @@ export default function SerumCurveScreen({ embedded = false }) {
                         {t('curve_combined')} · {t(`substance_${c.substance}`)} · {readoutShort}
                       </Text>
                       <Text style={s.readoutVal}>
-                        {readoutT < model.start ? '—' : levelText(combLevel(c, c.members.reduce((sum, mid) => sum + (seriesById[mid] ? readoutLevel(seriesById[mid], readoutT) : 0), 0)))}
+                        {readoutT < model.start ? '—' : bodyText(c, addBodyLevels(c.members.map((mid) => (seriesById[mid] ? readoutBody(seriesById[mid], readoutT) : null))))}
                       </Text>
                     </View>
                   ))}
+                  {/* DB-9: a body number shown with a blood-draw date is never the blood test */}
+                  {labDates.includes(readoutDate) ? <Text style={s.foot}>{t('body_not_blood_test')}</Text> : null}
                 </>
               ) : null}
             </View>
@@ -1441,6 +1600,16 @@ function makeStyles(c) {
     heroCol: { flex: 1, minWidth: 0, gap: 4 },
     heroNum: { fontSize: 56, lineHeight: 60, fontWeight: '500', letterSpacing: -1.6, fontVariant: ['tabular-nums'] },
     heroMultiRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    // DB-9: the body level's words above its numbers; "sem estudo" in ink; the depot in its own colour
+    heroPre: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+    heroNote: { fontSize: 22, lineHeight: 28, fontWeight: '600', color: c.ink },
+    depotLine: { fontSize: 13, lineHeight: 18, color: c.depot, marginTop: -6 },
+    depotSmall: { fontSize: 12, lineHeight: 16, color: c.depot, textAlign: 'right' },
+    valCol: { flexShrink: 1, maxWidth: '58%', alignItems: 'flex-end', gap: 2 },
+    statText: { fontSize: 15, lineHeight: 20, fontWeight: '500', color: c.data },
+    bodyNotes: { gap: 6 },
+    lgBand: { width: 18, height: 10, backgroundColor: c.dataBand, borderTopWidth: 2, borderTopColor: c.data, borderBottomWidth: 1, borderBottomColor: c.data },
+    lgDepot: { width: 18, height: 2, backgroundColor: c.depot },
     legendKeys: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 14, rowGap: 6 },
     legendKey: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     legendKeyText: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
@@ -1485,7 +1654,7 @@ function makeStyles(c) {
     legendNameCol: { flex: 1, minWidth: 0 },
     legendName: { fontSize: 17, color: c.ink },
     legendTier: { fontSize: 12, fontWeight: '500', marginTop: 2 },
-    legendLevel: { fontSize: 15, fontWeight: '500', color: c.ink, fontFamily: MONO['500'], textAlign: 'right', fontVariant: ['tabular-nums'] },
+    legendLevel: { flexShrink: 1, maxWidth: '45%', fontSize: 15, fontWeight: '500', color: c.ink, fontFamily: MONO['500'], textAlign: 'right', fontVariant: ['tabular-nums'] },
     legendHalf: { fontSize: 13, color: c.ink3, width: 64, textAlign: 'right' },
     combinedSwatch: { width: 16, height: 4, borderRadius: 2 },
 
@@ -1507,7 +1676,7 @@ function makeStyles(c) {
     sep: { height: 1, backgroundColor: c.line },
     readoutRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     readoutName: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
-    readoutVal: { fontSize: 17, lineHeight: 22, color: c.ink, fontFamily: MONO['500'], fontVariant: ['tabular-nums'] },
+    readoutVal: { flexShrink: 1, fontSize: 17, lineHeight: 22, color: c.ink, fontFamily: MONO['500'], fontVariant: ['tabular-nums'], textAlign: 'right' },
 
     noteBlock: { gap: 6 },
     noteSep: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12 },

@@ -22,13 +22,12 @@ test('the rule', () => {
 test('wired: every number on the curve and the Journey tile goes through the scale', () => {
   const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
   assert.match(src, /const disp = displayScale\(/);
-  assert.match(src, /const mgLabel = \(v\) => levelLabel\(v \* dispF, language\);/);
   assert.match(src, /const unitLbl = unitText\(disp\.unit, language\);/);
   assert.match(src, /axisLabel\(v \* dispF, language, ticksY\.ticks\[1\] \* dispF\)/); // A-193: the middle line sets the decimals
   assert.match(src, /const x = v \* dispF;/, 'the animated number too');
   const j = fs.readFileSync(path.join(__dirname, '../screens/JourneyScreen.js'), 'utf8');
-  assert.match(j, /levelLabel\(level\.value \* level\.display\.factor, language\)/);
-  assert.match(j, /unitText\(level\.display\.unit, language\)/);
+  // DB-9: the tile reads the body level, scaled by its own dose (lib/doseInBody displayOf: mcg under 1 mg)
+  assert.match(j, /bodyLevelParts\(level\.body, \{ t, language, unit: level\.unit, parent: level\.parent, doses: \[level\.doseInUnit\] \}\)/);
 });
 
 // Pharmacometrician 2026-11-01: with several compounds the axis keeps the shared unit, but each compound's own
@@ -52,8 +51,10 @@ test('mixed selection: each compound\'s number in its own unit', () => {
   assert.deepEqual(seriesLevelText(0, 'mg', [2], 'pt'), { num: '0', unit: 'mg' }, 'zero keeps its unit');
   assert.deepEqual(seriesLevelText(0.01, 'IU', [3], 'en'), { num: '< 0.1', unit: 'IU' });
   const src = fs.readFileSync(path.join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
-  // legend rows, the "now" readout rows and the scrub readout rows read per series
-  assert.ok((src.match(/serLevel\(ser, /g) || []).length >= 3, 'per-series rows use serLevel');
+  // legend rows, the "now" readout rows and the scrub readout rows read per series (DB-9: the body level, each
+  // in the unit of its own dose)
+  assert.ok((src.match(/bodyText\(ser, /g) || []).length >= 3, 'per-series rows use bodyText');
+  assert.match(src, /doses: ser\.memberDoses \|\| \[ser\.doseMg\]/);
   assert.ok(!/mgLabel\(ser\.nowLevel\)/.test(src), 'no per-series row uses the shared unit');
   assert.ok(!/mgLabel\(readoutLevel\(ser, readoutT\)\)/.test(src));
 });

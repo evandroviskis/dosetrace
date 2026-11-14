@@ -33,7 +33,9 @@ test('axis: above zero but under 0,05 reads "< 0,1"; zero stays 0,0', () => {
 // animated number follows the same rule.
 test('stat card: the animated level reads "< 0,1" too', () => {
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../screens/SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /const numFmt = \(v\) => \{ 'worklet'; const x = v \* dispF; return !isFinite\(x\) \|\| x <= 0 \? '0' : x < 0\.05 \? '< 0' \+ decSep \+ '1' : /);
+  // DB-9 (dose in the body): body numbers carry 2 significant figures (0,081 never reads "0,1"), so the floor
+  // moved to 0,001 — the same rule as lib/doseInBody sig2 and the header
+  assert.match(src, /const numFmt = \(v\) => \{ 'worklet'; const x = v \* dispF; if \(!isFinite\(x\) \|\| x <= 0\) return '0'; if \(x < 0\.001\) return '< 0' \+ decSep \+ '001'; /);
 });
 
 // A-193 (Fold, Gate S pass 2026-10-28): a curve whose whole window is under 0,05 drew two grid lines

@@ -232,7 +232,9 @@ test('Undecanoate, long-term user: Journey tile == screen at 3, 90 and 365 days,
   for (const w of [3, 90, 365]) assert.equal(screen(p, w).nowLevel, tile, `${w}-day window`);
 });
 
-test('the screen reads every date estimate through levelOnDate', () => {
+test('the screen reads every date estimate through levelOnDate (DB-9: its body twin bodyOnDate, the same doses)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
-  assert.match(src, /const readoutLevel = \(ser, T\) => \(model \? levelOnDate\(ser\.p, ser\.entry, ser\.doseMg, ser\.doses, T, model\.now, winEnd, ser\.curveData\) : 0\);/);
+  assert.match(src, /const readoutBody = \(ser, T\) => \(model \? bodyOnDate\(ser\.p, ser\.entry, ser\.doseMg, ser\.doses, T, model\.now, winEnd, ser\.curveData\) : null\);/);
+  const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'serumModel.js'), 'utf8');
+  assert.match(lib, /const list = T >= earliest && T <= winEnd \? doses : curvePlan\(p, entry, Math\.min\(T, earliest\), Math\.max\(T, now\), now, data\)\.doses;/, 'the window rule of levelOnDate');
 });

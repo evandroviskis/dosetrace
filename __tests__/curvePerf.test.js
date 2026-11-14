@@ -226,8 +226,8 @@ test('combined total of members with instants is sampled at their instants toget
 test('the screen computes the combined totals only while Combined is shown', () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
   assert.match(src, /const combined = !showCombined \? \[\] : Object\.entries\(bySubstance\)/);
-  assert.match(src, /combinedLine\(members, ctx, amountFraction\)/);
-  assert.match(src, /lineSamples\(doses, doseMg, entry, ctx, amountFraction\)/);
+  assert.match(src, /bodyCombinedLine\(members, ctx, amountFraction\)/); // DB-9: the body lines
+  assert.match(src, /bodyLineSamples\(lines, doses, doseMg, ctx, amountFraction\)/);
   // the Combined toggle itself still shows while the total is off (a same-substance group exists)
   assert.match(src, /\{model && model\.hasGroups && \(/);
   assert.match(src, /const hasGroups = Object\.values\(bySubstance\)\.some\(members => members\.length >= 2\);/);

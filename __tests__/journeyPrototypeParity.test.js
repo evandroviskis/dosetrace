@@ -70,7 +70,7 @@ test('part 17: grid lines follow the prototype rule (0, half the peak, the peak;
 test('part 18: the unit sits right next to the Est. level number (the stat field is as wide as the number drawn)', () => {
   const src = read('screens/SerumCurveScreen.js');
   assert.match(src, /onLayout=\{\(e\) => setLevelW\(Math\.ceil\(e\.nativeEvent\.layout\.width\) \+ 2\)\}/, 'measured, not guessed');
-  assert.match(src, /width=\{levelW != null \? levelW : numW\(mgLabel\(singleNow\)\)\}/);
+  assert.match(src, /width=\{levelW != null \? levelW : numW\(heroParts\.num\)\}/); // DB-9: the body number
 });
 
 test('part 21: no day question bubble on open unless it still applies — the prototype asks only after a log', () => {

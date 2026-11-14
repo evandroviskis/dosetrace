@@ -42,9 +42,10 @@ import { getCachedUser } from '../lib/supabase';
 import { profileMeta } from '../lib/pendingGateStore';
 import { getActiveProtocols, getHistoryProtocols, getLogsSince, getCalcSnapshots, getRealityChecks } from '../lib/database';
 import { progressTile } from '../lib/progressTile';
-import { formatDate, formatNumber, formatInt, unitText } from '../lib/localeFormat';
+import { formatDate, formatNumber, formatInt } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
-import { defaultCurveLevel, levelLabel, CURVE_LOG_LOOKBACK_DAYS, curveHistoryProtocols } from '../lib/serumModel';
+import { defaultCurveLevel, CURVE_LOG_LOOKBACK_DAYS, curveHistoryProtocols } from '../lib/serumModel';
+import { bodyLevelParts, depotText } from '../lib/doseInBody';
 import { loadCurveView } from '../lib/curveViewStore';
 import { MONO } from '../lib/fonts';
 import { displayColor } from '../lib/protocolColors';
@@ -268,7 +269,20 @@ export default function JourneyScreen() {
                 </View>
                 <View style={[s.num, s.numEnd]}>
                   <Text style={s.cap}>{t('curve_current_level')}</Text>
-                  <Text style={[s.big, { color: colors.data }]}>{levelLabel(level.value * level.display.factor, language)}<Text style={s.unit}> {unitText(level.display.unit, language)}</Text></Text>
+                  {/* DB-9 (docs/specs/dose-in-body.md): the amount in the body, as on the curve — the band, the
+                      ceiling or "Parte já no corpo: sem estudo"; an oil ester adds what is still at the injection site */}
+                  {(() => {
+                    const bp = level.body ? bodyLevelParts(level.body, { t, language, unit: level.unit, parent: level.parent, doses: [level.doseInUnit] }) : null;
+                    if (!bp) return null;
+                    if (bp.note) return <Text style={[s.foot, s.bodyNote]}>{bp.note}</Text>;
+                    return (
+                      <>
+                        {bp.pre ? <Text style={s.cap}>{bp.pre}</Text> : null}
+                        <Text style={[s.big, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>{bp.num}<Text style={s.unit}> {bp.unit}</Text></Text>
+                      </>
+                    );
+                  })()}
+                  {level.body && level.body.depot != null ? <Text style={[s.foot, { color: colors.depot }]}>{depotText(level.body, { t, language, unit: level.unit, parent: level.parent })}</Text> : null}
                   {/* PK-11 (founder 2026-10-26): the same line as the curve while nothing is marked complete */}
                   {level.noLogs ? <Text style={s.foot}>{t('curve_no_logs')}</Text> : null}
                   <View style={s.chip}><Text style={s.chipText}>{t('hy_estimated')}</Text></View>
@@ -338,4 +352,5 @@ const makeStyles = (c) => StyleSheet.create({
   chipMeasText: { color: c.data },
   vin: { fontFamily: MONO['500'], color: c.ink, fontVariant: ['tabular-nums'] },
   learn: { marginHorizontal: 16, marginTop: 20 },
+  bodyNote: { color: c.ink },
 });

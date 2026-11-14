@@ -69,7 +69,7 @@ test('DB-1: the testosterone esters show testosterone in the body, a band at t½
     assert.equal(L.hi.fastHours, 100 / 60);
   }
   const t = (key) => ({ body_between: 'entre {lo} e {hi} {unit}', body_unit_of: '{unit} de {substance}', body_parent_testosterone: 'testosterona' }[key] || key);
-  assert.equal(B.bodyLevelText({ kind: 'band', lo: 0.0809, hi: 0.8152 }, { t, language: 'pt', unit: 'mg', parent: 'testosterone', doses: [100] }), 'entre 0,081 e 0,82 mg de testosterona');
+  assert.equal(B.bodyLevelText({ kind: 'band', lo: 0.0809, hi: 0.8152 }, { t, language: 'pt', unit: 'mg', parent: 'testosterone', doses: [100] }), 'entre 0,081 e 0,82\u00A0mg de testosterona');
 });
 
 test('DB-2: the oil esters carry the depot layer U = D·S at the injection, mass balance with the release', () => {

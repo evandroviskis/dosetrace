@@ -167,7 +167,7 @@ test('Today: the weigh-in reminder date and the vial dates come from formatDate'
 test('Journey and Progress: the weight and the level use the language decimal', () => {
   const j = read('screens', 'JourneyScreen.js');
   assert.match(j, /formatNumber\(tile\.weight, language\)/);
-  assert.match(j, /levelLabel\(level\.value \* level\.display\.factor, language\)/);
+  assert.match(j, /bodyLevelParts\(level\.body, \{ t, language,/); // DB-9: the body level, in the language decimal (sig2)
   const c = read('screens', 'components', 'CalculatorSection.js');
   assert.match(c, /weighInFormValues\(row, unit, language\)/);
   assert.match(c, /readWeighInForm\(\{[^}]*language[^}]*\}\)/);

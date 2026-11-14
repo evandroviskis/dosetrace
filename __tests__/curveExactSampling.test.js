@@ -70,8 +70,12 @@ test('the curve screen draws on these samples: x = the exact time, Now = its exa
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'SerumCurveScreen.js'), 'utf8');
   // since the review: the per-line samples come from lib/serumModel lineSamples / combinedLine
   // (curveSampleTimes + sampleLevelsAt inside)
-  assert.match(src, /lineSamples\(/);
-  assert.match(src, /combinedLine\(/);
+  // DB-9 (dose in the body): through lib/serumModel bodyLineSamples / bodyCombinedLine, which sample with them
+  assert.match(src, /bodyLineSamples\(/);
+  assert.match(src, /bodyCombinedLine\(/);
+  const libSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'serumModel.js'), 'utf8');
+  assert.match(libSrc, /const s = lineSamples\(mainDoses, doseMg, mainEntry, ctx, af\);/);
+  assert.match(libSrc, /const hi = combinedLine\(members\.map/);
   assert.match(src, /doseTicks\(/);
   assert.match(src, /readoutMoment\(/);
   assert.doesNotMatch(src, /Math\.round\(\(readoutRaw - model\.start\) \/ stepMs\) \* stepMs/, 'no readout snap');
