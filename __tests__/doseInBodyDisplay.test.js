@@ -183,3 +183,17 @@ test('DB-9 (simulator): the unit is never nested inside the shrinking number lin
   assert.match(curve, /heroParts\.unit/);
   assert.match(journey, /bp\.unit/);
 });
+
+// Simulator check 2026-11-13: with the unit on its own line, the range alone in the 56 pt hero was shrunk by
+// iOS adjustsFontSizeToFit to a few points. The size now follows the text's length (never below half) and the
+// automatic shrink can never go under that floor.
+test('DB-9 (simulator): the large range keeps a readable size (length-based, floor at half)', () => {
+  assert.equal(B.heroFontSize('1,2', 56), 56);
+  assert.ok(B.heroFontSize('0,055–0,55', 56) >= 28 && B.heroFontSize('0,055–0,55', 56) < 56);
+  assert.equal(B.heroFontSize('0,0000123–0,000123', 56), 28);
+  const curve = read('screens/SerumCurveScreen.js');
+  const journey = read('screens/JourneyScreen.js');
+  assert.match(curve, /heroFontSize\(heroParts\.num/);
+  assert.match(curve, /minimumFontScale=\{0\.5\}/);
+  assert.match(journey, /heroFontSize\(bp\.num/);
+});

@@ -45,7 +45,7 @@ import { progressTile } from '../lib/progressTile';
 import { formatDate, formatNumber, formatInt } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
 import { defaultCurveLevel, CURVE_LOG_LOOKBACK_DAYS, curveHistoryProtocols } from '../lib/serumModel';
-import { bodyLevelParts, depotText } from '../lib/doseInBody';
+import { bodyLevelParts, depotText, heroFontSize } from '../lib/doseInBody';
 import { loadCurveView } from '../lib/curveViewStore';
 import { MONO } from '../lib/fonts';
 import { displayColor } from '../lib/protocolColors';
@@ -278,7 +278,7 @@ export default function JourneyScreen() {
                     return (
                       <>
                         {bp.pre ? <Text style={s.cap}>{bp.pre}</Text> : null}
-                        <Text style={[s.big, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>{bp.num}</Text>
+                        <Text style={[s.big, { color: colors.data, fontSize: heroFontSize(bp.num, 34) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>{bp.num}</Text>
                         <Text style={s.cap}>{bp.unit}</Text>
                       </>
                     );
