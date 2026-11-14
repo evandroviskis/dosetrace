@@ -62,6 +62,10 @@ import { useHoursWindow, curveTimeWindow, hoursSplit, HOUR_PRESETS, DEFAULT_HOUR
 import { loadCurveView, saveCurveView } from '../lib/curveViewStore';
 import { notifyDataChanged, addSyncListener } from '../lib/sync';
 import { curveReloadOnSync, curveReloadPatch, keepSelection } from '../lib/curveReload';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import HelpMark from '../components/HelpMark';
+import { CurveCardsSheet } from '../components/CurveCards';
+import { takeFirstOpen, learnMoreRoute } from '../lib/curveCards';
 
 const APath = Animated.createAnimatedComponent(Path);
 const ALine = Animated.createAnimatedComponent(Line);
@@ -309,6 +313,9 @@ export default function SerumCurveScreen({ embedded = false }) {
   const [doseLogs, setDoseLogs] = useState([]);         // DV-072 C: Dose log rows, for the hollow ticks only
   // AD-96 B copy, option B (founder 2026-10-26): the one-time notice card, until "Got it".
   const [noticeOn, setNoticeOn] = useState(false);
+  // CE-5 (docs/specs/curve-explained.md): the three cards — on the first opening (once per person and
+  // device, lib/curveCards) and whenever the help mark is tapped.
+  const [cardsOpen, setCardsOpen] = useState(false);
   // Founder 2026-10-02: the curve opens on the last 3 days (a new protocol fills the chart);
   // choosing an earlier date in "Estimate on a date" reaches the chart back to it.
   const pastDays = curveWindowDays(readoutDate, todayISO());
@@ -337,6 +344,9 @@ export default function SerumCurveScreen({ embedded = false }) {
           return;
         }
         if (isMounted) { readRef.current = reloadData; fetchData(); }
+        // CE-5: the first opening of the curve (Premium only, so after the check above) shows the cards.
+        const user = isMounted ? await getCachedUser().catch(() => null) : null;
+        if (isMounted && await takeFirstOpen(AsyncStorage, user && user.id) && isMounted) setCardsOpen(true);
       })();
       return () => { isMounted = false; readRef.current = null; viewReadyRef.current = false; };
     }, [navigation, embedded])
@@ -849,7 +859,20 @@ export default function SerumCurveScreen({ embedded = false }) {
     .filter((ser, i, all) => all.findIndex((o) => o.compound === ser.compound) === i) // a compound once, by its own name
     .map((ser) => ({ id: ser.id, text: t('curve_fast_note').replace('{names}', ser.compound) })) : [];
 
-  const title = <Text style={s.title}>{t('body_card_dosing_title')}</Text>;
+  // CE-1 / CE-2 / CE-4 (docs/design/curve-explained.html section 1): the name with the help mark at the
+  // end of its row, the Bateman line under it, then the fixed sentence.
+  const titleBlock = (
+    <View>
+      <View style={s.titleRow}>
+        <Text style={[s.title, s.titleText]} accessibilityRole="header">{t('body_card_dosing_title')}</Text>
+        <HelpMark onPress={() => setCardsOpen(true)} />
+      </View>
+      <Text style={s.titleSub}>{t('curve_sub')}</Text>
+      <Text style={s.titleFixed}>{t('curve_fixed')}</Text>
+    </View>
+  );
+  // CE-5: "Saiba mais" opens the FAQ at the curve's questions, once the sheet has gone.
+  const openLearnMore = () => { setCardsOpen(false); const r = learnMoreRoute(); setTimeout(() => navigation.navigate(r.route, r.params), 300); };
 
   return (
     <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : TAB_SCREEN_EDGES}>
@@ -871,7 +894,7 @@ export default function SerumCurveScreen({ embedded = false }) {
 
       {protocols.length === 0 ? (
         <View style={{ flex: 1 }}>
-          <View style={{ paddingHorizontal: 16 }}>{title}</View>
+          <View style={{ paddingHorizontal: 16 }}>{titleBlock}</View>
           <View style={s.emptyWrap}>
             <View style={s.emptyIcon}><FeatureIcon name="curve" size={44} color={colors.ink3} /></View>
             <Text style={s.emptyTitle}>{t('curve_empty_title')}</Text>
@@ -884,7 +907,7 @@ export default function SerumCurveScreen({ embedded = false }) {
         </View>
       ) : (
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {title}
+          {titleBlock}
 
           {/* Compound picker row (.pickrow) — opens the multi-select sheet */}
           <TouchableOpacity
@@ -1132,6 +1155,8 @@ export default function SerumCurveScreen({ embedded = false }) {
                 onChange={hourMode ? changeHours : changeHorizon}
               />
             </View>
+            {/* CE-3: the chart card ends with the estimate footer */}
+            <Text style={s.chartFoot}>{t('curve_foot')}</Text>
           </View>
 
           {single ? (
@@ -1377,6 +1402,7 @@ export default function SerumCurveScreen({ embedded = false }) {
           </Pressable>
         </Pressable>
       </Modal>
+      <CurveCardsSheet visible={cardsOpen} onClose={() => setCardsOpen(false)} onLearnMore={openLearnMore} />
     </SafeAreaView>
   );
 }
@@ -1391,6 +1417,12 @@ function makeStyles(c) {
     backRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     backChev: { transform: [{ scaleX: -1 }] },
     title: { fontSize: 34, fontWeight: '600', color: c.ink, letterSpacing: -0.7, paddingHorizontal: 4, paddingTop: 4, paddingBottom: 12 },
+    // CE-1 / CE-2: the name and the help mark on one row, then the Bateman line and the fixed sentence
+    titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    titleText: { flex: 1, paddingBottom: 0 },
+    titleSub: { fontSize: 13, lineHeight: 18, color: c.ink3, paddingHorizontal: 4, marginTop: 2 },
+    titleFixed: { fontSize: 15, lineHeight: 21, color: c.ink2, paddingHorizontal: 4, marginTop: 10, marginBottom: 2 },
+    chartFoot: { fontSize: 13, lineHeight: 18, color: c.ink3 }, // CE-3
     scroll: { paddingHorizontal: 16, paddingBottom: 24, gap: 14, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
     // the title already carries the screen gutter inside the scroll

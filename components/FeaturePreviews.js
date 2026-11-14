@@ -15,6 +15,7 @@ import Svg, { Line, Circle, Path } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import AccumulationHero from './AccumulationHero';
+import { CurveCardsList } from './CurveCards';
 import FeatureIcon from './FeatureIcon';
 import CheckMark, { CrossMark } from './CheckMark';
 import { clamp01, eOutQuad, eInOutCubic } from './motion';
@@ -464,6 +465,8 @@ export function FeaturePreviewSheet({ featureKey, onClose, onUnlock }) {
               </View>
               <FeaturePreview featureKey={feature.key} width={inner} />
               <Text style={s.body}>{t(feature.bodyKey)}</Text>
+              {/* CE-8 (docs/specs/curve-explained.md): the curve's lock shows its three cards before Unlock */}
+              {feature.key === 'serum' ? <CurveCardsList /> : null}
               {onUnlock ? (
                 <TouchableOpacity style={s.cta} onPress={onUnlock} activeOpacity={0.85} accessibilityRole="button">
                   <Text style={s.ctaText}>{t('preview_unlock_cta')}</Text>
