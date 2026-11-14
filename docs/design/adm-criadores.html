@@ -1,0 +1,615 @@
+<title>Programa de Criadores</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Desenho para o Evandro aprovar ANTES de construir (spec docs/specs/creators.md, 2026-11-13).
+     Mesmos tokens do web/adm.html. Cada tela aparece nos dois temas; desktop 1040 px e celular 390 px.
+     Números fictícios e coerentes entre si (ranking = soma por plataforma = portal da Ana). -->
+<style>
+  /* Página de vitrine: fundo neutro em volta dos quadros; os quadros usam os tokens do painel. */
+  :root{--page:#E4E8EE;--pageInk:#1B2633;--pageMuted:#5B6878;--pageLine:#C9D1DC;--pageChip:#F4F6F9}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#20262E;--pageInk:#E8EDF3;--pageMuted:#9AA7B6;--pageLine:#39434F;--pageChip:#2A323C;color-scheme:dark}}
+  :root[data-theme="dark"]{--page:#20262E;--pageInk:#E8EDF3;--pageMuted:#9AA7B6;--pageLine:#39434F;--pageChip:#2A323C;color-scheme:dark}
+  body{background:var(--page);color:var(--pageInk);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .intro{max-width:760px}
+  .intro h1{font-size:22px;margin:0 0 6px;text-wrap:balance}
+  .intro p{margin:0 0 8px;color:var(--pageMuted)}
+  .toc{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+  .toc a{background:var(--pageChip);border:1px solid var(--pageLine);color:var(--pageInk);border-radius:999px;padding:4px 12px;text-decoration:none;font-size:13px}
+  .toc a:focus-visible{outline:2px solid #4FA3E8;outline-offset:2px}
+  section.scr{margin-top:28px}
+  section.scr>h2{font-size:17px;margin:0 0 2px}
+  section.scr>p{margin:0 0 10px;color:var(--pageMuted);max-width:760px}
+  .row{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  .wrap{max-width:100%;overflow-x:auto;padding-bottom:6px}
+  .lbl{color:var(--pageMuted);font-size:12px;margin:0 0 6px}
+  .ex{display:inline-block;background:var(--pageChip);border:1px solid var(--pageLine);border-radius:6px;padding:0 6px;font-size:11px;color:var(--pageMuted)}
+  .qs{max-width:760px;background:var(--pageChip);border:1px solid var(--pageLine);border-radius:12px;padding:12px 16px;margin-top:14px}
+  .qs h2{font-size:15px;margin:0 0 6px}
+  .qs ol{margin:0;padding-left:20px}
+  .qs li{margin:3px 0}
+
+  /* ---- tokens do painel (iguais aos de web/adm.html) ---- */
+  .p{--bg:#0C1B2E;--surface:#12263C;--surface2:#183454;--line:#22405f;--ink:#EAF2FB;--muted:#8FA6BD;--accent:#4FA3E8;--good:#2CD3A7;--warn:#E8B54F;--bad:#E8776B;--accent-ink:#04121f;
+     background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:16px;box-sizing:border-box;border-radius:10px;position:relative;font-variant-numeric:tabular-nums}
+  .p.light{--bg:#EEF3F9;--surface:#FFFFFF;--surface2:#F1F5FA;--line:#D6E0EC;--ink:#0C2340;--muted:#5A7085;--accent:#2A78C2;--good:#159A78;--warn:#B5831C;--bad:#CC4B3D;--accent-ink:#FFFFFF}
+  .p.desk{width:1040px}
+  .p.phone{width:390px;padding:12px 12px 76px}
+  .p.phone.nobar{padding-bottom:16px}
+  .p *{box-sizing:border-box}
+  .only-desk{}
+  .phone .only-desk{display:none!important}
+  .only-phone{display:none!important}
+  .phone .only-phone{display:block!important}
+  .phone .only-phone.flex{display:flex!important}
+
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .brand{font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+  .nav{color:var(--muted);font-size:12.5px;display:flex;gap:12px}
+  .nav b{color:var(--accent);font-weight:600}
+  .win{display:flex;gap:8px;align-items:center;margin:0 0 12px;flex-wrap:wrap}
+  .win b{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:4px 12px;font-weight:600;font-size:13px}
+  .win span{border:1px solid var(--line);border-radius:999px;padding:4px 12px;color:var(--muted);font-size:13px}
+  .win .dates{border:0;padding:0 0 0 4px;font-size:12px}
+  .btn{display:inline-block;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:6px 14px;font-weight:600;font-size:13px;white-space:nowrap}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+  .btn.off{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+  .btn.sm{padding:3px 10px;font-size:12px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+  .phone .kpis{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .kpi .h{color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+  .kpi .v{font-size:28px;font-weight:700;line-height:1.1;margin:4px 0 2px}
+  .phone .kpi .v{font-size:22px}
+  .kpi .s{color:var(--muted);font-size:12px}
+  .tag{display:inline-block;background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-size:10.5px;border-radius:6px;padding:0 6px;margin-left:4px;vertical-align:middle;white-space:nowrap}
+  .tag.m{color:var(--good);border-color:var(--good);background:transparent}
+  .tag.nm{color:var(--muted)}
+  .tag.t{color:var(--warn);border-color:var(--warn);background:transparent;font-weight:700}
+  .grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:12px}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+  .grid>div,.grid2>div{min-width:0}
+  .phone .grid,.phone .grid2{grid-template-columns:1fr}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+  .phone .card{padding:12px}
+  .card h3{margin:0 0 2px;font-size:15.5px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .card .q{color:var(--muted);font-size:12.5px;margin-bottom:10px}
+  table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.t th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;text-align:left;font-weight:700;padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.t td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.t tr:last-child td{border-bottom:0}
+  table.t .r{text-align:right;white-space:nowrap}
+  table.t .sub{color:var(--muted);font-size:11.5px}
+  .rank{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--surface2);font-weight:700;font-size:12px}
+  .rank.g{background:var(--accent);color:var(--accent-ink)}
+  .st{font-size:11.5px;border-radius:999px;padding:1px 8px;white-space:nowrap;border:1px solid var(--line)}
+  .st.due{color:var(--warn);border-color:var(--warn)}
+  .st.paid{color:var(--good);border-color:var(--good)}
+  .st.open{color:var(--muted)}
+  .st.none{color:var(--bad);border-color:var(--bad)}
+  .lst>div{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}
+  .lst>div:last-child{border:0}
+  .lst .a{min-width:0}
+  .lst .a b{display:block}
+  .lst .a span{color:var(--muted);font-size:12px}
+  .lst .z{text-align:right;white-space:nowrap}
+  .lst .z b{display:block}
+  .lst .z span{color:var(--muted);font-size:11.5px}
+  .need>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .need>div:last-child{border:0}
+  .need .why{color:var(--muted);font-size:12px;display:block}
+  .bars{display:flex;align-items:flex-end;gap:10px;height:110px;border-bottom:1px solid var(--line);padding-top:18px}
+  .bars div{flex:1;background:var(--accent);border-radius:4px 4px 0 0;position:relative}
+  .bars div.nd{background:repeating-linear-gradient(135deg,var(--surface2) 0 6px,transparent 6px 10px);border:1px dashed var(--line)}
+  .bars div.part{opacity:.55}
+  .bars div i{position:absolute;top:-17px;left:-6px;right:-6px;text-align:center;font-style:normal;font-size:10.5px;color:var(--ink);white-space:nowrap}
+  .xl{display:flex;gap:10px;color:var(--muted);font-size:10.5px;margin-top:4px}
+  .xl span{flex:1;text-align:center}
+  .note{color:var(--muted);font-size:12px;margin-top:8px}
+  .lock{border:1px solid var(--warn);color:var(--ink);background:transparent;border-radius:12px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start}
+  .lock b{color:var(--warn)}
+  .mobbar{position:absolute;left:0;right:0;bottom:0;display:flex;border-top:1px solid var(--line);background:var(--surface);padding:8px 0 12px;border-radius:0 0 10px 10px}
+  .mobbar div{flex:1;text-align:center;font-size:11.5px;color:var(--muted)}
+  .mobbar div.on{color:var(--accent);font-weight:600}
+  .mobbar div::before{content:"";display:block;width:22px;height:22px;border-radius:7px;background:var(--muted);margin:0 auto 3px;opacity:.5}
+  .mobbar div.on::before{background:var(--accent);opacity:1}
+  /* formulários */
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-size:12.5px;font-weight:600;margin-bottom:4px}
+  .fld .in{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;color:var(--ink);min-height:38px}
+  .fld .in.ph{color:var(--muted)}
+  .fld .in.sel::after{content:" \25BE";color:var(--muted);float:right}
+  .fld .hint{color:var(--muted);font-size:11.5px;margin-top:3px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chips span{border:1px solid var(--line);border-radius:999px;padding:4px 11px;font-size:12.5px;color:var(--muted)}
+  .chips span.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+  .radio>div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+  .radio>div.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .radio>div b{display:block}
+  .radio>div span{color:var(--muted);font-size:12px}
+  .steps{display:flex;gap:4px;margin:4px 0 14px}
+  .steps i{flex:1;height:4px;border-radius:2px;background:var(--surface2)}
+  .steps i.on{background:var(--accent)}
+  .stepl{color:var(--muted);font-size:12px;margin-bottom:2px}
+  .formh{font-size:19px;font-weight:700;margin:0 0 4px}
+  .actions{display:flex;justify-content:space-between;gap:10px;margin-top:14px}
+  .secure{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:11.5px;border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
+  .secure::before{content:"";flex:0 0 12px;height:14px;border:2px solid var(--muted);border-radius:3px;margin-top:2px}
+  .draft{border:1px dashed var(--warn);color:var(--warn);font-weight:700;font-size:11.5px;text-align:center;border-radius:8px;padding:4px;margin-bottom:10px;letter-spacing:.04em}
+  .chk>div{display:flex;gap:10px;align-items:flex-start;font-size:13px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .chk>div:last-child{border:0}
+  .chk>div::before{content:"";flex:0 0 18px;height:18px;border-radius:5px;background:var(--accent);margin-top:1px}
+  /* janelas */
+  .scrim{background:var(--bg);opacity:.9}
+  .modal{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+  .modal h4{margin:0 0 2px;font-size:16px}
+  .modal .q{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .linkrow{display:grid;grid-template-columns:90px 80px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .phone .linkrow{grid-template-columns:1fr auto}
+  .linkrow code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--ink);overflow-wrap:anywhere}
+  .linkrow .pl{font-weight:600}
+  .msg{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px;white-space:pre-wrap}
+  .kv{display:grid;grid-template-columns:130px 1fr;gap:4px 10px;font-size:12.5px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0}
+  .mask{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+  .hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .hdr h2{margin:0;font-size:21px}
+  .hdr .sub{color:var(--muted);font-size:12.5px}
+  .back{color:var(--accent);font-size:12.5px;margin-bottom:4px}
+  .btns{display:flex;gap:6px;flex-wrap:wrap}
+  .ptop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .ptop .brand{font-size:15px}
+  .lang{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted)}
+</style>
+
+<div class="intro">
+  <h1>Programa de criadores: desenhos para aprovar</h1>
+  <p>Telas do painel e do criador, antes de qualquer código. Cada tela aparece nos dois temas; as do painel em computador e em celular de 390 px. A spec completa está em <code>docs/specs/creators.md</code>.</p>
+  <p><span class="ex">Exemplo</span> Os criadores e os números são fictícios e batem entre si: o ranking soma o que aparece por plataforma, e o portal da Ana mostra os mesmos números da tela dela no painel. Hoje não existe nenhum criador.</p>
+  <nav class="toc" aria-label="Telas">
+    <a href="#aba">1. Aba Criadores</a><a href="#novo">2. Novo criador</a><a href="#tela">3. Tela do criador</a><a href="#pago">4. Marcar como pago</a><a href="#convite">5. Convite e cadastro</a><a href="#portal">6. Portal do criador</a>
+  </nav>
+  <div class="qs">
+    <h2>O que preciso de você</h2>
+    <ol>
+      <li><b>Aprovar</b> estas telas e a spec (ou dizer o que mudar).</li>
+      <li><b>Webhook do RevenueCat:</b> ligar agora? Sem ele a receita não entra sozinha.</li>
+      <li><b>Portal do criador:</b> link privado (recomendado) ou e-mail com código.</li>
+      <li><b>iPhone:</b> página curta com o código antes da App Store (recomendado) ou direto para a loja.</li>
+      <li><b>Criador de teste:</b> só a tela dele mostra dados de teste, com a faixa TESTE, e nada entra nos totais. Aceita?</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ================= 1. ABA CRIADORES ================= -->
+<template id="t-aba">
+  <div class="top">
+    <div class="brand"><span class="dot"></span>DoseTrace Admin</div>
+    <div class="nav only-desk"><span>Resumo</span><span>Contas</span><b>Criadores</b><span>Detalhes</span><span>Fontes</span></div>
+    <div class="nav only-phone"><span>&#8801;</span></div>
+  </div>
+  <div class="win"><span>out 2026</span><b>nov 2026</b><span>12 meses</span><span class="dates">mês UTC · aberto até 30/11</span></div>
+  <div class="lock"><div><b>Programa parado.</b> "Pagamentos liberados" está desligado: falta a revisão do contador e do advogado. Os números são medidos normalmente.</div></div>
+  <div class="kpis">
+    <div class="kpi"><div class="h">Receita via criadores</div><div class="v">US$ 377,90</div><div class="s">líquida · nov (parcial) <span class="tag m">medido</span></div></div>
+    <div class="kpi"><div class="h">Pagantes ativos</div><div class="v">17</div><div class="s">vindos de 3 criadores</div></div>
+    <div class="kpi"><div class="h">Comissão</div><div class="v">US$ 38,40</div><div class="s">a pagar · US$ 156,06 em apuração</div></div>
+    <div class="kpi"><div class="h">Cliques</div><div class="v">2.496</div><div class="s">toques no link, não pessoas</div></div>
+  </div>
+      <div class="card">
+        <h3>Ranking por receita <span class="btn sm">+ Novo criador</span></h3>
+        <div class="q">nov 2026 · receita líquida (após loja, impostos e reembolsos) · toque no nome abre a tela do criador</div>
+        <div class="only-desk">
+        <table class="t">
+          <tr><th></th><th>Criador</th><th class="r">Cliques</th><th class="r">Contas</th><th class="r">Testes</th><th class="r">Pagantes</th><th class="r">Receita mês</th><th class="r">Acumulado</th><th class="r">Comissão</th><th>Rende mais</th><th>Pagamento</th></tr>
+          <tr><td><span class="rank g">1</span></td><td><b>Ana Ribeiro</b><div class="sub">BR · ANA</div></td><td class="r">1.284</td><td class="r">41</td><td class="r">18</td><td class="r">9</td><td class="r"><b>US$ 214,60</b></td><td class="r">US$ 566,50</td><td class="r">US$ 42,92</td><td>YouTube</td><td><span class="st due">US$ 38,40 a pagar</span></td></tr>
+          <tr><td><span class="rank">2</span></td><td><b>Marcus Lee</b><div class="sub">US · MARCUS</div></td><td class="r">902</td><td class="r">23</td><td class="r">11</td><td class="r">6</td><td class="r"><b>US$ 131,40</b></td><td class="r">US$ 131,40</td><td class="r">US$ 113,14</td><td>TikTok</td><td><span class="st open">em apuração</span></td></tr>
+          <tr><td><span class="rank">3</span></td><td><b>Sofia Duarte</b><div class="sub">PT · SOFIA</div></td><td class="r">310</td><td class="r">7</td><td class="r">3</td><td class="r">2</td><td class="r"><b>US$ 31,90</b></td><td class="r">US$ 31,90</td><td class="r">—</td><td>Instagram</td><td><span class="st none">sem modelo</span></td></tr>
+        </table>
+        </div>
+        <div class="lst only-phone">
+          <div><div class="a"><b>1 · Ana Ribeiro</b><span>BR · 9 pagantes · rende mais: YouTube</span></div><div class="z"><b>US$ 214,60</b><span class="st due">US$ 38,40 a pagar</span></div></div>
+          <div><div class="a"><b>2 · Marcus Lee</b><span>US · 6 pagantes · rende mais: TikTok</span></div><div class="z"><b>US$ 131,40</b><span class="st open">em apuração</span></div></div>
+          <div><div class="a"><b>3 · Sofia Duarte</b><span>PT · 2 pagantes · rende mais: Instagram</span></div><div class="z"><b>US$ 31,90</b><span class="st none">sem modelo</span></div></div>
+        </div>
+        <div class="note">1 criador de teste fora dos totais e do ranking.</div>
+      </div>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h3>Por plataforma</h3>
+        <div class="q">todos os criadores · nov 2026</div>
+        <div class="only-desk">
+        <table class="t">
+          <tr><th>Plataforma</th><th class="r">Cliques <span class="tag m">medido</span></th><th class="r">Instalações</th><th class="r">Contas <span class="tag m">medido</span></th><th class="r">Pagantes</th><th class="r">Receita</th></tr>
+          <tr><td>YouTube</td><td class="r">788</td><td class="r">Android 11 · <span class="sub">iPhone não medido</span></td><td class="r">24</td><td class="r">6</td><td class="r"><b>US$ 140,20</b></td></tr>
+          <tr><td>TikTok</td><td class="r">758</td><td class="r">Android 12 · <span class="sub">iPhone não medido</span></td><td class="r">21</td><td class="r">5</td><td class="r"><b>US$ 117,70</b></td></tr>
+          <tr><td>Instagram</td><td class="r">950</td><td class="r">Android 14 · <span class="sub">iPhone não medido</span></td><td class="r">24</td><td class="r">5</td><td class="r"><b>US$ 104,05</b></td></tr>
+          <tr><td>Plataforma não informada<div class="sub">código sem sufixo</div></td><td class="r">—</td><td class="r">—</td><td class="r">2</td><td class="r">1</td><td class="r"><b>US$ 15,95</b></td></tr>
+        </table>
+        </div>
+        <div class="lst only-phone">
+          <div><div class="a"><b>YouTube</b><span>788 cliques · 24 contas · 6 pagantes</span></div><div class="z"><b>US$ 140,20</b></div></div>
+          <div><div class="a"><b>TikTok</b><span>758 cliques · 21 contas · 5 pagantes</span></div><div class="z"><b>US$ 117,70</b></div></div>
+          <div><div class="a"><b>Instagram</b><span>950 cliques · 24 contas · 5 pagantes</span></div><div class="z"><b>US$ 104,05</b></div></div>
+          <div><div class="a"><b>Não informada</b><span>código sem sufixo · 2 contas · 1 pagante</span></div><div class="z"><b>US$ 15,95</b></div></div>
+        </div>
+        <div class="note">Instalações no iPhone: não medido, porque a Apple não liga o clique à instalação. No iPhone, a plataforma vem só do código digitado (ANA-YT, ANA-IG…).</div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h3>Precisa de você</h3>
+        <div class="need">
+          <div><span>Sofia Duarte enviou o cadastro<span class="why">Portugal · Wise · 12/11</span></span><span class="btn sm ghost">Revisar</span></div>
+          <div><span>Sofia Duarte sem modelo de comissão<span class="why">o painel mede, mas não calcula</span></span><span class="btn sm ghost">Definir</span></div>
+          <div><span>1 pagamento a pagar<span class="why">Ana Ribeiro · outubro · US$ 38,40</span></span><span class="btn sm ghost">Ver</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Receita por mês</h3>
+        <div class="q">líquida · todos os criadores</div>
+        <div class="bars"><div class="nd" style="height:100%"><i>—</i></div><div class="nd" style="height:100%"><i>—</i></div><div style="height:16%"><i>61</i></div><div style="height:26%"><i>99</i></div><div style="height:51%"><i>192</i></div><div class="part" style="height:100%"><i>378 parcial</i></div></div>
+        <div class="xl"><span>jun</span><span>jul</span><span>ago</span><span>set</span><span>out</span><span>nov</span></div>
+        <div class="note">Listrado = sem dados. O webhook foi ligado em 01/08/2026; antes disso o RevenueCat não mandou eventos.</div>
+      </div>
+      <div class="card">
+        <h3>Pagamentos</h3>
+        <div class="q">o mês M fica "a pagar" 30 dias depois do fim do mês (prazo de reembolso)</div>
+        <div class="lst">
+          <div><div class="a"><b>Ana Ribeiro · out</b><span>PIX · prazo terminou em 30/11</span></div><div class="z"><b>US$ 38,40</b><span class="btn sm off">Marcar como pago</span></div></div>
+          <div><div class="a"><b>Marcus Lee · nov</b><span>PayPal · liberado em 30/12</span></div><div class="z"><b>US$ 113,14</b><span class="st open">em apuração</span></div></div>
+          <div><div class="a"><b>Ana Ribeiro · set</b><span>inclui US$ 9,18 de agosto (abaixo do mínimo)</span></div><div class="z"><b>US$ 23,99</b><span class="st paid">pago 31/10</span></div></div>
+        </div>
+        <div class="note">"Marcar como pago" fica desligado enquanto "Pagamentos liberados" estiver desligado (menos para o criador de teste).</div>
+      </div>
+      <div class="card only-desk">
+        <h3>Configuração do programa</h3>
+        <dl class="kv">
+          <dt>Pagamentos liberados</dt><dd><b>Desligado</b> · liga só com "contador revisou" + "advogado revisou"</dd>
+          <dt>Valor mínimo</dt><dd>US$ 20 (o saldo menor passa para o mês seguinte)</dd>
+          <dt>Prazo de reembolso</dt><dd>30 dias depois do fim do mês</dd>
+          <dt>Benefício ao público</dt><dd>a definir</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="mobbar only-phone flex"><div>Resumo</div><div>Contas</div><div class="on">Criadores</div><div>Mais</div></div>
+</template>
+
+<!-- ================= 2. NOVO CRIADOR ================= -->
+<template id="t-novo">
+  <div class="grid2">
+    <div class="modal">
+      <h4>Novo criador</h4>
+      <div class="q">Um clique em Criar grava tudo: o criador, os códigos, os links e o convite.</div>
+      <div class="fld"><label>Nome público</label><div class="in">Ana Ribeiro</div></div>
+      <div class="fld"><label>Código</label><div class="in">ANA</div><div class="hint">Sugerido pelo nome. Letras e números, de 3 a 12. Único. Não muda depois do primeiro uso.</div></div>
+      <div class="fld"><label>Plataformas</label><div class="chips"><span class="on">Instagram</span><span class="on">YouTube</span><span class="on">TikTok</span><span>Facebook</span><span>X</span><span>Site</span><span>Outro</span></div></div>
+      <div class="two">
+        <div class="fld"><label>País</label><div class="in sel">Brasil</div><div class="hint">O criador confirma no cadastro.</div></div>
+        <div class="fld"><label>Modelo de comissão</label><div class="in sel">A definir</div><div class="hint">Pode definir depois.</div></div>
+      </div>
+      <div class="fld"><div class="chips"><span>Criador de teste</span></div><div class="hint">Criador de teste nunca entra em total, ranking ou pagamento real.</div></div>
+      <div class="actions"><span class="btn ghost">Cancelar</span><span class="btn">Criar</span></div>
+    </div>
+    <div class="modal">
+      <h4>Ana Ribeiro criada</h4>
+      <div class="q">Copie e mande pelo WhatsApp ou e-mail. O painel não envia nada.</div>
+      <div class="linkrow"><span class="pl">Instagram</span><code class="only-desk">ANA-IG</code><code>dosetrace.io/go/ana/instagram</code><span class="btn sm ghost">Copiar</span></div>
+      <div class="linkrow"><span class="pl">YouTube</span><code class="only-desk">ANA-YT</code><code>dosetrace.io/go/ana/youtube</code><span class="btn sm ghost">Copiar</span></div>
+      <div class="linkrow"><span class="pl">TikTok</span><code class="only-desk">ANA-TT</code><code>dosetrace.io/go/ana/tiktok</code><span class="btn sm ghost">Copiar</span></div>
+      <div class="linkrow"><span class="pl">Convite</span><code class="only-desk">até 27/11</code><code>dosetrace.io/criador/convite#k4V…</code><span class="btn sm ghost">Copiar</span></div>
+      <div class="fld" style="margin-top:12px"><label>Mensagem pronta <span class="chips" style="display:inline-flex;margin-left:6px"><span class="on">pt</span><span>en</span><span>es</span></span></label>
+      <div class="msg">Oi, Ana! Este é o seu convite para o programa de criadores do DoseTrace: dosetrace.io/criador/convite#k4V…
+Nele você informa seus dados e como prefere receber.
+Seus links: Instagram dosetrace.io/go/ana/instagram · YouTube dosetrace.io/go/ana/youtube · TikTok dosetrace.io/go/ana/tiktok
+Fale o código da plataforma no post: ANA-IG, ANA-YT ou ANA-TT.
+Marque #publi em todo post.</div></div>
+      <div class="actions"><span class="btn ghost">Abrir a tela da Ana</span><span class="btn">Copiar mensagem</span></div>
+    </div>
+  </div>
+</template>
+
+<!-- ================= 3. TELA DO CRIADOR (ADMIN) ================= -->
+<template id="t-tela">
+  <div class="back">&#8249; Criadores</div>
+  <div class="hdr">
+    <div><h2>Ana Ribeiro <span class="st paid">ativa</span></h2><div class="sub">Brasil · código ANA · desde 01/08/2026 · convite usado em 02/08</div></div>
+    <div class="btns"><span class="btn sm ghost">Pausar</span><span class="btn sm ghost">Encerrar</span><span class="btn sm ghost">Novo convite</span><span class="btn sm ghost">Novo link do portal</span></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="h">Receita · nov</div><div class="v">US$ 214,60</div><div class="s">acumulado US$ 566,50</div></div>
+    <div class="kpi"><div class="h">Pagantes ativos</div><div class="v">9</div><div class="s">18 testes grátis no mês</div></div>
+    <div class="kpi"><div class="h">Comissão · nov</div><div class="v">US$ 42,92</div><div class="s">mês aberto · parcial</div></div>
+    <div class="kpi"><div class="h">Cliques · nov</div><div class="v">1.284</div><div class="s">41 contas com o código</div></div>
+  </div>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h3>Por plataforma · nov</h3>
+        <div class="only-desk">
+        <table class="t">
+          <tr><th>Plataforma</th><th class="r">Cliques</th><th class="r">Instalações Android</th><th class="r">Contas</th><th class="r">Testes</th><th class="r">Pagantes</th><th class="r">Receita</th></tr>
+          <tr><td>YouTube · ANA-YT</td><td class="r">588</td><td class="r">5</td><td class="r">18</td><td class="r">9</td><td class="r">5</td><td class="r"><b>US$ 118,30</b></td></tr>
+          <tr><td>Instagram · ANA-IG</td><td class="r">640</td><td class="r">7</td><td class="r">19</td><td class="r">8</td><td class="r">4</td><td class="r"><b>US$ 88,10</b></td></tr>
+          <tr><td>TikTok · ANA-TT</td><td class="r">56</td><td class="r">1</td><td class="r">4</td><td class="r">1</td><td class="r">0</td><td class="r"><b>US$ 8,20</b></td></tr>
+        </table>
+        </div>
+        <div class="lst only-phone">
+          <div><div class="a"><b>YouTube</b><span>588 cliques · 18 contas · 5 pagantes</span></div><div class="z"><b>US$ 118,30</b></div></div>
+          <div><div class="a"><b>Instagram</b><span>640 cliques · 19 contas · 4 pagantes</span></div><div class="z"><b>US$ 88,10</b></div></div>
+          <div><div class="a"><b>TikTok</b><span>56 cliques · 4 contas · 0 pagantes</span></div><div class="z"><b>US$ 8,20</b></div></div>
+        </div>
+        <div class="note">O TikTok tem receita com 0 pagantes ativos: uma assinatura que renovou e depois expirou no mês.</div>
+      </div>
+      <div class="card">
+        <h3>Meses</h3>
+        <table class="t">
+          <tr><th>Mês</th><th class="r">Receita</th><th class="r">Comissão</th><th>Situação</th></tr>
+          <tr><td>nov</td><td class="r">US$ 214,60</td><td class="r">US$ 42,92</td><td><span class="st open">em apuração</span></td></tr>
+          <tr><td>out</td><td class="r">US$ 192,00</td><td class="r">US$ 38,40</td><td><span class="st due">a pagar</span></td></tr>
+          <tr><td>set</td><td class="r">US$ 98,70</td><td class="r">US$ 14,81 <span class="sub">+ 9,18</span></td><td><span class="st paid">pago 31/10</span></td></tr>
+          <tr><td>ago</td><td class="r">US$ 61,20</td><td class="r">US$ 9,18</td><td><span class="sub">abaixo do mínimo, somado a set</span></td></tr>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h3>Modelo de comissão <span class="btn sm ghost">Nova versão</span></h3>
+        <div class="lst">
+          <div><div class="a"><b>v2 · desde 01/10/2026</b><span>20 % da receita líquida · com renovações · 12 meses desde a 1ª compra do cliente · prazo 30 dias · contrato de 28/09</span></div></div>
+          <div><div class="a"><b>v1 · 01/08 a 30/09</b><span>15 % da receita líquida · com renovações · vitalícia</span></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Dados de pagamento</h3>
+        <dl class="kv">
+          <dt>Forma</dt><dd>PIX</dd>
+          <dt>Chave (CPF)</dt><dd><span class="mask">•••.456.789-••</span> <span class="btn sm ghost">Revelar</span></dd>
+          <dt>Titular</dt><dd>Ana R•••••• da S••••</dd>
+          <dt>Documento</dt><dd><span class="mask">CPF •••.456.789-••</span></dd>
+          <dt>Nota fiscal</dt><dd>MEI</dd>
+        </dl>
+        <div class="note">Revelar pede o código de 15 min (no DT Admin, a digital) e fica no log.</div>
+      </div>
+      <div class="card">
+        <h3>Portal</h3>
+        <div class="note" style="margin-top:0">Link privado ativo · último acesso 12/11 · Novo link do portal desativa o atual na hora.</div>
+      </div>
+    </div>
+  </div>
+  <div class="mobbar only-phone flex"><div>Resumo</div><div>Contas</div><div class="on">Criadores</div><div>Mais</div></div>
+</template>
+
+<!-- ================= 4. MARCAR COMO PAGO ================= -->
+<template id="t-pago">
+  <div class="modal">
+    <h4>Marcar como pago</h4>
+    <div class="q">Ana Ribeiro · outubro 2026 · devido <b>US$ 38,40</b></div>
+    <div class="two">
+      <div class="fld"><label>Data do pagamento</label><div class="in">13/11/2026</div></div>
+      <div class="fld"><label>Forma</label><div class="in sel">PIX pelo Wise</div></div>
+      <div class="fld"><label>Valor pago</label><div class="in">212,35</div></div>
+      <div class="fld"><label>Moeda</label><div class="in sel">BRL</div></div>
+      <div class="fld"><label>Câmbio usado</label><div class="in">5,53</div><div class="hint">US$ 38,40 × 5,53 = R$ 212,35</div></div>
+      <div class="fld"><label>Referência</label><div class="in ph">id da transferência</div></div>
+    </div>
+    <div class="secure">Fica no log com o seu nome e a hora. Isto não envia dinheiro: o pagamento é feito no site do serviço.</div>
+    <div class="actions"><span class="btn ghost">Cancelar</span><span class="btn">Confirmar</span></div>
+  </div>
+</template>
+
+<!-- ================= 5. CONVITE ================= -->
+<template id="t-pais">
+  <div class="ptop"><div class="brand"><span class="dot"></span>DoseTrace · Criadores</div><span class="lang">Português &#9662;</span></div>
+  <div class="stepl">Passo 1 de 5 · País</div><div class="steps"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+  <div class="formh">Olá, Ana. Em que país você mora?</div>
+  <p style="color:var(--muted);font-size:13px;margin:0 0 12px">O país de residência fiscal decide como você recebe e quais dados pedimos.</p>
+  <div class="radio">
+    <div class="on"><b>Brasil</b><span>PIX</span></div>
+    <div><b>Estados Unidos</b><span>PayPal, Wise ou transferência bancária</span></div>
+    <div><b>Outro país</b><span>Wise ou PayPal</span></div>
+  </div>
+  <div class="fld"><label>Qual país?</label><div class="in sel ph">só se for outro país</div></div>
+  <div class="actions"><span></span><span class="btn">Continuar</span></div>
+</template>
+
+<template id="t-br">
+  <div class="ptop"><div class="brand"><span class="dot"></span>DoseTrace · Criadores</div><span class="lang">Português &#9662;</span></div>
+  <div class="stepl">Passo 3 de 5 · Pagamento · Brasil</div><div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+  <div class="formh">Como você quer receber?</div>
+  <div class="fld"><label>Forma</label><div class="chips"><span class="on">PIX</span></div></div>
+  <div class="fld"><label>Tipo de chave</label><div class="chips"><span class="on">CPF</span><span>CNPJ</span><span>E-mail</span><span>Telefone</span><span>Aleatória</span></div></div>
+  <div class="fld"><label>Chave PIX</label><div class="in">123.456.789-09</div></div>
+  <div class="fld"><label>Nome do titular</label><div class="in">Ana Ribeiro da Silva</div><div class="hint">Igual ao do banco.</div></div>
+  <div class="fld"><label>Documento para a nota</label><div class="chips" style="margin-bottom:6px"><span class="on">CPF</span><span>CNPJ</span></div><div class="in">123.456.789-09</div></div>
+  <div class="fld"><label>Você emite nota fiscal?</label><div class="chips"><span class="on">MEI</span><span>Empresa</span><span>Não</span></div></div>
+  <div class="secure">Seus dados ficam cifrados. Só a equipe do DoseTrace pode ver; você vê mascarado no seu portal.</div>
+  <div class="actions"><span class="btn ghost">Voltar</span><span class="btn">Continuar</span></div>
+</template>
+
+<template id="t-us">
+  <div class="ptop"><div class="brand"><span class="dot"></span>DoseTrace · Creators</div><span class="lang">English &#9662;</span></div>
+  <div class="stepl">Step 3 of 5 · Payout · United States</div><div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+  <div class="formh">How do you want to be paid?</div>
+  <div class="radio">
+    <div class="on"><b>PayPal</b><span>We send to your PayPal email.</span></div>
+    <div><b>Wise</b><span>We send to your Wise email.</span></div>
+    <div><b>Bank transfer (ACH)</b><span>You enter your bank details on the payout service's secure page, never here.</span></div>
+  </div>
+  <div class="fld"><label>PayPal email</label><div class="in">marcus.lee@example.com</div></div>
+  <div class="fld"><label>Legal name</label><div class="in">Marcus J. Lee</div></div>
+  <div class="fld"><label>Tax form W-9</label><div class="in ph">Pending · we will request it through the payout service or our accountant</div><div class="hint">Please do not upload tax forms here.</div></div>
+  <div class="secure">We store only your payout email and legal name. No bank account or Social Security number is ever entered on this page.</div>
+  <div class="actions"><span class="btn ghost">Back</span><span class="btn">Continue</span></div>
+</template>
+
+<template id="t-out">
+  <div class="ptop"><div class="brand"><span class="dot"></span>DoseTrace · Criadores</div><span class="lang">Português &#9662;</span></div>
+  <div class="stepl">Passo 3 de 5 · Pagamento · Portugal</div><div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+  <div class="formh">Como quer receber?</div>
+  <div class="radio">
+    <div class="on"><b>Wise</b><span>Enviamos para o seu e-mail Wise, na sua moeda.</span></div>
+    <div><b>PayPal</b><span>Enviamos para o seu e-mail PayPal.</span></div>
+  </div>
+  <div class="fld"><label>E-mail Wise</label><div class="in">sofia.duarte@example.com</div></div>
+  <div class="fld"><label>Nome legal</label><div class="in">Sofia Marques Duarte</div></div>
+  <div class="fld"><label>Formulário W-8BEN</label><div class="in ph">Pendente · será pedido pelo serviço de pagamento ou pelo contador</div><div class="hint">Não envie documentos fiscais por esta página.</div></div>
+  <div class="secure">Guardamos só o e-mail de pagamento e o nome legal.</div>
+  <div class="actions"><span class="btn ghost">Voltar</span><span class="btn">Continuar</span></div>
+</template>
+
+<template id="t-regras">
+  <div class="ptop"><div class="brand"><span class="dot"></span>DoseTrace · Criadores</div><span class="lang">Português &#9662;</span></div>
+  <div class="stepl">Passo 4 de 5 · Regras do programa</div><div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+  <div class="draft">RASCUNHO · NÃO ASSINAR · TEXTO FINAL DO ADVOGADO</div>
+  <div class="formh">Para participar</div>
+  <div class="chk">
+    <div>Marco #publi (ou "parceria paga") em todo post sobre o DoseTrace.</div>
+    <div>Não prometo resultado, não mostro antes/depois e não dou orientação de dose.</div>
+    <div>Nunca vendo nem indico compostos ou vendedores junto com o DoseTrace.</div>
+    <div>Não uso o meu próprio código.</div>
+    <div>Entendo que vejo só totais: o DoseTrace nunca me mostra quem usou o meu código.</div>
+  </div>
+  <div class="actions"><span class="btn ghost">Voltar</span><span class="btn">Revisar e enviar</span></div>
+</template>
+
+<!-- ================= 6. PORTAL ================= -->
+<template id="t-portal">
+  <div class="ptop"><div class="brand"><span class="dot"></span>DoseTrace · Portal do criador</div><span class="lang">Português &#9662;</span></div>
+  <div class="hdr"><div><h2>Ana Ribeiro</h2><div class="sub">código ANA · atualizado hoje às 08:10</div></div></div>
+  <div class="win"><span>out</span><b>nov 2026</b><span class="dates">mês aberto até 30/11</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="h">Cliques</div><div class="v">1.284</div><div class="s">toques nos seus links</div></div>
+    <div class="kpi"><div class="h">Contas com seu código</div><div class="v">41</div><div class="s">18 começaram o teste grátis</div></div>
+    <div class="kpi"><div class="h">Assinantes ativos</div><div class="v">9</div><div class="s">pagando hoje</div></div>
+    <div class="kpi"><div class="h">Sua comissão</div><div class="v">US$ 42,92</div><div class="s">mês aberto · parcial</div></div>
+  </div>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h3>Por plataforma</h3>
+        <div class="only-desk">
+        <table class="t">
+          <tr><th>Plataforma</th><th class="r">Cliques <span class="tag m">medido</span></th><th class="r">Contas</th><th class="r">Assinantes</th><th class="r">Receita gerada</th></tr>
+          <tr><td>YouTube</td><td class="r">588</td><td class="r">18</td><td class="r">5</td><td class="r">US$ 118,30</td></tr>
+          <tr><td>Instagram</td><td class="r">640</td><td class="r">19</td><td class="r">&lt;5</td><td class="r">US$ 88,10</td></tr>
+          <tr><td>TikTok</td><td class="r">56</td><td class="r">&lt;5</td><td class="r">&lt;5</td><td class="r">US$ 8,20</td></tr>
+        </table>
+        </div>
+        <div class="lst only-phone">
+          <div><div class="a"><b>YouTube</b><span>588 cliques · 18 contas · 5 assinantes</span></div><div class="z"><b>US$ 118,30</b></div></div>
+          <div><div class="a"><b>Instagram</b><span>640 cliques · 19 contas · &lt;5 assinantes</span></div><div class="z"><b>US$ 88,10</b></div></div>
+          <div><div class="a"><b>TikTok</b><span>56 cliques · &lt;5 contas · &lt;5 assinantes</span></div><div class="z"><b>US$ 8,20</b></div></div>
+        </div>
+        <div class="note">Quem instala pelo iPhone sem digitar o seu código não aparece aqui, porque a Apple não informa. Peça para usarem ANA-YT, ANA-IG ou ANA-TT.</div>
+      </div>
+      <div class="card">
+        <h3>Meses e pagamentos</h3>
+        <table class="t">
+          <tr><th>Mês</th><th class="r">Receita gerada</th><th class="r">Comissão</th><th>Situação</th></tr>
+          <tr><td>nov</td><td class="r">US$ 214,60</td><td class="r">US$ 42,92</td><td><span class="st open">em apuração · liberado em 30/12</span></td></tr>
+          <tr><td>out</td><td class="r">US$ 192,00</td><td class="r">US$ 38,40</td><td><span class="st due">a pagar</span></td></tr>
+          <tr><td>set</td><td class="r">US$ 98,70</td><td class="r">US$ 23,99</td><td><span class="st paid">pago em 31/10</span></td></tr>
+          <tr><td>ago</td><td class="r">US$ 61,20</td><td class="r">US$ 9,18</td><td><span class="sub">abaixo de US$ 20, somado a set</span></td></tr>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h3>Seus links e códigos</h3>
+        <div class="linkrow"><span class="pl">YouTube · ANA-YT</span><code class="only-desk"></code><code>dosetrace.io/go/ana/youtube</code><span class="btn sm ghost">Copiar</span></div>
+        <div class="linkrow"><span class="pl">Instagram · ANA-IG</span><code class="only-desk"></code><code>dosetrace.io/go/ana/instagram</code><span class="btn sm ghost">Copiar</span></div>
+        <div class="linkrow"><span class="pl">TikTok · ANA-TT</span><code class="only-desk"></code><code>dosetrace.io/go/ana/tiktok</code><span class="btn sm ghost">Copiar</span></div>
+      </div>
+      <div class="card">
+        <h3>Seu pagamento</h3>
+        <dl class="kv"><dt>Forma</dt><dd>PIX · chave CPF <span class="mask">•••.456.789-••</span></dd><dt>Comissão</dt><dd>20 % da receita líquida, por 12 meses desde a 1ª compra de cada cliente</dd></dl>
+        <div class="actions"><span></span><span class="btn sm ghost">Pedir alteração</span></div>
+      </div>
+      <div class="card">
+        <h3>Regras</h3>
+        <div class="note" style="margin-top:0">#publi em todo post · sem promessa de resultado · nunca compostos ou vendedores. Você vê só totais; números menores que 5 aparecem como "&lt;5".</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<section class="scr" id="aba">
+  <h2>1. Aba Criadores (painel)</h2>
+  <p>Faixa de 4 números do mês, ranking por receita, resultado por plataforma, receita por mês, pagamentos e "Precisa de você". No celular, Criadores vira a 4.ª aba da barra de baixo, e as tabelas viram listas.</p>
+  <div class="row">
+    <div class="wrap"><p class="lbl">Computador · tema escuro</p><div class="p desk" data-t="t-aba"></div></div>
+    <div class="wrap"><p class="lbl">Computador · tema claro</p><div class="p desk light" data-t="t-aba"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · escuro</p><div class="p phone" data-t="t-aba"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · claro</p><div class="p phone light" data-t="t-aba"></div></div>
+  </div>
+</section>
+
+<section class="scr" id="novo">
+  <h2>2. Novo criador, em 1 clique</h2>
+  <p>À esquerda, a janela de criação. À direita, o resultado: códigos, links, convite e mensagem pronta para copiar.</p>
+  <div class="row">
+    <div class="wrap"><p class="lbl">Computador · tema escuro</p><div class="p desk nobar" data-t="t-novo"></div></div>
+    <div class="wrap"><p class="lbl">Computador · tema claro</p><div class="p desk light nobar" data-t="t-novo"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · escuro</p><div class="p phone nobar" data-t="t-novo"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · claro</p><div class="p phone light nobar" data-t="t-novo"></div></div>
+  </div>
+</section>
+
+<section class="scr" id="tela">
+  <h2>3. Tela do criador (painel)</h2>
+  <p>Cada criador tem a sua tela: números por plataforma e por mês, modelo de comissão em versões, dados de pagamento mascarados e as ações.</p>
+  <div class="row">
+    <div class="wrap"><p class="lbl">Computador · tema escuro</p><div class="p desk" data-t="t-tela"></div></div>
+    <div class="wrap"><p class="lbl">Computador · tema claro</p><div class="p desk light" data-t="t-tela"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · escuro</p><div class="p phone" data-t="t-tela"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · claro</p><div class="p phone light" data-t="t-tela"></div></div>
+  </div>
+</section>
+
+<section class="scr" id="pago">
+  <h2>4. Marcar como pago</h2>
+  <p>Só registra. O dinheiro sai pelo site do serviço de pagamento, feito por você.</p>
+  <div class="row">
+    <div class="wrap"><p class="lbl">Celular 390 px · escuro</p><div class="p phone nobar" data-t="t-pago"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · claro</p><div class="p phone light nobar" data-t="t-pago"></div></div>
+  </div>
+</section>
+
+<section class="scr" id="convite">
+  <h2>5. Convite e cadastro (o criador vê)</h2>
+  <p>O país vem primeiro e decide os campos de pagamento. São cinco passos: país, contato, pagamento, regras, revisar e enviar. O celular é o formato principal; no computador fica a mesma coluna centralizada.</p>
+  <div class="row">
+    <div class="wrap"><p class="lbl">Passo 1 · país · escuro</p><div class="p phone nobar" data-t="t-pais"></div></div>
+    <div class="wrap"><p class="lbl">Passo 1 · país · claro</p><div class="p phone light nobar" data-t="t-pais"></div></div>
+    <div class="wrap"><p class="lbl">Pagamento · Brasil · escuro</p><div class="p phone nobar" data-t="t-br"></div></div>
+    <div class="wrap"><p class="lbl">Pagamento · Brasil · claro</p><div class="p phone light nobar" data-t="t-br"></div></div>
+    <div class="wrap"><p class="lbl">Pagamento · EUA (em inglês) · escuro</p><div class="p phone nobar" data-t="t-us"></div></div>
+    <div class="wrap"><p class="lbl">Pagamento · EUA (em inglês) · claro</p><div class="p phone light nobar" data-t="t-us"></div></div>
+    <div class="wrap"><p class="lbl">Pagamento · outro país · escuro</p><div class="p phone nobar" data-t="t-out"></div></div>
+    <div class="wrap"><p class="lbl">Pagamento · outro país · claro</p><div class="p phone light nobar" data-t="t-out"></div></div>
+    <div class="wrap"><p class="lbl">Passo 4 · regras · escuro</p><div class="p phone nobar" data-t="t-regras"></div></div>
+    <div class="wrap"><p class="lbl">Passo 4 · regras · claro</p><div class="p phone light nobar" data-t="t-regras"></div></div>
+  </div>
+</section>
+
+<section class="scr" id="portal">
+  <h2>6. Portal do criador (o criador vê)</h2>
+  <p>Só os números dele, sempre agregados. Contagens menores que 5 aparecem como "&lt;5". O dinheiro aparece exato, porque é a base do pagamento.</p>
+  <div class="row">
+    <div class="wrap"><p class="lbl">Computador · tema escuro</p><div class="p desk nobar" data-t="t-portal"></div></div>
+    <div class="wrap"><p class="lbl">Computador · tema claro</p><div class="p desk light nobar" data-t="t-portal"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · escuro</p><div class="p phone nobar" data-t="t-portal"></div></div>
+    <div class="wrap"><p class="lbl">Celular 390 px · claro</p><div class="p phone light nobar" data-t="t-portal"></div></div>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('[data-t]').forEach(function (el) {
+    var t = document.getElementById(el.getAttribute('data-t'));
+    if (t) el.appendChild(t.content.cloneNode(true));
+  });
+</script>
