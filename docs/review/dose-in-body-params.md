@@ -84,3 +84,10 @@ Primary sources for parent elimination t½ (estradiol: White 1998, Kuhl 2005; pr
 Every body number: "estimativa: entre X e Y mg de testosterona no corpo (não é o exame de sangue)"; ceilings "no máximo X"; depot on its own labeled scale; band edges with 2 significant figures.
 
 Sources: Trulicity USPI §12.3 (uspl.lilly.com/trulicity), Genotropin clinical pharmacology (pfizermedical.com), Ovidrel PI (drugs.com), Egrifta label (ndclist.com), Delatestryl monograph (globalrph.com), Depo-Testosterone (DailyMed setid 2f72be32-ede6-44d9-88a0-0653b53a3e47), Victoza (globalrph.com), Epogen PI (accessdata.fda.gov 103234s5195spi), Follistim (drugcentral.org), Gonal-f SG (MIMS), Vyleesi (rxreasoner.com), semaglutide PK table (PMC8736331).
+
+## Label re-read 2026-11-13 (DailyMed / primary)
+- Semaglutide 89% (Ozempic §12.3) — confirmed. Tirzepatide 80% mean (Mounjaro §12.3) — confirmed. Cetrorelix 85% in healthy women — confirmed; t½ dose-dependent (5.0 h single 0.25 mg, 20.6 h 0.25 mg daily ×14, 62.8 h single 3 mg): the app keeps 20.6 h (daily use), a per-dose band is a follow-up. Octreotide SC "absorbed rapidly and completely", bioequivalent to IV — confirmed ~1.
+- Testosterone t½ 10–100 min — confirmed on the Aveed USPI §12.3 Excretion (now the cited source).
+- Testosterone undecanoate: Nebido SmPC §5.2 "release rate … half life of 90±40 days" (a release t½ = the app's apparent t½, kept at 90 d); Aveed USPI gives no terminal t½ (Tmax median 7 d); 33.9 d / 20.9 d are Behre 1999 (literature), not a label — never banded with the 90 d release value.
+- Estradiol IV terminal t½ 27.45 ± 5.65 min, n = 8 postmenopausal women (White CM et al., Pharmacotherapy 1998;18(6):1343–6, PMID 9855336, abstract) — estradiol esters now draw the body band (mean ± SD).
+- Progesterone IV t½: no human primary source found yet (next: Kharasch 1997) — stays "sem estudo".
