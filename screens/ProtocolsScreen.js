@@ -87,6 +87,7 @@ import { DEFAULT_VALID_DAYS, vialDaysLeft, vialDaysTone } from '../lib/vialExpir
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import FeatureIcon from '../components/FeatureIcon';
+import HelpMark from '../components/HelpMark';
 import SegmentedBar from '../components/SegmentedBar';
 import FeatureExplainerGate from '../components/FeatureExplainerGate';
 import SyringeScale from './components/SyringeScale';
@@ -3002,9 +3003,7 @@ export default function ProtocolsScreen() {
   // dose does not fit, the moment there is something to explain with the user's numbers.
   const doseLabel = t('protocols_dose_per_injection');
   const doseQ = drawOver ? (
-    <TouchableOpacity style={s.qBtn} onPress={() => setExplainerOpen(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('fx_title')}>
-      <Text style={s.qText}>?</Text>
-    </TouchableOpacity>
+    <HelpMark onPress={() => setExplainerOpen(true)} label={t('fx_title')} style={s.qMark} />
   ) : null;
   const showLiveDraw = type !== 'oral' && !unitMismatch && !!drawML && (drawValid || drawOver);
   // How far the user walked the form (fields of a step not yet seen are not "filled", AP-10).
@@ -4316,9 +4315,9 @@ const protocolsGraduated = (c) => ({
   fld: { gap: 10 },
   fldLabel: { paddingHorizontal: 4, fontSize: 17, fontWeight: '600', color: c.ink },
   fldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  // The "?" beside the dose label (AP-12): a 22 pt outlined circle, ink2.
-  qBtn: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: c.ink2, alignItems: 'center', justifyContent: 'center' },
-  qText: { fontSize: 12, fontWeight: '700', color: c.ink2 },
+  // The "?" beside the dose label (AP-12): the shared help mark (CE-4; its 22 pt circle in ink2, a
+  // 44 pt touch area that does not push the label row taller).
+  qMark: { marginVertical: -11, marginHorizontal: -11 },
   // AP-23: the small-draw fact under the draw (a neutral note, ink2).
   smallDraw: { fontSize: 13, lineHeight: 18, color: c.ink2 },
   warnLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 8 },

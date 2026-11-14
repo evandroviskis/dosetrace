@@ -35,6 +35,7 @@ import { fillStoreText, storeKey } from '../lib/storeText';
 import { formatDate, decimalText, unitText } from '../lib/localeFormat';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from '../components/FeatureIcon';
+import HelpMark from '../components/HelpMark';
 import RowChevron from '../components/RowChevron';
 import SegmentedBar from '../components/SegmentedBar';
 import useKeyboardLift from '../components/useKeyboardLift';
@@ -1378,7 +1379,7 @@ export default function SettingsScreen({ navigation }) {
         ) : null}
         <TouchableOpacity style={s.row} onPress={() => navigation.navigate('FAQ')}>
           <View style={s.rowLeft}>
-            <FeatureIcon name="help" size={28} color={colors.text} />
+            <HelpMark size={28} color={colors.text} />
             <Text style={s.rowLabel}>{t('settings_faq')}</Text>
           </View>
           <RowChevron color={colors.tick} />
