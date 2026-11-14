@@ -25,7 +25,7 @@ test('four new answers in every language, named with the app\'s own feature name
     assert.ok(has(l, t.body_card_labs_title), `${l}: the lab question names the ${t.body_card_labs_title}`);
     assert.ok(t.faq_categories.some((c) => c.category === t.tab_body), `${l}: a ${t.tab_body} section`);
     assert.ok(t.faq_categories.some((c) => c.category === t.tab_journey), `${l}: a ${t.tab_journey} section`);
-    assert.equal(t.faq_categories.length, 6, `${l}: six sections`);
+    assert.equal(t.faq_categories.length, 7, `${l}: seven sections (CE-6: + the curve group)`);
   }
 });
 
@@ -41,7 +41,7 @@ test('the new answers say today\'s facts and never advise', () => {
       assert.doesNotMatch(a, /\b20\b/, `${l}: the scan number only under Premium`);
     }
   }
-  assert.match(has('en', 'Dose accumulation').a, /planned schedule/);
+  assert.match(has('en', 'Dose in the body').a, /planned schedule/);
   assert.match(has('en', 'AI food log').a, /never gives diet advice/);
 });
 

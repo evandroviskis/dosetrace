@@ -67,8 +67,12 @@ test('no double spaces, no leading or trailing spaces, no space before a comma o
   assert.deepEqual(offenders(LANGS, / {2,}|^\s|\s$| [,.](?!\d|\.\.)/, { strip: false }), []);
 });
 
+// CE-6 (docs/specs/curve-explained.md): the curve's Sources answer cites the books and papers as
+// published (English titles such as 'Biopharmaceutics and Relevant Pharmacokinetics'), never translated.
+const citedAsPublished = (row) => { const l = row.slice(0, 2); const ci = tr[l].faq_categories.findIndex((c) => c.id === 'curve'); const qi = ci < 0 ? -1 : tr[l].faq_categories[ci].questions.findIndex((q) => q.id === 'curve_sources'); return row.startsWith(`${l}.faq_categories[${ci}].questions[${qi}].a:`); };
+
 test('no English words left in a translation', () => {
-  assert.deepEqual(offenders(['es', 'pt', 'fr', 'de', 'it'], /(^|[^\p{L}])(the|your|you|with|please|this|will|and|tap|log|now)(?=[^\p{L}]|$)/u), []);
+  assert.deepEqual(offenders(['es', 'pt', 'fr', 'de', 'it'], /(^|[^\p{L}])(the|your|you|with|please|this|will|and|tap|log|now)(?=[^\p{L}]|$)/u).filter((row) => !citedAsPublished(row)), []);
 });
 
 // {day} in these lines is "Today", "Yesterday" or a weekday date that most languages write in

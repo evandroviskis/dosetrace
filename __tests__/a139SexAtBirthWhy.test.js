@@ -29,21 +29,21 @@ test('SX-7: Portuguese and English are the picture\'s texts, word for word', () 
   const pt = tr.pt;
   assert.equal(pt.sex_why_link, 'Por que perguntamos?');
   assert.equal(pt.sex_why_title, 'Por que perguntamos o sexo ao nascer?');
-  assert.equal(pt.sex_why_body, 'As fórmulas de energia usam a fisiologia do corpo, que muda com o sexo de nascimento. Se a gordura corporal não estiver preenchida, o gasto diário estimado muda cerca de 200 a 300 kcal de um para o outro. Esse dado também define o mínimo de calorias das metas e o desenho do corpo ao escolher o local da injeção. A curva de acúmulo de doses não usa esse dado.');
+  assert.equal(pt.sex_why_body, 'As fórmulas de energia usam a fisiologia do corpo, que muda com o sexo de nascimento. Se a gordura corporal não estiver preenchida, o gasto diário estimado muda cerca de 200 a 300 kcal de um para o outro. Esse dado também define o mínimo de calorias das metas e o desenho do corpo ao escolher o local da injeção. A curva Dose no corpo não usa esse dado.'); // CE-1: the curve's new name (docs/specs/curve-explained.md)
   assert.equal(pt.sex_why_body2, 'Ele serve só para as contas e não diz nada sobre quem você é. Se você faz terapia hormonal, converse com seu profissional de saúde sobre os seus números.');
   assert.equal(pt.sex_change_title, 'O que muda com isso');
-  assert.equal(pt.sex_change_body, 'Isso muda o gasto diário estimado (cerca de 200 a 300 kcal, se a gordura corporal não estiver preenchida), o mínimo de calorias das metas e o desenho do corpo no local da injeção. A curva de acúmulo de doses não muda.');
+  assert.equal(pt.sex_change_body, 'Isso muda o gasto diário estimado (cerca de 200 a 300 kcal, se a gordura corporal não estiver preenchida), o mínimo de calorias das metas e o desenho do corpo no local da injeção. A curva Dose no corpo não muda.');
   assert.equal(pt.sex_change_confirm_title.replace('{value}', pt.profile_gender_female), 'Mudar para Feminino?');
   assert.equal(pt.sex_change_confirm_btn, 'Mudar');
   const en = tr.en;
   assert.equal(en.sex_why_link, 'Why do we ask?');
   assert.equal(en.sex_why_title, 'Why we ask for sex at birth');
   assert.match(en.sex_why_body, /^Energy formulas are based on body physiology, which differs by sex at birth\. If you haven’t entered your body fat, your estimated daily burn differs by about 200–300 kcal between the two\./);
-  assert.match(en.sex_why_body, /The Dose accumulation curve doesn’t use it\.$/);
+  assert.match(en.sex_why_body, /The Dose in the body curve doesn’t use it\.$/);
   assert.equal(en.sex_why_body2, 'It’s only used for the math and says nothing about who you are. If you’re on hormone therapy, talk to your health professional about your numbers.');
   assert.equal(en.sex_change_title, 'What this changes');
   // The picture's text with the app's English serial comma (house style, commit b33c886).
-  assert.equal(en.sex_change_body, 'This changes your estimated daily burn (by about 200–300 kcal if body fat isn’t entered), the minimum calories in your goals, and the body figure for your injection site. The Dose accumulation curve stays the same.');
+  assert.equal(en.sex_change_body, 'This changes your estimated daily burn (by about 200–300 kcal if body fat isn’t entered), the minimum calories in your goals, and the body figure for your injection site. The Dose in the body curve stays the same.');
 });
 
 test('SX-6: D′ wording — the kcal range is only claimed when body fat is not filled in, in every language', () => {

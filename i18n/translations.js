@@ -556,7 +556,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'About you',
     profile_step_sub: 'Help us personalize your experience. All fields are optional.',
-    profile_step_sub_required: 'DoseTrace personalizes your calculator, dose-accumulation curve, and reality check to you. These details power those features and stay on your account.',
+    profile_step_sub_required: 'DoseTrace personalizes your calculator, the Dose in the body curve, and reality check to you. These details power those features and stay on your account.',
     profile_required_legend: '* All fields are required',
     profile_missing: 'Required',
     profile_pick_month: 'Choose a month',
@@ -578,10 +578,10 @@ export const translations = {
     profile_sex_help: 'Used for calorie & energy estimates — choose the sex you were assigned at birth.',
     sex_why_link: 'Why do we ask?',
     sex_why_title: 'Why we ask for sex at birth',
-    sex_why_body: 'Energy formulas are based on body physiology, which differs by sex at birth. If you haven’t entered your body fat, your estimated daily burn differs by about 200–300 kcal between the two. It also sets the minimum calories in your goals and the body figure you pick your injection site on. The Dose accumulation curve doesn’t use it.',
+    sex_why_body: 'Energy formulas are based on body physiology, which differs by sex at birth. If you haven’t entered your body fat, your estimated daily burn differs by about 200–300 kcal between the two. It also sets the minimum calories in your goals and the body figure you pick your injection site on. The Dose in the body curve doesn’t use it.',
     sex_why_body2: 'It’s only used for the math and says nothing about who you are. If you’re on hormone therapy, talk to your health professional about your numbers.',
     sex_change_title: 'What this changes',
-    sex_change_body: 'This changes your estimated daily burn (by about 200–300 kcal if body fat isn’t entered), the minimum calories in your goals, and the body figure for your injection site. The Dose accumulation curve stays the same.',
+    sex_change_body: 'This changes your estimated daily burn (by about 200–300 kcal if body fat isn’t entered), the minimum calories in your goals, and the body figure for your injection site. The Dose in the body curve stays the same.',
     sex_change_confirm_title: 'Change to {value}?',
     sex_change_confirm_btn: 'Change',
     profile_birth: 'Birth month & year',
@@ -977,7 +977,7 @@ export const translations = {
     settings_premium_title: 'Upgrade to Premium',
     settings_premium_sub: 'Unlock all features and get the most out of DoseTrace.',
     settings_premium_btn: 'See plans',
-    settings_premium_feat_1: 'Dose accumulation curve from your own log',
+    settings_premium_feat_1: 'Dose in the body, from your own log',
     settings_premium_feat_2: 'Reality check & progress tracking',
     settings_premium_feat_3: "AI food log, every day",
     settings_premium_feat_4: "Unlimited protocols · Lab, vaccine & vial scans · Lab charts",
@@ -1126,10 +1126,9 @@ export const translations = {
     faq_intro: 'Find answers to common questions about DoseTrace.',
     faq_still_questions: 'Still have questions?',
     faq_contact_us: 'Reach out to us anytime at',
-    curve_title: 'Accumulation Curve',
     curve_btn: 'Curve',
     curve_empty_title: 'No compatible protocols',
-    curve_empty_sub: 'The serum curve works with injectable compounds that have known half-life data. Add a protocol and log doses to see your curve.',
+    curve_empty_sub: 'Dose in the body works with injectable compounds that have known half-life data. Add a protocol and log doses to see your curve.',
     curve_last_days: 'Last',
     curve_last_hours: "Last",
     unit_hour_short: "h",
@@ -1185,7 +1184,7 @@ export const translations = {
     ob_features_title: 'Built for your protocol',
     ob_features_sub: 'What DoseTrace does that a notes app can’t.',
     ob_feat1_t: 'Reconstitution & draw math', ob_feat1_d: 'Enter your vial and dose — we handle the mixing and syringe math.',
-    ob_feat2_t: 'Dose accumulation', ob_feat2_d: 'See the estimated amount in your body build up over time.',
+    ob_feat2_t: "Dose in the body", ob_feat2_d: "A day-by-day estimate of how much of each dose you logged has not yet been eliminated: peaks, troughs, and accumulation.",
     ob_feat3_t: 'Smart reminders', ob_feat3_d: 'Schedule-based alerts so you never miss a dose.',
     ob_feat4_t: 'Multi-protocol stacks', ob_feat4_d: 'Track several compounds and cycles at once.',
     ob_feat5_t: 'Lab test journal', ob_feat5_d: 'Snap a bloodwork report and pull the numbers in.',
@@ -1219,100 +1218,194 @@ export const translations = {
     curve_choose_title: 'Choose compounds',
     curve_choose_hint: 'Select one or more to overlay their curves.',
     curve_done: 'Done',
+    // The curve explained (docs/specs/curve-explained.md CE-1..CE-10; picture docs/design/curve-explained.html)
+    curve_sub: "estimate from a pharmacokinetic model (Bateman curve)",
+    curve_fixed: "An estimate of how much of each dose has reached your circulation and not yet been eliminated, day by day, from the doses you logged.",
+    curve_foot: "Estimated from averages in published studies. Not a measurement or medical guidance.",
+    help_mark_label: "Help",
+    curve_card1_t: "Peaks and troughs",
+    curve_card1_b: "After each dose, the amount rises to a peak and then falls to its lowest point, just before the next dose.",
+    curve_card2_t: "Accumulation",
+    curve_card2_b: "When a dose arrives before the previous one has fully cleared, the two add up. With the same dose at the same interval, the amount climbs and settles into a steady range after about 4 to 5 half-lives (94% to 97% of the plateau).",
+    curve_card3_t: "A lab test measures one moment",
+    curve_card3_b: "A blood test measures the level at the moment of the draw. The curve is an estimate made from your logs and does not replace the test or your health professional’s guidance.",
+    curve_cards_step: "{n} of {total}",
+    curve_cards_skip: "Skip",
+    curve_cards_done: "Got it",
+    curve_cards_more: "Learn more",
     faq_categories: [
       {
+        id: 'start',
         category: "Getting started",
         questions: [
           {
+            id: 'start_what',
             q: "What is DoseTrace?",
             a: "DoseTrace is a personal wellness tracking app for managing compounds, doses, and vials. It includes a reconstitution calculator, syringe guide, and injection log."
           },
           {
+            id: 'start_free',
             q: "Is DoseTrace free?",
-            a: 'Yes. The core features are free forever, including cloud backup. The free plan includes up to 3 active protocols, 3 scans a month (labs, vaccine cards, and vials combined) and 7 days of the AI food log. Premium adds unlimited protocols, more scans, the AI food log every day, the dose-accumulation curve, reality-check results, and PDF export.'
+            a: 'Yes. The core features are free forever, including cloud backup. The free plan includes up to 3 active protocols, 3 scans a month (labs, vaccine cards, and vials combined) and 7 days of the AI food log. Premium adds unlimited protocols, more scans, the AI food log every day, the Dose in the body curve, reality-check results, and PDF export.'
           },
           {
+            id: 'start_first_protocol',
             q: "How do I add my first protocol?",
             a: "Go to the Protocols tab, tap \"+ Add\", choose your compound type, and follow the steps to set up your dose details."
           }
         ]
       },
       {
+        id: 'recon',
         category: "Reconstitution & dosing",
         questions: [
           {
+            id: 'recon_calculator',
             q: "How does the reconstitution calculator work?",
             a: "Enter your compound amount and the volume of bacteriostatic water you added. DoseTrace calculates the concentration and shows exactly how much to draw in your syringe."
           },
           {
+            id: 'recon_syringes',
             q: "What syringe sizes are supported?",
             a: 'Insulin syringes of 1 ml (100 units), 0.5 ml (50 units), and 0.3 ml (30 units). For ready-to-use compounds there are also 2, 3, and 5 ml syringes, read in ml.'
           },
           {
+            id: 'recon_vial_life',
             q: "How long does a reconstituted vial last?",
             a: "Most reconstituted peptides remain stable for approximately 30 days when refrigerated with bacteriostatic water."
           }
         ]
       },
       {
+        id: 'vials',
         category: "Vials & tracking",
         questions: [
           {
+            id: 'vials_mix',
             q: "How do I log a vial mix?",
             a: "When you create a new lyophilized protocol, you can log the mix date right away. When a vial runs out, start the next one from the protocol's page (New vial) or from Today (+ Add vial)."
           },
           {
+            id: 'vials_expiry',
             q: "What happens when a vial expires?",
             a: "DoseTrace will show a warning when your vial is approaching its 30-day expiry. Expired vials are marked in red."
           }
         ]
       },
       {
+        id: 'body',
         category: "My Body",
         questions: [
           {
+            id: 'body_lab_scan',
             q: "How does the Lab test journal read my reports?",
             a: 'Take a photo of a lab report or upload a PDF or image, and the AI reads the values into your lab journal. It works with LabCorp, Quest, and most clinic reports. Scans are shared across labs, vaccine cards, and vials: 3 a month on the free plan, more with Premium.'
           },
           {
+            id: 'body_lab_privacy',
             q: "Is my lab data private?",
             a: "Your data is stored on your phone and synced to your account in our secure cloud, so it is backed up and comes back when you sign in on a new phone. When you scan a lab report, the file is sent once to Anthropic to read the numbers and is not used for training. The same goes for the other AI features you choose to use: a vaccination card or vial label scan, the AI food log, and the protocol assistant — see our Privacy Policy. We never sell your data or use it for ads."
           },
           {
+            id: 'body_vaccines',
             q: "What is the Vaccine journal?",
             a: 'A record of your vaccines and boosters: the date given, the next-due date, dose number, lot, provider, and notes. Type them in, or scan a photo of your vaccine card (it counts toward your monthly scans). DoseTrace never tells you which vaccines to get or when.'
           },
           {
-            q: "What is Dose accumulation?",
-            a: "An estimate of how much of a compound may be in your body over time, worked out from your planned schedule and published half-lives. It is a math model, not a measurement of real blood levels: confirm with bloodwork. Dose accumulation is part of Premium."
+            id: 'body_dose_in_body',
+            q: "What is Dose in the body?",
+            a: "An estimate of how much of a compound may be in your body over time, worked out from your planned schedule and published half-lives. It is a math model, not a measurement of real blood levels: confirm with bloodwork. Dose in the body is part of Premium."
           }
         ]
       },
       {
+        id: 'curve',
+        category: "Dose in the body",
+        questions: [
+          {
+            id: 'curve_bateman',
+            q: "What is the Bateman curve?",
+            a: "It is a formula published in 1910 by the mathematician Harry Bateman. He created it for chains of radioactive decay; the same equation describes a medicine that moves from where it was given into the blood and is then eliminated. In pharmacology it is called the \"Bateman function\"."
+          },
+          {
+            id: 'curve_how',
+            q: "How does DoseTrace do the math?",
+            a: "For each logged dose, DoseTrace draws a Bateman curve from the half-life and, when published, the time to peak and the fraction that reaches the body. Without a time to peak, the dose goes in all at once and only falls. It then adds up the curves of every dose — the superposition principle. The result is the sawtooth shape."
+          },
+          {
+            id: 'curve_half_life',
+            q: "What is a half-life?",
+            a: "It is the time it takes for the amount to fall by half. After 1 half-life, 50% is left; after 2, 25%; after 5, about 3%. For esters in oil, this half-life is that of the release from the depot, not of the hormone itself."
+          },
+          {
+            id: 'curve_what_for',
+            q: "What is it for?",
+            a: "To see an estimate, made from your logs, of how your doses add up over time. It is a picture of your history to bring to the health professional who follows your care. It does not tell you when or how much to inject."
+          },
+          {
+            id: 'curve_half_life_shape',
+            q: "Why does the half-life change the curve?",
+            a: "Each compound has a different half-life. Some leave the body within hours (many peptides); others stay for weeks (hormones in oil, some injectable vitamins). With the same dose and the same interval, a compound with a long half-life builds up much more than one with a short half-life. The curve shows this difference for the compounds you logged."
+          },
+          {
+            id: 'curve_lab',
+            q: "And my blood test?",
+            a: "A blood test measures the concentration in the blood at the moment of the draw. DoseTrace marks the date of each draw you logged on the curve, only as a point in time. The curve does not explain the test result; the health professional who follows your care is the one who interprets the test. The test and the curve measure different things: the test is a concentration (for example ng/dL); the curve is an amount (mg) of the compound as you logged it — for esters, part of that weight is the ester, not the hormone. For hormones the body also makes, the test includes that production, which the curve does not count."
+          },
+          {
+            id: 'curve_estimate',
+            q: "Why is it an estimate?",
+            a: "Everyone absorbs and eliminates differently (age, weight, liver, kidneys, injection site). The numbers come from study averages. The curve shows the pattern, not your exact value."
+          },
+          {
+            id: 'curve_missing',
+            q: "Why are some compounds missing or shown as a ceiling?",
+            a: "When there is no reliable published half-life, the compound is left off the curve. When there is no measurement in people of how much reaches the body, the curve assumes all of it does: it is a ceiling, never a value."
+          },
+          {
+            id: 'curve_history',
+            q: "Who created this science?",
+            a: "Harry Bateman wrote the formula (1910). Erik Widmark studied how alcohol leaves the blood (1932). Torsten Teorell published the first model of a medicine’s path through the body (1937) and is called the father of pharmacokinetics. Friedrich Dost coined the name \"pharmacokinetics\" (1953). John Wagner (1971) and Milo Gibaldi with Donald Perrier (1975) wrote the books that made the field what is taught today."
+          },
+          {
+            id: 'curve_sources',
+            q: "Sources",
+            a: "Bateman H. Proc Cambridge Philos Soc 1910;15:423–427 · Teorell T. Arch Int Pharmacodyn Ther 1937;57:205–240 · Widmark EMP. Die wissenschaftlichen Grundlagen… der gerichtlich-medizinischen Alkoholbestimmung. Berlin, 1932 · Dost FH. Der Blutspiegel. Leipzig, 1953 · Wagner JG. Biopharmaceutics and Relevant Pharmacokinetics, 1971 · Gibaldi M, Perrier D. Pharmacokinetics, 1975 · Weiss M. Pharm Res 2023;40:2147 (Bateman function)"
+          }
+        ]
+      },
+      {
+        id: 'journey',
         category: "Journey",
         questions: [
           {
+            id: 'journey_food_ai',
             q: "How does the AI food log work?",
             a: 'Tell it what you ate in your own words. The AI reads each food and logs an estimate of calories, carbs, and protein, which you can fix anytime; food from up to 7 days back counts too. The free plan includes 7 days of the AI food log; Premium includes it every day. It only logs what you tell it and never gives diet advice.'
           },
           {
+            id: 'journey_reality',
             q: "What is the reality check?",
             a: "It estimates how many calories you really burn a day, from your own numbers: a weigh-in at the start, another about three weeks later, and at least 7 days in a row of fully logged food (or your typed average calories). The result replaces the formula estimate in Your daily plan. It is math from your data, never advice."
           }
         ]
       },
       {
+        id: 'premium',
         category: "Premium",
         questions: [
           {
+            id: 'premium_includes',
             q: "What does Premium include?",
-            a: 'Unlimited protocols, the AI food log every day, the dose-accumulation curve, reality-check results, PDF export, priority support, and more lab, vaccine, and vial scans: up to 20 a month in total (labs, vaccine cards, and vials combined). Your weigh-ins and their chart, cloud backup, and sync are free for everyone.'
+            a: 'Unlimited protocols, the AI food log every day, the Dose in the body curve, reality-check results, PDF export, priority support, and more lab, vaccine, and vial scans: up to 20 a month in total (labs, vaccine cards, and vials combined). Your weigh-ins and their chart, cloud backup, and sync are free for everyone.'
           },
           {
+            id: 'premium_price',
             q: "How much does Premium cost?",
             a: "Current prices for Monthly and Annual Premium are shown in the app on the upgrade screen. New subscribers can start either plan with a 7-day free trial; the upgrade screen shows whether it applies to you."
           },
           {
+            id: 'premium_cancel',
             q: "Can I cancel anytime?",
             a: '{store_cancel}'
           }
@@ -1346,7 +1439,7 @@ export const translations = {
     body_tile_vax_latest: 'Latest',
     body_hub_footnote: 'Not a medical service. For any medical question, consult a qualified professional.',
     coming_soon: "Coming soon",
-    body_card_dosing_title: "Dose accumulation",
+    body_card_dosing_title: "Dose in the body",
     body_card_dosing_desc: "See how your doses may add up over time, from the doses you logged, your planned schedule, and published half-lives. A math estimate — never a measurement.",
     cal_disclaimer: 'An estimate for general wellness, not medical advice or a prescription. It is never linked to any medication or dose — just energy math from the numbers you enter. Individual variation of ±10–15% is normal.',
     cal_intro_title: 'What this is',
@@ -1711,7 +1804,7 @@ export const translations = {
     serum_preview_body: "DoseTrace models how each dose stacks on the last, so you see your estimated serum level between doses — not just what you took.",
     preview_unlock_cta: "Unlock with Premium",
     pw_preview_heading: "See what you get",
-    blend_curve_note: 'Each component shows on the serum curve, split by the common ratio.',
+    blend_curve_note: 'Each component shows on the Dose in the body curve, split by the common ratio.',
     insulin_no_curve_note: 'Logged for your records — accumulation isn\'t modeled for insulin.',
     blend_curve_caveat: 'These lines assume a common blend ratio (for reference only) — composition varies by source and isn\'t verified. To model your exact vial, log each component as its own protocol.',
     blend_est_marker: '(est.)',
@@ -1817,7 +1910,7 @@ export const translations = {
     blood_upgrade_title: "Lab, vaccine & vial scans",
     blood_upgrade_sub: 'Premium includes lab, vaccine, and vial scans with automatic value extraction — plus everything else.',
     blood_upgrade_feat_1: "Lab, vaccine & vial scans included",
-    blood_upgrade_feat_2: "Dose-accumulation curve",
+    blood_upgrade_feat_2: "Dose in the body",
     blood_upgrade_feat_3: 'Reality check & progress tracking',
     blood_upgrade_feat_4: 'Any-language scanning — photo or PDF',
     blood_upgrade_feat_5: 'PDF export & priority support',
@@ -1840,7 +1933,7 @@ export const translations = {
     // PAYWALL
     paywall_title: 'Upgrade to Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Dose-accumulation curves from your own log, unlimited protocols, more scans, and PDF export.',
+    paywall_hero_sub: 'Dose in the body from your own log, unlimited protocols, more scans, and PDF export.',
     paywall_annual: 'Annual',
     paywall_monthly: 'Monthly',
     paywall_per_year: 'per year',
@@ -1879,7 +1972,6 @@ export const translations = {
     paywall_free_feat_8: 'Cloud backup & sync',
     paywall_free_feat_9: 'Unlimited protocols',
     paywall_free_feat_10: 'Unlimited bloodwork uploads',
-    paywall_free_feat_11: 'Serum curve model',
     paywall_free_feat_12: 'Protocol timeline',
     paywall_free_feat_14: 'Apple Health & Watch sync',
     paywall_free_feat_15: 'PDF export',
@@ -1902,7 +1994,6 @@ export const translations = {
     paywall_lifetime_note: 'One-time purchase. All Premium features included.',
     paywall_coming_soon_title: 'Coming soon with Premium',
     paywall_coming_1: 'Cloud backup & multi-device sync',
-    paywall_coming_2: 'Serum curve model & protocol timeline',
     paywall_coming_4: 'Any-language scanning — photo or PDF',
     paywall_coming_5: 'PDF export',
     paywall_promo_banner: 'Limited launch offer',
@@ -2070,7 +2161,7 @@ export const translations = {
     protocols_notes_placeholder: 'e.g. Rotate injection sites',
     protocols_composition_label: "What's in the vial — optional",
     protocols_composition_placeholder: 'e.g. 50 GHK / 10 KPV / 10 TB / 10 BPC',
-    protocols_composition_hint: "A note about your vial's mix. Recipes vary by source — this doesn't change the serum curve.",
+    protocols_composition_hint: "A note about your vial's mix. Recipes vary by source — this doesn't change the Dose in the body curve.",
     protocols_notes_placeholder_oral: "e.g. take with food",
     oral_alpha_gpc: 'Alpha-GPC',
     oral_ala: 'Alpha-Lipoic Acid (ALA)',
@@ -3406,7 +3497,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Sobre ti',
     profile_step_sub: 'Ayúdanos a personalizar tu experiencia. Todos los campos son opcionales.',
-    profile_step_sub_required: 'DoseTrace adapta a ti la calculadora, la curva de acumulación de dosis y tus cifras reales. Con estos datos funcionan esas herramientas, y se guardan en tu cuenta.',
+    profile_step_sub_required: 'DoseTrace adapta a ti la calculadora, la curva Dosis en el cuerpo y tus cifras reales. Con estos datos funcionan esas herramientas, y se guardan en tu cuenta.',
     profile_required_legend: '* Todos los campos son obligatorios',
     profile_missing: 'Obligatorio',
     profile_pick_month: 'Elige un mes',
@@ -3428,10 +3519,10 @@ export const translations = {
     profile_sex_help: 'Se usa para estimar calorías y energía: elige el sexo que te asignaron al nacer.',
     sex_why_link: '¿Por qué lo preguntamos?',
     sex_why_title: '¿Por qué te preguntamos el sexo al nacer?',
-    sex_why_body: 'Las fórmulas de energía se basan en la fisiología del cuerpo, que cambia según el sexo al nacer. Si no has indicado tu grasa corporal, el gasto diario estimado cambia unas 200–300 kcal entre uno y otro. Este dato también fija el mínimo de calorías de tus objetivos y la figura del cuerpo al elegir el sitio de inyección. La curva de acumulación de dosis no lo usa.',
+    sex_why_body: 'Las fórmulas de energía se basan en la fisiología del cuerpo, que cambia según el sexo al nacer. Si no has indicado tu grasa corporal, el gasto diario estimado cambia unas 200–300 kcal entre uno y otro. Este dato también fija el mínimo de calorías de tus objetivos y la figura del cuerpo al elegir el sitio de inyección. La curva Dosis en el cuerpo no lo usa.',
     sex_why_body2: 'Solo sirve para los cálculos y no dice nada sobre quién eres. Si sigues una terapia hormonal, habla de tus números con tu profesional de la salud.',
     sex_change_title: 'Qué cambia con esto',
-    sex_change_body: 'Esto cambia el gasto diario estimado (unas 200–300 kcal si no has indicado tu grasa corporal), el mínimo de calorías de tus objetivos y la figura del cuerpo en el sitio de inyección. La curva de acumulación de dosis no cambia.',
+    sex_change_body: 'Esto cambia el gasto diario estimado (unas 200–300 kcal si no has indicado tu grasa corporal), el mínimo de calorías de tus objetivos y la figura del cuerpo en el sitio de inyección. La curva Dosis en el cuerpo no cambia.',
     sex_change_confirm_title: '¿Cambiar a {value}?',
     sex_change_confirm_btn: 'Cambiar',
     profile_birth: 'Mes y año de nacimiento',
@@ -3827,7 +3918,7 @@ export const translations = {
     settings_premium_title: 'Hazte Premium',
     settings_premium_sub: 'Desbloquea todas las funciones y saca el máximo partido a DoseTrace.',
     settings_premium_btn: 'Ver planes',
-    settings_premium_feat_1: 'Curva de acumulación de dosis a partir de tu propio registro',
+    settings_premium_feat_1: 'Dosis en el cuerpo, a partir de tu propio registro',
     settings_premium_feat_2: 'Tus cifras reales y tu progreso',
     settings_premium_feat_3: "Registro con IA, todos los días",
     settings_premium_feat_4: "Protocolos ilimitados · Escaneos de análisis, vacunas y viales · Gráficos de análisis",
@@ -3976,10 +4067,9 @@ export const translations = {
     faq_intro: 'Respuestas a las preguntas más frecuentes sobre DoseTrace.',
     faq_still_questions: '¿Aún tienes preguntas?',
     faq_contact_us: 'Escríbenos cuando quieras a',
-    curve_title: 'Curva de acumulación',
     curve_btn: 'Curva',
     curve_empty_title: 'No hay protocolos compatibles',
-    curve_empty_sub: 'La curva sérica funciona con compuestos inyectables con vida media conocida. Añade un protocolo y registra dosis para ver tu curva.',
+    curve_empty_sub: 'Dosis en el cuerpo funciona con compuestos inyectables con vida media conocida. Añade un protocolo y registra dosis para ver tu curva.',
     curve_last_days: 'Últimos',
     curve_last_hours: "Últimas",
     unit_hour_short: "h",
@@ -4035,7 +4125,7 @@ export const translations = {
     ob_features_title: 'Hecho para tu protocolo',
     ob_features_sub: 'Lo que DoseTrace hace y una app de notas no.',
     ob_feat1_t: 'Cálculo de reconstitución y carga', ob_feat1_d: 'Introduce tu vial y tu dosis: nosotros hacemos las cuentas de mezcla y jeringa.',
-    ob_feat2_t: 'Acumulación de dosis', ob_feat2_d: 'Observa cómo aumenta con el tiempo la cantidad estimada en tu cuerpo.',
+    ob_feat2_t: "Dosis en el cuerpo", ob_feat2_d: "Estimación, día a día, de cuánto de cada dosis que registraste aún no se ha eliminado: picos, valles y acumulación.",
     ob_feat3_t: 'Recordatorios inteligentes', ob_feat3_d: 'Avisos según tu calendario para no saltarte ninguna dosis.',
     ob_feat4_t: 'Varios protocolos a la vez', ob_feat4_d: 'Sigue varios compuestos y ciclos al mismo tiempo.',
     ob_feat5_t: 'Diario de análisis', ob_feat5_d: 'Fotografía un análisis de sangre e importa los valores.',
@@ -4069,100 +4159,194 @@ export const translations = {
     curve_choose_title: 'Elegir compuestos',
     curve_choose_hint: 'Selecciona uno o más para superponer sus curvas.',
     curve_done: 'Listo',
+    // The curve explained (docs/specs/curve-explained.md CE-1..CE-10; picture docs/design/curve-explained.html)
+    curve_sub: "estimación con un modelo farmacocinético (curva de Bateman)",
+    curve_fixed: "Estimación de cuánto de cada dosis ya llegó a la circulación y aún no se ha eliminado, día a día, a partir de las dosis que registraste.",
+    curve_foot: "Estimación a partir de promedios de estudios publicados. No es una medición ni una indicación médica.",
+    help_mark_label: "Ayuda",
+    curve_card1_t: "Picos y valles",
+    curve_card1_b: "Después de cada dosis, la cantidad sube hasta un pico y luego baja hasta su punto más bajo, poco antes de la dosis siguiente.",
+    curve_card2_t: "Acumulación",
+    curve_card2_b: "Cuando una dosis llega antes de que la anterior se haya ido del todo, las dos se suman. Con la misma dosis y el mismo intervalo, la cantidad sube y se asienta en una franja estable tras unas 4 a 5 vidas medias (del 94 % al 97 % de la meseta).",
+    curve_card3_t: "El análisis mide un momento",
+    curve_card3_b: "El análisis de sangre mide el nivel en el momento de la extracción. La curva es una estimación hecha a partir de tus registros y no sustituye al análisis ni a la orientación de tu profesional de la salud.",
+    curve_cards_step: "{n} de {total}",
+    curve_cards_skip: "Saltar",
+    curve_cards_done: "Entendido",
+    curve_cards_more: "Más información",
     faq_categories: [
       {
+        id: 'start',
         category: "Primeros pasos",
         questions: [
           {
+            id: 'start_what',
             q: "¿Qué es DoseTrace?",
             a: "DoseTrace es una app personal de seguimiento de bienestar para gestionar compuestos, dosis y viales. Incluye calculadora de reconstitución, guía de jeringa y registro de inyecciones."
           },
           {
+            id: 'start_free',
             q: "¿Es DoseTrace gratis?",
-            a: "Sí. Las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. El plan gratuito incluye hasta 3 protocolos activos, 3 escaneos al mes (análisis, cartillas de vacunas y viales juntos) y 7 días del registro con IA. Premium añade protocolos ilimitados, más escaneos, el registro con IA todos los días, la curva de acumulación de dosis, los resultados de tus cifras reales y la exportación a PDF."
+            a: "Sí. Las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. El plan gratuito incluye hasta 3 protocolos activos, 3 escaneos al mes (análisis, cartillas de vacunas y viales juntos) y 7 días del registro con IA. Premium añade protocolos ilimitados, más escaneos, el registro con IA todos los días, la curva Dosis en el cuerpo, los resultados de tus cifras reales y la exportación a PDF."
           },
           {
+            id: 'start_first_protocol',
             q: "¿Cómo añado mi primer protocolo?",
             a: "Ve a la pestaña Protocolos, toca «+ Añadir», elige tu tipo de compuesto y sigue los pasos para configurar los detalles de tu dosis."
           }
         ]
       },
       {
+        id: 'recon',
         category: "Reconstitución y dosificación",
         questions: [
           {
+            id: 'recon_calculator',
             q: "¿Cómo funciona la calculadora de reconstitución?",
             a: "Introduce la cantidad de tu compuesto y el volumen de agua bacteriostática que añadiste. DoseTrace calcula la concentración y muestra exactamente cuánto cargar en tu jeringa."
           },
           {
+            id: 'recon_syringes',
             q: "¿Qué tamaños de jeringa son compatibles?",
             a: "Jeringas de insulina de 1 ml (100 unidades), 0,5 ml (50 unidades) y 0,3 ml (30 unidades). Para los compuestos listos para usar también hay jeringas de 2, 3 y 5 ml, que se leen en ml."
           },
           {
+            id: 'recon_vial_life',
             q: "¿Cuánto dura un vial reconstituido?",
             a: "La mayoría de los péptidos reconstituidos permanecen estables durante aproximadamente 30 días cuando se refrigeran con agua bacteriostática."
           }
         ]
       },
       {
+        id: 'vials',
         category: "Viales y seguimiento",
         questions: [
           {
+            id: 'vials_mix',
             q: "¿Cómo registro una mezcla de vial?",
             a: "Cuando creas un nuevo protocolo liofilizado, puedes registrar la fecha de mezcla de inmediato. Cuando se acaba un vial, empieza el siguiente desde la página del protocolo (Nuevo vial) o desde Hoy (+ Añadir vial)."
           },
           {
+            id: 'vials_expiry',
             q: "¿Qué pasa cuando vence un vial?",
             a: "DoseTrace te avisa cuando tu vial se acerca al final de sus 30 días de validez. Los viales vencidos se marcan en rojo."
           }
         ]
       },
       {
+        id: 'body',
         category: "Mi cuerpo",
         questions: [
           {
+            id: 'body_lab_scan',
             q: "¿Cómo lee mis informes el Diario de análisis?",
             a: "Haz una foto de un informe de laboratorio o sube un PDF o una imagen, y la IA lee los valores y los guarda en tu diario de análisis. Funciona con LabCorp, Quest y la mayoría de informes de clínicas. Los escaneos se comparten entre análisis, cartillas de vacunas y viales: 3 al mes en el plan gratuito, más con Premium."
           },
           {
+            id: 'body_lab_privacy',
             q: "¿Son privados mis datos de análisis?",
             a: "Tus datos se guardan en tu teléfono y se sincronizan con tu cuenta en nuestra nube segura, así que tienen copia de seguridad y vuelven cuando inicias sesión en un teléfono nuevo. Cuando escaneas un análisis de laboratorio, el archivo se envía una sola vez a Anthropic para leer los valores y no se usa para entrenamiento. Lo mismo vale para las otras funciones de IA que elijas usar: escanear una cartilla de vacunas o la etiqueta de un vial, el registro de comida con IA y el asistente de protocolos; consulta nuestra Política de privacidad. Nunca vendemos tus datos ni los usamos para publicidad."
           },
           {
+            id: 'body_vaccines',
             q: "¿Qué es el Diario de vacunas?",
             a: "Un registro de tus vacunas y refuerzos: la fecha de aplicación, la fecha de la próxima dosis, el número de dosis, el lote, quién la aplicó y notas. Escríbelos tú o escanea una foto de tu cartilla de vacunas (cuenta para tus escaneos del mes). DoseTrace nunca te dice qué vacunas ponerte ni cuándo."
           },
           {
-            q: "¿Qué es la Acumulación de dosis?",
-            a: 'Una estimación de la cantidad de un compuesto que puede haber en tu cuerpo a lo largo del tiempo, calculada con tu esquema planificado y las vidas medias publicadas. Es un modelo matemático, no una medición de tus niveles reales en sangre: confírmalo con análisis. La Acumulación de dosis forma parte de Premium.'
+            id: 'body_dose_in_body',
+            q: "¿Qué es Dosis en el cuerpo?",
+            a: 'Una estimación de la cantidad de un compuesto que puede haber en tu cuerpo a lo largo del tiempo, calculada con tu esquema planificado y las vidas medias publicadas. Es un modelo matemático, no una medición de tus niveles reales en sangre: confírmalo con análisis. La curva Dosis en el cuerpo forma parte de Premium.'
           }
         ]
       },
       {
+        id: 'curve',
+        category: "Dosis en el cuerpo",
+        questions: [
+          {
+            id: 'curve_bateman',
+            q: "¿Qué es la curva de Bateman?",
+            a: "Es una fórmula publicada en 1910 por el matemático Harry Bateman. La creó para la desintegración radiactiva en cadena; la misma ecuación describe un medicamento que pasa del lugar de aplicación a la sangre y después se elimina. En farmacología se la llama \"función de Bateman\"."
+          },
+          {
+            id: 'curve_how',
+            q: "¿Cómo hace DoseTrace el cálculo?",
+            a: "Para cada dosis registrada, DoseTrace dibuja una curva de Bateman con la vida media y, cuando están publicados, el tiempo hasta el pico y la fracción que llega al cuerpo. Sin tiempo hasta el pico, la dosis entra de una vez y solo baja. Después suma las curvas de todas las dosis: es el principio de superposición. El resultado es el dibujo en dientes de sierra."
+          },
+          {
+            id: 'curve_half_life',
+            q: "¿Qué es la vida media?",
+            a: "Es el tiempo que tarda la cantidad en bajar a la mitad. Después de 1 vida media queda el 50 %; después de 2, el 25 %; después de 5, alrededor del 3 %. En los ésteres en aceite, esa vida media es la de la liberación del depósito, no la de la hormona."
+          },
+          {
+            id: 'curve_what_for',
+            q: "¿Para qué sirve?",
+            a: "Para ver una estimación, hecha a partir de tus registros, de cómo se suman las dosis con el tiempo. Es un retrato de tu historial para llevar al profesional de la salud que te acompaña. No indica cuándo ni cuánto aplicar."
+          },
+          {
+            id: 'curve_half_life_shape',
+            q: "¿Por qué la vida media cambia la curva?",
+            a: "Cada compuesto tiene una vida media distinta. Algunos salen del cuerpo en horas (muchos péptidos); otros se quedan semanas (hormonas en aceite, algunas vitaminas inyectables). Con la misma dosis y el mismo intervalo, un compuesto de vida media larga se acumula mucho más que uno de vida media corta. La curva muestra esa diferencia para los compuestos que registraste."
+          },
+          {
+            id: 'curve_lab',
+            q: "¿Y el análisis de sangre?",
+            a: "El análisis mide la concentración en sangre en el momento de la extracción. DoseTrace marca en la curva la fecha de cada extracción registrada, solo como referencia de tiempo. La curva no explica el resultado del análisis; quien lo interpreta es el profesional de la salud que te acompaña. El análisis y la curva miden cosas distintas: el análisis es concentración (por ejemplo, ng/dL); la curva es cantidad (mg) del compuesto tal como lo registraste; en los ésteres, parte de ese peso es el éster, no la hormona. En las hormonas que el cuerpo también produce, el análisis incluye esa producción, que la curva no cuenta."
+          },
+          {
+            id: 'curve_estimate',
+            q: "¿Por qué es una estimación?",
+            a: "Cada persona absorbe y elimina a su manera (edad, peso, hígado, riñones, lugar de aplicación). Los números vienen de promedios de estudios. La curva muestra el patrón, no tu valor exacto."
+          },
+          {
+            id: 'curve_missing',
+            q: "¿Por qué algunos compuestos no aparecen o aparecen como techo?",
+            a: "Cuando no hay una vida media fiable publicada, el compuesto queda fuera de la curva. Cuando no hay medidas en personas de cuánto llega al cuerpo, la curva supone que llega todo: es un techo, nunca un valor."
+          },
+          {
+            id: 'curve_history',
+            q: "¿Quién creó esta ciencia?",
+            a: "Harry Bateman escribió la fórmula (1910). Erik Widmark estudió cómo sale el alcohol de la sangre (1932). Torsten Teorell publicó el primer modelo del recorrido de un medicamento por el cuerpo (1937) y se le llama padre de la farmacocinética. Friedrich Dost le dio el nombre de \"farmacocinética\" (1953). John Wagner (1971) y Milo Gibaldi con Donald Perrier (1975) escribieron los libros que convirtieron la disciplina en lo que se enseña hoy."
+          },
+          {
+            id: 'curve_sources',
+            q: "Fuentes",
+            a: "Bateman H. Proc Cambridge Philos Soc 1910;15:423–427 · Teorell T. Arch Int Pharmacodyn Ther 1937;57:205–240 · Widmark EMP. Die wissenschaftlichen Grundlagen… der gerichtlich-medizinischen Alkoholbestimmung. Berlin, 1932 · Dost FH. Der Blutspiegel. Leipzig, 1953 · Wagner JG. Biopharmaceutics and Relevant Pharmacokinetics, 1971 · Gibaldi M, Perrier D. Pharmacokinetics, 1975 · Weiss M. Pharm Res 2023;40:2147 (función de Bateman)"
+          }
+        ]
+      },
+      {
+        id: 'journey',
         category: "Evolución",
         questions: [
           {
+            id: 'journey_food_ai',
             q: "¿Cómo funciona el Registro con IA?",
             a: "Cuéntale lo que comiste con tus propias palabras. La IA lee cada alimento y registra una estimación de calorías, carbohidratos y proteínas, que puedes corregir cuando quieras; también cuenta lo que comiste hasta 7 días atrás. El plan gratuito incluye 7 días de Registro con IA; Premium lo incluye todos los días. Solo registra lo que le dices y nunca da consejos de dieta."
           },
           {
+            id: 'journey_reality',
             q: "¿Qué son Tus cifras reales?",
             a: "Estiman cuántas calorías quemas de verdad al día, con tus propios números: un pesaje al empezar, otro unas tres semanas después y al menos 7 días seguidos con toda tu comida registrada (o tu promedio de calorías escrito). El resultado sustituye la estimación por fórmula en Tu plan diario. Son cálculos con tus datos, nunca consejos."
           }
         ]
       },
       {
+        id: 'premium',
         category: "Premium",
         questions: [
           {
+            id: 'premium_includes',
             q: "¿Qué incluye Premium?",
-            a: "Protocolos ilimitados, el registro con IA todos los días, la curva de acumulación de dosis, los resultados de tus cifras reales, la exportación a PDF, soporte prioritario y más escaneos de análisis, vacunas y viales: hasta 20 al mes en total (sumando análisis, cartillas de vacunas y viales). Tus pesajes y su gráfica, la copia de seguridad en la nube y la sincronización son gratis para todos."
+            a: "Protocolos ilimitados, el registro con IA todos los días, la curva Dosis en el cuerpo, los resultados de tus cifras reales, la exportación a PDF, soporte prioritario y más escaneos de análisis, vacunas y viales: hasta 20 al mes en total (sumando análisis, cartillas de vacunas y viales). Tus pesajes y su gráfica, la copia de seguridad en la nube y la sincronización son gratis para todos."
           },
           {
+            id: 'premium_price',
             q: "¿Cuánto cuesta Premium?",
             a: "Los precios actuales de los planes mensual y anual de Premium aparecen en la app, en la pantalla de Premium. Los nuevos suscriptores pueden empezar cualquiera de los dos planes con una prueba gratuita de 7 días; la pantalla de Premium te muestra si te corresponde."
           },
           {
+            id: 'premium_cancel',
             q: "¿Puedo cancelar en cualquier momento?",
             a: '{store_cancel}'
           }
@@ -4196,7 +4380,7 @@ export const translations = {
     body_tile_vax_latest: 'Última',
     body_hub_footnote: 'No es un servicio médico. Para cualquier duda médica, consulta a un profesional cualificado.',
     coming_soon: "Próximamente",
-    body_card_dosing_title: "Acumulación de dosis",
+    body_card_dosing_title: "Dosis en el cuerpo",
     body_card_dosing_desc: "Mira cómo pueden acumularse tus dosis con el tiempo, según las dosis que registraste, tu esquema planificado y vidas medias publicadas. Una estimación matemática, nunca una medición.",
     cal_disclaimer: 'Una estimación para bienestar general, no un consejo médico ni una prescripción. Nunca se vincula a ningún medicamento ni dosis: solo cálculos de energía a partir de los números que introduces. Una variación individual de ±10-15% es normal.',
     cal_intro_title: 'Qué es esto',
@@ -4561,7 +4745,7 @@ export const translations = {
     serum_preview_body: "DoseTrace modela cómo cada dosis se suma a la anterior, para que veas tu nivel sérico estimado entre dosis, no solo lo que tomaste.",
     preview_unlock_cta: "Desbloquear con Premium",
     pw_preview_heading: "Mira lo que incluye",
-    blend_curve_note: 'Cada componente aparece en la curva sérica, repartido según la proporción habitual.',
+    blend_curve_note: 'Cada componente aparece en la curva Dosis en el cuerpo, repartido según la proporción habitual.',
     insulin_no_curve_note: 'Registrado en tu historial; la acumulación no se modela para la insulina.',
     blend_curve_caveat: 'Estas líneas suponen una proporción habitual de la mezcla (solo como referencia); la composición varía según la fuente y no está verificada. Para modelar tu vial exacto, registra cada componente como un protocolo aparte.',
     blend_est_marker: '(est.)',
@@ -4667,7 +4851,7 @@ export const translations = {
     blood_upgrade_title: "Escaneos de análisis, vacunas y viales",
     blood_upgrade_sub: 'Premium incluye escaneos de análisis, vacunas y viales con extracción automática de valores, además de todo lo demás.',
     blood_upgrade_feat_1: "Escaneos de análisis, vacunas y viales incluidos",
-    blood_upgrade_feat_2: "Curva de acumulación de dosis",
+    blood_upgrade_feat_2: "Dosis en el cuerpo",
     blood_upgrade_feat_3: 'Tus cifras reales y tu progreso',
     blood_upgrade_feat_4: 'Escaneo en cualquier idioma: foto o PDF',
     blood_upgrade_feat_5: 'Exportación a PDF y soporte prioritario',
@@ -4690,7 +4874,7 @@ export const translations = {
     // PAYWALL
     paywall_title: 'Hazte Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Curvas de acumulación de dosis a partir de tu registro, protocolos ilimitados, más escaneos y exportación a PDF.',
+    paywall_hero_sub: 'Dosis en el cuerpo a partir de tu registro, protocolos ilimitados, más escaneos y exportación a PDF.',
     paywall_annual: 'Anual',
     paywall_monthly: 'Mensual',
     paywall_per_year: 'por año',
@@ -4729,7 +4913,6 @@ export const translations = {
     paywall_free_feat_8: 'Copia de seguridad en la nube y sincronización',
     paywall_free_feat_9: 'Protocolos ilimitados',
     paywall_free_feat_10: 'Cargas de análisis ilimitadas',
-    paywall_free_feat_11: 'Modelo de curva sérica',
     paywall_free_feat_12: 'Línea de tiempo del protocolo',
     paywall_free_feat_14: 'Sincronización de Apple Health y Watch',
     paywall_free_feat_15: 'Exportación a PDF',
@@ -4752,7 +4935,6 @@ export const translations = {
     paywall_lifetime_note: 'Compra única. Incluye todas las funciones Premium.',
     paywall_coming_soon_title: 'Próximamente con Premium',
     paywall_coming_1: 'Copia de seguridad en la nube y sincronización entre dispositivos',
-    paywall_coming_2: 'Modelo de curva sérica y línea de tiempo del protocolo',
     paywall_coming_4: 'Escaneo en cualquier idioma: foto o PDF',
     paywall_coming_5: 'Exportación a PDF',
     paywall_promo_banner: 'Oferta limitada de lanzamiento',
@@ -4920,7 +5102,7 @@ export const translations = {
     protocols_notes_placeholder: 'p. ej., rotar los sitios de inyección',
     protocols_composition_label: 'Qué contiene el vial (opcional)',
     protocols_composition_placeholder: 'p. ej., 50 GHK / 10 KPV / 10 TB / 10 BPC',
-    protocols_composition_hint: 'Una nota sobre la mezcla de tu vial. Las recetas varían según la fuente; esto no cambia la curva sérica.',
+    protocols_composition_hint: 'Una nota sobre la mezcla de tu vial. Las recetas varían según la fuente; esto no cambia la curva Dosis en el cuerpo.',
     protocols_notes_placeholder_oral: 'p. ej., tomar con comida',
     oral_alpha_gpc: 'Alfa-GPC',
     oral_ala: 'Ácido Alfa-Lipoico (ALA)',
@@ -6256,7 +6438,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Sobre você',
     profile_step_sub: 'Ajude-nos a personalizar sua experiência. Todos os campos são opcionais.',
-    profile_step_sub_required: 'O DoseTrace adapta a você a calculadora, a curva de acúmulo de dose e seus números reais. Esses recursos funcionam com estes dados, que ficam salvos na sua conta.',
+    profile_step_sub_required: 'O DoseTrace adapta a você a calculadora, a curva Dose no corpo e seus números reais. Esses recursos funcionam com estes dados, que ficam salvos na sua conta.',
     profile_required_legend: '* Todos os campos são obrigatórios',
     profile_missing: 'Obrigatório',
     profile_pick_month: 'Escolha um mês',
@@ -6278,10 +6460,10 @@ export const translations = {
     profile_sex_help: 'Usado para estimar calorias e energia — escolha o sexo atribuído no nascimento.',
     sex_why_link: 'Por que perguntamos?',
     sex_why_title: 'Por que perguntamos o sexo ao nascer?',
-    sex_why_body: 'As fórmulas de energia usam a fisiologia do corpo, que muda com o sexo de nascimento. Se a gordura corporal não estiver preenchida, o gasto diário estimado muda cerca de 200 a 300 kcal de um para o outro. Esse dado também define o mínimo de calorias das metas e o desenho do corpo ao escolher o local da injeção. A curva de acúmulo de doses não usa esse dado.',
+    sex_why_body: 'As fórmulas de energia usam a fisiologia do corpo, que muda com o sexo de nascimento. Se a gordura corporal não estiver preenchida, o gasto diário estimado muda cerca de 200 a 300 kcal de um para o outro. Esse dado também define o mínimo de calorias das metas e o desenho do corpo ao escolher o local da injeção. A curva Dose no corpo não usa esse dado.',
     sex_why_body2: 'Ele serve só para as contas e não diz nada sobre quem você é. Se você faz terapia hormonal, converse com seu profissional de saúde sobre os seus números.',
     sex_change_title: 'O que muda com isso',
-    sex_change_body: 'Isso muda o gasto diário estimado (cerca de 200 a 300 kcal, se a gordura corporal não estiver preenchida), o mínimo de calorias das metas e o desenho do corpo no local da injeção. A curva de acúmulo de doses não muda.',
+    sex_change_body: 'Isso muda o gasto diário estimado (cerca de 200 a 300 kcal, se a gordura corporal não estiver preenchida), o mínimo de calorias das metas e o desenho do corpo no local da injeção. A curva Dose no corpo não muda.',
     sex_change_confirm_title: 'Mudar para {value}?',
     sex_change_confirm_btn: 'Mudar',
     profile_birth: 'Mês e ano de nascimento',
@@ -6677,7 +6859,7 @@ export const translations = {
     settings_premium_title: 'Assine o Premium',
     settings_premium_sub: 'Desbloqueie todos os recursos e aproveite ao máximo o DoseTrace.',
     settings_premium_btn: 'Ver planos',
-    settings_premium_feat_1: 'Curva de acúmulo de dose a partir do seu próprio registro',
+    settings_premium_feat_1: 'Dose no corpo, a partir do seu próprio registro',
     settings_premium_feat_2: 'Seus números reais e seu progresso',
     settings_premium_feat_3: 'Registro de comida com IA, todos os dias',
     settings_premium_feat_4: "Protocolos ilimitados · Leituras de exames, vacinas e frascos · Gráficos dos exames",
@@ -6826,10 +7008,9 @@ export const translations = {
     faq_intro: 'Encontre respostas para perguntas comuns sobre o DoseTrace.',
     faq_still_questions: 'Ainda tem dúvidas?',
     faq_contact_us: 'Entre em contato conosco a qualquer momento em',
-    curve_title: 'Curva de acúmulo',
     curve_btn: 'Curva',
     curve_empty_title: 'Nenhum protocolo compatível',
-    curve_empty_sub: 'A curva sérica funciona com compostos injetáveis que têm meia-vida conhecida. Adicione um protocolo e registre doses para ver sua curva.',
+    curve_empty_sub: 'Dose no corpo funciona com compostos injetáveis que têm meia-vida conhecida. Adicione um protocolo e registre doses para ver sua curva.',
     curve_last_days: 'Últimos',
     curve_last_hours: "Últimas",
     unit_hour_short: "h",
@@ -6885,7 +7066,7 @@ export const translations = {
     ob_features_title: 'Feito para o seu protocolo',
     ob_features_sub: 'O que o DoseTrace faz e um app de notas não faz.',
     ob_feat1_t: 'Cálculo de reconstituição e dose', ob_feat1_d: 'Informe o frasco e a dose — cuidamos das contas da reconstituição e da seringa.',
-    ob_feat2_t: 'Acúmulo de doses', ob_feat2_d: 'Veja a quantidade estimada no seu corpo aumentar ao longo do tempo.',
+    ob_feat2_t: "Dose no corpo", ob_feat2_d: "Estimativa, dia a dia, de quanto de cada dose que você registrou ainda não foi eliminado: picos, vales e acúmulo.",
     ob_feat3_t: 'Lembretes inteligentes', ob_feat3_d: 'Alertas no horário de cada dose, para você nunca esquecer nenhuma.',
     ob_feat4_t: 'Vários protocolos ao mesmo tempo', ob_feat4_d: 'Acompanhe vários compostos e ciclos de uma vez.',
     ob_feat5_t: 'Diário de exames', ob_feat5_d: 'Fotografe um exame de sangue e importe os valores.',
@@ -6919,100 +7100,194 @@ export const translations = {
     curve_choose_title: 'Escolher compostos',
     curve_choose_hint: 'Selecione um ou mais para sobrepor as curvas.',
     curve_done: 'Concluir',
+    // The curve explained (docs/specs/curve-explained.md CE-1..CE-10; picture docs/design/curve-explained.html)
+    curve_sub: "estimativa por modelo farmacocinético (curva de Bateman)",
+    curve_fixed: "Estimativa de quanto de cada dose já chegou à circulação e ainda não foi eliminado, dia a dia, a partir das doses que você registrou.",
+    curve_foot: "Estimativa a partir de médias de estudos publicados. Não é medição nem orientação médica.",
+    help_mark_label: "Ajuda",
+    curve_card1_t: "Picos e vales",
+    curve_card1_b: "Depois de cada dose, a quantidade sobe até um pico e depois cai até o ponto mais baixo, pouco antes da dose seguinte.",
+    curve_card2_t: "Acúmulo",
+    curve_card2_b: "Quando uma dose chega antes de a anterior sair toda, as duas se somam. Com a mesma dose no mesmo intervalo, a quantidade sobe e se acomoda numa faixa estável depois de cerca de 4 a 5 meias-vidas (94% a 97% do patamar).",
+    curve_card3_t: "O exame mede um momento",
+    curve_card3_b: "O exame de sangue mede o nível no momento da coleta. A curva é uma estimativa feita a partir dos seus registros e não substitui o exame nem a orientação do profissional de saúde.",
+    curve_cards_step: "{n} de {total}",
+    curve_cards_skip: "Pular",
+    curve_cards_done: "Entendi",
+    curve_cards_more: "Saiba mais",
     faq_categories: [
       {
+        id: 'start',
         category: "Primeiros passos",
         questions: [
           {
+            id: 'start_what',
             q: "O que é o DoseTrace?",
             a: "O DoseTrace é um app pessoal de acompanhamento de bem-estar para organizar compostos, doses e frascos. Inclui uma calculadora de reconstituição, um guia de seringa e um registro de injeções."
           },
           {
+            id: 'start_free',
             q: "O DoseTrace é gratuito?",
-            a: "Sim. Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O plano gratuito inclui até 3 protocolos ativos, 3 leituras por mês (somando exames, carteiras de vacinação e frascos) e 7 dias do registro de comida com IA. O Premium acrescenta protocolos ilimitados, mais leituras, o registro de comida com IA todos os dias, a curva de acúmulo de dose, os resultados dos seus números reais e a exportação em PDF."
+            a: "Sim. Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O plano gratuito inclui até 3 protocolos ativos, 3 leituras por mês (somando exames, carteiras de vacinação e frascos) e 7 dias do registro de comida com IA. O Premium acrescenta protocolos ilimitados, mais leituras, o registro de comida com IA todos os dias, a curva Dose no corpo, os resultados dos seus números reais e a exportação em PDF."
           },
           {
+            id: 'start_first_protocol',
             q: "Como adiciono meu primeiro protocolo?",
             a: "Vá para a aba Protocolos, toque em \"+ Adicionar\", escolha seu tipo de composto e siga as etapas para configurar os detalhes da dose."
           }
         ]
       },
       {
+        id: 'recon',
         category: "Reconstituição e dosagem",
         questions: [
           {
+            id: 'recon_calculator',
             q: "Como funciona a calculadora de reconstituição?",
             a: "Digite a quantidade do seu composto e o volume de água bacteriostática que você adicionou. O DoseTrace calcula a concentração e mostra exatamente quanto aspirar na seringa."
           },
           {
+            id: 'recon_syringes',
             q: "Quais tamanhos de seringa o app aceita?",
             a: "Seringas de insulina de 1 ml (100 unidades), 0,5 ml (50 unidades) e 0,3 ml (30 unidades). Para compostos prontos para uso também há seringas de 2, 3 e 5 ml, lidas em ml."
           },
           {
+            id: 'recon_vial_life',
             q: "Quanto tempo dura um frasco reconstituído?",
             a: "A maioria dos peptídeos reconstituídos permanece estável por aproximadamente 30 dias quando refrigerados com água bacteriostática."
           }
         ]
       },
       {
+        id: 'vials',
         category: "Frascos e acompanhamento",
         questions: [
           {
+            id: 'vials_mix',
             q: "Como registro a reconstituição de um frasco?",
             a: "Quando você cria um novo protocolo liofilizado, pode registrar a data de reconstituição na hora. Quando um frasco acabar, comece o próximo na página do protocolo (Novo frasco) ou em Hoje (+ Adicionar frasco)."
           },
           {
+            id: 'vials_expiry',
             q: "O que acontece quando um frasco vence?",
             a: "O DoseTrace mostra um aviso quando seu frasco estiver se aproximando do vencimento de 30 dias. Frascos vencidos são marcados em vermelho."
           }
         ]
       },
       {
+        id: 'body',
         category: "Meu corpo",
         questions: [
           {
+            id: 'body_lab_scan',
             q: "Como o Diário de exames lê meus laudos?",
             a: 'Tire uma foto de um exame ou envie um PDF ou uma imagem, e a IA lê os valores e os coloca no seu diário de exames. Funciona com LabCorp, Quest e a maioria dos laudos de clínicas. As leituras são compartilhadas entre exames, carteiras de vacinação e frascos: 3 por mês no plano gratuito, mais com o Premium.'
           },
           {
+            id: 'body_lab_privacy',
             q: "Meus dados de exames são privados?",
             a: "Seus dados ficam salvos no seu aparelho e são sincronizados com a sua conta na nossa nuvem segura, com cópia de segurança que volta quando você entra em um aparelho novo. Quando você escaneia um exame, o arquivo é enviado uma única vez à Anthropic para ler os valores e não é usado para treinamento. O mesmo vale para as outras funções de IA que você escolher usar: escanear uma carteira de vacinação ou o rótulo de um frasco, o registro de comida com IA e o assistente de protocolos; consulte nossa Política de Privacidade. Nunca vendemos seus dados nem os usamos para publicidade."
           },
           {
+            id: 'body_vaccines',
             q: "O que é o Diário de vacinas?",
             a: 'Um registro das suas vacinas e reforços: a data em que tomou, a data da próxima dose, o número da dose, o lote, quem aplicou e notas. Digite os dados você mesmo ou escaneie uma foto da sua carteira de vacinação (conta nas suas leituras do mês). O DoseTrace nunca diz quais vacinas tomar nem quando.'
           },
           {
-            q: "O que é o Acúmulo de doses?",
-            a: "Uma estimativa de quanto de um composto pode estar no seu corpo ao longo do tempo, calculada a partir do seu esquema planejado e de meias-vidas publicadas. É um modelo matemático, não uma medição dos seus níveis reais no sangue: confirme com exames. O Acúmulo de doses faz parte do Premium."
+            id: 'body_dose_in_body',
+            q: "O que é Dose no corpo?",
+            a: "Uma estimativa de quanto de um composto pode estar no seu corpo ao longo do tempo, calculada a partir do seu esquema planejado e de meias-vidas publicadas. É um modelo matemático, não uma medição dos seus níveis reais no sangue: confirme com exames. A curva Dose no corpo faz parte do Premium."
           }
         ]
       },
       {
+        id: 'curve',
+        category: "Dose no corpo",
+        questions: [
+          {
+            id: 'curve_bateman',
+            q: "O que é a curva de Bateman?",
+            a: "É uma fórmula publicada em 1910 pelo matemático Harry Bateman. Ele a criou para o decaimento radioativo em cadeia; a mesma equação descreve um medicamento que passa do local da aplicação para o sangue e depois é eliminado. Na farmacologia ela é chamada de \"função de Bateman\"."
+          },
+          {
+            id: 'curve_how',
+            q: "Como o DoseTrace faz a conta?",
+            a: "Para cada dose registrada, o DoseTrace desenha uma curva de Bateman com a meia-vida e, quando publicados, o tempo até o pico e a fração que chega ao corpo. Sem tempo até o pico, a dose entra de uma vez e só cai. Depois soma as curvas de todas as doses — é o princípio da superposição. O resultado é o desenho em dente de serra."
+          },
+          {
+            id: 'curve_half_life',
+            q: "O que é meia-vida?",
+            a: "É o tempo para a quantidade cair pela metade. Depois de 1 meia-vida resta 50%; depois de 2, 25%; depois de 5, cerca de 3%. Em ésteres em óleo, essa meia-vida é a da liberação do depósito, não a do hormônio."
+          },
+          {
+            id: 'curve_what_for',
+            q: "Para que serve?",
+            a: "Para ver uma estimativa, feita a partir dos seus registros, de como as doses se somam ao longo do tempo. É um retrato do seu histórico para levar ao profissional de saúde que acompanha você. Não indica quando nem quanto aplicar."
+          },
+          {
+            id: 'curve_half_life_shape',
+            q: "Por que a meia-vida muda a curva?",
+            a: "Cada composto tem uma meia-vida diferente. Alguns saem do corpo em horas (muitos peptídeos); outros ficam semanas (hormônios em óleo, algumas vitaminas injetáveis). Com a mesma dose e o mesmo intervalo, um composto de meia-vida longa acumula muito mais do que um de meia-vida curta. A curva mostra essa diferença para os compostos que você registrou."
+          },
+          {
+            id: 'curve_lab',
+            q: "E o exame de sangue?",
+            a: "O exame mede a concentração no sangue no momento da coleta. O DoseTrace marca na curva a data de cada coleta registrada, só como referência de tempo. A curva não explica o resultado do exame; quem interpreta o exame é o profissional de saúde que acompanha você. O exame e a curva medem coisas diferentes: o exame é concentração (por exemplo ng/dL); a curva é quantidade (mg) do composto como registrado — nos ésteres, parte desse peso é o éster, não o hormônio. Para hormônios que o corpo também produz, o exame inclui essa produção, que a curva não conta."
+          },
+          {
+            id: 'curve_estimate',
+            q: "Por que é uma estimativa?",
+            a: "Cada pessoa absorve e elimina de um jeito (idade, peso, fígado, rins, local da aplicação). Os números vêm de médias de estudos. A curva mostra o padrão, não o seu valor exato."
+          },
+          {
+            id: 'curve_missing',
+            q: "Por que alguns compostos não aparecem ou aparecem como teto?",
+            a: "Quando não há meia-vida confiável publicada, o composto fica fora da curva. Quando não há medida em pessoas de quanto chega ao corpo, a curva supõe que tudo chega: é um teto, nunca um valor."
+          },
+          {
+            id: 'curve_history',
+            q: "Quem criou essa ciência?",
+            a: "Harry Bateman escreveu a fórmula (1910). Erik Widmark estudou como o álcool sai do sangue (1932). Torsten Teorell publicou o primeiro modelo do caminho de um medicamento no corpo (1937) e é chamado de pai da farmacocinética. Friedrich Dost deu o nome \"farmacocinética\" (1953). John Wagner (1971) e Milo Gibaldi com Donald Perrier (1975) escreveram os livros que tornaram a disciplina o que se ensina hoje."
+          },
+          {
+            id: 'curve_sources',
+            q: "Fontes",
+            a: "Bateman H. Proc Cambridge Philos Soc 1910;15:423–427 · Teorell T. Arch Int Pharmacodyn Ther 1937;57:205–240 · Widmark EMP. Die wissenschaftlichen Grundlagen… der gerichtlich-medizinischen Alkoholbestimmung. Berlin, 1932 · Dost FH. Der Blutspiegel. Leipzig, 1953 · Wagner JG. Biopharmaceutics and Relevant Pharmacokinetics, 1971 · Gibaldi M, Perrier D. Pharmacokinetics, 1975 · Weiss M. Pharm Res 2023;40:2147 (função de Bateman)"
+          }
+        ]
+      },
+      {
+        id: 'journey',
         category: "Evolução",
         questions: [
           {
+            id: 'journey_food_ai',
             q: "Como funciona o Registro de comida com IA?",
             a: "Conte o que você comeu com suas próprias palavras. A IA lê cada alimento e registra uma estimativa de calorias, carboidratos e proteínas, que você pode corrigir quando quiser; o que você comeu até 7 dias atrás também conta. O plano gratuito inclui 7 dias do Registro de comida com IA; o Premium inclui todos os dias. Ele só registra o que você conta e nunca dá conselhos de dieta."
           },
           {
+            id: 'journey_reality',
             q: "O que são Seus números reais?",
             a: "Eles estimam quantas calorias você realmente gasta por dia, com os seus próprios números: uma pesagem no início, outra cerca de três semanas depois e pelo menos 7 dias seguidos com toda a comida registrada (ou a sua média de calorias digitada). O resultado substitui a estimativa por fórmula em Seu plano diário. É cálculo com os seus dados, nunca conselho."
           }
         ]
       },
       {
+        id: 'premium',
         category: "Premium",
         questions: [
           {
+            id: 'premium_includes',
             q: "O que o Premium inclui?",
-            a: "Protocolos ilimitados, o registro de comida com IA todos os dias, a curva de acúmulo de dose, os resultados dos seus números reais, exportação em PDF, suporte prioritário e mais leituras de exames, vacinas e frascos: até 20 por mês no total (somando exames, carteiras de vacinação e frascos). Suas pesagens e o gráfico delas, o backup em nuvem e a sincronização são grátis para todos."
+            a: "Protocolos ilimitados, o registro de comida com IA todos os dias, a curva Dose no corpo, os resultados dos seus números reais, exportação em PDF, suporte prioritário e mais leituras de exames, vacinas e frascos: até 20 por mês no total (somando exames, carteiras de vacinação e frascos). Suas pesagens e o gráfico delas, o backup em nuvem e a sincronização são grátis para todos."
           },
           {
+            id: 'premium_price',
             q: "Quanto custa o Premium?",
             a: "Os preços atuais do Premium Mensal e Anual aparecem no app na tela de assinatura. Novos assinantes podem começar qualquer um dos planos com um teste grátis de 7 dias; a tela de assinatura mostra se ele vale para você."
           },
           {
+            id: 'premium_cancel',
             q: "Posso cancelar a qualquer momento?",
             a: '{store_cancel}'
           }
@@ -7046,7 +7321,7 @@ export const translations = {
     body_tile_vax_latest: 'Última',
     body_hub_footnote: 'Não é um serviço médico. Para qualquer dúvida médica, consulte um profissional qualificado.',
     coming_soon: "Em breve",
-    body_card_dosing_title: "Acúmulo de doses",
+    body_card_dosing_title: "Dose no corpo",
     body_card_dosing_desc: "Veja como suas doses podem se acumular ao longo do tempo, pelas doses que você registrou, pelo seu esquema planejado e por meias-vidas publicadas. Uma estimativa matemática, nunca uma medição.",
     cal_disclaimer: 'Uma estimativa para bem-estar geral, não aconselhamento médico nem prescrição. Não tem relação com nenhum medicamento ou dose — são só cálculos de energia a partir dos números que você informa. Uma variação individual de ±10-15% é normal.',
     cal_intro_title: 'O que é isto',
@@ -7411,7 +7686,7 @@ export const translations = {
     serum_preview_body: "O DoseTrace modela como cada dose se soma à anterior, para você ver o seu nível sérico estimado entre doses — não só o que tomou.",
     preview_unlock_cta: "Desbloquear com Premium",
     pw_preview_heading: "Veja o que está incluído",
-    blend_curve_note: 'Cada componente aparece na curva sérica, dividido pela proporção mais comum.',
+    blend_curve_note: 'Cada componente aparece na curva Dose no corpo, dividido pela proporção mais comum.',
     insulin_no_curve_note: 'Registrado no seu histórico — o acúmulo não é modelado para insulina.',
     blend_curve_caveat: 'Estas linhas partem de uma proporção comum da mistura (só como referência) — a composição varia conforme a fonte e não é verificada. Para modelar o seu frasco exato, registre cada componente como um protocolo próprio.',
     blend_est_marker: '(est.)',
@@ -7517,7 +7792,7 @@ export const translations = {
     blood_upgrade_title: "Leituras de exames, vacinas e frascos",
     blood_upgrade_sub: 'O Premium inclui leituras de exames, vacinas e frascos com extração automática dos valores — além de todo o resto.',
     blood_upgrade_feat_1: "Leituras de exames, vacinas e frascos incluídas",
-    blood_upgrade_feat_2: "Curva de acúmulo de dose",
+    blood_upgrade_feat_2: "Dose no corpo",
     blood_upgrade_feat_3: 'Seus números reais e seu progresso',
     blood_upgrade_feat_4: 'Leitura em qualquer idioma — foto ou PDF',
     blood_upgrade_feat_5: 'Exportação em PDF e suporte prioritário',
@@ -7540,7 +7815,7 @@ export const translations = {
     // PAYWALL
     paywall_title: 'Assine o Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Curvas de acúmulo de dose a partir do seu registro, protocolos ilimitados, mais leituras e exportação em PDF.',
+    paywall_hero_sub: 'Dose no corpo a partir do seu registro, protocolos ilimitados, mais leituras e exportação em PDF.',
     paywall_annual: 'Anual',
     paywall_monthly: 'Mensal',
     paywall_per_year: 'por ano',
@@ -7579,7 +7854,6 @@ export const translations = {
     paywall_free_feat_8: 'Backup e sincronização em nuvem',
     paywall_free_feat_9: 'Protocolos ilimitados',
     paywall_free_feat_10: 'Envios de exame ilimitados',
-    paywall_free_feat_11: 'Modelo de curva sérica',
     paywall_free_feat_12: 'Linha do tempo do protocolo',
     paywall_free_feat_14: 'Sincronização com o app Saúde e o Apple Watch',
     paywall_free_feat_15: 'Exportação em PDF',
@@ -7602,7 +7876,6 @@ export const translations = {
     paywall_lifetime_note: 'Compra única. Todos os recursos Premium incluídos.',
     paywall_coming_soon_title: 'Em breve no Premium',
     paywall_coming_1: 'Backup na nuvem e sincronização entre dispositivos',
-    paywall_coming_2: 'Modelo de curva sérica e linha do tempo',
     paywall_coming_4: 'Leitura em qualquer idioma — foto ou PDF',
     paywall_coming_5: 'Exportação em PDF',
     paywall_promo_banner: 'Oferta limitada de lançamento',
@@ -7770,7 +8043,7 @@ export const translations = {
     protocols_notes_placeholder: 'ex.: alternar os locais de injeção',
     protocols_composition_label: 'O que há no frasco — opcional',
     protocols_composition_placeholder: 'ex.: 50 GHK / 10 KPV / 10 TB / 10 BPC',
-    protocols_composition_hint: 'Uma anotação sobre a mistura do seu frasco. As receitas variam conforme a fonte — isso não altera a curva sérica.',
+    protocols_composition_hint: 'Uma anotação sobre a mistura do seu frasco. As receitas variam conforme a fonte — isso não altera a curva Dose no corpo.',
     protocols_notes_placeholder_oral: 'ex.: tomar com comida',
     oral_alpha_gpc: 'Alfa-GPC',
     oral_ala: 'Ácido Alfa-Lipoico (ALA)',
@@ -9105,7 +9378,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'À propos de vous',
     profile_step_sub: 'Aidez-nous à personnaliser votre expérience. Tous les champs sont facultatifs.',
-    profile_step_sub_required: 'DoseTrace personnalise le calculateur, la courbe d\'accumulation et vos vrais chiffres selon votre profil. Ces outils fonctionnent avec ces informations, qui restent sur votre compte.',
+    profile_step_sub_required: 'DoseTrace personnalise le calculateur, la courbe « Dose dans le corps » et vos vrais chiffres selon votre profil. Ces outils fonctionnent avec ces informations, qui restent sur votre compte.',
     profile_required_legend: '* Tous les champs sont obligatoires',
     profile_missing: 'Obligatoire',
     profile_pick_month: 'Choisissez un mois',
@@ -9127,10 +9400,10 @@ export const translations = {
     profile_sex_help: 'Utilisé pour estimer les calories et l’énergie — choisissez le sexe qui vous a été assigné à la naissance.',
     sex_why_link: 'Pourquoi cette question ?',
     sex_why_title: 'Pourquoi demandons-nous le sexe à la naissance ?',
-    sex_why_body: 'Les formules d’énergie reposent sur la physiologie du corps, qui diffère selon le sexe à la naissance. Si vous n’avez pas indiqué votre masse grasse, la dépense quotidienne estimée varie d’environ 200 à 300 kcal de l’un à l’autre. Cette donnée fixe aussi le minimum de calories de vos objectifs et la silhouette sur laquelle vous choisissez le site d’injection. La courbe d’accumulation des doses ne l’utilise pas.',
+    sex_why_body: 'Les formules d’énergie reposent sur la physiologie du corps, qui diffère selon le sexe à la naissance. Si vous n’avez pas indiqué votre masse grasse, la dépense quotidienne estimée varie d’environ 200 à 300 kcal de l’un à l’autre. Cette donnée fixe aussi le minimum de calories de vos objectifs et la silhouette sur laquelle vous choisissez le site d’injection. La courbe « Dose dans le corps » ne l’utilise pas.',
     sex_why_body2: 'Elle ne sert qu’aux calculs et ne dit rien de qui vous êtes. Si vous suivez un traitement hormonal, parlez de vos chiffres avec votre professionnel de santé.',
     sex_change_title: 'Ce que cela change',
-    sex_change_body: 'Cela modifie la dépense quotidienne estimée (d’environ 200 à 300 kcal si la masse grasse n’est pas renseignée), le minimum de calories de vos objectifs et la silhouette du site d’injection. La courbe d’accumulation des doses ne change pas.',
+    sex_change_body: 'Cela modifie la dépense quotidienne estimée (d’environ 200 à 300 kcal si la masse grasse n’est pas renseignée), le minimum de calories de vos objectifs et la silhouette du site d’injection. La courbe « Dose dans le corps » ne change pas.',
     sex_change_confirm_title: 'Passer à {value} ?',
     sex_change_confirm_btn: 'Modifier',
     profile_birth: 'Mois et année de naissance',
@@ -9526,7 +9799,7 @@ export const translations = {
     settings_premium_title: 'Passer à Premium',
     settings_premium_sub: 'Débloquez toutes les fonctionnalités et tirez le meilleur parti de DoseTrace.',
     settings_premium_btn: 'Voir les offres',
-    settings_premium_feat_1: "Courbe d'accumulation des doses à partir de votre propre journal",
+    settings_premium_feat_1: "Dose dans le corps, à partir de votre propre journal",
     settings_premium_feat_2: 'Vos vrais chiffres et votre progression',
     settings_premium_feat_3: "Journal IA, tous les jours",
     settings_premium_feat_4: "Protocoles illimités · Scans d’analyses, vaccins et flacons · Graphiques des analyses",
@@ -9675,10 +9948,9 @@ export const translations = {
     faq_intro: 'Trouvez des réponses aux questions fréquemment posées sur DoseTrace.',
     faq_still_questions: 'Vous avez encore des questions ?',
     faq_contact_us: 'Écrivez-nous à tout moment à',
-    curve_title: "Courbe d'accumulation",
     curve_btn: 'Courbe',
     curve_empty_title: 'Aucun protocole compatible',
-    curve_empty_sub: 'La courbe sérique fonctionne avec les composés injectables dont la demi-vie est connue. Ajoutez un protocole et enregistrez des doses pour voir votre courbe.',
+    curve_empty_sub: '« Dose dans le corps » fonctionne avec les composés injectables dont la demi-vie est connue. Ajoutez un protocole et enregistrez des doses pour voir votre courbe.',
     curve_last_days: 'Derniers',
     curve_last_hours: "Dernières",
     unit_hour_short: "h",
@@ -9734,7 +10006,7 @@ export const translations = {
     ob_features_title: 'Conçu pour votre protocole',
     ob_features_sub: "Ce que DoseTrace fait et qu’une app de notes ne fait pas.",
     ob_feat1_t: 'Calcul de reconstitution et de prélèvement', ob_feat1_d: 'Saisissez votre flacon et votre dose — nous nous chargeons des calculs de reconstitution et de seringue.',
-    ob_feat2_t: 'Accumulation des doses', ob_feat2_d: 'Visualisez comment la quantité estimée s’accumule dans votre corps au fil du temps.',
+    ob_feat2_t: "Dose dans le corps", ob_feat2_d: "Estimation, jour après jour, de la part de chaque dose enregistrée qui n’est pas encore éliminée : pics, creux et accumulation.",
     ob_feat3_t: 'Rappels intelligents', ob_feat3_d: 'Des alertes selon votre calendrier pour ne jamais manquer une dose.',
     ob_feat4_t: 'Plusieurs protocoles à la fois', ob_feat4_d: 'Suivez plusieurs composés et cycles en même temps.',
     ob_feat5_t: 'Journal d\'analyses', ob_feat5_d: 'Photographiez un bilan sanguin et récupérez les valeurs.',
@@ -9768,100 +10040,194 @@ export const translations = {
     curve_choose_title: 'Choisir des composés',
     curve_choose_hint: 'Sélectionnez-en un ou plusieurs pour superposer leurs courbes.',
     curve_done: 'Terminé',
+    // The curve explained (docs/specs/curve-explained.md CE-1..CE-10; picture docs/design/curve-explained.html)
+    curve_sub: "estimation par un modèle pharmacocinétique (courbe de Bateman)",
+    curve_fixed: "Estimation de la part de chaque dose déjà passée dans la circulation et pas encore éliminée, jour après jour, d’après les doses que vous avez enregistrées.",
+    curve_foot: "Estimation fondée sur des moyennes d’études publiées. Ce n’est ni une mesure ni un avis médical.",
+    help_mark_label: "Aide",
+    curve_card1_t: "Pics et creux",
+    curve_card1_b: "Après chaque dose, la quantité monte jusqu’à un pic, puis redescend jusqu’à son point le plus bas, peu avant la dose suivante.",
+    curve_card2_t: "Accumulation",
+    curve_card2_b: "Quand une dose arrive avant que la précédente ne soit entièrement éliminée, les deux s’additionnent. Avec la même dose au même intervalle, la quantité monte, puis se maintient dans une plage stable après environ 4 à 5 demi-vies (94 % à 97 % du plateau).",
+    curve_card3_t: "L’analyse mesure un instant",
+    curve_card3_b: "La prise de sang mesure le taux au moment du prélèvement. La courbe est une estimation faite à partir de vos enregistrements et ne remplace ni l’analyse ni l’avis de votre professionnel de santé.",
+    curve_cards_step: "{n} sur {total}",
+    curve_cards_skip: "Passer",
+    curve_cards_done: "J’ai compris",
+    curve_cards_more: "En savoir plus",
     faq_categories: [
       {
+        id: 'start',
         category: 'Premiers pas',
         questions: [
           {
+            id: 'start_what',
             q: "Qu'est-ce que DoseTrace ?",
             a: "DoseTrace est une application personnelle de suivi du bien-être pour gérer les composés, les doses et les flacons. Elle comprend un calculateur de reconstitution, un guide de seringue et un journal d'injections."
           },
           {
+            id: 'start_free',
             q: "DoseTrace est-il gratuit ?",
-            a: 'Oui. Les fonctionnalités principales sont gratuites pour toujours, y compris la sauvegarde cloud. L’offre gratuite comprend jusqu’à 3 protocoles actifs, 3 scans par mois (analyses, carnets de vaccination et flacons confondus) et 7 jours de journal IA. Premium ajoute les protocoles illimités, plus de scans, le journal IA tous les jours, la courbe d’accumulation des doses, les résultats de vos vrais chiffres et l’export PDF.'
+            a: 'Oui. Les fonctionnalités principales sont gratuites pour toujours, y compris la sauvegarde cloud. L’offre gratuite comprend jusqu’à 3 protocoles actifs, 3 scans par mois (analyses, carnets de vaccination et flacons confondus) et 7 jours de journal IA. Premium ajoute les protocoles illimités, plus de scans, le journal IA tous les jours, la courbe « Dose dans le corps », les résultats de vos vrais chiffres et l’export PDF.'
           },
           {
+            id: 'start_first_protocol',
             q: "Comment ajouter mon premier protocole ?",
             a: "Allez dans l'onglet Protocoles, touchez « + Ajouter », choisissez votre type de composé et suivez les étapes pour renseigner les détails de votre dose."
           }
         ]
       },
       {
+        id: 'recon',
         category: "Reconstitution et dosage",
         questions: [
           {
+            id: 'recon_calculator',
             q: "Comment fonctionne le calculateur de reconstitution ?",
             a: "Saisissez la quantité de votre composé et le volume d'eau bactériostatique que vous avez ajouté. DoseTrace calcule la concentration et vous montre exactement quel volume prélever avec votre seringue."
           },
           {
+            id: 'recon_syringes',
             q: "Quelles tailles de seringue sont prises en charge ?",
             a: "Les seringues à insuline de 1 ml (100 unités), 0,5 ml (50 unités) et 0,3 ml (30 unités). Pour les composés prêts à l’emploi, il y a aussi des seringues de 2, 3 et 5 ml, graduées en ml."
           },
           {
+            id: 'recon_vial_life',
             q: "Combien de temps se conserve un flacon reconstitué ?",
             a: "La plupart des peptides reconstitués restent stables pendant environ 30 jours lorsqu'ils sont réfrigérés avec de l'eau bactériostatique."
           }
         ]
       },
       {
+        id: 'vials',
         category: "Flacons et suivi",
         questions: [
           {
+            id: 'vials_mix',
             q: "Comment enregistrer la reconstitution d'un flacon ?",
             a: "Quand vous créez un nouveau protocole lyophilisé, vous pouvez enregistrer la date de reconstitution immédiatement. Quand un flacon est terminé, commencez le suivant depuis la page du protocole (Nouveau flacon) ou depuis Aujourd’hui (+ Ajouter un flacon)."
           },
           {
+            id: 'vials_expiry',
             q: "Que se passe-t-il quand un flacon est périmé ?",
             a: "DoseTrace affiche un avertissement quand votre flacon approche de sa limite de 30 jours. Les flacons périmés sont signalés en rouge."
           }
         ]
       },
       {
+        id: 'body',
         category: "Mon corps",
         questions: [
           {
+            id: 'body_lab_scan',
             q: "Comment le Journal d'analyses lit-il mes comptes rendus ?",
             a: "Prenez une photo d’un compte rendu d’analyses ou importez un PDF ou une image : l’IA lit les valeurs et les ajoute à votre journal d’analyses. Cela fonctionne avec LabCorp, Quest et la plupart des comptes rendus de cliniques. Les scans sont partagés entre analyses, carnets de vaccination et flacons : 3 par mois avec l’offre gratuite, plus avec Premium."
           },
           {
+            id: 'body_lab_privacy',
             q: "Mes données d'analyses sont-elles privées ?",
             a: "Vos données sont enregistrées sur votre téléphone et synchronisées avec votre compte dans notre cloud sécurisé : elles sont sauvegardées et reviennent quand vous vous connectez sur un nouveau téléphone. Lorsque vous scannez un bilan sanguin, le fichier est envoyé une seule fois à Anthropic pour lire les valeurs et n’est pas utilisé pour l’entraînement. Il en va de même pour les autres fonctions d’IA que vous choisissez d’utiliser : scanner un carnet de vaccination ou l’étiquette d’un flacon, le journal alimentaire avec IA et l’assistant de protocole ; voir notre Politique de confidentialité. Nous ne vendons jamais vos données et ne les utilisons pas à des fins publicitaires."
           },
           {
+            id: 'body_vaccines',
             q: "Qu'est-ce que le Journal de vaccins ?",
             a: "Un relevé de vos vaccins et rappels : la date d'injection, la date du prochain rappel, le numéro de dose, le lot, le praticien et des notes. Saisissez-les vous-même ou scannez une photo de votre carnet de vaccination (cela compte dans vos scans du mois). DoseTrace ne vous dit jamais quels vaccins faire ni quand."
           },
           {
-            q: "Qu'est-ce que l'Accumulation des doses ?",
-            a: "Une estimation de la quantité d'un composé qui peut se trouver dans votre corps au fil du temps, calculée à partir de votre schéma prévu et de demi-vies publiées. C'est un modèle mathématique, pas une mesure de vos taux sanguins réels : confirmez par un bilan sanguin. L'Accumulation des doses fait partie de Premium."
+            id: 'body_dose_in_body',
+            q: "Qu’est-ce que « Dose dans le corps » ?",
+            a: "Une estimation de la quantité d'un composé qui peut se trouver dans votre corps au fil du temps, calculée à partir de votre schéma prévu et de demi-vies publiées. C'est un modèle mathématique, pas une mesure de vos taux sanguins réels : confirmez par un bilan sanguin. La courbe « Dose dans le corps » fait partie de Premium."
           }
         ]
       },
       {
+        id: 'curve',
+        category: "Dose dans le corps",
+        questions: [
+          {
+            id: 'curve_bateman',
+            q: "Qu’est-ce que la courbe de Bateman ?",
+            a: "C’est une formule publiée en 1910 par le mathématicien Harry Bateman. Il l’a conçue pour les désintégrations radioactives en chaîne ; la même équation décrit un médicament qui passe du site d’administration dans le sang, puis est éliminé. En pharmacologie, on l’appelle la « fonction de Bateman »."
+          },
+          {
+            id: 'curve_how',
+            q: "Comment DoseTrace fait-il le calcul ?",
+            a: "Pour chaque dose enregistrée, DoseTrace trace une courbe de Bateman à partir de la demi-vie et, quand ils sont publiés, du délai jusqu’au pic et de la fraction qui atteint l’organisme. Sans délai jusqu’au pic, la dose entre d’un coup et ne fait que baisser. Il additionne ensuite les courbes de toutes les doses : c’est le principe de superposition. Le résultat est le tracé en dents de scie."
+          },
+          {
+            id: 'curve_half_life',
+            q: "Qu’est-ce que la demi-vie ?",
+            a: "C’est le temps nécessaire pour que la quantité diminue de moitié. Après 1 demi-vie, il reste 50 % ; après 2, 25 % ; après 5, environ 3 %. Pour les esters dans l’huile, cette demi-vie est celle de la libération depuis le dépôt, pas celle de l’hormone."
+          },
+          {
+            id: 'curve_what_for',
+            q: "À quoi ça sert ?",
+            a: "À voir une estimation, faite à partir de vos enregistrements, de la façon dont les doses s’additionnent dans le temps. C’est un aperçu de votre historique à montrer au professionnel de santé qui vous suit. Elle n’indique ni quand ni quelle quantité administrer."
+          },
+          {
+            id: 'curve_half_life_shape',
+            q: "Pourquoi la demi-vie change-t-elle la courbe ?",
+            a: "Chaque composé a sa propre demi-vie. Certains quittent l’organisme en quelques heures (beaucoup de peptides) ; d’autres restent des semaines (hormones dans l’huile, certaines vitamines injectables). Avec la même dose et le même intervalle, un composé à demi-vie longue s’accumule beaucoup plus qu’un composé à demi-vie courte. La courbe montre cette différence pour les composés que vous avez enregistrés."
+          },
+          {
+            id: 'curve_lab',
+            q: "Et la prise de sang ?",
+            a: "L’analyse mesure la concentration dans le sang au moment du prélèvement. DoseTrace marque sur la courbe la date de chaque prélèvement enregistré, uniquement comme repère dans le temps. La courbe n’explique pas le résultat de l’analyse ; c’est le professionnel de santé qui vous suit qui l’interprète. L’analyse et la courbe mesurent des choses différentes : l’analyse est une concentration (par exemple en ng/dL) ; la courbe est une quantité (mg) du composé tel que vous l’avez enregistré — pour les esters, une partie de ce poids est l’ester, pas l’hormone. Pour les hormones que le corps produit aussi, l’analyse inclut cette production, que la courbe ne compte pas."
+          },
+          {
+            id: 'curve_estimate',
+            q: "Pourquoi est-ce une estimation ?",
+            a: "Chacun absorbe et élimine à sa manière (âge, poids, foie, reins, site d’injection). Les chiffres viennent de moyennes d’études. La courbe montre la tendance, pas votre valeur exacte."
+          },
+          {
+            id: 'curve_missing',
+            q: "Pourquoi certains composés n’apparaissent-ils pas, ou seulement comme un plafond ?",
+            a: "Quand aucune demi-vie fiable n’est publiée, le composé reste hors de la courbe. Quand aucune mesure chez l’humain n’indique la part qui atteint l’organisme, la courbe suppose que tout l’atteint : c’est un plafond, jamais une valeur."
+          },
+          {
+            id: 'curve_history',
+            q: "Qui a créé cette science ?",
+            a: "Harry Bateman a écrit la formule (1910). Erik Widmark a étudié comment l’alcool quitte le sang (1932). Torsten Teorell a publié le premier modèle du parcours d’un médicament dans le corps (1937) et il est appelé le père de la pharmacocinétique. Friedrich Dost a donné son nom à la « pharmacocinétique » (1953). John Wagner (1971) puis Milo Gibaldi et Donald Perrier (1975) ont écrit les livres qui ont fait de la discipline ce qu’on enseigne aujourd’hui."
+          },
+          {
+            id: 'curve_sources',
+            q: "Sources",
+            a: "Bateman H. Proc Cambridge Philos Soc 1910;15:423–427 · Teorell T. Arch Int Pharmacodyn Ther 1937;57:205–240 · Widmark EMP. Die wissenschaftlichen Grundlagen… der gerichtlich-medizinischen Alkoholbestimmung. Berlin, 1932 · Dost FH. Der Blutspiegel. Leipzig, 1953 · Wagner JG. Biopharmaceutics and Relevant Pharmacokinetics, 1971 · Gibaldi M, Perrier D. Pharmacokinetics, 1975 · Weiss M. Pharm Res 2023;40:2147 (fonction de Bateman)"
+          }
+        ]
+      },
+      {
+        id: 'journey',
         category: "Parcours",
         questions: [
           {
+            id: 'journey_food_ai',
             q: "Comment fonctionne le Journal IA ?",
             a: "Dites-lui ce que vous avez mangé, avec vos propres mots. L'IA lit chaque aliment et enregistre une estimation des calories, des glucides et des protéines, que vous pouvez corriger à tout moment ; ce que vous avez mangé au cours des 7 derniers jours compte aussi. L'offre gratuite comprend 7 jours de Journal IA ; Premium l'inclut tous les jours. Il n'enregistre que ce que vous lui dites et ne donne jamais de conseils alimentaires."
           },
           {
+            id: 'journey_reality',
             q: "Que sont Vos vrais chiffres ?",
             a: "Ils estiment combien de calories vous brûlez vraiment par jour, à partir de vos propres chiffres : une pesée au départ, une autre environ trois semaines plus tard et au moins 7 jours d'affilée de repas entièrement enregistrés (ou votre moyenne de calories saisie). Le résultat remplace l'estimation par formule dans Votre plan quotidien. Ce sont des calculs à partir de vos données, jamais des conseils."
           }
         ]
       },
       {
+        id: 'premium',
         category: "Premium",
         questions: [
           {
+            id: 'premium_includes',
             q: "Que comprend Premium ?",
-            a: 'Les protocoles illimités, le journal IA tous les jours, la courbe d’accumulation des doses, les résultats de vos vrais chiffres, l’export PDF, le support prioritaire et plus de scans d’analyses, de vaccins et de flacons : jusqu’à 20 par mois au total (analyses, carnets de vaccination et flacons confondus). Vos pesées et leur graphique, la sauvegarde cloud et la synchronisation sont gratuits pour tous.'
+            a: 'Les protocoles illimités, le journal IA tous les jours, la courbe « Dose dans le corps », les résultats de vos vrais chiffres, l’export PDF, le support prioritaire et plus de scans d’analyses, de vaccins et de flacons : jusqu’à 20 par mois au total (analyses, carnets de vaccination et flacons confondus). Vos pesées et leur graphique, la sauvegarde cloud et la synchronisation sont gratuits pour tous.'
           },
           {
+            id: 'premium_price',
             q: "Combien coûte Premium ?",
             a: "Les prix actuels des formules Premium mensuelle et annuelle sont affichés dans l'app, sur l'écran Premium. Les nouveaux abonnés peuvent commencer l'une ou l'autre formule par un essai gratuit de 7 jours ; l'écran Premium vous indique s'il s'applique à vous."
           },
           {
+            id: 'premium_cancel',
             q: "Puis-je résilier à tout moment ?",
             a: '{store_cancel}'
           }
@@ -9895,7 +10261,7 @@ export const translations = {
     body_tile_vax_latest: 'Dernier',
     body_hub_footnote: 'Pas un service médical. Pour toute question médicale, consultez un professionnel qualifié.',
     coming_soon: "Bientôt disponible",
-    body_card_dosing_title: "Accumulation des doses",
+    body_card_dosing_title: "Dose dans le corps",
     body_card_dosing_desc: "Visualisez comment vos doses peuvent s’accumuler dans le temps, d’après les doses que vous avez enregistrées, votre schéma prévu et des demi-vies publiées. Une estimation mathématique, jamais une mesure.",
     cal_disclaimer: 'Une estimation pour le bien-être général, pas un avis médical ni une prescription. Elle n\'est jamais liée à un médicament ou à une dose — juste un calcul d\'énergie à partir des chiffres que vous saisissez. Une variation individuelle de ±10-15 % est normale.',
     cal_intro_title: 'Ce que c\'est',
@@ -10260,7 +10626,7 @@ export const translations = {
     serum_preview_body: 'DoseTrace modélise comment chaque dose s’ajoute à la précédente : vous voyez votre taux sérique estimé entre les doses — pas seulement ce que vous avez pris.',
     preview_unlock_cta: "Débloquer avec Premium",
     pw_preview_heading: 'Découvrez ce qui est inclus',
-    blend_curve_note: 'Chaque composant apparaît sur la courbe sérique, selon la proportion courante.',
+    blend_curve_note: 'Chaque composant apparaît sur la courbe « Dose dans le corps », selon la proportion courante.',
     insulin_no_curve_note: 'Enregistré dans votre journal — l\'accumulation n\'est pas modélisée pour l\'insuline.',
     blend_curve_caveat: "Ces courbes supposent une proportion de mélange courante (à titre indicatif) — la composition varie selon la source et n'est pas vérifiée. Pour modéliser votre flacon exact, enregistrez chaque composant comme un protocole distinct.",
     blend_est_marker: '(est.)',
@@ -10366,7 +10732,7 @@ export const translations = {
     blood_upgrade_title: "Scans d’analyses, vaccins et flacons",
     blood_upgrade_sub: "Premium comprend les scans d’analyses, de vaccins et de flacons avec extraction automatique des valeurs — plus tout le reste.",
     blood_upgrade_feat_1: "Scans d’analyses, vaccins et flacons inclus",
-    blood_upgrade_feat_2: "Courbe d’accumulation de dose",
+    blood_upgrade_feat_2: "Dose dans le corps",
     blood_upgrade_feat_3: 'Vos vrais chiffres et votre progression',
     blood_upgrade_feat_4: 'Scan dans toutes les langues — photo ou PDF',
     blood_upgrade_feat_5: 'Export PDF et support prioritaire',
@@ -10389,7 +10755,7 @@ export const translations = {
     // PAYWALL
     paywall_title: 'Passer à Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Courbes d’accumulation de dose à partir de votre journal, protocoles illimités, plus de scans et export PDF.',
+    paywall_hero_sub: 'Dose dans le corps à partir de votre journal, protocoles illimités, plus de scans et export PDF.',
     paywall_annual: 'Annuel',
     paywall_monthly: 'Mensuel',
     paywall_per_year: 'par an',
@@ -10428,7 +10794,6 @@ export const translations = {
     paywall_free_feat_8: 'Sauvegarde et synchronisation cloud',
     paywall_free_feat_9: 'Protocoles illimités',
     paywall_free_feat_10: 'Imports de bilans illimités',
-    paywall_free_feat_11: 'Modèle de courbe sérique',
     paywall_free_feat_12: 'Chronologie du protocole',
     paywall_free_feat_14: 'Synchronisation avec Santé et Apple Watch',
     paywall_free_feat_15: 'Export PDF',
@@ -10451,7 +10816,6 @@ export const translations = {
     paywall_lifetime_note: 'Achat unique. Toutes les fonctionnalités Premium incluses.',
     paywall_coming_soon_title: 'Bientôt avec Premium',
     paywall_coming_1: 'Sauvegarde cloud et synchronisation multi-appareils',
-    paywall_coming_2: 'Modèle de courbe sérique et chronologie du protocole',
     paywall_coming_4: 'Scan dans toutes les langues — photo ou PDF',
     paywall_coming_5: 'Export PDF',
     paywall_promo_banner: 'Offre de lancement limitée',
@@ -10619,7 +10983,7 @@ export const translations = {
     protocols_notes_placeholder: "ex. Alterner les sites d'injection",
     protocols_composition_label: 'Contenu du flacon — facultatif',
     protocols_composition_placeholder: 'ex. 50 GHK / 10 KPV / 10 TB / 10 BPC',
-    protocols_composition_hint: 'Une note sur le mélange de votre flacon. Les recettes varient selon la source — cela ne modifie pas la courbe sérique.',
+    protocols_composition_hint: 'Une note sur le mélange de votre flacon. Les recettes varient selon la source — cela ne modifie pas la courbe « Dose dans le corps ».',
     protocols_notes_placeholder_oral: 'ex. à prendre pendant un repas',
     oral_alpha_gpc: 'Alpha-GPC',
     oral_ala: 'Acide alpha-lipoïque (ALA)',
@@ -11954,7 +12318,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Über dich',
     profile_step_sub: 'Hilf uns, DoseTrace auf dich abzustimmen. Alle Felder sind optional.',
-    profile_step_sub_required: 'DoseTrace passt deinen Rechner, die Dosis-Akkumulationskurve und deine echten Zahlen an dich an. Diese Funktionen arbeiten mit deinen Angaben, die in deinem Konto gespeichert bleiben.',
+    profile_step_sub_required: 'DoseTrace passt deinen Rechner, die Kurve „Dosis im Körper“ und deine echten Zahlen an dich an. Diese Funktionen arbeiten mit deinen Angaben, die in deinem Konto gespeichert bleiben.',
     profile_required_legend: '* Alle Felder sind erforderlich',
     profile_missing: 'Erforderlich',
     profile_pick_month: 'Monat wählen',
@@ -11976,10 +12340,10 @@ export const translations = {
     profile_sex_help: 'Wird für Kalorien- und Energieschätzungen verwendet – wähle das bei der Geburt zugewiesene Geschlecht.',
     sex_why_link: 'Warum fragen wir das?',
     sex_why_title: 'Warum wir nach dem Geschlecht bei Geburt fragen',
-    sex_why_body: 'Energieformeln beruhen auf der Physiologie des Körpers – und die unterscheidet sich je nach Geschlecht bei Geburt. Ohne Körperfett-Angabe liegt dein geschätzter Tagesverbrauch dadurch um etwa 200 bis 300 kcal auseinander. Die Angabe bestimmt außerdem die Kalorienuntergrenze deiner Ziele und die Körperfigur, auf der du die Injektionsstelle wählst. Die Kurve der Dosis-Akkumulation nutzt sie nicht.',
+    sex_why_body: 'Energieformeln beruhen auf der Physiologie des Körpers – und die unterscheidet sich je nach Geschlecht bei Geburt. Ohne Körperfett-Angabe liegt dein geschätzter Tagesverbrauch dadurch um etwa 200 bis 300 kcal auseinander. Die Angabe bestimmt außerdem die Kalorienuntergrenze deiner Ziele und die Körperfigur, auf der du die Injektionsstelle wählst. Die Kurve „Dosis im Körper“ nutzt sie nicht.',
     sex_why_body2: 'Sie dient nur der Berechnung und sagt nichts darüber aus, wer du bist. Wenn du eine Hormontherapie machst, sprich mit deiner Ärztin oder deinem Arzt über deine Werte.',
     sex_change_title: 'Was sich dadurch ändert',
-    sex_change_body: 'Das ändert deinen geschätzten Tagesverbrauch (um etwa 200 bis 300 kcal, wenn kein Körperfett eingetragen ist), die Kalorienuntergrenze deiner Ziele und die Körperfigur für die Injektionsstelle. Die Dosis-Akkumulation bleibt gleich.',
+    sex_change_body: 'Das ändert deinen geschätzten Tagesverbrauch (um etwa 200 bis 300 kcal, wenn kein Körperfett eingetragen ist), die Kalorienuntergrenze deiner Ziele und die Körperfigur für die Injektionsstelle. Die Kurve „Dosis im Körper“ bleibt gleich.',
     sex_change_confirm_title: 'Auf {value} ändern?',
     sex_change_confirm_btn: 'Ändern',
     profile_birth: 'Geburtsmonat und -jahr',
@@ -12375,7 +12739,7 @@ export const translations = {
     settings_premium_title: 'Upgrade auf Premium',
     settings_premium_sub: 'Schalte alle Funktionen frei und hol das Beste aus DoseTrace heraus.',
     settings_premium_btn: 'Pläne anzeigen',
-    settings_premium_feat_1: 'Dosis-Akkumulationskurve aus deinen eigenen Einträgen',
+    settings_premium_feat_1: 'Dosis im Körper, aus deinen eigenen Einträgen',
     settings_premium_feat_2: 'Deine echten Zahlen & dein Fortschritt',
     settings_premium_feat_3: 'KI-Essensprotokoll, jeden Tag',
     settings_premium_feat_4: 'Unbegrenzte Protokolle · Labor-, Impf- & Fläschchen-Scans · Laborwerte im Verlauf',
@@ -12524,10 +12888,9 @@ export const translations = {
     faq_intro: 'Antworten auf häufig gestellte Fragen zu DoseTrace findest du hier.',
     faq_still_questions: 'Hast du noch Fragen?',
     faq_contact_us: 'Kontaktiere uns jederzeit unter',
-    curve_title: 'Akkumulationskurve',
     curve_btn: 'Kurve',
     curve_empty_title: 'Keine kompatiblen Protokolle',
-    curve_empty_sub: 'Die Serumkurve funktioniert mit injizierbaren Substanzen mit bekannter Halbwertszeit. Lege ein Protokoll an und trag Dosen ein, um deine Kurve zu sehen.',
+    curve_empty_sub: '„Dosis im Körper“ funktioniert mit injizierbaren Substanzen mit bekannter Halbwertszeit. Lege ein Protokoll an und trag Dosen ein, um deine Kurve zu sehen.',
     curve_last_days: 'Letzte',
     curve_last_hours: "Letzte",
     unit_hour_short: "Std.",
@@ -12583,7 +12946,7 @@ export const translations = {
     ob_features_title: 'Für dein Protokoll gemacht',
     ob_features_sub: 'Was DoseTrace kann und eine Notiz-App nicht.',
     ob_feat1_t: 'Rekonstitutions- und Dosisberechnung', ob_feat1_d: 'Gib Fläschchen und Dosis ein – wir übernehmen die Anmisch- und Spritzenrechnung.',
-    ob_feat2_t: 'Dosis-Akkumulation', ob_feat2_d: 'Sieh, wie die geschätzte Menge in deinem Körper mit der Zeit ansteigt.',
+    ob_feat2_t: "Dosis im Körper", ob_feat2_d: "Tag für Tag geschätzt: wie viel von jeder erfassten Dosis noch nicht ausgeschieden ist – Spitzen, Täler und Akkumulation.",
     ob_feat3_t: 'Intelligente Erinnerungen', ob_feat3_d: 'Zeitplanbasierte Hinweise, damit du keine Dosis verpasst.',
     ob_feat4_t: 'Mehrere Protokolle gleichzeitig', ob_feat4_d: 'Erfasse mehrere Substanzen und Zyklen gleichzeitig.',
     ob_feat5_t: 'Laborwerte-Tagebuch', ob_feat5_d: 'Fotografiere einen Laborbericht und übernimm die Werte.',
@@ -12617,100 +12980,194 @@ export const translations = {
     curve_choose_title: 'Substanzen auswählen',
     curve_choose_hint: 'Wähle eine oder mehrere, um ihre Kurven zu überlagern.',
     curve_done: 'Fertig',
+    // The curve explained (docs/specs/curve-explained.md CE-1..CE-10; picture docs/design/curve-explained.html)
+    curve_sub: "Schätzung mit einem pharmakokinetischen Modell (Bateman-Kurve)",
+    curve_fixed: "Schätzung, wie viel von jeder Dosis schon im Kreislauf angekommen und noch nicht ausgeschieden ist, Tag für Tag, aus den von dir erfassten Dosen.",
+    curve_foot: "Schätzung aus Durchschnittswerten veröffentlichter Studien. Keine Messung und keine ärztliche Beratung.",
+    help_mark_label: "Hilfe",
+    curve_card1_t: "Spitzen und Täler",
+    curve_card1_b: "Nach jeder Dosis steigt die Menge bis zu einer Spitze und fällt dann bis zum tiefsten Punkt, kurz vor der nächsten Dosis.",
+    curve_card2_t: "Akkumulation",
+    curve_card2_b: "Kommt eine Dosis, bevor die vorherige ganz abgebaut ist, addieren sich beide. Bei gleicher Dosis im gleichen Abstand steigt die Menge und pendelt sich nach etwa 4 bis 5 Halbwertszeiten in einem stabilen Bereich ein (94 % bis 97 % des Plateaus).",
+    curve_card3_t: "Der Bluttest misst einen Moment",
+    curve_card3_b: "Ein Bluttest misst den Spiegel im Moment der Blutabnahme. Die Kurve ist eine Schätzung aus deinen Einträgen und ersetzt weder den Test noch die Beratung durch deine medizinische Fachperson.",
+    curve_cards_step: "{n} von {total}",
+    curve_cards_skip: "Überspringen",
+    curve_cards_done: "Verstanden",
+    curve_cards_more: "Mehr erfahren",
     faq_categories: [
       {
+        id: 'start',
         category: "Erste Schritte",
         questions: [
           {
+            id: 'start_what',
             q: "Was ist DoseTrace?",
             a: "DoseTrace ist eine Wellness-Tracking-App zur Verwaltung von Substanzen, Dosen und Fläschchen. Sie enthält einen Rekonstitutionsrechner, eine Spritzenhilfe und ein Injektionsprotokoll."
           },
           {
+            id: 'start_free',
             q: "Ist DoseTrace kostenlos?",
-            a: "Ja. Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Der kostenlose Plan enthält bis zu 3 aktive Protokolle, 3 Scans pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen) und 7 Tage KI-Essensprotokoll. Premium bietet unbegrenzte Protokolle, mehr Scans, das KI-Essensprotokoll jeden Tag, die Dosis-Akkumulationskurve, die Ergebnisse deiner echten Zahlen und den PDF-Export."
+            a: "Ja. Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Der kostenlose Plan enthält bis zu 3 aktive Protokolle, 3 Scans pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen) und 7 Tage KI-Essensprotokoll. Premium bietet unbegrenzte Protokolle, mehr Scans, das KI-Essensprotokoll jeden Tag, die Kurve „Dosis im Körper“, die Ergebnisse deiner echten Zahlen und den PDF-Export."
           },
           {
+            id: 'start_first_protocol',
             q: "Wie füge ich mein erstes Protokoll hinzu?",
             a: "Geh zum Tab Protokolle, tippe auf „+ Hinzufügen“, wähle deinen Substanztyp und folge den Schritten, um deine Dosisangaben festzulegen."
           }
         ]
       },
       {
+        id: 'recon',
         category: "Rekonstitution & Dosierung",
         questions: [
           {
+            id: 'recon_calculator',
             q: "Wie funktioniert der Rekonstitutionsrechner?",
             a: "Gib deine Substanzmenge und das Volumen des hinzugefügten bakteriostatischen Wassers ein. DoseTrace berechnet die Konzentration und zeigt genau, wie viel du in deiner Spritze aufziehen musst."
           },
           {
+            id: 'recon_syringes',
             q: "Welche Spritzengrößen werden unterstützt?",
             a: "Insulinspritzen mit 1 ml (100 Einheiten), 0,5 ml (50 Einheiten) und 0,3 ml (30 Einheiten). Für gebrauchsfertige Substanzen gibt es außerdem 2-, 3- und 5-ml-Spritzen, abgelesen in ml."
           },
           {
+            id: 'recon_vial_life',
             q: 'Wie lange hält ein angemischtes Fläschchen?',
             a: "Die meisten rekonstituierten Peptide bleiben etwa 30 Tage lang stabil, wenn sie im Kühlschrank mit bakteriostatischem Wasser gelagert werden."
           }
         ]
       },
       {
+        id: 'vials',
         category: "Fläschchen & Erfassung",
         questions: [
           {
+            id: 'vials_mix',
             q: "Wie trage ich ein angemischtes Fläschchen ein?",
             a: 'Wenn du ein neues gefriergetrocknetes Protokoll erstellst, kannst du das Anmischdatum sofort eintragen. Ist ein Fläschchen leer, beginne das nächste auf der Seite des Protokolls (Neues Fläschchen) oder unter Heute (+ Fläschchen hinzufügen).'
           },
           {
+            id: 'vials_expiry',
             q: "Was passiert, wenn ein Fläschchen abläuft?",
             a: "DoseTrace zeigt eine Warnung an, wenn sich dein Fläschchen seinem 30-Tage-Ablaufdatum nähert. Abgelaufene Fläschchen werden rot markiert."
           }
         ]
       },
       {
+        id: 'body',
         category: "Mein Körper",
         questions: [
           {
+            id: 'body_lab_scan',
             q: "Wie liest das Laborwerte-Tagebuch meine Berichte?",
             a: "Fotografiere einen Laborbericht oder lade ein PDF oder Bild hoch – die KI liest die Werte in dein Laborwerte-Tagebuch ein. Es funktioniert mit LabCorp, Quest und den meisten Klinikberichten. Laborberichte, Impfpässe und Fläschchen teilen sich die Scans: 3 pro Monat im kostenlosen Plan, mehr mit Premium."
           },
           {
+            id: 'body_lab_privacy',
             q: "Sind meine Laborwerte privat?",
             a: "Deine Daten werden auf deinem Handy gespeichert und mit deinem Konto in unserer sicheren Cloud synchronisiert, sodass sie gesichert sind und zurückkommen, wenn du dich auf einem neuen Handy anmeldest. Wenn du einen Laborbericht scannst, wird die Datei einmalig an Anthropic gesendet, um die Werte auszulesen, und nicht zum Training genutzt. Das gilt auch für die anderen KI-Funktionen, die du nutzt: einen Impfpass oder ein Fläschchen-Etikett scannen, das KI-Essensprotokoll und den Protokoll-Assistenten – siehe unsere Datenschutzrichtlinie. Wir verkaufen deine Daten niemals und nutzen sie nicht für Werbung."
           },
           {
+            id: 'body_vaccines',
             q: "Was ist das Impf-Tagebuch?",
             a: "Eine Übersicht deiner Impfungen und Auffrischungen: das Impfdatum, der nächste Termin, die Dosisnummer, die Charge, wer geimpft hat und Notizen. Trag sie selbst ein oder scanne ein Foto deines Impfpasses (das zählt zu deinen Scans im Monat). DoseTrace sagt dir nie, welche Impfungen du wann brauchst."
           },
           {
-            q: "Was ist die Dosis-Akkumulation?",
-            a: "Eine Schätzung, wie viel einer Substanz im Lauf der Zeit in deinem Körper sein kann – berechnet aus deinem geplanten Schema und veröffentlichten Halbwertszeiten. Das ist ein Rechenmodell, keine Messung deiner echten Blutwerte: Bestätige es mit Bluttests. Die Dosis-Akkumulation gehört zu Premium."
+            id: 'body_dose_in_body',
+            q: "Was ist „Dosis im Körper“?",
+            a: "Eine Schätzung, wie viel einer Substanz im Lauf der Zeit in deinem Körper sein kann – berechnet aus deinem geplanten Schema und veröffentlichten Halbwertszeiten. Das ist ein Rechenmodell, keine Messung deiner echten Blutwerte: Bestätige es mit Bluttests. Die Kurve „Dosis im Körper“ gehört zu Premium."
           }
         ]
       },
       {
+        id: 'curve',
+        category: "Dosis im Körper",
+        questions: [
+          {
+            id: 'curve_bateman',
+            q: "Was ist die Bateman-Kurve?",
+            a: "Eine Formel, die der Mathematiker Harry Bateman 1910 veröffentlicht hat. Er entwickelte sie für radioaktive Zerfallsketten; dieselbe Gleichung beschreibt ein Arzneimittel, das von der Applikationsstelle ins Blut übergeht und dann ausgeschieden wird. In der Pharmakologie heißt sie „Bateman-Funktion“."
+          },
+          {
+            id: 'curve_how',
+            q: "Wie rechnet DoseTrace?",
+            a: "Für jede erfasste Dosis zeichnet DoseTrace eine Bateman-Kurve aus der Halbwertszeit und, wenn veröffentlicht, der Zeit bis zur Spitze und dem Anteil, der im Körper ankommt. Ohne Zeit bis zur Spitze kommt die Dosis auf einmal an und fällt nur noch. Dann addiert DoseTrace die Kurven aller Dosen – das Superpositionsprinzip. Das Ergebnis ist die Sägezahnform."
+          },
+          {
+            id: 'curve_half_life',
+            q: "Was ist die Halbwertszeit?",
+            a: "Die Zeit, in der die Menge auf die Hälfte fällt. Nach 1 Halbwertszeit bleiben 50 %, nach 2 noch 25 %, nach 5 etwa 3 %. Bei Estern in Öl ist das die Halbwertszeit der Freisetzung aus dem Depot, nicht die des Hormons."
+          },
+          {
+            id: 'curve_what_for',
+            q: "Wofür ist das gut?",
+            a: "Um eine Schätzung aus deinen Einträgen zu sehen, wie sich die Dosen im Lauf der Zeit addieren. Ein Bild deines Verlaufs, das du zu der medizinischen Fachperson mitnehmen kannst, die dich begleitet. Die Kurve gibt weder Zeitpunkt noch Menge einer Anwendung vor."
+          },
+          {
+            id: 'curve_half_life_shape',
+            q: "Warum verändert die Halbwertszeit die Kurve?",
+            a: "Jede Substanz hat eine andere Halbwertszeit. Manche verlassen den Körper in Stunden (viele Peptide), andere bleiben wochenlang (Hormone in Öl, manche injizierbare Vitamine). Bei gleicher Dosis und gleichem Abstand sammelt sich eine Substanz mit langer Halbwertszeit viel stärker an als eine mit kurzer. Die Kurve zeigt diesen Unterschied für die Substanzen, die du erfasst hast."
+          },
+          {
+            id: 'curve_lab',
+            q: "Und der Bluttest?",
+            a: "Der Bluttest misst die Konzentration im Blut im Moment der Abnahme. DoseTrace markiert auf der Kurve das Datum jeder erfassten Blutabnahme, nur als zeitlichen Bezug. Die Kurve erklärt das Testergebnis nicht; das Ergebnis deutet die medizinische Fachperson, die dich begleitet. Test und Kurve messen Verschiedenes: Der Test ist eine Konzentration (zum Beispiel ng/dl); die Kurve ist eine Menge (mg) der Substanz, wie du sie erfasst hast – bei Estern ist ein Teil dieses Gewichts der Ester, nicht das Hormon. Bei Hormonen, die der Körper auch selbst bildet, enthält der Test diese Eigenproduktion, die die Kurve nicht mitzählt."
+          },
+          {
+            id: 'curve_estimate',
+            q: "Warum ist das eine Schätzung?",
+            a: "Jeder Mensch nimmt Substanzen anders auf und scheidet sie anders aus (Alter, Gewicht, Leber, Nieren, Injektionsstelle). Die Zahlen sind Durchschnittswerte aus Studien. Die Kurve zeigt das Muster, nicht deinen genauen Wert."
+          },
+          {
+            id: 'curve_missing',
+            q: "Warum fehlen manche Substanzen oder erscheinen als Obergrenze?",
+            a: "Gibt es keine verlässliche veröffentlichte Halbwertszeit, bleibt die Substanz außerhalb der Kurve. Gibt es keine Messung am Menschen, wie viel im Körper ankommt, nimmt die Kurve an, dass alles ankommt: Das ist eine Obergrenze, nie ein Wert."
+          },
+          {
+            id: 'curve_history',
+            q: "Wer hat diese Wissenschaft begründet?",
+            a: "Harry Bateman schrieb die Formel (1910). Erik Widmark untersuchte, wie Alkohol aus dem Blut verschwindet (1932). Torsten Teorell veröffentlichte das erste Modell des Wegs eines Arzneimittels durch den Körper (1937) und gilt als Vater der Pharmakokinetik. Friedrich Dost prägte den Namen „Pharmakokinetik“ (1953). John Wagner (1971) sowie Milo Gibaldi und Donald Perrier (1975) schrieben die Bücher, die das Fach zu dem machten, was heute gelehrt wird."
+          },
+          {
+            id: 'curve_sources',
+            q: "Quellen",
+            a: "Bateman H. Proc Cambridge Philos Soc 1910;15:423–427 · Teorell T. Arch Int Pharmacodyn Ther 1937;57:205–240 · Widmark EMP. Die wissenschaftlichen Grundlagen… der gerichtlich-medizinischen Alkoholbestimmung. Berlin, 1932 · Dost FH. Der Blutspiegel. Leipzig, 1953 · Wagner JG. Biopharmaceutics and Relevant Pharmacokinetics, 1971 · Gibaldi M, Perrier D. Pharmacokinetics, 1975 · Weiss M. Pharm Res 2023;40:2147 (Bateman-Funktion)"
+          }
+        ]
+      },
+      {
+        id: 'journey',
         category: "Verlauf",
         questions: [
           {
+            id: 'journey_food_ai',
             q: "Wie funktioniert das KI-Essensprotokoll?",
             a: "Schreib in deinen eigenen Worten, was du gegessen hast. Die KI liest jedes Lebensmittel und trägt eine Schätzung für Kalorien, Kohlenhydrate und Eiweiß ein, die du jederzeit korrigieren kannst; auch Essen von bis zu 7 Tagen zuvor zählt. Der kostenlose Plan enthält 7 Tage KI-Essensprotokoll, Premium jeden Tag. Es trägt nur ein, was du ihm sagst, und gibt nie Ernährungsratschläge."
           },
           {
+            id: 'journey_reality',
             q: "Was sind Deine echten Zahlen?",
             a: "Damit schätzt du, wie viele Kalorien du wirklich am Tag verbrauchst – aus deinen eigenen Zahlen: eine Wägung am Anfang, eine zweite etwa drei Wochen später und mindestens 7 Tage in Folge mit vollständig eingetragenem Essen (oder deinem eingegebenen Kaloriendurchschnitt). Das Ergebnis ersetzt die Formelschätzung in „Dein Tagesplan“. Das ist reine Rechnung mit deinen Daten, nie ein Rat."
           }
         ]
       },
       {
+        id: 'premium',
         category: "Premium",
         questions: [
           {
+            id: 'premium_includes',
             q: "Was ist in Premium enthalten?",
-            a: "Unbegrenzte Protokolle, das KI-Essensprotokoll jeden Tag, die Dosis-Akkumulationskurve, die Ergebnisse deiner echten Zahlen, PDF-Export, bevorzugter Support und mehr Labor-, Impf- und Fläschchen-Scans: insgesamt bis zu 20 pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen). Deine Wägungen und ihr Diagramm, Cloud-Sicherung und Synchronisierung sind für alle kostenlos."
+            a: "Unbegrenzte Protokolle, das KI-Essensprotokoll jeden Tag, die Kurve „Dosis im Körper“, die Ergebnisse deiner echten Zahlen, PDF-Export, bevorzugter Support und mehr Labor-, Impf- und Fläschchen-Scans: insgesamt bis zu 20 pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen). Deine Wägungen und ihr Diagramm, Cloud-Sicherung und Synchronisierung sind für alle kostenlos."
           },
           {
+            id: 'premium_price',
             q: "Wie viel kostet Premium?",
             a: "Die aktuellen Preise für Premium (monatlich und jährlich) werden in der App auf dem Upgrade-Bildschirm angezeigt. Neue Abonnenten können beide Pläne 7 Tage kostenlos testen; auf dem Upgrade-Bildschirm siehst du, ob das für dich gilt."
           },
           {
+            id: 'premium_cancel',
             q: "Kann ich jederzeit kündigen?",
             a: '{store_cancel}'
           }
@@ -12744,7 +13201,7 @@ export const translations = {
     body_tile_vax_latest: 'Zuletzt',
     body_hub_footnote: 'Kein medizinischer Dienst. Bei medizinischen Fragen wende dich an eine qualifizierte Fachperson.',
     coming_soon: "Demnächst",
-    body_card_dosing_title: "Dosis-Akkumulation",
+    body_card_dosing_title: "Dosis im Körper",
     body_card_dosing_desc: "Sieh, wie sich deine Dosen im Lauf der Zeit summieren können – nach den von dir erfassten Dosen, deinem geplanten Schema und veröffentlichten Halbwertszeiten. Eine mathematische Schätzung, keine Messung.",
     cal_disclaimer: 'Eine Schätzung für allgemeines Wohlbefinden, keine medizinische Beratung oder Verordnung. Sie ist nie mit einem Medikament oder einer Dosis verknüpft – nur eine Energierechnung mit deinen Zahlen. Eine individuelle Abweichung von ±10–15 % ist normal.',
     cal_intro_title: 'Was das ist',
@@ -13109,7 +13566,7 @@ export const translations = {
     serum_preview_body: 'DoseTrace modelliert, wie sich jede Dosis zur vorherigen addiert, damit du deinen geschätzten Serumspiegel zwischen den Dosen siehst – nicht nur, was du genommen hast.',
     preview_unlock_cta: "Mit Premium freischalten",
     pw_preview_heading: "Sieh, was du bekommst",
-    blend_curve_note: 'Jede Komponente erscheint in der Serumkurve, aufgeteilt nach dem üblichen Verhältnis.',
+    blend_curve_note: 'Jede Komponente erscheint in der Kurve „Dosis im Körper“, aufgeteilt nach dem üblichen Verhältnis.',
     insulin_no_curve_note: 'In deinem Verlauf gespeichert – für Insulin wird keine Akkumulation modelliert.',
     blend_curve_caveat: 'Diese Linien nehmen ein übliches Mischungsverhältnis an (nur als Referenz) – die Zusammensetzung variiert je nach Quelle und ist nicht verifiziert. Um dein genaues Fläschchen abzubilden, erfasse jede Komponente als eigenes Protokoll.',
     blend_est_marker: '(gesch.)',
@@ -13215,7 +13672,7 @@ export const translations = {
     blood_upgrade_title: 'Labor-, Impf- & Fläschchen-Scans',
     blood_upgrade_sub: 'Premium enthält Labor-, Impf- und Fläschchen-Scans, bei denen die Werte automatisch ausgelesen werden – plus alles andere.',
     blood_upgrade_feat_1: 'Labor-, Impf- & Fläschchen-Scans inklusive',
-    blood_upgrade_feat_2: "Dosis-Akkumulationskurve",
+    blood_upgrade_feat_2: "Dosis im Körper",
     blood_upgrade_feat_3: 'Deine echten Zahlen & dein Fortschritt',
     blood_upgrade_feat_4: 'Scannen in jeder Sprache – Foto oder PDF',
     blood_upgrade_feat_5: 'PDF-Export und bevorzugter Support',
@@ -13238,7 +13695,7 @@ export const translations = {
     // PAYWALL
     paywall_title: 'Upgrade auf Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Dosis-Akkumulationskurven aus deinen eigenen Einträgen, unbegrenzte Protokolle, mehr Scans und PDF-Export.',
+    paywall_hero_sub: 'Dosis im Körper aus deinen eigenen Einträgen, unbegrenzte Protokolle, mehr Scans und PDF-Export.',
     paywall_annual: 'Jährlich',
     paywall_monthly: 'Monatlich',
     paywall_per_year: 'pro Jahr',
@@ -13277,7 +13734,6 @@ export const translations = {
     paywall_free_feat_8: 'Cloud-Sicherung und Synchronisierung',
     paywall_free_feat_9: 'Unbegrenzte Protokolle',
     paywall_free_feat_10: 'Unbegrenzte Laborbericht-Uploads',
-    paywall_free_feat_11: 'Serumkurven-Modell',
     paywall_free_feat_12: 'Protokoll-Zeitstrahl',
     paywall_free_feat_14: 'Sync mit Apple Health & Watch',
     paywall_free_feat_15: 'PDF-Export',
@@ -13300,7 +13756,6 @@ export const translations = {
     paywall_lifetime_note: 'Einmaliger Kauf. Alle Premium-Funktionen inklusive.',
     paywall_coming_soon_title: 'Demnächst mit Premium',
     paywall_coming_1: 'Cloud-Backup und Mehrgeräte-Sync',
-    paywall_coming_2: 'Serumkurvenmodell und Protokoll-Zeitstrahl',
     paywall_coming_4: 'Scannen in jeder Sprache – Foto oder PDF',
     paywall_coming_5: 'PDF-Export',
     paywall_promo_banner: 'Limitiertes Startangebot',
@@ -13468,7 +13923,7 @@ export const translations = {
     protocols_notes_placeholder: 'z. B. Injektionsstellen wechseln',
     protocols_composition_label: 'Inhalt des Fläschchens – optional',
     protocols_composition_placeholder: 'z. B. 50 GHK / 10 KPV / 10 TB / 10 BPC',
-    protocols_composition_hint: 'Eine Notiz zur Mischung deines Fläschchens. Rezepturen variieren je nach Quelle – dies ändert die Serumkurve nicht.',
+    protocols_composition_hint: 'Eine Notiz zur Mischung deines Fläschchens. Rezepturen variieren je nach Quelle – dies ändert die Kurve „Dosis im Körper“ nicht.',
     protocols_notes_placeholder_oral: "z. B. mit dem Essen einnehmen",
     oral_alpha_gpc: 'Alpha-GPC',
     oral_ala: 'Alpha-Liponsäure (ALA)',
@@ -14804,7 +15259,7 @@ export const translations = {
     // PROFILE
     profile_step_title: 'Chi sei',
     profile_step_sub: 'Aiutaci a personalizzare la tua esperienza. Tutti i campi sono facoltativi.',
-    profile_step_sub_required: 'DoseTrace personalizza per te il calcolatore, la curva di accumulo e i tuoi numeri reali. Questi strumenti funzionano con questi dati, che restano nel tuo account.',
+    profile_step_sub_required: 'DoseTrace personalizza per te il calcolatore, la curva Dose nel corpo e i tuoi numeri reali. Questi strumenti funzionano con questi dati, che restano nel tuo account.',
     profile_required_legend: '* Tutti i campi sono obbligatori',
     profile_missing: 'Obbligatorio',
     profile_pick_month: 'Scegli un mese',
@@ -14826,10 +15281,10 @@ export const translations = {
     profile_sex_help: 'Usato per stimare calorie ed energia — scegli il sesso assegnato alla nascita.',
     sex_why_link: 'Perché lo chiediamo?',
     sex_why_title: 'Perché chiediamo il sesso alla nascita?',
-    sex_why_body: 'Le formule dell’energia si basano sulla fisiologia del corpo, che cambia in base al sesso alla nascita. Se non hai inserito il grasso corporeo, il consumo giornaliero stimato cambia di circa 200–300 kcal tra l’uno e l’altro. Questo dato stabilisce anche il minimo di calorie dei tuoi obiettivi e la figura del corpo su cui scegli il sito di iniezione. La curva di accumulo delle dosi non lo usa.',
+    sex_why_body: 'Le formule dell’energia si basano sulla fisiologia del corpo, che cambia in base al sesso alla nascita. Se non hai inserito il grasso corporeo, il consumo giornaliero stimato cambia di circa 200–300 kcal tra l’uno e l’altro. Questo dato stabilisce anche il minimo di calorie dei tuoi obiettivi e la figura del corpo su cui scegli il sito di iniezione. La curva Dose nel corpo non lo usa.',
     sex_why_body2: 'Serve solo per i calcoli e non dice nulla su chi sei. Se segui una terapia ormonale, parla dei tuoi numeri con il tuo medico.',
     sex_change_title: 'Cosa cambia',
-    sex_change_body: 'Cambia il consumo giornaliero stimato (di circa 200–300 kcal se il grasso corporeo non è inserito), il minimo di calorie dei tuoi obiettivi e la figura del corpo per il sito di iniezione. La curva di accumulo delle dosi non cambia.',
+    sex_change_body: 'Cambia il consumo giornaliero stimato (di circa 200–300 kcal se il grasso corporeo non è inserito), il minimo di calorie dei tuoi obiettivi e la figura del corpo per il sito di iniezione. La curva Dose nel corpo non cambia.',
     sex_change_confirm_title: 'Passare a {value}?',
     sex_change_confirm_btn: 'Cambia',
     profile_birth: 'Mese e anno di nascita',
@@ -15225,7 +15680,7 @@ export const translations = {
     settings_premium_title: 'Passa a Premium',
     settings_premium_sub: 'Sblocca tutte le funzioni e ottieni il massimo da DoseTrace.',
     settings_premium_btn: 'Vedi i piani',
-    settings_premium_feat_1: 'Curva di accumulo delle dosi dal tuo registro',
+    settings_premium_feat_1: 'Dose nel corpo, dal tuo registro',
     settings_premium_feat_2: 'I tuoi numeri reali e i tuoi progressi',
     settings_premium_feat_3: "Diario IA, ogni giorno",
     settings_premium_feat_4: "Protocolli illimitati · Scansioni di analisi, vaccini e flaconi · Grafici delle analisi",
@@ -15374,10 +15829,9 @@ export const translations = {
     faq_intro: 'Le risposte alle domande più frequenti su DoseTrace.',
     faq_still_questions: 'Hai ancora domande?',
     faq_contact_us: 'Contattaci in qualsiasi momento a',
-    curve_title: 'Curva di accumulo',
     curve_btn: 'Curva',
     curve_empty_title: 'Nessun protocollo compatibile',
-    curve_empty_sub: 'La curva sierica funziona con composti iniettabili con emivita nota. Aggiungi un protocollo e registra le dosi per vedere la tua curva.',
+    curve_empty_sub: 'Dose nel corpo funziona con composti iniettabili con emivita nota. Aggiungi un protocollo e registra le dosi per vedere la tua curva.',
     curve_last_days: 'Ultimi',
     curve_last_hours: "Ultime",
     unit_hour_short: "h",
@@ -15433,7 +15887,7 @@ export const translations = {
     ob_features_title: 'Pensato per il tuo protocollo',
     ob_features_sub: 'Ciò che DoseTrace fa e un’app di note no.',
     ob_feat1_t: 'Calcolo di ricostituzione e prelievo', ob_feat1_d: 'Inserisci flacone e dose: pensiamo noi ai calcoli di ricostituzione e siringa.',
-    ob_feat2_t: 'Accumulo delle dosi', ob_feat2_d: 'Guarda come la quantità stimata nel tuo corpo aumenta nel tempo.',
+    ob_feat2_t: "Dose nel corpo", ob_feat2_d: "Stima, giorno per giorno, di quanto di ogni dose registrata non è ancora stato eliminato: picchi, valli e accumulo.",
     ob_feat3_t: 'Promemoria intelligenti', ob_feat3_d: 'Avvisi in base ai tuoi orari, per non saltare mai una dose.',
     ob_feat4_t: 'Più protocolli insieme', ob_feat4_d: 'Monitora più composti e cicli contemporaneamente.',
     ob_feat5_t: 'Diario delle analisi', ob_feat5_d: 'Fotografa il referto delle analisi e importa i valori.',
@@ -15467,100 +15921,194 @@ export const translations = {
     curve_choose_title: 'Scegli i composti',
     curve_choose_hint: 'Selezionane uno o più per sovrapporre le curve.',
     curve_done: 'Fine',
+    // The curve explained (docs/specs/curve-explained.md CE-1..CE-10; picture docs/design/curve-explained.html)
+    curve_sub: "stima con un modello farmacocinetico (curva di Bateman)",
+    curve_fixed: "Stima di quanto di ogni dose è già arrivato in circolo e non è ancora stato eliminato, giorno per giorno, a partire dalle dosi che hai registrato.",
+    curve_foot: "Stima basata su medie di studi pubblicati. Non è una misurazione né un’indicazione medica.",
+    help_mark_label: "Aiuto",
+    curve_card1_t: "Picchi e valli",
+    curve_card1_b: "Dopo ogni dose, la quantità sale fino a un picco e poi scende fino al punto più basso, poco prima della dose successiva.",
+    curve_card2_t: "Accumulo",
+    curve_card2_b: "Quando una dose arriva prima che la precedente sia uscita del tutto, le due si sommano. Con la stessa dose allo stesso intervallo, la quantità sale e si assesta in una fascia stabile dopo circa 4–5 emivite (dal 94% al 97% del plateau).",
+    curve_card3_t: "L’esame misura un momento",
+    curve_card3_b: "L’esame del sangue misura il livello al momento del prelievo. La curva è una stima fatta a partire dalle tue registrazioni e non sostituisce l’esame né l’indicazione del tuo professionista sanitario.",
+    curve_cards_step: "{n} di {total}",
+    curve_cards_skip: "Salta",
+    curve_cards_done: "Ho capito",
+    curve_cards_more: "Scopri di più",
     faq_categories: [
       {
+        id: 'start',
         category: "Primi passi",
         questions: [
           {
+            id: 'start_what',
             q: "Che cos'è DoseTrace?",
             a: "DoseTrace è un'app di monitoraggio del benessere personale per gestire composti, dosi e flaconi. Include un calcolatore di ricostituzione, una guida alla siringa e un registro di iniezioni."
           },
           {
+            id: 'start_free',
             q: "DoseTrace è gratuito?",
-            a: "Sì. Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Il piano gratuito include fino a 3 protocolli attivi, 3 scansioni al mese (analisi, libretti vaccinali e flaconi insieme) e 7 giorni di diario IA. Premium aggiunge protocolli illimitati, più scansioni, il diario IA ogni giorno, la curva di accumulo della dose, i risultati dei tuoi numeri reali e l’esportazione PDF."
+            a: "Sì. Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Il piano gratuito include fino a 3 protocolli attivi, 3 scansioni al mese (analisi, libretti vaccinali e flaconi insieme) e 7 giorni di diario IA. Premium aggiunge protocolli illimitati, più scansioni, il diario IA ogni giorno, la curva Dose nel corpo, i risultati dei tuoi numeri reali e l’esportazione PDF."
           },
           {
+            id: 'start_first_protocol',
             q: "Come aggiungo il mio primo protocollo?",
             a: "Vai alla scheda Protocolli, tocca «+ Aggiungi», scegli il tipo di composto e segui i passaggi per configurare i dettagli della tua dose."
           }
         ]
       },
       {
+        id: 'recon',
         category: "Ricostituzione e dosaggio",
         questions: [
           {
+            id: 'recon_calculator',
             q: "Come funziona il calcolatore di ricostituzione?",
             a: "Inserisci la tua quantità di composto e il volume di acqua batteriostatica che hai aggiunto. DoseTrace calcola la concentrazione e ti mostra esattamente quanto prelevare nella tua siringa."
           },
           {
+            id: 'recon_syringes',
             q: "Quali misure di siringa sono supportate?",
             a: "Siringhe da insulina da 1 ml (100 unità), 0,5 ml (50 unità) e 0,3 ml (30 unità). Per i composti pronti all’uso ci sono anche siringhe da 2, 3 e 5 ml, lette in ml."
           },
           {
+            id: 'recon_vial_life',
             q: "Quanto dura un flacone ricostituito?",
             a: "La maggior parte dei peptidi ricostituiti rimane stabile per circa 30 giorni se conservati in frigorifero con acqua batteriostatica."
           }
         ]
       },
       {
+        id: 'vials',
         category: "Flaconi e monitoraggio",
         questions: [
           {
+            id: 'vials_mix',
             q: "Come registro la ricostituzione di un flacone?",
             a: "Quando crei un nuovo protocollo liofilizzato, puoi registrare subito la data di ricostituzione. Quando un flacone finisce, inizia il successivo dalla pagina del protocollo (Nuovo flacone) o da Oggi (+ Aggiungi flacone)."
           },
           {
+            id: 'vials_expiry',
             q: "Che cosa succede quando un flacone scade?",
             a: "DoseTrace mostrerà un avviso quando il tuo flacone si avvicina alla scadenza di 30 giorni. I flaconi scaduti sono segnati in rosso."
           }
         ]
       },
       {
+        id: 'body',
         category: "Il mio corpo",
         questions: [
           {
+            id: 'body_lab_scan',
             q: "Come legge i miei referti il Diario delle analisi?",
             a: 'Scatta una foto di un referto o carica un PDF o un’immagine, e l’IA legge i valori e li inserisce nel tuo diario delle analisi. Funziona con LabCorp, Quest e la maggior parte dei referti delle cliniche. Le scansioni sono condivise tra analisi, libretti vaccinali e flaconi: 3 al mese con il piano gratuito, di più con Premium.'
           },
           {
+            id: 'body_lab_privacy',
             q: "I miei dati delle analisi sono privati?",
             a: 'I tuoi dati sono salvati sul tuo telefono e sincronizzati con il tuo account nel nostro cloud sicuro, così hanno un backup e tornano quando accedi da un telefono nuovo. Quando scansioni un referto, il file viene inviato una sola volta ad Anthropic per la lettura dei valori e non viene usato per l’addestramento. Lo stesso vale per le altre funzioni IA che scegli di usare: scansionare un libretto vaccinale o l’etichetta di un flacone, il diario alimentare con IA e l’assistente dei protocolli; vedi la nostra Informativa sulla privacy. Non vendiamo mai i tuoi dati né li usiamo per pubblicità.'
           },
           {
+            id: 'body_vaccines',
             q: "Che cos'è il Diario dei vaccini?",
             a: "Un registro dei tuoi vaccini e richiami: la data di somministrazione, la data della prossima dose, il numero di dose, il lotto, chi l'ha somministrato e le note. Inseriscili tu o scansiona una foto del tuo libretto vaccinale (conta nelle scansioni del mese). DoseTrace non ti dice mai quali vaccini fare né quando."
           },
           {
-            q: "Che cos'è l'Accumulo delle dosi?",
-            a: "Una stima della quantità di un composto che può essere presente nel tuo corpo nel tempo, calcolata dal tuo schema pianificato e dalle emivite pubblicate. È un modello matematico, non una misura dei tuoi livelli reali nel sangue: confermalo con le analisi. L'Accumulo delle dosi fa parte di Premium."
+            id: 'body_dose_in_body',
+            q: "Che cos’è Dose nel corpo?",
+            a: "Una stima della quantità di un composto che può essere presente nel tuo corpo nel tempo, calcolata dal tuo schema pianificato e dalle emivite pubblicate. È un modello matematico, non una misura dei tuoi livelli reali nel sangue: confermalo con le analisi. La curva Dose nel corpo fa parte di Premium."
           }
         ]
       },
       {
+        id: 'curve',
+        category: "Dose nel corpo",
+        questions: [
+          {
+            id: 'curve_bateman',
+            q: "Che cos’è la curva di Bateman?",
+            a: "È una formula pubblicata nel 1910 dal matematico Harry Bateman. L’ha ideata per il decadimento radioattivo a catena; la stessa equazione descrive un farmaco che passa dal punto di somministrazione al sangue e poi viene eliminato. In farmacologia si chiama \"funzione di Bateman\"."
+          },
+          {
+            id: 'curve_how',
+            q: "Come fa i calcoli DoseTrace?",
+            a: "Per ogni dose registrata, DoseTrace disegna una curva di Bateman con l’emivita e, quando pubblicati, il tempo al picco e la frazione che arriva nel corpo. Senza tempo al picco, la dose entra tutta insieme e poi scende soltanto. Poi somma le curve di tutte le dosi: è il principio di sovrapposizione. Il risultato è il disegno a dente di sega."
+          },
+          {
+            id: 'curve_half_life',
+            q: "Che cos’è l’emivita?",
+            a: "È il tempo in cui la quantità si dimezza. Dopo 1 emivita resta il 50%; dopo 2, il 25%; dopo 5, circa il 3%. Negli esteri in olio, questa emivita è quella del rilascio dal deposito, non quella dell’ormone."
+          },
+          {
+            id: 'curve_what_for',
+            q: "A cosa serve?",
+            a: "A vedere una stima, fatta a partire dalle tue registrazioni, di come le dosi si sommano nel tempo. È un quadro della tua storia da portare al professionista sanitario che ti segue. Non indica quando né quanto somministrare."
+          },
+          {
+            id: 'curve_half_life_shape',
+            q: "Perché l’emivita cambia la curva?",
+            a: "Ogni composto ha un’emivita diversa. Alcuni escono dal corpo in poche ore (molti peptidi); altri restano per settimane (ormoni in olio, alcune vitamine iniettabili). Con la stessa dose e lo stesso intervallo, un composto a emivita lunga si accumula molto più di uno a emivita breve. La curva mostra questa differenza per i composti che hai registrato."
+          },
+          {
+            id: 'curve_lab',
+            q: "E l’esame del sangue?",
+            a: "L’esame misura la concentrazione nel sangue al momento del prelievo. DoseTrace segna sulla curva la data di ogni prelievo registrato, solo come riferimento di tempo. La curva non spiega il risultato dell’esame; a interpretarlo è il professionista sanitario che ti segue. L’esame e la curva misurano cose diverse: l’esame è una concentrazione (per esempio ng/dL); la curva è una quantità (mg) del composto così come l’hai registrato — negli esteri, parte di quel peso è l’estere, non l’ormone. Per gli ormoni che il corpo produce anche da sé, l’esame include questa produzione, che la curva non conta."
+          },
+          {
+            id: 'curve_estimate',
+            q: "Perché è una stima?",
+            a: "Ognuno assorbe ed elimina a modo suo (età, peso, fegato, reni, sito di iniezione). I numeri vengono da medie di studi. La curva mostra l’andamento, non il tuo valore esatto."
+          },
+          {
+            id: 'curve_missing',
+            q: "Perché alcuni composti non compaiono o compaiono come tetto?",
+            a: "Quando non c’è un’emivita affidabile pubblicata, il composto resta fuori dalla curva. Quando non ci sono misure nelle persone di quanto arriva nel corpo, la curva presume che arrivi tutto: è un tetto, mai un valore."
+          },
+          {
+            id: 'curve_history',
+            q: "Chi ha creato questa scienza?",
+            a: "Harry Bateman ha scritto la formula (1910). Erik Widmark ha studiato come l’alcol esce dal sangue (1932). Torsten Teorell ha pubblicato il primo modello del percorso di un farmaco nel corpo (1937) ed è chiamato il padre della farmacocinetica. Friedrich Dost ha dato il nome di \"farmacocinetica\" (1953). John Wagner (1971) e Milo Gibaldi con Donald Perrier (1975) hanno scritto i libri che hanno reso la disciplina ciò che si insegna oggi."
+          },
+          {
+            id: 'curve_sources',
+            q: "Fonti",
+            a: "Bateman H. Proc Cambridge Philos Soc 1910;15:423–427 · Teorell T. Arch Int Pharmacodyn Ther 1937;57:205–240 · Widmark EMP. Die wissenschaftlichen Grundlagen… der gerichtlich-medizinischen Alkoholbestimmung. Berlin, 1932 · Dost FH. Der Blutspiegel. Leipzig, 1953 · Wagner JG. Biopharmaceutics and Relevant Pharmacokinetics, 1971 · Gibaldi M, Perrier D. Pharmacokinetics, 1975 · Weiss M. Pharm Res 2023;40:2147 (funzione di Bateman)"
+          }
+        ]
+      },
+      {
+        id: 'journey',
         category: "Percorso",
         questions: [
           {
+            id: 'journey_food_ai',
             q: "Come funziona il Diario IA?",
             a: "Raccontagli cosa hai mangiato con parole tue. L'IA legge ogni alimento e registra una stima di calorie, carboidrati e proteine, che puoi correggere quando vuoi; vale anche il cibo fino a 7 giorni prima. Il piano gratuito include 7 giorni di Diario IA; Premium lo include ogni giorno. Registra solo ciò che gli dici e non dà mai consigli alimentari."
           },
           {
+            id: 'journey_reality',
             q: "Che cosa sono I tuoi numeri reali?",
             a: "Stimano quante calorie bruci davvero al giorno, dai tuoi numeri: una pesata all'inizio, un'altra circa tre settimane dopo e almeno 7 giorni di fila con tutto il cibo registrato (o la tua media di calorie inserita). Il risultato sostituisce la stima basata sulla formula in «Il tuo piano giornaliero». Sono calcoli dai tuoi dati, mai consigli."
           }
         ]
       },
       {
+        id: 'premium',
         category: "Premium",
         questions: [
           {
+            id: 'premium_includes',
             q: "Cosa include Premium?",
-            a: "Protocolli illimitati, il diario IA ogni giorno, la curva di accumulo della dose, i risultati dei tuoi numeri reali, l’esportazione PDF, il supporto prioritario e più scansioni di analisi, vaccini e flaconi: fino a 20 al mese in totale (sommando analisi, libretti vaccinali e flaconi). Le tue pesate e il loro grafico, backup cloud e sincronizzazione sono gratuiti per tutti."
+            a: "Protocolli illimitati, il diario IA ogni giorno, la curva Dose nel corpo, i risultati dei tuoi numeri reali, l’esportazione PDF, il supporto prioritario e più scansioni di analisi, vaccini e flaconi: fino a 20 al mese in totale (sommando analisi, libretti vaccinali e flaconi). Le tue pesate e il loro grafico, backup cloud e sincronizzazione sono gratuiti per tutti."
           },
           {
+            id: 'premium_price',
             q: "Quanto costa Premium?",
             a: "I prezzi attuali di Premium mensile e annuale sono indicati nell'app, nella schermata Premium. I nuovi abbonati possono iniziare entrambi i piani con una prova gratuita di 7 giorni; la schermata Premium ti mostra se è disponibile per te."
           },
           {
+            id: 'premium_cancel',
             q: "Posso disdire in qualsiasi momento?",
             a: '{store_cancel}'
           }
@@ -15594,7 +16142,7 @@ export const translations = {
     body_tile_vax_latest: 'Ultimo',
     body_hub_footnote: 'Non è un servizio medico. Per qualsiasi domanda medica, consulta un professionista qualificato.',
     coming_soon: "In arrivo",
-    body_card_dosing_title: "Accumulo delle dosi",
+    body_card_dosing_title: "Dose nel corpo",
     body_card_dosing_desc: "Guarda come le tue dosi possono accumularsi nel tempo, in base alle dosi che hai registrato, allo schema pianificato e alle emivite pubblicate. Una stima matematica, mai una misurazione.",
     cal_disclaimer: 'Una stima per il benessere generale, non un consiglio medico né una prescrizione. Non è mai collegata ad alcun farmaco o dose: solo calcoli energetici dai numeri che inserisci. Una variazione individuale del ±10–15% è normale.',
     cal_intro_title: 'Cos\'è',
@@ -15959,7 +16507,7 @@ export const translations = {
     serum_preview_body: 'DoseTrace calcola come ogni dose si somma alla precedente, così vedi il tuo livello sierico stimato tra una dose e l’altra, non solo ciò che hai preso.',
     preview_unlock_cta: "Sblocca con Premium",
     pw_preview_heading: 'Ecco cosa ottieni',
-    blend_curve_note: 'Ogni componente appare nella curva sierica, secondo la proporzione comune.',
+    blend_curve_note: 'Ogni componente appare nella curva Dose nel corpo, secondo la proporzione comune.',
     insulin_no_curve_note: 'Registrato nel tuo storico — l\'accumulo non è modellato per l\'insulina.',
     blend_curve_caveat: 'Queste linee si basano su una proporzione comune del blend (solo come riferimento): la composizione varia in base alla fonte e non è verificata. Per modellare il tuo flacone esatto, registra ogni componente come protocollo a sé.',
     blend_est_marker: '(stim.)',
@@ -16065,7 +16613,7 @@ export const translations = {
     blood_upgrade_title: "Scansioni di analisi, vaccini e flaconi",
     blood_upgrade_sub: "Premium include scansioni di analisi, vaccini e flaconi con estrazione automatica dei valori — più tutto il resto.",
     blood_upgrade_feat_1: "Scansioni di analisi, vaccini e flaconi incluse",
-    blood_upgrade_feat_2: "Curva di accumulo della dose",
+    blood_upgrade_feat_2: "Dose nel corpo",
     blood_upgrade_feat_3: 'I tuoi numeri reali e i tuoi progressi',
     blood_upgrade_feat_4: 'Scansione in qualsiasi lingua — foto o PDF',
     blood_upgrade_feat_5: 'Esportazione PDF e supporto prioritario',
@@ -16088,7 +16636,7 @@ export const translations = {
     // PAYWALL
     paywall_title: 'Passa a Premium',
     paywall_hero_title: 'DoseTrace Premium',
-    paywall_hero_sub: 'Curve di accumulo della dose dal tuo registro, protocolli illimitati, più scansioni ed esportazione PDF.',
+    paywall_hero_sub: 'Dose nel corpo dal tuo registro, protocolli illimitati, più scansioni ed esportazione PDF.',
     paywall_annual: 'Annuale',
     paywall_monthly: 'Mensile',
     paywall_per_year: 'all\'anno',
@@ -16127,7 +16675,6 @@ export const translations = {
     paywall_free_feat_8: 'Backup e sincronizzazione cloud',
     paywall_free_feat_9: 'Protocolli illimitati',
     paywall_free_feat_10: 'Caricamenti analisi illimitati',
-    paywall_free_feat_11: 'Modello di curva sierica',
     paywall_free_feat_12: 'Timeline del protocollo',
     paywall_free_feat_14: 'Sincronizzazione Apple Health e Watch',
     paywall_free_feat_15: 'Esportazione PDF',
@@ -16150,7 +16697,6 @@ export const translations = {
     paywall_lifetime_note: 'Acquisto una tantum. Tutte le funzioni Premium incluse.',
     paywall_coming_soon_title: 'In arrivo con Premium',
     paywall_coming_1: 'Backup cloud e sincronizzazione multi-dispositivo',
-    paywall_coming_2: 'Modello di curva sierica e timeline del protocollo',
     paywall_coming_4: 'Scansione in qualsiasi lingua — foto o PDF',
     paywall_coming_5: 'Esportazione PDF',
     paywall_promo_banner: 'Offerta di lancio limitata',
@@ -16318,7 +16864,7 @@ export const translations = {
     protocols_notes_placeholder: 'es. Alterna i siti di iniezione',
     protocols_composition_label: 'Cosa contiene il flacone — facoltativo',
     protocols_composition_placeholder: 'es. 50 GHK / 10 KPV / 10 TB / 10 BPC',
-    protocols_composition_hint: 'Una nota sulla miscela del tuo flacone. Le ricette variano in base alla fonte — questo non modifica la curva sierica.',
+    protocols_composition_hint: 'Una nota sulla miscela del tuo flacone. Le ricette variano in base alla fonte — questo non modifica la curva Dose nel corpo.',
     protocols_notes_placeholder_oral: 'es. da prendere con il cibo',
     oral_alpha_gpc: 'Alfa-GPC',
     oral_ala: 'Acido alfa-lipoico (ALA)',

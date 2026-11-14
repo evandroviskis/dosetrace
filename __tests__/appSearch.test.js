@@ -198,14 +198,14 @@ test('AS-13 / AS-28: rows show only names and paths, never a value, unit, date, 
 const textIndex = (l) => TX.buildTextIndex(tFor(l), 'ios');
 const tsearch = (l, q) => TX.makeTextSearch(textIndex(l))(q);
 
-test('AS-24: the text index holds 65 paragraphs in each language, built from the strings the screens show', () => {
+test('AS-24: the text index holds 75 paragraphs in each language, built from the strings the screens show', () => {
   const { legalBlocks } = require('../lib/legalBlocks');
   for (const l of LANGS) {
     const u = textIndex(l);
     const by = {};
     u.forEach((x) => { by[x.src] = (by[x.src] || 0) + 1; });
-    assert.equal(u.length, 65, `${l}: ${JSON.stringify(by)}`);
-    assert.equal(by.faq, 17, l);
+    assert.equal(u.length, 75, `${l}: ${JSON.stringify(by)}`);
+    assert.equal(by.faq, 27, l); // CE-6: + the ten questions of the curve group
     assert.equal(by.learn, 5, l);
     // every paragraph is exactly a block LegalModal renders, with the heading above it
     for (const d of TX.LEGAL) {
@@ -245,7 +245,11 @@ test('AS-25: text matching table (same paragraph, endings, typos, closest words 
   assert.match(top('de', 'Abo kündigen'), /^terms\|PREMIUM-ABONNEMENT\|/);
   assert.equal(top('fr', 'supprimer mes données'), `privacy|${head('fr', 9)}|${tr.fr.settings_privacy_policy}`);
   assert.equal(top('it', 'cancellare i dati'), `privacy|${head('it', 9)}|${tr.it.settings_privacy_policy}`);
-  for (const q of ['quanto aplicar', 'efeito colateral', 'quanto puxar']) assert.deepEqual(tsearch('pt', q), [], q);
+  for (const q of ['efeito colateral', 'quanto puxar']) assert.deepEqual(tsearch('pt', q), [], q);
+  // CE-7 (docs/specs/curve-explained.md, signed 2026-11-13): the curve's approved answer 'Para que serve?' ends
+  // 'Não indica quando nem quanto aplicar.', so 'quanto aplicar' finds that sentence and only it: the app's own
+  // statement that it never says how much to apply, never a dosing answer.
+  assert.deepEqual(tsearch('pt', 'quanto aplicar').map((h) => h.unit.open.id), ['curve_what_for']);
   // texts are searched in the app language only
   assert.equal(tsearch('pt', 'delete my data').length, 0);
 });

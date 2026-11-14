@@ -77,7 +77,7 @@ test('PA-4: the previews follow the prototype titles and never interpret (AI har
 test('PA-2: the hero line follows the prototype in 6 languages (more scans, no number)', () => {
   const v = valuesOf('paywall_hero_sub');
   assert.equal(v.length, 6);
-  assert.equal(v[0], 'Dose-accumulation curves from your own log, unlimited protocols, more scans, and PDF export.');
+  assert.equal(v[0], 'Dose in the body from your own log, unlimited protocols, more scans, and PDF export.'); // CE-1: the curve's new name
   for (const s of v) assert.doesNotMatch(s, /\d/);
 });
 
@@ -175,7 +175,7 @@ test('PA-31: the welcome screen shows the droplet app icon near the top (prototy
 });
 
 test('PA-33 / PA-34 / PA-39: onboarding copy as approved, the AI line reads, never analyses (6 languages)', () => {
-  assert.equal(valuesOf('ob_feat2_t')[0], 'Dose accumulation');
+  assert.equal(valuesOf('ob_feat2_t')[0], 'Dose in the body'); // CE-1 / CE-9
   assert.equal(valuesOf('ob_feat5_t')[0], 'Lab test journal');
   assert.deepEqual(valuesOf('ob_feat5_t'), valuesOf('body_card_labs_title'), 'one term per concept: the journal\'s own name');
   assert.deepEqual(valuesOf('ob_feat2_t'), valuesOf('body_card_dosing_title'));
