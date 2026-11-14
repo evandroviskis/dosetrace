@@ -60,7 +60,7 @@ test('3-day window: the estimate itself never changes — doses before the windo
 test('Part 17: "Est. level · now" leads the chart card for one compound, with the Estimated chip', () => {
   const src = curve();
   assert.match(src, /t\('curve_level_now'\)/);
-  assert.match(src, /style=\{\[s\.heroNum, \{ color: colors\.data \}\]\}/);
+  assert.match(src, /style=\{\[s\.heroNum, \{ color: colors\.data[,}]/); // DB-9: plus the length-based size (heroFontSize)
   const hero = src.indexOf("t('curve_level_now')");
   const range = src.indexOf("t('curve_last_days')");
   assert.ok(hero > 0 && range > hero, 'the hero comes before the range line');
