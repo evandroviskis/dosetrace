@@ -95,7 +95,7 @@ test('DB-2: the oil esters carry the depot layer U = D·S at the injection, mass
 test('DB-3: esters with no sourced t½_true draw only the depot, "sem estudo" for the body', () => {
   const list = ['Nandrolone Decanoate', 'Nandrolone Phenylpropionate', 'Trenbolone Acetate', 'Trenbolone Enanthate', 'Trenbolone Hexahydrobenzylcarbonate',
     'Drostanolone Propionate', 'Drostanolone Enanthate', 'Boldenone Undecylenate', 'Methenolone Enanthate', 'Stanozolol injectable',
-    'Estradiol Valerate', 'Estradiol Cypionate', 'Progesterone'];
+    'Progesterone']; // estradiol esters left this list 2026-11-13: White 1998 (PMID 9855336) is their source
   for (const k of list) {
     const L = lines(k);
     assert.equal(L.kind, 'depotOnly', k);

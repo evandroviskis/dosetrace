@@ -206,3 +206,22 @@ test('DB-9 (simulator): a band\'s peak on the range line has no "≈"', () => {
   const curve = read('screens/SerumCurveScreen.js');
   assert.doesNotMatch(curve, /drawKind === 'band'\) return '≈ '/);
 });
+
+// Label re-read 2026-11-13: the estradiol elimination t½ has a primary source (White CM et al., Pharmacotherapy
+// 1998;18(6):1343–6, PMID 9855336: IV terminal t½ 27.45 ± 5.65 min, 8 postmenopausal women), so the estradiol
+// esters get the body band (mean ± SD) instead of "Parte já no corpo: sem estudo"; testosterone's 10–100 min is
+// confirmed on the Aveed USPI §12.3.
+test('DB-1 / DB-10 (label re-read): estradiol esters draw the body band with their source; testosterone cites Aveed', () => {
+  for (const k of ['Estradiol Valerate', 'Estradiol Cypionate']) {
+    const p = H.BODY_PARAMS[k];
+    assert.equal(p.model, 'release', k);
+    assert.equal(p.parent, 'estradiol');
+    assert.match(p.tTrue.source, /PMID 9855336/);
+  }
+  assert.match(H.BODY_PARAMS['Testosterone Cypionate'].tTrue.source, /Aveed/);
+  assert.equal(H.BODY_PARAMS['Testosterone Cypionate'].tTrue.status, 'confirmed');
+  const keys = B.bodyNoteKeys(B.bodyLines(H.HALF_LIVES['Estradiol Valerate']), null, 5).map((x) => x.key);
+  assert.deepEqual(keys, ['body_band_note_estradiol', 'body_depot_note']);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(tr[l].body_band_note_estradiol, `${l}`);
+  assert.match(tr.pt.body_band_note_estradiol, /^Faixa: o estradiol/);
+});
