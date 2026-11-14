@@ -278,7 +278,8 @@ export default function JourneyScreen() {
                     return (
                       <>
                         {bp.pre ? <Text style={s.cap}>{bp.pre}</Text> : null}
-                        <Text style={[s.big, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>{bp.num}<Text style={s.unit}> {bp.unit}</Text></Text>
+                        <Text style={[s.big, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>{bp.num}</Text>
+                        <Text style={s.cap}>{bp.unit}</Text>
                       </>
                     );
                   })()}

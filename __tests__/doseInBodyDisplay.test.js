@@ -162,3 +162,24 @@ test('DB-12 (strings): six languages for every new string, the approved pt wordi
   assert.match(tr.es.body_band_note_testosterone, /\bte\b|\btu\b/);
   assert.match(tr.it.body_band_note_testosterone, /\bhai\b|\btuo\b/);
 });
+
+// Simulator check 2026-11-13 (DB-12): the hero read "between / 0.055 and 0.55" with the unit "mg of testosterone"
+// squeezed unreadable inside the number line (adjustsFontSizeToFit shrank it). As in the approved picture the
+// large figure is the range "0,055–0,55" and the unit sits on its own readable line.
+test('DB-9 (simulator): a band reads as the range "lo–hi" in large type; the sentence form keeps "entre … e …"', () => {
+  const lv = { kind: 'band', lo: 0.0553, hi: 0.553 };
+  const parts = B.bodyLevelParts(lv, { t: tPt, language: 'pt', unit: 'mg', parent: 'testosterone', doses: [100] });
+  assert.equal(parts.pre, '');
+  assert.equal(parts.num, '0,055–0,55');
+  assert.equal(parts.unit, 'mg de testosterona');
+  assert.match(B.bodyLevelText(lv, { t: tPt, language: 'pt', unit: 'mg', parent: 'testosterone', doses: [100] }), /^entre 0,055 e 0,55/);
+});
+
+test('DB-9 (simulator): the unit is never nested inside the shrinking number line (hero and Journey tile)', () => {
+  const curve = read('screens/SerumCurveScreen.js');
+  const journey = read('screens/JourneyScreen.js');
+  assert.doesNotMatch(curve, /\{heroParts\.num\}<Text/);
+  assert.doesNotMatch(journey, /\{bp\.num\}<Text/);
+  assert.match(curve, /heroParts\.unit/);
+  assert.match(journey, /bp\.unit/);
+});

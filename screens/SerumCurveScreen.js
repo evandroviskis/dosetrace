@@ -1051,8 +1051,9 @@ export default function SerumCurveScreen({ embedded = false }) {
                     <>
                       {heroParts.pre ? <Text style={s.heroPre}>{heroParts.pre}</Text> : null}
                       <Text style={[s.heroNum, { color: colors.data }]} numberOfLines={1} adjustsFontSizeToFit>
-                        {heroParts.num}<Text style={s.unitInline}> {heroParts.unit}</Text>
+                        {heroParts.num}
                       </Text>
+                      <Text style={s.heroUnit}>{heroParts.unit}</Text>
                     </>
                   )}
                 </View>
@@ -1648,6 +1649,7 @@ function makeStyles(c) {
     // the hidden copy that measures the Est. level number (same font as AnimatedNumber)
     measure: { position: 'absolute', left: 0, top: 0, opacity: 0, fontFamily: fontFamilyFor('300'), fontWeight: undefined },
     unitInline: { fontSize: 13, color: c.ink3, fontFamily: MONO['400'] },
+    heroUnit: { fontSize: 15, color: c.ink2, marginTop: 2 },
 
     list: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
     legendRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
