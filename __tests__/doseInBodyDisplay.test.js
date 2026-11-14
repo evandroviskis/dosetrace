@@ -199,3 +199,10 @@ test('DB-9 (simulator): the large range keeps a readable size (length-based, flo
   assert.doesNotMatch(curve.slice(curve.indexOf("heroFontSize(heroParts.num") - 200, curve.indexOf("heroFontSize(heroParts.num") + 300), /adjustsFontSizeToFit/);
   assert.match(journey, /heroFontSize\(bp\.num/);
 });
+
+// Simulator check 2026-11-13: the range line read "pico ≈ entre 0,082 e 0,82 mg" — "≈" before a range of
+// studies says the same thing twice; a band's peak is the range itself.
+test('DB-9 (simulator): a band\'s peak on the range line has no "≈"', () => {
+  const curve = read('screens/SerumCurveScreen.js');
+  assert.doesNotMatch(curve, /drawKind === 'band'\) return '≈ '/);
+});

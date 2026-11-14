@@ -707,7 +707,7 @@ export default function SerumCurveScreen({ embedded = false }) {
   const peakText = (() => {
     if (!model || !(model.max > 0) || model.series.some((x) => x.drawKind === 'depotOnly')) return null;
     if (single) {
-      if (single.drawKind === 'band') return '≈ ' + bodyText(single, { kind: 'band', lo: single.peakLo, hi: single.peakHi });
+      if (single.drawKind === 'band') return bodyText(single, { kind: 'band', lo: single.peakLo, hi: single.peakHi });
       if (single.drawKind === 'ceiling') return bodyText(single, { kind: 'ceiling', hi: single.peakHi });
       return '≈ ' + bodyText(single, { kind: 'value', hi: single.peakHi });
     }
