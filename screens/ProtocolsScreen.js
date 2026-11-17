@@ -115,7 +115,7 @@ import { editStepLinkAction, takeEditFocus } from '../lib/editStepLink';
 import { imageMediaType } from '../lib/imageType';
 import {
   isoDay, firstDoseChoice, resizeTimes, wheelStartTime, timeDoneDisabled, timeDoneValue, timeRowLabel, newProtocolForm, formFromProtocol, protocolPayload,
-  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass,
+  editPatch, rtuVialFields, rtuVialPatch, hasNewProtocolInput, nameOnNext, boxExpiresOn, vialTotalAfterDoseEdit, vialMass, vialRecountNeeded,
 } from '../lib/protocolForm';
 
 
@@ -2243,7 +2243,10 @@ export default function ProtocolsScreen() {
       // Founder 2026-10-27, option A: a new dose (not the same quantity in another unit) on a protocol with
       // doses marked at the old value, or an estimated past, asks "Desde quando você usa {new}?" — never deduced.
       const doseEdited = 'dose' in patch || 'dose_unit' in patch;
-      const before = doseEdited ? getProtocolById(editingId) : null;
+      const stored0 = getProtocolById(editingId) || {};
+      // DV-015: a dose edit or (reconstituted) a new vial content recounts the active vial.
+      const recount = vialRecountNeeded(patch, stored0.type);
+      const before = (doseEdited || recount) && stored0.id != null ? stored0 : null;
       const newDoseV = before && 'dose' in patch ? patch.dose : before && before.dose;
       const newUnitV = before && 'dose_unit' in patch ? patch.dose_unit : before && before.dose_unit;
       const realChange = !!before && !sameMass(before.dose, before.dose_unit, newDoseV, newUnitV);
@@ -2272,7 +2275,7 @@ export default function ProtocolsScreen() {
         // DL-15 (DV-015 / DV-223): a new dose recomputes the active vial's capacity from the mass left —
         // the doses taken used the old dose, or the new one when it was a correction (AD-95).
         // Council 2026-10-27: the vial as it is NOW (after this save's own vial edit), never the copy read before.
-        const vialBefore = doseEdited && before ? vialsByProtocol[editingId] : null;
+        const vialBefore = recount && before ? vialsByProtocol[editingId] : null;
         const vialNow = vialBefore ? (getVialById(vialBefore.id) || vialBefore) : null;
         if (vialNow && vialNow.active !== 0) {
           const after = getProtocolById(editingId) || {};
@@ -2289,6 +2292,9 @@ export default function ProtocolsScreen() {
           });
           if (total != null && total !== Number(vialNow.total_doses)) updateVial(vialNow.id, { total_doses: total });
         }
+        // The reconstituted vial's water follows the protocol's water (it was left at the first value).
+        const reconVial = 'water' in patch && stored0.type === 'recon' ? vialsByProtocol[editingId] : null;
+        if (reconVial && reconVial.active !== 0 && Number(patch.water) > 0 && Number(patch.water) !== Number(reconVial.water_ml)) updateVial(reconVial.id, { water_ml: Number(patch.water) });
         return w;
       });
       setSaving(false);
