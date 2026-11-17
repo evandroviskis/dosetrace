@@ -85,7 +85,7 @@ test('council (3): the serving unit warning says how to fix it, natural in all 6
 // (4) The Fold opening (founder rule "no spinners", picture a135).
 test('council (4a): the Dose log on the book\'s right page loads on its plain page ground, no spinner', () => {
   const log = read('screens/LogScreen.js');
-  assert.match(log, /\{listState === 'loading' \? \(\s*<View style=\{s\.loadingBox\}>\s*\{!embedded && <ActivityIndicator size="large" color=\{colors\.accent\} \/>\}\s*<\/View>/);
+  assert.match(log, /\{listState === 'loading' && !lead \? \(\s*<View style=\{s\.loadingBox\}>\s*\{!embedded && <ActivityIndicator size="large" color=\{colors\.accent\} \/>\}\s*<\/View>/);
   assert.match(log, /loadingBox: \{ flex: 1, paddingTop: 96, alignItems: 'center' \}/, 'no ground of its own: the page ground shows');
 });
 

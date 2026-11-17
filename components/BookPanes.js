@@ -82,23 +82,28 @@ export function useUnfoldToPage(routeName, { embedded, params, beforeLeave } = {
   }, [book, embedded, routeName]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-// The two pages (BK-3…BK-9): equal halves around a centred gutter with a hairline, each page
+// The two pages (BK-3…BK-9; leftKey: FT-3): equal halves around a centred gutter with a hairline, each page
 // scrolls on its own (the page content brings its own ScrollView). The tab bar stays outside,
 // so it spans the full width (BK-8).
-export default function BookPanes({ left, right, rightKey }) {
+export default function BookPanes({ left, right, rightKey, leftKey }) {
   const { colors } = useTheme();
-  // BK-21: when the user opens another item, the screen reader moves to the right page.
+  // BK-21: when the user opens another item, the screen reader moves to the page that changed —
+  // the right page by default; Today on the Fold opens a tapped dose on the left (FT-3, leftKey).
   const rightRef = useRef(null);
-  const firstKey = useRef(rightKey);
+  const leftRef = useRef(null);
+  const keys = useRef({ left: leftKey, right: rightKey });
   useEffect(() => {
-    if (rightKey === firstKey.current) return;
-    firstKey.current = rightKey;
-    const node = rightRef.current ? findNodeHandle(rightRef.current) : null;
-    if (node) setTimeout(() => { try { AccessibilityInfo.setAccessibilityFocus(node); } catch { /* not available */ } }, 250);
-  }, [rightKey]);
+    const focus = (ref) => {
+      const node = ref.current ? findNodeHandle(ref.current) : null;
+      if (node) setTimeout(() => { try { AccessibilityInfo.setAccessibilityFocus(node); } catch { /* not available */ } }, 250);
+    };
+    if (leftKey !== keys.current.left) focus(leftRef);
+    else if (rightKey !== keys.current.right) focus(rightRef);
+    keys.current = { left: leftKey, right: rightKey };
+  }, [leftKey, rightKey]);
   return (
     <View style={s.row}>
-      <View style={s.pane}>{left}</View>
+      <View style={s.pane} key={leftKey} ref={leftRef} accessible={false}>{left}</View>
       <View style={s.gutter} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <View style={[s.hair, { backgroundColor: colors.line }]} />
       </View>

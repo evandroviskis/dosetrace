@@ -30,7 +30,7 @@ test('A-136 (8): Today root has no bottom padding, so the Undo toast never sits 
 
 test('A-136 (8): one toast and one Undo handler for both postures, drawn after the pages', () => {
   const ret = SRC.slice(SRC.indexOf('<SafeAreaView style={s.container}'));
-  const panes = ret.indexOf('{book ? <BookPanes left={leftPage} right={renderRightPage()} rightKey={bookSel} /> : leftPage}');
+  const panes = ret.indexOf('{book ? <BookPanes left={bookLeft} right={bookRight} leftKey={leftKey} rightKey="today" /> : leftPage}');
   const toast = ret.indexOf('<View style={toast.undoBar}>');
   assert.ok(panes > 0 && toast > panes, 'the toast follows the pages (on top of them)');
   assert.equal((SRC.match(/onPress=\{undoTake\}/g) || []).length, 1, 'one Undo control');

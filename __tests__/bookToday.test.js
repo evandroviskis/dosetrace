@@ -79,20 +79,18 @@ test('BK-2/BK-3: Today renders BookPanes only under `book`; one column is the un
   // leftPage is the Today ScrollView itself — the same element the phone always rendered.
   const lp = varInit(todayAst, 'leftPage');
   assert.ok(lp && lp.type === 'JSXElement' && lp.openingElement.name.name === 'ScrollView', 'leftPage is the Today ScrollView');
-  const leftSrc = code(TODAY, lp);
-  for (const piece of ['alerts.length > 0', 'pendingYest.length > 0', '<TodayTracker', '<FoodLogHero', 'todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))', 'takenNames.length > 0', "foldRow('tom'", "foldRow('n5'"]) {
-    assert.ok(leftSrc.includes(piece), `the left page keeps ${piece}`);
-  }
-  // Both pages: left = leftPage, right = the right page, keyed by the open item.
-  assert.equal(code(TODAY, attr(n, 'left').value.expression), 'leftPage');
-  assert.equal(code(TODAY, attr(n, 'right').value.expression), 'renderRightPage()');
-  assert.equal(code(TODAY, attr(n, 'rightKey').value.expression), 'bookSel');
+  // Its blocks (and their order) are checked by __tests__/foldTodayLayout.test.js FT-6.
+  // Fold Today layout (founder 2026-11-17, FT-1 / FT-2): left = bookLeft, right = bookRight.
+  assert.equal(code(TODAY, attr(n, 'left').value.expression), 'bookLeft');
+  assert.equal(code(TODAY, attr(n, 'right').value.expression), 'bookRight');
+  assert.equal(code(TODAY, attr(n, 'leftKey').value.expression), 'leftKey');
+  assert.equal(attr(n, 'rightKey').value.value, 'today');
 });
 
 test('BK-2: every Today tap that changed for the book keeps the phone navigation when book is false', () => {
   assert.match(TODAY, /onPress=\{\(\) => \(book \? openDoseOnPage\(p\) : navigation\.navigate\('Protocols', \{ openProtocolId: p\.id \}\)\)\}/,
     'the dose card: book → dose page, phone → the protocol screen as before');
-  assert.match(TODAY, /onHistory=\{\(\) => \(book \? bookSelect\('log'\) : navigation\.navigate\('Log'\)\)\}/,
+  assert.match(TODAY, /onHistory=\{\(\) => \(book \? \(bookSelect\('log'\), setLogScroll\(\{ to: 'log', n: Date\.now\(\) \}\)\) : navigation\.navigate\('Log'\)\)\}/,
     'View history: book → Dose log on the right page, phone → push Log as before');
   // No other navigate('Log') call sneaks into the book branch.
   assert.equal((TODAY.match(/navigate\('Log'\)/g) || []).length, 1);
@@ -106,16 +104,16 @@ test('BK-2: every Today tap that changed for the book keeps the phone navigation
   assert.match(pend, /\{book \? \(\s*<TouchableOpacity[\s\S]*onPress=\{\(\) => openDoseSlot\(item\.protocolId, item\.dayKey, item\.slotMs\)\}[\s\S]*\) : \(\s*<View style=\{s\.pendRow\}>/);
 });
 
-test('BK-3: the right page is the Dose log by default and the tapped dose otherwise', () => {
+test('BK-3 (FT-1 / FT-3 since 2026-11-17): the Dose log by default, the tapped dose\'s page otherwise — now on the left page', () => {
   const sel = calls(todayAst, 'useBookSelection');
   assert.equal(sel.length, 1);
   assert.deepEqual(sel[0].arguments.map((a) => a.value), ['Today', 'log'], "useBookSelection('Today', 'log')");
-  const right = fnDecl(todayAst, 'renderRightPage');
-  assert.ok(right, 'renderRightPage exists');
-  const rsrc = code(TODAY, right);
-  assert.match(rsrc, /<LogScreen embedded refreshKey=\{logRev\} onChanged=\{afterLogChange\} popupGate=\{logPopupGate\} \/>/, 'the default right page is the embedded Dose log');
+  const page = fnDecl(todayAst, 'renderDosePage');
+  assert.ok(page, 'renderDosePage exists');
+  const rsrc = code(TODAY, page);
+  assert.match(TODAY, /const bookLeft = dosePage \|\| \(\s*<LogScreen embedded lead=/, 'the default left page is the embedded Dose log');
   // A-115 (founder 2026-10-07): the tapped dose opens its protocol's page (no copy of the card).
-  assert.match(rsrc, /if \(!p\) \{/, 'nothing tapped: the Dose log');
+  assert.match(rsrc, /if \(!p\) return null;/, 'nothing tapped: the Dose log');
   assert.match(rsrc, /<ProtocolDetail/);
   // BK-16: a tapped dose is ONE slot — protocol, day and scheduled time (lib/dosePageState.js).
   const slotOpen = code(TODAY, fnDecl(todayAst, 'openDoseSlot'));
@@ -150,13 +148,7 @@ test('BK-8: the dose open on the right page has a 2 pt ink outline (book only, t
   }
 });
 
-test('BK-9: in the book the Undo toast and the notice stay on the left page, off the fold', () => {
-  assert.match(TODAY, /const toastOnLeftPage = book \? \{ right: undefined, width: paneWidths\(winW\)\.left - 24 \} : null;/);
-  assert.match(TODAY, /undoBar: \[s\.undoBar, toastOnLeftPage\], takeNoticeBar: \[s\.takeNoticeBar, toastOnLeftPage\]/);
-  assert.match(TODAY, /\n\s*: s;/, 'one column keeps the old toast styles');
-  assert.match(TODAY, /style=\{toast\.undoBar\}/);
-  assert.match(TODAY, /style=\{toast\.takeNoticeBar\}/);
-});
+// BK-9 (toasts on the left page) is superseded by FT-4: __tests__/foldTodayLayout.test.js.
 
 test('BK-10: Today pushes an opened Dose log as the Log screen when the device folds', () => {
   const fp = calls(todayAst, 'useFoldPush');
@@ -194,8 +186,7 @@ test('BK-19: a dose taken, skipped or undone on the left page refreshes the dose
   assert.match(code(TODAY, fnDecl(todayAst, 'skipDose')), /fetchPageLogs\(\)/, 'after a skip');
   assert.match(code(TODAY, fnDecl(todayAst, 'fetchPendingYesterday')), /fetchPageLogs\(\)/, 'after a pending write and every undo (applyUndo → fetchPendingYesterday)');
   assert.match(code(TODAY, fnDecl(todayAst, 'applyUndo')), /fetchPendingYesterday\(\)/);
-  const rsrc = code(TODAY, fnDecl(todayAst, 'renderRightPage'));
-  assert.match(rsrc, /const logRev = JSON\.stringify\(\[takenCounts, skippedCounts, undoData \? undoData\.logId : null, pendingYest\.length, dataRev\]\);/);
+  assert.match(TODAY, /const logRev = JSON\.stringify\(\[takenCounts, skippedCounts, undoData \? undoData\.logId : null, pendingYest\.length, dataRev\]\);/);
 });
 
 test('BK-19: the dose page reloads when the app returns to the foreground and follows the clock', () => {
@@ -261,7 +252,7 @@ test('BK-21: the selected dose card, pending row and upcoming row report themsel
 // ── LogScreen ──────────────────────────────────────────────────
 
 test('BK-3: LogScreen embedded has no back row and no top safe-area edge', () => {
-  assert.match(LOG, /export default function LogScreen\(\{ embedded = false, refreshKey, onChanged, popupGate \} = \{\}\)/);
+  assert.match(LOG, /export default function LogScreen\(\{ embedded = false, refreshKey, onChanged, popupGate, lead = null, scrollRequest = null \} = \{\}\)/);
   assert.match(LOG, /<SafeAreaView style=\{s\.container\} edges=\{embedded \? \['left', 'right'\] : TAB_SCREEN_EDGES\}>/, // A-136 (1): the tab bar owns the bottom
     'embedded: no top edge; not embedded: no bottom edge, the glass bar is under it (A-206 2026-11-01)');
   // navigation.goBack only inside {!embedded && …}

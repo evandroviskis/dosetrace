@@ -1,0 +1,144 @@
+<title>Hoje no Fold aberto</title>
+<style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0;--rec:#17623F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--rec:#62C597;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--rec:#62C597;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--pink);font:15px/1.45 -apple-system,Roboto,"Segoe UI",sans-serif;padding-inline:16px;padding-block:0}
+.wrap{max-width:1240px;margin:0 auto}
+header{padding-top:26px}
+h1{font-size:24px;margin:0 0 6px;letter-spacing:-.3px;text-wrap:balance}
+header p,.lead{color:var(--pink2);margin:0 0 12px;max-width:80ch}
+h2{font-size:18px;margin:34px 0 4px;text-wrap:balance}
+h2 .rec{font-size:12px;font-weight:700;color:var(--rec);border:1px solid var(--rec);border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle;letter-spacing:.04em}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:18px}
+.scroll{overflow-x:auto}
+.cap{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pink2);margin:0 0 6px}
+/* app surfaces: lib/theme.js tokens, fixed per theme */
+.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--ink:#111315;--ink2:#454A4F;--ink3:#6B7075;--act:#111315;--onAct:#FFFFFF;--attention:#7E4A00;--ok:#17623F;--blue:#2F5BD3}
+.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#8D9290;--act:#EEEFEB;--onAct:#121416;--attention:#E3A54E;--ok:#62C597;--blue:#8AA8FF}
+.fold{display:grid;grid-template-columns:1fr 1fr;width:100%;min-width:520px;height:620px;border-radius:24px;overflow:hidden;border:6px solid #1b1d20;position:relative}
+.pg{background:var(--ground);color:var(--ink);padding:12px 12px 0;min-width:0;overflow:hidden;position:relative;font-size:13px}
+.pg+.pg{border-left:1px solid var(--line)}
+.pg::after{content:"";position:absolute;left:0;right:0;bottom:0;height:44px;background:linear-gradient(transparent,var(--ground))}
+.date{font-size:11px;color:var(--ink2)}
+.title{font-size:24px;font-weight:700;letter-spacing:-.4px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
+.mag{width:26px;height:26px;border-radius:50%;background:var(--well);display:grid;place-items:center}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:12px 2px 6px}
+.sec b{font-size:16px}.sec span{color:var(--ink2);font-size:12px}
+.lab{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin:10px 2px 6px}
+.card{background:var(--raised);border-radius:18px}
+.alert{display:flex;gap:10px;align-items:center;padding:10px 12px}
+.alert+.alert{border-top:1px solid var(--line)}
+.alert .t{flex:1;min-width:0}.alert b{font-size:13px;display:block}.alert small{color:var(--ink2);font-size:11px}
+.dotA{width:7px;height:7px;border-radius:50%;background:var(--attention);display:inline-block;margin-left:5px;vertical-align:middle}
+.pill{font-size:11px;font-weight:600;background:var(--act);color:var(--onAct);border-radius:14px;padding:5px 10px;white-space:nowrap}
+.rings{display:flex;justify-content:space-around;padding:10px 6px}
+.ring{text-align:center;font-size:11px;color:var(--ink2)}.ring b{display:block;color:var(--ink);font-size:13px}
+.food{padding:12px;display:flex;flex-direction:column;gap:8px}
+.foodtop{display:flex;gap:10px;align-items:center}
+.fic{width:34px;height:34px;border-radius:50%;background:var(--well);display:grid;place-items:center;flex:none}
+.food small{color:var(--ink2);font-size:11px;display:block}
+.blue{background:var(--blue);color:#fff;border-radius:16px;min-height:32px;display:grid;place-items:center;font-weight:600;font-size:12px}
+.dark .blue{color:#0C0D0E}
+.dcard{background:var(--raised);border-radius:18px;padding:10px 12px;margin-bottom:8px}
+.dcard.sel{outline:2px solid var(--ink)}
+.dtop{display:flex;justify-content:space-between;align-items:baseline}
+.dname{font-weight:600;font-size:14px;display:flex;gap:7px;align-items:center}
+.c{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dtime{font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.dsub{font-size:11px;color:var(--ink2);margin-top:2px}
+.due{font-size:10px;font-weight:600;color:var(--attention);border:1px solid var(--attention);border-radius:9px;padding:1px 6px;margin-left:6px}
+.btns{display:grid;grid-template-columns:1fr 1.6fr;gap:6px;margin-top:8px}
+.b{min-height:28px;border-radius:14px;display:grid;place-items:center;font-size:12px;font-weight:600}
+.b.s{background:var(--well);color:var(--ink)}.b.p{background:var(--act);color:var(--onAct)}
+.pend{padding:10px 12px}.pend .btns{grid-template-columns:1fr 1fr}
+.taken{display:flex;gap:8px;align-items:center;padding:9px 12px;margin-bottom:8px}
+.okc{color:var(--ok);font-weight:700}
+.taken small{color:var(--ink2);display:block;font-size:11px}
+.fl{padding:0 12px}.flr{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.flr:last-child{border-bottom:0}.flr span:last-child{color:var(--ink3)}
+.chips{display:flex;gap:5px;margin:0 0 8px;flex-wrap:wrap}.chip{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--ink2)}.chip.on{background:var(--act);color:var(--onAct);border-color:var(--act)}
+.lr{display:flex;gap:8px;align-items:center;padding:8px 12px}.lr+.lr{border-top:1px solid var(--line)}
+.lr .t{flex:1;min-width:0}.lr b{font-weight:500;font-size:13px;display:block}.lr small{color:var(--ink2);font-size:11px}
+.st{font-size:10px;font-weight:600;border-radius:9px;padding:1px 7px;border:1px solid}
+.st.ok{color:var(--ok);border-color:var(--ok)}.st.miss{color:var(--attention);border-color:var(--attention)}
+.back{font-size:13px;color:var(--ink);font-weight:600;margin:2px 0 8px}
+.pname{font-size:20px;font-weight:700;letter-spacing:-.3px;margin:0 0 4px}
+.blk{background:var(--raised);border-radius:16px;padding:10px 12px;margin-bottom:8px}.blk h5{margin:0 0 4px;font-size:11px;color:var(--ink2)}
+.kv{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line)}.kv:last-child{border-bottom:0}
+.syr{height:22px;border-radius:6px;background:var(--well);position:relative;margin:4px 0}.syr i{position:absolute;left:0;top:0;bottom:0;width:22%;background:var(--blue);border-radius:6px 0 0 6px}
+.mark{position:absolute;right:10px;top:10px;font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--ink3);text-transform:uppercase;z-index:1}
+.notes{margin:30px 0 48px}.notes ol{max-width:82ch;padding-left:20px}.notes li{margin:7px 0}
+.ask{font-weight:600}
+</style>
+
+<div class="wrap">
+<header>
+<h1>Hoje com o Fold aberto: o que tomar primeiro</h1>
+<p>Seu pedido: as doses de hoje na página direita, sem rolar; o Registro de doses (o que já foi tomado) na esquerda; os alertas onde estão; o registro de comida também na direita. Cada quadro é a tela do Fold aberto, no tamanho real dela. O que fica abaixo da borda só aparece rolando. Exemplo com protocolos fictícios. Com o Fold fechado e no iPhone, nada muda.</p>
+</header>
+
+<h2>App hoje</h2>
+<p class="lead">As doses ficam abaixo dos alertas, dos anéis e do cartão de comida, e saem da tela. O cartão de comida também fica cortado. A direita mostra o histórico.</p>
+<div class="pair" id="today"></div>
+
+<h2>Opção A: comida em cima, depois as doses <span class="rec">MINHA RECOMENDAÇÃO</span></h2>
+<p class="lead">Esquerda: Hoje, alertas, anéis e Registro de doses. Direita: o registro de comida (cartão curto, de tamanho fixo), o pendente de ontem, as doses de hoje, as concluídas e, por fim, Amanhã e Próximos 5 dias.</p>
+<div class="pair" id="optA"></div>
+
+<h2>Opção B: doses em cima, comida abaixo</h2>
+<p class="lead">Igual à A, mas na direita as doses vêm antes da comida. Com 4 ou mais doses no dia, o cartão de comida sai da tela de novo.</p>
+<div class="pair" id="optB"></div>
+
+<h2>Ao tocar numa dose (A ou B)</h2>
+<p class="lead">A página do protocolo ocupa a esquerda inteira: seringa, frasco, horários e notas. "‹ Registro de doses" volta. O cartão tocado fica marcado à direita, com Pular e Concluir. A regra de 07/10 continua valendo: o outro lado acrescenta, nunca repete.</p>
+<div class="pair" id="tap"></div>
+
+<section class="notes">
+<h2>O que muda, além do que o senhor pediu</h2>
+<ol>
+<li><b>Pendente de ontem vai para a direita</b>, logo acima das doses de hoje. Também é uma dose para resolver agora.</li>
+<li><b>Dose aberta pelo lembrete</b> ("Do seu lembrete") fica no topo da direita, destacada, como hoje.</li>
+<li><b>Os anéis (hoje, 7 e 30 dias) vão para a esquerda</b>, acima do Registro. Os dois falam do que já foi feito.</li>
+<li><b>Amanhã e Próximos 5 dias continuam na direita</b>, abaixo das doses de hoje, porque são o que vem a seguir.</li>
+<li><b>O cartão de comida só aparece enquanto "Seus números reais" está em andamento</b> (regra já existente). Fora disso, as doses ficam no topo da direita nas duas opções.</li>
+<li>A pesquisa do app continua no canto do título "Hoje", à esquerda. Os resultados abrem na página do lado.</li>
+</ol>
+<p class="ask">Qual o senhor prefere: A (comida em cima) ou B (doses em cima)? E a dose tocada pode abrir o protocolo à esquerda?</p>
+</section>
+</div>
+
+<script>
+const ic='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+const foodIc='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v8a2 2 0 0 0 2 2v8M5 3v5M9 3v5M17 3c-2 2-2 6 0 8v10"/></svg>';
+const head='<div class="date">Terça-feira, 17 de novembro</div><div class="title">Hoje<span class="mag">'+ic+'</span></div>';
+const alerts='<div class="lab">Alertas</div><div class="card"><div class="alert"><div class="t"><b>Frasco de BPC-157 acabando<span class="dotA"></span></b><small>Restam 2 doses</small></div><span class="pill">Novo frasco</span></div><div class="alert"><div class="t"><b>Exame de sangue em 3 dias</b><small>Sex, 20 de nov</small></div><span class="pill">Ver</span></div></div>';
+const ringSvg=(p)=>'<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--well)" stroke-width="5"/><circle cx="20" cy="20" r="16" fill="none" stroke="var(--ok)" stroke-width="5" stroke-dasharray="'+(p*100.5)+' 200" transform="rotate(-90 20 20)" stroke-linecap="round"/></svg>';
+const rings='<div class="card rings" style="margin-top:10px"><div class="ring">'+ringSvg(.25)+'<b>1 de 4</b>Hoje</div><div class="ring">'+ringSvg(.93)+'<b>93%</b>7 dias</div><div class="ring">'+ringSvg(.88)+'<b>88%</b>30 dias</div><div class="ring" style="align-self:center"><b>12</b>doses seguidas</div></div>';
+const food='<div class="card food" style="margin-top:10px"><div class="foodtop"><span class="fic">'+foodIc+'</span><div><b>Registro de comida com IA</b><small>Seus números reais · dia 3 de 7 · Nada registrado hoje ainda</small></div></div><div class="blue">Registrar comida</div></div>';
+const d=(n,col,time,sub,o={})=>'<div class="dcard'+(o.sel?' sel':'')+'"><div class="dtop"><span class="dname"><i class="c" style="background:'+col+'"></i>'+n+(o.due?'<span class="due">agora</span>':'')+'</span><span class="dtime">'+time+' ›</span></div><div class="dsub">'+sub+'</div><div class="btns"><div class="b s">Pular</div><div class="b p">Concluir</div></div></div>';
+const doses=(sel)=>'<div class="sec"><b>Doses de hoje</b><span>1 de 4 concluídas</span></div>'
+ +d('SLU-PP-332','#E07A5F','08:00','500 mcg · 10 unidades na seringa',{due:1,sel})
+ +d('BPC-157','#3D9970','09:00','250 mcg · 5 unidades na seringa')
+ +d('SLU-PP-332','#E07A5F','20:00','500 mcg · 10 unidades na seringa')
+ +'<div class="card taken"><span class="okc">✓</span><div><b>Doses concluídas</b><small>GHK-Cu</small></div></div>';
+const dosesLeftOld='<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div>'+d('SLU-PP-332','#E07A5F','08:00','500 mcg · 10 unidades na seringa',{due:1})+d('BPC-157','#3D9970','09:00','250 mcg · 5 unidades na seringa');
+const pend='<div class="lab">Pendente de ontem</div><div class="card pend"><div class="dtop"><span class="dname"><i class="c" style="background:#8E7DBE"></i>GHK-Cu</span><span class="dtime">ontem, 22:00</span></div><div class="btns"><div class="b s">Pular dose</div><div class="b p">Concluir dose</div></div></div>';
+const upcoming='<div class="card fl" style="margin-top:4px"><div class="flr"><span>Amanhã</span><span>4 ›</span></div><div class="flr"><span>Próximos 5 dias</span><span>18 ›</span></div></div>';
+const lr=(n,col,w,st)=>'<div class="lr"><i class="c" style="background:'+col+'"></i><div class="t"><b>'+n+'</b><small>'+w+'</small></div><span class="st '+(st==='Perdida'?'miss':'ok')+'">'+st+'</span></div>';
+const log='<div class="sec"><b>Registro de doses</b><span></span></div><div class="chips"><span class="chip on">Todas</span><span class="chip">Concluídas</span><span class="chip">Puladas</span><span class="chip">Perdidas</span></div>'
+ +'<div class="lab">Hoje</div><div class="card">'+lr('GHK-Cu','#8E7DBE','07:10 · abdômen esq.','Concluída')+'</div>'
+ +'<div class="lab">Ontem</div><div class="card">'+lr('SLU-PP-332','#E07A5F','20:04 · coxa dir.','Concluída')+lr('BPC-157','#3D9970','09:02 · abdômen dir.','Concluída')+lr('SLU-PP-332','#E07A5F','08:00','Perdida')+lr('Testosterona cipionato','#2F5BD3','07:30 · glúteo esq.','Concluída')+'</div>'
+ +'<div class="lab">Domingo</div><div class="card">'+lr('SLU-PP-332','#E07A5F','20:10 · abdômen esq.','Concluída')+lr('GHK-Cu','#8E7DBE','22:05 · abdômen dir.','Concluída')+'</div>';
+const protoPage='<div class="back">‹ Registro de doses</div><div class="pname">SLU-PP-332</div><div class="dsub" style="margin-bottom:8px">500 mcg · 2 vezes ao dia · injetável</div>'
+ +'<div class="blk"><h5>Aspirar até</h5><div class="syr"><i></i></div><div class="kv"><span>Seringa</span><span>10 u · 0,10 ml</span></div></div>'
+ +'<div class="blk"><h5>Frasco</h5><div class="kv"><span>Restam</span><span>29 doses</span></div><div class="kv"><span>Misturado em</span><span>16 nov</span></div><div class="kv"><span>Validade</span><span>14 dez</span></div></div>'
+ +'<div class="blk"><h5>Horários e lembretes</h5><div class="kv"><span>Frequência</span><span>Todos os dias</span></div><div class="kv"><span>Lembretes</span><span>08:00 · 20:00</span></div></div>'
+ +'<div class="blk"><h5>Notas</h5><div class="dsub">ex.: alternar os locais de injeção</div></div>';
+const F=(th,label,L,R)=>'<div><p class="cap">'+label+'</p><div class="scroll"><div class="fold '+th+'"><div class="pg">'+L+'</div><div class="pg">'+R+'</div></div></div></div>';
+const both=(id,L,R)=>{document.getElementById(id).innerHTML=F('light','Claro',L,R)+F('dark','Escuro',L,R)};
+both('today',head+alerts+rings+food+dosesLeftOld,log);
+both('optA',head+alerts+rings+log,'<div style="height:46px"></div>'+food+pend+doses(false)+upcoming);
+both('optB',head+alerts+rings+log,'<div style="height:46px"></div>'+pend+doses(false)+food+upcoming);
+both('tap',protoPage,'<div style="height:46px"></div>'+pend+doses(true)+upcoming);
+</script>

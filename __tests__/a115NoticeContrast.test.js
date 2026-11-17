@@ -130,7 +130,7 @@ test('A-115 "A": the pending focus is used once, only by the field it names on t
 });
 
 test('A-115 "A": Today sends the focus target; My Protocols passes it to Edit, clears it, scrolls to the field and focuses it', () => {
-  const right = between(TODAY, 'function renderRightPage()', '\n  }\n');
+  const right = between(TODAY, 'function renderDosePage()', '\n  }\n');
   assert.match(right, /navigation\.navigate\('Protocols', \{ openProtocolId: p\.id, editStep: 3, focusField: 'container' \}\)/);
   // The link effect: the decision gets the focus param and hands it to openEdit; both params are cleared.
   const i = PROT.indexOf('const decision = editStepLinkAction(');

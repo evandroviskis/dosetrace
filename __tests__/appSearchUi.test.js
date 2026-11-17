@@ -359,7 +359,7 @@ test('AS-7: the Dose log opens filtered from a result; "Ver histórico" and the 
   for (const [id, f] of [['D01', 'Missed'], ['D02', 'Skipped'], ['D03', 'Taken']]) assert.equal(S.CATALOG.find((e) => e.id === id).open.params.filter, f);
   assert.equal(S.CATALOG.find((e) => e.id === 'D04').open.params, undefined);
   const today = code('screens/TodayScreen.js');
-  assert.match(today, /function renderRightPage\(\) \{\s*if \(bookSel === SEARCH_PAGE\) return <AppSearchScreen embedded tab="Today" \/>;/);
+  assert.match(today, /\{searchOpen && <AppSearchScreen embedded tab="Today" \/>\}/); // FT-5: the search stays on the right page
   // the existing paths never pass a filter
   for (const m of today.matchAll(/navigate\('Log'([^)]*)\)/g)) assert.doesNotMatch(m[1], /filter/);
   for (const m of code('screens/ProtocolsScreen.js').matchAll(/navigate\('Log'([^)]*)\)/g)) assert.doesNotMatch(m[1], /filter/);

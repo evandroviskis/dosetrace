@@ -81,7 +81,11 @@ function logExplainers(userId) {
   ];
 }
 
-export default function LogScreen({ embedded = false, refreshKey, onChanged, popupGate } = {}) {
+// lead (embedded, Fold Today FT-1, founder 2026-11-17): Today's title, alerts and rings drawn above the
+// Dose log in the same list (one scroll); the log title then shrinks to a section title with the
+// curve button beside it. scrollRequest { to: 'top' | 'log', n }: scrolls the list to the top (App
+// search "Alertas") or to the log's own title under the lead (the streak row on Today).
+export default function LogScreen({ embedded = false, refreshKey, onChanged, popupGate, lead = null, scrollRequest = null } = {}) {
   const { t, language, timeFormat } = useLanguage();
   // A-134: a dose row names its protocol as Today does (translated compound, else the typed name).
   const logName = (log) => (log && log.protocols ? protocolDisplayName(log.protocols, t) : t('log_protocol_deleted'));
@@ -139,6 +143,25 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
 
   // BK-10: a Dose log pushed while folded moves onto Today's right page on unfold.
   useUnfoldToPage('Log', { embedded });
+
+  const listRef = useRef(null);
+  const leadH = useRef(null); // the lead's height (its onLayout); the log's title starts there
+  const pendingScroll = useRef(null);
+  const applyScroll = () => {
+    const req = pendingScroll.current;
+    if (!req || !listRef.current) return;
+    if (req.to === 'log' && leadH.current == null) return; // waits for the lead's layout
+    pendingScroll.current = null;
+    const y = req.to === 'log' ? leadH.current : 0;
+    try { listRef.current.getScrollResponder().scrollTo({ y, animated: true }); } catch { /* list not laid out yet */ }
+  };
+  useEffect(() => {
+    // A request is a moment (n = Date.now()): a log that mounts later (back from a protocol page)
+    // never replays an old one.
+    if (!scrollRequest || Date.now() - scrollRequest.n > 2000) return;
+    pendingScroll.current = scrollRequest;
+    applyScroll();
+  }, [scrollRequest && scrollRequest.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Embedded: refetch when a dose is written on Today's left page (not on the first
   // render; the focus effect below loads the list).
@@ -653,10 +676,29 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     ],
   } : null;
 
+  // The curve button: in the nav row, or beside the title when Today's lead sits above (FT-1).
+  const curveBtn = (
+    <TouchableOpacity
+      style={s.curveBtn}
+      onPress={async () => { Analytics.viewed('serum_curve'); const pro = await hasPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
+      accessibilityRole="button"
+      accessibilityLabel={t('curve_btn')}
+    >
+      <FeatureIcon name="curve" size={15} color={colors.ink} />
+      <Text style={s.curveBtnText}>{t('curve_btn')}</Text>
+    </TouchableOpacity>
+  );
+
   // Everything above the day sections scrolls with them (one list, no fixed bars).
+  const leadEl = lead ? <View style={s.leadBleed} onLayout={(e) => { leadH.current = e.nativeEvent.layout.height; applyScroll(); }}>{lead}</View> : null;
   const header = (
     <View style={s.top}>
-      <Text style={s.title}>{t('log_title')}</Text>
+      {lead ? (
+        <View style={s.leadTitleRow}>
+          <Text style={[s.title, s.titleLead]}>{t('log_title')}</Text>
+          {curveBtn}
+        </View>
+      ) : <Text style={s.title}>{t('log_title')}</Text>}
       {/* A-181 option B: the state of the data, never an alert colour (DESIGN.md §2.5) */}
       {unsync ? (
         <View style={s.unsyncCard}>
@@ -715,6 +757,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
 
   return (
     <SafeAreaView style={s.container} edges={embedded ? ['left', 'right'] : TAB_SCREEN_EDGES}>
+      {!lead && (
       <View style={[s.nav, embedded && s.navEmbedded]}>
         {!embedded && (
           <TouchableOpacity
@@ -726,33 +769,29 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
             <Text style={s.back}>‹ {backLabelFor(navigation, t)}</Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity
-          style={s.curveBtn}
-          onPress={async () => { Analytics.viewed('serum_curve'); const pro = await hasPremium(); navigation.navigate(pro ? 'SerumCurve' : 'Paywall', pro ? undefined : { source: 'log_serum' }); }}
-          accessibilityRole="button"
-          accessibilityLabel={t('curve_btn')}
-        >
-          <FeatureIcon name="curve" size={15} color={colors.ink} />
-          <Text style={s.curveBtnText}>{t('curve_btn')}</Text>
-        </TouchableOpacity>
+        {curveBtn}
       </View>
+      )}
 
       {/* A-135 council (4a): on the book's right page (embedded) the page ground stays plain while it
           loads — no spinner on the opening (founder rule, picture a135). */}
-      {listState === 'loading' ? (
+      {/* FT-1: with Today's lead the list is always mounted (the lead never mounts twice); while it
+          loads it holds only the lead, no counts and no empty state (A-120). */}
+      {listState === 'loading' && !lead ? (
         <View style={s.loadingBox}>
           {!embedded && <ActivityIndicator size="large" color={colors.accent} />}
         </View>
       ) : (
       <SectionList
-        sections={sections}
+        ref={listRef}
+        sections={listState === 'loading' ? [] : sections}
         keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
         style={s.scroll}
         contentContainerStyle={s.centered}
         stickySectionHeadersEnabled={false}
-        ListHeaderComponent={header}
-        ListEmptyComponent={
+        ListHeaderComponent={lead ? <>{leadEl}{listState === 'loading' ? null : header}</> : header}
+        ListEmptyComponent={listState === 'loading' ? null : (
           <View style={s.emptyState}>
             <View style={s.emptyIcon}><FeatureIcon name="journal" size={44} color={colors.ink3} /></View>
             <Text style={s.emptyTitle}>
@@ -762,7 +801,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
             </Text>
             {listState === 'empty' && filter === 'All' && <Text style={s.emptySub}>{t('log_empty_sub')}</Text>}
           </View>
-        }
+        )}
         renderSectionHeader={({ section }) => (
           <View style={s.groupHeader}>
             <Text style={s.groupDate}>{section.title}</Text>
@@ -971,6 +1010,9 @@ const makeStyles = (c) => StyleSheet.create({
   curveBtnText: { fontSize: 13, color: c.ink },
   scroll: { flex: 1, paddingHorizontal: 16 },
   top: { gap: 12, paddingBottom: 16 },
+  leadBleed: { marginHorizontal: -16 },
+  leadTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 },
+  titleLead: { fontSize: 22, fontWeight: '700', letterSpacing: 0, paddingTop: 0, flexShrink: 1 },
   title: { fontSize: 34, fontWeight: '600', color: c.ink, letterSpacing: -0.7, paddingHorizontal: 4, paddingTop: 4 },
   expl: { backgroundColor: c.raised, borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16 },
   explText: { fontSize: 15, lineHeight: 20, color: c.ink2 },

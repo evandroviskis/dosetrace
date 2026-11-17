@@ -132,5 +132,5 @@ test('FE-2: Evolução renders the same card (same component, same props; the tr
   // the emphasis does not depend on the variant
   assert.doesNotMatch(HERO, /emph[^\n]*variant|variant[^\n]*emph/);
   // and Today keeps the card in its place, under the tracker
-  assert.match(TODAY, /<TodayTracker[\s\S]{0,300}\{\/\* AI food log while a reality check runs \(FL-33\)[^\n]*\*\/\}\s*<FoodLogHero variant="today" onReady=\{heroReadyRef\.current\.resolve\} \/>/);
+  assert.match(TODAY, /<TodayTracker[\s\S]{0,400}\{\/\* AI food log while a reality check runs \(FL-33\)[^\n]*\*\/\}\s*<FoodLogHero variant="today" onReady=\{heroReadyRef\.current\.resolve\} \/>/);
 });

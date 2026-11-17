@@ -14,7 +14,9 @@ const T = require('../i18n/translations.js').translations || require('../i18n/tr
 const TODAY = read('screens/TodayScreen.js');
 const PROT = read('screens/ProtocolsScreen.js');
 const between = (src, a, b) => { const i = src.indexOf(a); assert.ok(i >= 0, a); const j = src.indexOf(b, i + a.length); return src.slice(i, j < 0 ? undefined : j); };
-const right = between(TODAY, 'function renderRightPage()', '\n  }\n');
+// Since 2026-11-17 (docs/specs/fold-today-layout.md FT-3) the page opens on the LEFT (renderDosePage);
+// its content and rules are the A-115 ones.
+const right = between(TODAY, 'function renderDosePage()', '\n  }\n');
 
 test('A-115: a tapped dose opens the protocol page on the right (the same ProtocolDetail as My Protocols)', () => {
   assert.match(PROT, /export function ProtocolDetail\(/);
@@ -23,11 +25,11 @@ test('A-115: a tapped dose opens the protocol page on the right (the same Protoc
   assert.match(right, /deleteProtocol=\{null\}/, 'no Delete next to the doses');
   assert.match(PROT, /\{deleteProtocol \? \(/, 'ProtocolDetail hides Delete when none is given');
   assert.match(right, /navigation\.navigate\('Protocols', \{ openProtocolId: p\.id \}\)/, 'Edit and the sheets open in My Protocols');
-  assert.match(right, /<LogScreen embedded/, 'nothing tapped: the Dose log, as before');
+  assert.match(right, /if \(!p\) return null;/, 'nothing tapped: no page (the left page is the Dose log, FT-1)');
 });
 
 test('A-115: the right page never repeats the card — no Mark taken, Skip or Undo there', () => {
-  for (const id of ['handleTake', 'skipDose', 'takePending', 'skipPending', 'undoFromPage', 'DosePage']) assert.ok(!right.includes(id), `renderRightPage mentions ${id}`);
+  for (const id of ['handleTake', 'skipDose', 'takePending', 'skipPending', 'undoFromPage', '<DosePage']) assert.ok(!right.includes(id), `renderDosePage mentions ${id}`);
   assert.ok(!fs.existsSync(path.join(__dirname, '..', 'screens', 'components', 'DosePage.js')), 'the old dose page is gone (rebuild = replace)');
 });
 

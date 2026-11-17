@@ -231,6 +231,10 @@ export function SkeletonBlock({ spec, first }) {
 // The app's opening after a signed-in session (App.js BootTabs): Today's header and the remembered
 // placeholder blocks, in Today's own column (and on the left page of the book; the right page is
 // the Dose log's, which shows its own loading once the app is up).
+// The blocks Today draws on the Fold's left page (TodayScreen bookLeft lead); the rest go right.
+export const BOOK_LEFT_BLOCKS = ['alerts', 'tracker'];
+export const BOOK_RIGHT_ORDER = ['food', 'pending', 'empty', 'doses'];
+
 export function TodayOpening() {
   const { colors: c } = useTheme();
   const { t, language } = useLanguage();
@@ -238,18 +242,30 @@ export function TodayOpening() {
   const plan = skeletonPlan(cachedTodayLayout(null, book ? 'book' : 'single'));
   const hs = headerStyles(c);
   const date = formatDate(new Date(), language, 'weekdayLong');
+  // Fold open (FT-1 / FT-2, founder 2026-11-17): the title, alerts and rings on the left page, the
+  // food card, pending and doses on the right — each placeholder where its block will appear.
+  const onLeft = (key) => !book || BOOK_LEFT_BLOCKS.includes(key);
+  const blocks = (keep) => plan.map((b, i) => (keep(b.key) ? <SkeletonBlock key={b.key} spec={b} first={i === 0} /> : null));
+  // The right page draws its blocks in TodayScreen bookRight's order (food before pending).
+  const rightBlocks = BOOK_RIGHT_ORDER.map((k) => plan.find((b) => b.key === k)).filter(Boolean)
+    .map((b) => <SkeletonBlock key={b.key} spec={b} first={plan.indexOf(b) === 0} />);
   const page = (
     <ScrollView showsVerticalScrollIndicator={false} scrollEnabled={false} contentContainerStyle={hs.centered}>
       <View style={hs.header}>
         <Text style={hs.date}>{date}</Text>
         <Text style={hs.title}>{t('tab_today')}</Text>
       </View>
-      {plan.map((b, i) => <SkeletonBlock key={b.key} spec={b} first={i === 0} />)}
+      {blocks(onLeft)}
+    </ScrollView>
+  );
+  const right = (
+    <ScrollView showsVerticalScrollIndicator={false} scrollEnabled={false} contentContainerStyle={[hs.centered, hs.rightTop]}>
+      {rightBlocks}
     </ScrollView>
   );
   return (
     <SafeAreaView style={hs.container} edges={TAB_SCREEN_EDGES}>
-      {book ? <BookPanes left={page} right={<View />} rightKey="log" /> : page}
+      {book ? <BookPanes left={page} right={right} leftKey="log" rightKey="today" /> : page}
     </SafeAreaView>
   );
 }
@@ -257,6 +273,7 @@ export function TodayOpening() {
 const headerStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground },
   centered: TODAY_HEADER.centered,
+  rightTop: { paddingTop: 12 }, // as TodayScreen rightPageTop
   header: TODAY_HEADER.header,
   date: { ...TODAY_HEADER.date, color: c.ink2 },
   title: { ...TODAY_HEADER.title, color: c.ink },

@@ -1,0 +1,107 @@
+<title>Dose antes da hora</title>
+<style>
+:root{--page:#F2F3EF;--pink:#16181A;--pink2:#5B6064;--pline:#D3D6D0;--rec:#17623F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--rec:#62C597;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0D0E;--pink:#ECEDE9;--pink2:#A1A6A1;--pline:#2A2E32;--rec:#62C597;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--pink);font:15px/1.45 -apple-system,Roboto,"Segoe UI",sans-serif;padding-inline:16px;padding-block:0}
+.wrap{max-width:1240px;margin:0 auto}
+header{padding-top:26px}
+h1{font-size:24px;margin:0 0 6px;letter-spacing:-.3px;text-wrap:balance}
+header p,.lead{color:var(--pink2);margin:0 0 12px;max-width:80ch}
+h2{font-size:18px;margin:34px 0 4px;text-wrap:balance}
+.rec{font-size:12px;font-weight:700;color:var(--rec);border:1px solid var(--rec);border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle;letter-spacing:.04em}
+.row{display:flex;flex-wrap:wrap;gap:18px}
+.cap{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pink2);margin:0 0 6px}
+.light{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--ink:#111315;--ink2:#454A4F;--ink3:#6B7075;--act:#111315;--onAct:#FFFFFF;--attention:#7E4A00;--ok:#17623F;--scrim:rgba(0,0,0,.35)}
+.dark{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#8D9290;--act:#EEEFEB;--onAct:#121416;--attention:#E3A54E;--ok:#62C597;--scrim:rgba(0,0,0,.55)}
+.phone{width:300px;max-width:100%;height:600px;border-radius:34px;border:6px solid #1b1d20;background:var(--ground);color:var(--ink);padding:14px 12px;overflow:hidden;position:relative;font-size:13px}
+.phone::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;background:linear-gradient(transparent,var(--ground))}
+.date{font-size:11px;color:var(--ink2)}.title{font-size:26px;font-weight:700;letter-spacing:-.4px;margin:0 0 8px}
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:10px 2px 6px}.sec b{font-size:18px}.sec span{color:var(--ink2);font-size:12px}
+.lab{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin:12px 2px 6px;display:flex;justify-content:space-between}
+.dcard{background:var(--raised);border-radius:18px;padding:10px 12px;margin-bottom:8px}
+.dtop{display:flex;justify-content:space-between;align-items:baseline}
+.dname{font-weight:600;font-size:14px;display:flex;gap:7px;align-items:center}
+.c{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dtime{font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.dsub{font-size:11px;color:var(--ink2);margin-top:2px}
+.tag{font-size:10px;font-weight:600;border-radius:9px;padding:1px 7px;margin-left:6px;border:1px solid}
+.tag.due{color:var(--attention);border-color:var(--attention)}
+.tag.later{color:var(--ink2);border-color:var(--line)}
+.btns{display:grid;grid-template-columns:1fr 1.6fr;gap:6px;margin-top:8px}
+.b{min-height:30px;border-radius:15px;display:grid;place-items:center;font-size:12px;font-weight:600}
+.b.s{background:var(--well);color:var(--ink)}.b.p{background:var(--act);color:var(--onAct)}
+.b.o{border:1px solid var(--line);color:var(--ink);background:transparent}
+.tap{outline:2px dashed var(--attention);outline-offset:2px}
+.list{background:var(--raised);border-radius:18px;padding:0 12px}
+.lr{display:flex;gap:8px;align-items:center;padding:10px 0}.lr+.lr{border-top:1px solid var(--line)}
+.lr .t{flex:1;min-width:0}.lr b{font-weight:500;font-size:13px;display:block}.lr small{color:var(--ink2);font-size:11px}
+.mini{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:13px;padding:5px 10px;color:var(--ink)}
+.taken{display:flex;gap:8px;align-items:center;background:var(--raised);border-radius:18px;padding:9px 12px;margin-bottom:8px}
+.okc{color:var(--ok);font-weight:700}.taken small{color:var(--ink2);display:block;font-size:11px}
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:2}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--raised);border-radius:24px 24px 0 0;padding:18px 16px 22px;z-index:3}
+.sheet h4{margin:0 0 6px;font-size:17px}.sheet p{margin:0 0 14px;color:var(--ink2);font-size:13px;line-height:1.4}
+.sb{min-height:42px;border-radius:21px;display:grid;place-items:center;font-weight:600;font-size:14px;margin-top:8px}
+.sb.p{background:var(--act);color:var(--onAct)}.sb.s{background:var(--well);color:var(--ink)}
+.note{font-size:12px;color:var(--pink2);max-width:300px;margin:6px 0 0}
+.notes{margin:30px 0 48px}.notes ol{max-width:82ch;padding-left:20px}.notes li{margin:7px 0}.ask{font-weight:600}
+</style>
+
+<div class="wrap">
+<header>
+<h1>Dose marcada antes da hora: como evitar o toque por engano</h1>
+<p>Caso real: SLU-PP-332 às 08:00 e às 20:00. Às 08:10, depois de marcar a dose das 08:00, o cartão já oferece "Concluir" para a das 20:00, e um toque registra a dose 12 h antes. Exemplo às 08:10 com quatro protocolos. A regra de tempo nas três opções é a mesma, e é a que o senhor sugeriu: <b>mais de 2 h antes do horário</b>.</p>
+</header>
+
+<h2>App hoje</h2>
+<p class="lead">Todos os cartões têm "Concluir" ativo, até o das 20:00 e o das 22:00. O toque grava na hora, sem perguntar.</p>
+<div class="row" id="today"></div>
+
+<h2>Opção A: só a pergunta</h2>
+<p class="lead">A tela fica como está. "Concluir" numa dose com mais de 2 h de antecedência abre uma pergunta antes de gravar.</p>
+<div class="row" id="optA"></div>
+
+<h2>Opção B: "Agora" e "Mais tarde hoje" <span class="rec">MINHA RECOMENDAÇÃO</span></h2>
+<p class="lead">As doses das próximas 2 h (e as atrasadas) ficam em cima, com os botões grandes. As de mais tarde aparecem numa lista curta abaixo (nome, horário e quanto falta), para a pessoa se preparar. "Concluir" nessa lista também faz a pergunta. Às 18:00, a dose das 20:00 sobe sozinha para "Agora".</p>
+<div class="row" id="optB"></div>
+
+<h2>Opção C: esconder as doses distantes</h2>
+<p class="lead">Só aparecem as doses das próximas 2 h. As outras somem até chegar a hora. Não recomendo: a pessoa perde o aviso de que precisa levar a dose com ela.</p>
+<div class="row" id="optC"></div>
+
+<section class="notes">
+<h2>Como funcionaria (A e B)</h2>
+<ol>
+<li><b>A pergunta</b> só aparece com mais de 2 h de antecedência. Com 2 h ou menos, ou com a dose atrasada, "Concluir" grava direto, como hoje.</li>
+<li><b>"Sim, concluí agora"</b> grava a dose com o horário real (08:10), para a dose das 20:00. É o mesmo registro de hoje, só que confirmado.</li>
+<li><b>Lembrete:</b> confirmar antes da hora cancela o lembrete das 20:00, como já acontece hoje ao concluir.</li>
+<li><b>Notificação:</b> o "Concluir" de dentro da notificação não pergunta, porque ela chega no horário.</li>
+<li>Vale para qualquer protocolo, não só os de 2 vezes ao dia: uma dose única das 20:00 marcada às 8 da manhã também pergunta.</li>
+<li>Mudo no celular e no Fold. No Fold aberto, a lista fica na página direita, como no layout aprovado hoje.</li>
+</ol>
+<p class="ask">Qual o senhor prefere: A, B ou C? E 2 h é o limite certo?</p>
+</section>
+</div>
+
+<script>
+const head='<div class="date">Terça-feira, 17 de novembro · 08:10</div><div class="title">Hoje</div>';
+const card=(n,col,time,sub,o={})=>'<div class="dcard'+(o.tap?' tap':'')+'"><div class="dtop"><span class="dname"><i class="c" style="background:'+col+'"></i>'+n+(o.tag||'')+'</span><span class="dtime">'+time+' ›</span></div><div class="dsub">'+sub+'</div><div class="btns"><div class="b s">Pular</div><div class="b p">Concluir</div></div></div>';
+const DUE='<span class="tag due">Pendente</span>';
+const taken='<div class="taken"><span class="okc">✓</span><div><b>Doses concluídas</b><small>SLU-PP-332 · 08:02</small></div></div>';
+const allCards=(tapSlu)=>card('BPC-157','#3D9970','09:00','250 mcg · 5 unidades na seringa')
+ +card('SLU-PP-332','#E07A5F','20:00','500 mcg · 10 unidades na seringa',{tap:tapSlu})
+ +card('GHK-Cu','#8E7DBE','22:00','2 mg · 20 unidades na seringa');
+const sheet='<div class="scrim"></div><div class="sheet"><h4>Esta dose é para as 20:00</h4><p>SLU-PP-332, 500 mcg. Faltam cerca de 12 horas. Marcar como concluída agora?</p><div class="sb p">Sim, concluí agora</div><div class="sb s">Voltar</div></div>';
+const laterList=(tap)=>'<div class="lab"><span>Mais tarde hoje</span><span>2</span></div><div class="list">'
+ +'<div class="lr"><i class="c" style="background:#E07A5F"></i><div class="t"><b>SLU-PP-332 · 20:00</b><small>500 mcg · em 11 h 50 min</small></div><span class="mini'+(tap?' tap':'')+'">Concluir</span></div>'
+ +'<div class="lr"><i class="c" style="background:#8E7DBE"></i><div class="t"><b>GHK-Cu · 22:00</b><small>2 mg · em 13 h 50 min</small></div><span class="mini">Concluir</span></div></div>';
+const nowBlock='<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div><div class="lab"><span>Agora</span><span>1</span></div>'+card('BPC-157','#3D9970','09:00','250 mcg · 5 unidades na seringa',{tag:''});
+const P=(th,label,body,note)=>'<div><p class="cap">'+label+'</p><div class="phone '+th+'">'+body+'</div>'+(note?'<p class="note">'+note+'</p>':'')+'</div>';
+const fill=(id,frames)=>{document.getElementById(id).innerHTML=frames.join('')};
+fill('today',[P('light','Claro',head+'<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div>'+allCards(true)+taken,'O toque (tracejado) grava a dose das 20:00 às 08:10.'),P('dark','Escuro',head+'<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div>'+allCards(true)+taken)]);
+fill('optA',[P('light','Claro · toque em Concluir',head+'<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div>'+allCards(true)+taken+sheet,'Nada é gravado até "Sim, concluí agora".'),P('dark','Escuro',head+'<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div>'+allCards(true)+taken+sheet)]);
+fill('optB',[P('light','Claro · a tela',head+nowBlock+laterList(false)+'<div style="height:8px"></div>'+taken),P('dark','Escuro · a tela',head+nowBlock+laterList(false)+'<div style="height:8px"></div>'+taken),P('light','Claro · Concluir em "Mais tarde"',head+nowBlock+laterList(true)+taken+sheet),P('dark','Escuro · a pergunta',head+nowBlock+laterList(true)+taken+sheet)]);
+fill('optC',[P('light','Claro',head+'<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div>'+card('BPC-157','#3D9970','09:00','250 mcg · 5 unidades na seringa')+taken,'SLU-PP-332 (20:00) e GHK-Cu (22:00) não aparecem até as 18:00 e 20:00.'),P('dark','Escuro',head+'<div class="sec"><b>Doses</b><span>1 de 4 concluídas</span></div>'+card('BPC-157','#3D9970','09:00','250 mcg · 5 unidades na seringa')+taken)]);
+</script>

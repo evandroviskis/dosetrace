@@ -387,13 +387,23 @@ export default function TodayScreen() {
     if (sp.target === 'upcoming') setFold({ tom: true, n5: true });
     setSearchLand({ target: sp.target, n: sp.n });
   }, [route.params?.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  // FT-5 (Fold open): Pendente de ontem, Doses and Próximos live on the right page; Alertas opens the
+  // left page (the Dose log with Today's title, alerts and rings) from the top.
+  const rightScrollRef = useRef(null);
+  // The embedded Dose log scrolls on request: 'top' (Alertas) or 'log' (the streak row: the log's title).
+  const [logScroll, setLogScroll] = useState(null);
   useEffect(() => {
-    if (!searchLand || !leftScrollRef.current) return;
+    if (!searchLand) return;
+    if (book && searchLand.target === 'alerts') { bookSelect('log'); setLogScroll({ to: 'top', n: Date.now() }); setSearchLand(null); return; }
+    const ref = book ? rightScrollRef : leftScrollRef;
+    if (!ref.current) return;
     const y = searchLand.target === 'alerts' ? 0 : blockY.current[searchLand.target];
     if (y == null) return;
-    leftScrollRef.current.scrollTo({ y: Math.max(0, y - 8), animated: true });
+    // On the Fold the right page was hidden under the search a moment ago: scroll once it shows.
+    const go = () => { if (ref.current) ref.current.scrollTo({ y: Math.max(0, y - 8), animated: true }); };
+    if (book) setTimeout(go, 60); else go();
     setSearchLand(null);
-  }, [searchLand]);
+  }, [searchLand]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Vial continuation state
   const [showVialPrompt, setShowVialPrompt] = useState(false);
@@ -2096,8 +2106,8 @@ export default function TodayScreen() {
   // ── Book layout: a tapped dose on the right page (S-26 BK-16, A-115) ─────────────
   // A tapped dose is ONE slot: its protocol, its day and its scheduled time (dosePageKey), so
   // a twice-daily protocol's 08:00 and 20:00, and yesterday's pending 20:00, are different
-  // items. The right page shows that protocol's own page (renderRightPage); Skip / Mark taken
-  // / Undo stay on the left card.
+  // items. The protocol's own page opens on the left (renderDosePage, FT-3); Skip / Mark taken
+  // / Undo stay on the dose card (right page).
   const pickedDose = book && typeof bookSel === 'string' && bookSel.startsWith('dose:') && bookParams && bookParams.protocolId != null
     ? bookParams : null;
   const todayKey = localDayKey(Date.now());
@@ -2211,19 +2221,13 @@ export default function TodayScreen() {
   // dose opens its protocol's page — everything My Protocols shows, with the app's own syringe; with no
   // mixed vial it says why under the name, draws no syringe and no vial block, and offers + Add vial;
   // tablets / capsules with no bottle size get the bottle wording and + Add bottle (the dose step in
-  // My Protocols). Skip / Mark taken stay on the left card; Delete is not offered here; Edit and the
-  // refill sheets open in My Protocols. Nothing tapped: the Dose log.
-  function renderRightPage() {
-    // App search on the Fold (AS-18): the search is Today's right page while it is the chosen item.
-    if (bookSel === SEARCH_PAGE) return <AppSearchScreen embedded tab="Today" />;
+  // My Protocols). Skip / Mark taken stay on the dose card; Delete is not offered here; Edit and the
+  // refill sheets open in My Protocols. Fold Today layout (founder 2026-11-17, docs/specs/
+  // fold-today-layout.md FT-3): the doses moved to the right page, so this page opens on the LEFT,
+  // with "‹ Registro de doses" back. Nothing tapped: null (the left page is the Dose log).
+  function renderDosePage() {
     const p = pickedDose ? protocols.find(x => String(x.id) === String(pickedDose.protocolId)) : null;
-    if (!p) {
-      // A dose written, skipped or undone on the left page refreshes the embedded log (BK-19).
-      const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length, dataRev]);
-      // App search (AS-7, AS-18): a "Doses perdidas / puladas / concluídas" result opens it filtered
-      // (LogScreen embedded reads the filter from Today's right-page selection).
-      return <LogScreen embedded refreshKey={logRev} onChanged={afterLogChange} popupGate={logPopupGate} />;
-    }
+    if (!p) return null;
     const vial = vials[p.id];
     const toProtocol = () => navigation.navigate('Protocols', { openProtocolId: p.id });
     const sn = supplyNotice(p, vial);
@@ -2247,6 +2251,9 @@ export default function TodayScreen() {
     return (
       <>
         <View style={s.pageHead}>
+          <TouchableOpacity style={s.pageBack} onPress={() => bookSelect('log')} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.pageBackText} numberOfLines={1}>‹ {t('log_title')}</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={s.pageEdit} onPress={toProtocol} accessibilityRole="button">
             <Text style={s.pageEditText}>{t('protocols_edit')}</Text>
           </TouchableOpacity>
@@ -2523,11 +2530,11 @@ export default function TodayScreen() {
     return pr ? (pr.compound_id ? t(pr.compound_id) : pr.name) : null;
   }).filter(Boolean);
 
-  // BK-9: in the book layout the toasts sit on the left page, never across the fold.
-  // One column: exactly the old styles (toast === s).
-  const toastOnLeftPage = book ? { right: undefined, width: paneWidths(winW).left - 24 } : null;
+  // FT-4 (replaces BK-9's left page): in the book layout the toasts sit on the right page, where the
+  // dose buttons are, never across the fold. One column: exactly the old styles (toast === s).
+  const toastOnRightPage = book ? { left: paneWidths(winW).left + paneWidths(winW).gutter + 12 } : null;
   const toast = book
-    ? { undoBar: [s.undoBar, toastOnLeftPage], takeNoticeBar: [s.takeNoticeBar, toastOnLeftPage] }
+    ? { undoBar: [s.undoBar, toastOnRightPage], takeNoticeBar: [s.takeNoticeBar, toastOnRightPage] }
     : s;
 
   // A-135: what this render draws, for the mould (counts and presence only).
@@ -2539,10 +2546,8 @@ export default function TodayScreen() {
   // App search (logic 5): Pendente de ontem and Alertas are listed only while they exist.
   setTodayFlags({ pending: presentRef.current.pending > 0, alerts: presentRef.current.alerts > 0 });
 
-  const leftPage = (
-      <ScrollView ref={leftScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
-        {/* Today v2.1 order (founder 2026-09-29): header → Alerts (gone when none) → Pending
-            from yesterday → tracker → AI food log → Doses → Taken → Tomorrow / Next 5 days. */}
+  const headerEl = (
+    <>
         {/* App search B2: the magnifier in the one corner of the five tab roots (SearchCorner). */}
         <View style={[s.header, s.headerRow, titleFit.stacked && HEADER_STACKED]}>
           <View style={[s.headerText, titleFit.stacked && TITLE_STACKED]}>
@@ -2551,7 +2556,10 @@ export default function TodayScreen() {
           </View>
           <SearchCorner tab="Today" alignEnd={titleFit.stacked} onSlotLayout={titleFit.onSlotLayout} measure={titleFit.measure(s.title)} />
         </View>
-
+    </>
+  );
+  const focusEl = (
+    <>
         {/* A-135: no spinner. Each block below is its placeholder (SkeletonBlock, as tall as last
             time) until its own first reads are done, then its real content in the same place. */}
         {ready.doses && focusCard && (
@@ -2562,7 +2570,10 @@ export default function TodayScreen() {
             {renderDoseCard(focusCard, { highlight: true, takeSlot: reminderPlan && reminderPlan.kind === 'open' ? reminderPlan.slot : null, cancelUpTo: reminderPlan && reminderPlan.kind === 'open' ? reminderPlan.cancelUpTo : null })}
           </View>
         )}
-
+    </>
+  );
+  const alertsEl = (
+    <>
         {skel('alerts')}
         {ready.alerts && alerts.length > 0 && (
           <View style={s.block} onLayout={onBlock('alerts', s.block)}>
@@ -2610,7 +2621,10 @@ export default function TodayScreen() {
             </View>
           </View>
         )}
-
+    </>
+  );
+  const pendingEl = (
+    <>
         {skel('pending')}
         {ready.pending && pendingYest.length > 0 && (
           <View style={s.block} onLayout={(e) => { onBlock('pending', s.block)(e); onBlockY('pending')(e); }}>
@@ -2656,17 +2670,27 @@ export default function TodayScreen() {
             })}
           </View>
         )}
-
+    </>
+  );
+  const trackerEl = (
+    <>
         {skel('tracker')}
         {ready.tracker && protocols.length > 0 && (
-          <View onLayout={onBlock('tracker')}><TodayTracker rings={rings} weekDots={weekDots} {...streakProps} onHistory={() => (book ? bookSelect('log') : navigation.navigate('Log'))} t={t} ringRef={ringRef} /></View>
+          <View onLayout={onBlock('tracker')}><TodayTracker rings={rings} weekDots={weekDots} {...streakProps} onHistory={() => (book ? (bookSelect('log'), setLogScroll({ to: 'log', n: Date.now() })) : navigation.navigate('Log'))} t={t} ringRef={ringRef} /></View>
         )}
+    </>
+  );
+  const foodEl = (
+    <>
         {skel('food')}
         <View style={ready.food ? null : s.hiddenUntilLoaded} onLayout={onBlock('food')}>
         {/* AI food log while a reality check runs (FL-33) — lib/foodThread todayFoodHeroPolicy. */}
         <FoodLogHero variant="today" onReady={heroReadyRef.current.resolve} />
         </View>
-
+    </>
+  );
+  const emptyEl = (
+    <>
         {skel('empty')}
         {ready.doses && protocols.length === 0 && !loading && (
           <View style={s.empty} onLayout={onBlock('empty', s.empty)}>
@@ -2678,7 +2702,10 @@ export default function TodayScreen() {
             </TouchableOpacity>
           </View>
         )}
-
+    </>
+  );
+  const dosesEl = (
+    <>
         {skel('doses')}
         {ready.doses && protocols.length > 0 && (
           <View style={s.block} onLayout={(e) => { onBlock('doses', s.block)(e); onBlockY('doses')(e); }}>
@@ -2757,7 +2784,10 @@ export default function TodayScreen() {
             ))}
           </View>
         )}
-
+    </>
+  );
+  const upcomingEl = (
+    <>
         {ready.doses && (tomorrowCards.length > 0 || next5Cards.length > 0) && (
           <View style={s.block} onLayout={onBlockY('upcoming')}>
             <View style={s.foldList}>
@@ -2776,16 +2806,52 @@ export default function TodayScreen() {
             </View>
           </View>
         )}
-
+    </>
+  );
+  const disclaimerEl = (
+    <>
         {ready.doses && protocols.length > 0 && <Text style={s.disclaimer}>{t('today_disclaimer')}</Text>}
-
+    </>
+  );
+  const leftPage = (
+      <ScrollView ref={leftScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.centered}>
+        {/* Today v2.1 order (founder 2026-09-29): header → Alerts (gone when none) → Pending
+            from yesterday → tracker → AI food log → Doses → Taken → Tomorrow / Next 5 days. */}
+        {headerEl}{focusEl}{alertsEl}{pendingEl}{trackerEl}{foodEl}{emptyEl}{dosesEl}{upcomingEl}{disclaimerEl}
         <View style={{ height: 24 }} />
       </ScrollView>
   );
 
+  // Fold open (founder 2026-11-17, docs/specs/fold-today-layout.md, picture today-fold-layout.html,
+  // option A): left = the Today title, alerts and rings above the Dose log (what was done), or the
+  // tapped dose's protocol page; right = what to do now — the reminder dose, the food card, Pending
+  // from yesterday, today's doses, taken, upcoming. A dose written, skipped or undone on the right
+  // refreshes the embedded log (BK-19); a Dose log search result opens it filtered (AS-7, AS-18).
+  const dosePage = book ? renderDosePage() : null;
+  const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length, dataRev]);
+  const bookLeft = dosePage || (
+    <LogScreen embedded lead={<>{headerEl}{alertsEl}{trackerEl}</>} refreshKey={logRev} onChanged={afterLogChange} popupGate={logPopupGate} scrollRequest={logScroll} />
+  );
+  // App search on the Fold (AS-18): the search is Today's right page while it is the chosen item. The
+  // doses page stays mounted under it (hidden), so closing the search keeps its place, its food card
+  // read and the block offsets a search landing scrolls to.
+  const searchOpen = bookSel === SEARCH_PAGE;
+  const bookRight = (
+    <>
+      <ScrollView ref={rightScrollRef} style={searchOpen ? s.pageHidden : null} showsVerticalScrollIndicator={false} contentContainerStyle={[s.centered, s.rightPageTop]}>
+        {focusEl}{foodEl}{pendingEl}{emptyEl}{dosesEl}{upcomingEl}{disclaimerEl}
+        <View style={{ height: 24 }} />
+      </ScrollView>
+      {searchOpen && <AppSearchScreen embedded tab="Today" />}
+    </>
+  );
+  // The left page's key: the tapped dose, or the log (with a search filter's nonce, so a filtered log
+  // from the search takes the screen reader too, BK-21).
+  const leftKey = dosePage ? bookSel : `log:${(bookParams && bookParams.nonce) || ''}`;
+
   return (
     <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES} ref={rootRef} collapsable={false}>
-      {book ? <BookPanes left={leftPage} right={renderRightPage()} rightKey={bookSel} /> : leftPage}
+      {book ? <BookPanes left={bookLeft} right={bookRight} leftKey={leftKey} rightKey="today" /> : leftPage}
 
       {/* Undo toast — pinned above the tab bar, outside the ScrollView, so it is
         visible wherever the list is scrolled (S-02). */}
@@ -2946,6 +3012,8 @@ const makeStyles = (c) => StyleSheet.create({
 
 const legacyStyles = (c) => ({
   centered: TODAY_HEADER.centered, // A-135: one column for Today and its opening
+  rightPageTop: { paddingTop: 12 },
+  pageHidden: { display: 'none' }, // FT-5: the doses page under an open search // FT-2: the Fold's right page starts a little below the top
   hiddenUntilLoaded: { display: 'none' }, // A-135: the food card, mounted (it reads its data), not shown until it has
   container: { flex: 1, backgroundColor: c.bg },
   header: { paddingHorizontal: 18, paddingTop: 20, paddingBottom: 16, backgroundColor: c.bg },
@@ -3157,7 +3225,9 @@ const todayV21Styles = (c) => ({
   vialText: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
   // prototype btnlink r-body: 17 ink, underline in tick, 32 pt row
   // A-115 right page: Edit on top, the no-vial explanation, the protocol page below.
-  pageHead: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 8, minHeight: 44 },
+  pageHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 8, minHeight: 44 },
+  pageBack: { flexShrink: 1, minHeight: 36, justifyContent: 'center' },
+  pageBackText: { fontSize: 15, fontWeight: '600', color: c.ink },
   pageEdit: { minHeight: 36, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: c.line, alignItems: 'center', justifyContent: 'center' },
   pageEditText: { fontSize: 15, fontWeight: '600', color: c.ink },
   pageScroll: { paddingHorizontal: 16, paddingBottom: 32 },

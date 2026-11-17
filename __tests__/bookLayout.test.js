@@ -130,7 +130,7 @@ test('BK-13 (A-161): the open Fold shows two pages held upright AND on its side'
 test('BK-21: BookPanes moves screen-reader focus to the right page when another item opens', () => {
   const src = readSrc('components/BookPanes.js');
   assert.match(src, /AccessibilityInfo\.setAccessibilityFocus/);
-  assert.match(src, /\[rightKey\]/);
+  assert.match(src, /\[leftKey, rightKey\]/); // FT-3: the left page too, when its key changes
   assert.match(src, /isBook\(width, height\)/, 'A-161: the window size alone decides');
 });
 

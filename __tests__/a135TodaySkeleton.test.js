@@ -189,7 +189,8 @@ test('SK-3/SK-7/SK-10: Today — no spinner; each block is its placeholder until
     assert.ok(fr.includes(`markRead(${call}, '${key}')`), `${call} marks ${key}`);
   }
   assert.match(today, /if \(!firstLoadedRef\.current\) whenAllSettled\(firstReads\)\.then\(\(\) => \{ firstLoadedRef\.current = true; setFirstLoaded\(true\); \}\);/);
-  const left = today.slice(today.indexOf('const leftPage = ('), today.indexOf('\n  );\n', today.indexOf('const leftPage = (')));
+  // The blocks live in named pieces since the Fold Today layout (FT-6); their order is the phone's.
+  const left = today.slice(today.indexOf('const headerEl = ('), today.indexOf('\n  );\n', today.indexOf('const leftPage = (')));
   assert.ok(!left.includes('hiddenUntilLoaded}>\n\n        {focusCard'), 'the content is no longer hidden in one block');
   // In order: alerts, pending, ring, food, the empty state, doses — each placeholder before its block.
   const order = ["skel('alerts')", 'ready.alerts && alerts.length > 0', "skel('pending')", 'ready.pending && pendingYest.length > 0', "skel('tracker')", 'ready.tracker && protocols.length > 0', "skel('food')", '<FoodLogHero', "skel('empty')", 'ready.doses && protocols.length === 0 && !loading', "skel('doses')", 'ready.doses && protocols.length > 0'];
@@ -248,10 +249,13 @@ test('SK-2/SK-6: the existing "loading" string is used, present and natural in a
 test('SK-12: book — the opening shows the same skeleton in Today\'s column; the right page keeps the Dose log\'s own loading', () => {
   const src = read('screens/components/TodaySkeleton.js');
   const op = src.slice(src.indexOf('export function TodayOpening('), src.indexOf('\n}\n', src.indexOf('export function TodayOpening(')));
-  assert.match(op, /book \? <BookPanes left=\{page\} right=\{<View \/>\} rightKey="log" \/> : page/);
+  // FT-1 / FT-2: on the Fold the placeholders sit on the page their block will appear on.
+  assert.match(op, /book \? <BookPanes left=\{page\} right=\{right\} leftKey="log" rightKey="today" \/> : page/);
+  assert.match(src, /export const BOOK_LEFT_BLOCKS = \['alerts', 'tracker'\];/);
+  assert.match(op, /const onLeft = \(key\) => !book \|\| BOOK_LEFT_BLOCKS\.includes\(key\);/, 'one column draws every block');
   assert.match(op, /edges=\{TAB_SCREEN_EDGES\}/);
   assert.match(op, /contentContainerStyle=\{hs\.centered\}/);
   const today = read('screens/TodayScreen.js');
-  assert.match(today, /return <LogScreen embedded refreshKey=\{logRev\} onChanged=\{afterLogChange\} popupGate=\{logPopupGate\} \/>;/, 'the Dose log page is unchanged');
-  assert.match(read('screens/LogScreen.js'), /\{listState === 'loading' \? \(/);
+  assert.match(today, /<LogScreen embedded lead=\{<>\{headerEl\}\{alertsEl\}\{trackerEl\}<\/>\} refreshKey=\{logRev\} onChanged=\{afterLogChange\} popupGate=\{logPopupGate\} scrollRequest=\{logScroll\} \/>/, 'the Dose log page, with Today\'s lead (FT-1)');
+  assert.match(read('screens/LogScreen.js'), /\{listState === 'loading' && !lead \? \(/);
 });
