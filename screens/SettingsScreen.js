@@ -81,6 +81,7 @@ import { readUnrecordedGaps } from '../lib/pullStamp';
 import { heldByProtocol, reportGaps, fillDate } from '../lib/unsyncedDoses';
 import { forceSync } from '../lib/sync';
 import { DTSheet } from './components/ProtocolParts';
+import { MealTimesRow } from './components/MealTimesSheet';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
 import { protocolDisplayName } from '../lib/protocolName';
@@ -254,6 +255,7 @@ export default function SettingsScreen({ navigation }) {
   const [doseReminders, setDoseReminders] = useState(true);
   const [checkinReminders, setCheckinReminders] = useState(true);
   const [foodReminders, setFoodReminders] = useState(true);
+  const [foodMeals, setFoodMeals] = useState(null); // MR-4: the meal times choice (lib/mealReminders), shown under the switch
   const [notifNames, setNotifNames] = useState(true); // lock-screen privacy: compound names in notifications
   const [vialAlerts, setVialAlerts] = useState(true);
   const [silentMode, setSilentMode] = useState(false);
@@ -1181,7 +1183,7 @@ export default function SettingsScreen({ navigation }) {
             <FeatureIcon name="food" size={28} color={colors.text} />
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={s.rowLabel}>{t('settings_food_reminders')}</Text>
-              <Text style={s.rowSub}>{t('settings_food_reminders_sub')}</Text>
+              <Text style={s.rowSub}>{t(foodMeals ? 'settings_food_reminders_sub_meals' : 'settings_food_reminders_sub')}</Text>
             </View>
           </View>
           <GradSwitch
@@ -1189,6 +1191,8 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={(v) => toggleNotificationPref('food_reminders', v, setFoodReminders)}
           />
         </View>
+        {/* MR-4 (docs/specs/meal-reminders.md): the meal times, under the food reminder switch. */}
+        {foodReminders ? <MealTimesRow variant="settings" onChange={setFoodMeals} /> : null}
         <View style={s.row}>
           <View style={s.rowLeft}>
             <FeatureIcon name="lock" size={28} color={colors.text} />

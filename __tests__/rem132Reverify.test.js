@@ -48,6 +48,8 @@ test('R1 probe: a phone at 64 that starts a reality check stays ≤ 64 (the full
   const other = (open) => loadFn('lib/notifications.js', 'async function iosOtherPendingNow(', 'iosOtherPendingNow', {
     morningSummaryPlan: plan.morningSummaryPlan, ymd: plan.ymd, parseYmd: plan.parseYmd, SUMMARY_WINDOW_DAYS: 7, SUMMARY_HORIZON_DAYS: 45, MORNING_HOUR: 7, MORNING_MIN: 0,
     iosOtherPending: plan.iosOtherPending, require: () => ({ getRealityStart: async () => (open ? { date: '2026-10-20' } : null) }),
+    iosFoodPendingMax: require('../lib/mealReminders').iosFoodPendingMax, normalizeMeals: require('../lib/mealReminders').normalizeMeals, // MR-12
+
   })(user, ps);
   const planned = async (open) => {
     const o = await other(open);

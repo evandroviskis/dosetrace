@@ -14,7 +14,9 @@
 // pushes, exactly what the client would have scheduled — (1) dose reminders whose
 // slot falls in this run's window (and isn't already logged Taken today), (2) the
 // 7am morning summary, and (3) the 8pm "what did you eat today?" nudge while a
-// reality-check is open (the reality_check_open table). Idempotent via
+// reality-check is open (the reality_check_open table) — or, when the user chose meal
+// times (user_metadata.food_meals), one reminder 1 h after each meal with the day's
+// totals read from food_logs at send time (docs/specs/meal-reminders.md MR-14). Idempotent via
 // notification_sends (a slot fires at most once). Dose + morning honor the
 // dose_reminders preference; the food nudge has its own food_reminders switch and
 // follows the app's foodNudgeDays rule (window, same-day skip, backoff). Prunes dead tokens.
@@ -24,7 +26,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { tokenLanguage, selectWithOptionalLanguage } from '../_shared/pushLanguage.js';
 import {
   dueDateKeys, reminderSlots, morningSummaryPlan, localParts, foodNudgeDays,
-  type Protocol,
+  normalizeMeals, mealsDueNow, loggedForMeal, mealPushContent,
+  type Protocol, type Meal,
 } from './plan.ts';
 
 // ── Localized notification copy (subset of i18n/translations.js) ──────────────
@@ -36,8 +39,18 @@ const STRINGS: Record<string, Record<string, string>> = {
   de: { notif_dose_body: 'Zeit für deine Dosis von {dose} {unit}', notif_morning_title: 'Guten Morgen', notif_morning_due_body: 'Heute: {list}.', notif_morning_next1_body: 'Heute nichts. Nächste Dosis morgen.', notif_morning_next_body: 'Heute nichts. Nächste Dosis in {days} Tagen.', notif_food_title: 'Was hast du heute gegessen?', notif_food_body: 'Erfasse es in einem Satz — das hält deinen Check ehrlich.' },
   it: { notif_dose_body: 'È ora della tua dose di {dose} {unit}', notif_morning_title: 'Buongiorno', notif_morning_due_body: 'Oggi: {list}.', notif_morning_next1_body: 'Niente oggi. Prossima dose domani.', notif_morning_next_body: 'Niente oggi. Prossima dose tra {days} giorni.', notif_food_title: 'Cosa hai mangiato oggi?', notif_food_body: 'Registralo in una frase — così il monitoraggio resta realistico.' },
 };
+// MR-14 (docs/specs/meal-reminders.md): the meal reminders' copy — the SAME strings as
+// i18n/translations.js (parity: __tests__/mealReminders.test.js "MR-14").
+const MEAL_STRINGS: Record<string, Record<string, string>> = {
+  en: {"notif_meal_title_breakfast":"Had breakfast?","notif_meal_title_lunch":"Had lunch?","notif_meal_title_dinner":"Had dinner?","notif_meal_title_at":"Meal at {time}","notif_meal_body_breakfast":"Log your breakfast.","notif_meal_body_lunch":"Log your lunch.","notif_meal_body_lunch_since":"Log your lunch and anything you ate since breakfast.","notif_meal_body_dinner":"Log your dinner.","notif_meal_body_any":"Log what you ate.","notif_meal_so_far":"Today so far: {protein} · {calories}.","notif_meal_protein":"protein {v} g","notif_meal_kcal":"calories {v}","notif_meal_action_skip":"Skip this meal"},
+  es: {"notif_meal_title_breakfast":"¿Ya desayunaste?","notif_meal_title_lunch":"¿Ya almorzaste?","notif_meal_title_dinner":"¿Ya cenaste?","notif_meal_title_at":"Comida de las {time}","notif_meal_body_breakfast":"Registra el desayuno.","notif_meal_body_lunch":"Registra el almuerzo.","notif_meal_body_lunch_since":"Registra el almuerzo y lo que comiste desde el desayuno.","notif_meal_body_dinner":"Registra la cena.","notif_meal_body_any":"Registra lo que comiste.","notif_meal_so_far":"Hoy hasta ahora: {protein} · {calories}.","notif_meal_protein":"proteína {v} g","notif_meal_kcal":"calorías {v}","notif_meal_action_skip":"Saltar esta comida"},
+  pt: {"notif_meal_title_breakfast":"Já tomou o café da manhã?","notif_meal_title_lunch":"Já almoçou?","notif_meal_title_dinner":"Já jantou?","notif_meal_title_at":"Refeição das {time}","notif_meal_body_breakfast":"Registre o café da manhã.","notif_meal_body_lunch":"Registre o almoço.","notif_meal_body_lunch_since":"Registre o almoço e o que comeu desde o café.","notif_meal_body_dinner":"Registre o jantar.","notif_meal_body_any":"Registre o que comeu.","notif_meal_so_far":"Hoje até agora: {protein} · {calories}.","notif_meal_protein":"proteína {v} g","notif_meal_kcal":"calorias {v}","notif_meal_action_skip":"Pular esta refeição"},
+  fr: {"notif_meal_title_breakfast":"Avez-vous pris votre petit-déjeuner ?","notif_meal_title_lunch":"Avez-vous déjeuné ?","notif_meal_title_dinner":"Avez-vous dîné ?","notif_meal_title_at":"Repas de {time}","notif_meal_body_breakfast":"Notez votre petit-déjeuner.","notif_meal_body_lunch":"Notez votre déjeuner.","notif_meal_body_lunch_since":"Notez votre déjeuner et ce que vous avez mangé depuis le petit-déjeuner.","notif_meal_body_dinner":"Notez votre dîner.","notif_meal_body_any":"Notez ce que vous avez mangé.","notif_meal_so_far":"Aujourd'hui jusqu'ici : {protein} · {calories}.","notif_meal_protein":"protéines {v} g","notif_meal_kcal":"calories {v}","notif_meal_action_skip":"Passer ce repas"},
+  de: {"notif_meal_title_breakfast":"Schon gefrühstückt?","notif_meal_title_lunch":"Schon zu Mittag gegessen?","notif_meal_title_dinner":"Schon zu Abend gegessen?","notif_meal_title_at":"Mahlzeit um {time}","notif_meal_body_breakfast":"Trag dein Frühstück ein.","notif_meal_body_lunch":"Trag dein Mittagessen ein.","notif_meal_body_lunch_since":"Trag dein Mittagessen ein und was du seit dem Frühstück gegessen hast.","notif_meal_body_dinner":"Trag dein Abendessen ein.","notif_meal_body_any":"Trag ein, was du gegessen hast.","notif_meal_so_far":"Heute bisher: {protein} · {calories}.","notif_meal_protein":"Protein {v} g","notif_meal_kcal":"Kalorien {v}","notif_meal_action_skip":"Diese Mahlzeit überspringen"},
+  it: {"notif_meal_title_breakfast":"Hai fatto colazione?","notif_meal_title_lunch":"Hai pranzato?","notif_meal_title_dinner":"Hai cenato?","notif_meal_title_at":"Pasto delle {time}","notif_meal_body_breakfast":"Registra la colazione.","notif_meal_body_lunch":"Registra il pranzo.","notif_meal_body_lunch_since":"Registra il pranzo e quello che hai mangiato dopo colazione.","notif_meal_body_dinner":"Registra la cena.","notif_meal_body_any":"Registra quello che hai mangiato.","notif_meal_so_far":"Oggi finora: {protein} · {calories}.","notif_meal_protein":"proteine {v} g","notif_meal_kcal":"calorie {v}","notif_meal_action_skip":"Salta questo pasto"},
+};
 function t(lang: string, key: string): string {
-  return (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
+  return (STRINGS[lang] && STRINGS[lang][key]) || (MEAL_STRINGS[lang] && MEAL_STRINGS[lang][key]) || STRINGS.en[key] || MEAL_STRINGS.en[key] || key;
 }
 function fill(str: string, vars: Record<string, unknown>): string {
   return String(str)
@@ -71,6 +84,7 @@ interface PushMessage {
   body: string;
   channelId: string;
   priority: 'high';
+  categoryId?: string; // MR-14: the meal reminders' buttons (food-meal / food-evening)
   data: Record<string, unknown>;
   _dedupe: string; // internal — stripped before send
 }
@@ -141,16 +155,17 @@ Deno.serve(async (req) => {
 
     // 4. Preferences per user: dose_reminders (defaults on) and the food
     //    switch. The open reality check comes from reality_check_open (below).
-    const prefByUser = new Map<string, { enabled: boolean; rcDate: string | null; foodOn: boolean }>();
+    const prefByUser = new Map<string, { enabled: boolean; rcDate: string | null; foodOn: boolean; meals: Meal[] | null }>();
     for (const uid of userIds) {
-      let enabled = true; let rcDate: string | null = null; let foodOn = true;
+      let enabled = true; let rcDate: string | null = null; let foodOn = true; let meals: Meal[] | null = null;
       try {
         const { data: u } = await admin.auth.admin.getUserById(uid);
         const meta = u?.user?.user_metadata || {};
         if (meta.dose_reminders === false) enabled = false;
         if (meta.food_reminders === false) foodOn = false; // the user's Settings off-switch
+        meals = normalizeMeals(meta.food_meals)?.meals || null; // MR-14: the meal times, else the 20:00 question
       } catch { /* default on */ }
-      prefByUser.set(uid, { enabled, rcDate, foodOn });
+      prefByUser.set(uid, { enabled, rcDate, foodOn, meals });
     }
 
     // The open reality check per user — the synced reality_check_open table (S-03),
@@ -176,13 +191,30 @@ Deno.serve(async (req) => {
       }
     }
 
+    // MR-14: the real food rows of the last 2 days (markers carry no food) — only for users with meal
+    // times: the skip rule ("logged since halfway from the previous meal") and the day's totals at send time.
+    const foodRows = new Map<string, { entry_date: string; created_at: string; kcal: number | null; protein_g: number | null }[]>();
+    {
+      const mealUsers = userIds.filter((uid) => { const p = prefByUser.get(uid); return !!(p && p.meals && p.foodOn && p.rcDate); });
+      if (mealUsers.length) {
+        const since = new Date(now.getTime() - 2 * 86400000).toISOString().slice(0, 10);
+        const { data: fr } = await admin.from('food_logs').select('user_id, entry_date, created_at, kcal, protein_g, source')
+          .in('user_id', mealUsers).gte('entry_date', since); // a deleted entry is removed from the cloud table
+        for (const r of (fr || [])) {
+          if (!r.entry_date || ['not_recorded', 'day_closed', 'free_start', 'ate_nothing'].includes(r.source)) continue;
+          if (!foodRows.has(r.user_id)) foodRows.set(r.user_id, []);
+          foodRows.get(r.user_id)!.push(r);
+        }
+      }
+    }
+
     const messages: PushMessage[] = [];
 
     for (const tok of tokens) {
       const tz = tok.timezone || 'UTC';
       let lp;
       try { lp = localParts(now, tz); } catch { lp = localParts(now, 'UTC'); }
-      const pref = prefByUser.get(tok.user_id) || { enabled: true, rcDate: null, foodOn: true };
+      const pref = prefByUser.get(tok.user_id) || { enabled: true, rcDate: null, foodOn: true, meals: null };
       const lang = tokenLanguage(tok);
       const protos = protosByUser.get(tok.user_id) || [];
       const nowMin = mod(lp.hour, lp.minute);
@@ -191,7 +223,34 @@ Deno.serve(async (req) => {
       // ── Food-log nudge: fires in the 20:00 window while a reality-check is active.
       //    Independent of the dose_reminders preference (a separate feature), so it
       //    is evaluated BEFORE the dose/morning preference gate below. ──
-      if (pref.rcDate && pref.foodOn) {
+      if (pref.rcDate && pref.foodOn && pref.meals) {
+        // MR-14: the person's meal times replace the 20:00 question — 1 h after each meal, not when
+        // food was logged since halfway from the previous meal, the day's totals computed now.
+        const closed = closedDays.get(tok.user_id) || new Set<string>();
+        const open = foodNudgeDays(String(pref.rcDate).slice(0, 10), lp.key, closed, 1).includes(lp.key);
+        const due = open ? mealsDueNow(pref.meals, nowMin, RUN_WINDOW_MIN) : [];
+        if (due.length) {
+          const rows = (foodRows.get(tok.user_id) || []).map((r) => {
+            let c; try { c = localParts(new Date(r.created_at), tz); } catch { c = { key: '', hour: 0, minute: 0 }; }
+            return { entryKey: String(r.entry_date).slice(0, 10), key: c.key, minute: mod(c.hour, c.minute), kcal: Number(r.kcal) || 0, protein_g: Number(r.protein_g) || 0 };
+          });
+          const today = rows.filter((r) => r.entryKey === lp.key);
+          const totals = { kcal: Math.round(today.reduce((a, r) => a + r.kcal, 0)), protein_g: Math.round(today.reduce((a, r) => a + r.protein_g, 0)) };
+          for (const i of due) {
+            if (loggedForMeal(rows, lp.key, pref.meals, i)) continue;
+            const m = pref.meals[i];
+            const c = mealPushContent((k) => t(lang, k), lang, pref.meals, i, totals);
+            messages.push({
+              to: tok.expo_token,
+              title: c.title,
+              body: c.body,
+              channelId: 'checkin-reminders', priority: 'high', categoryId: c.category,
+              data: { type: 'food_log', dayKey: lp.key, meal: m },
+              _dedupe: `${tok.expo_token}:food:${lp.key}:${m.at.replace(':', '')}`,
+            });
+          }
+        }
+      } else if (pref.rcDate && pref.foodOn) {
         const foodMin = mod(FOOD_HOUR, 0);
         if (foodMin <= nowMin && foodMin > nowMin - RUN_WINDOW_MIN) {
           // Same rule as the app (lib/notificationPlan.js foodNudgeDays): daily while the

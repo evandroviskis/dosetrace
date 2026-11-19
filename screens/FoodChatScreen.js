@@ -35,6 +35,7 @@ import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
   closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker, quotaWaitDay,
 } from '../lib/nutrition';
+import { mealChatAsk } from '../lib/mealReminders';
 import { buildThread, withNotice, withDayTotal, dayFoodTotal, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion, pendingNoteShown } from '../lib/foodThread';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
@@ -96,6 +97,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const [notice, setNotice] = useState(null);     // transient app bubble: deflect | fix | earlier | quota | offline | updated
   const [question, setQuestion] = useState(null); // { id, tense } — the one open question about today
   const [evening, setEvening] = useState(null);   // day the 8 PM question is about
+  const [mealAsk, setMealAsk] = useState(null);   // MR-11: { meal, day } — the meal a reminder's Log asks about
   const [logDay, setLogDay] = useState(null);     // "Log it" for an earlier day: entries land on that day (FL-40)
   const [editRow, setEditRowState] = useState(null);
   // BK-14: remember which entry editor is open, so it reopens after a fold/unfold remount.
@@ -199,6 +201,16 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (!logItNonce) return;
     const id = setTimeout(() => inputRef.current?.focus?.(), 450);
     return () => clearTimeout(id);
+  }, [logItNonce]);
+  // MR-11 (docs/specs/meal-reminders.md): "Log" on a meal reminder opens the chat asking for that
+  // meal; an earlier day's reminder logs onto that day (as the 8 PM question's Log does).
+  const mealParam = routeParams?.meal;
+  const mealDayParam = routeParams?.mealDay;
+  useEffect(() => {
+    if (!logItNonce || !mealParam || !mealParam.at) return;
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(mealDayParam || '')) ? mealDayParam : localISO();
+    setMealAsk({ meal: { at: mealParam.at, kind: mealParam.kind }, day, since: new Date().toISOString() });
+    setLogDay(day === localISO() ? null : day);
   }, [logItNonce]);
 
   // ── Draft (FL-36) ──────────────────────────────────────────────
@@ -348,7 +360,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (open) { updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); clearDraft(fuDraftKey(open)); } // stays an estimate
     requestSync?.();
     refresh(uid);
-    setQuestion(null); rememberAsked(null); setEvening(null); setNotice(null); setFuText('');
+    setQuestion(null); rememberAsked(null); setEvening(null); setMealAsk(null); setNotice(null); setFuText('');
     if (logDay === dayKey) setLogDay(null);
   }
 
@@ -523,9 +535,13 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     // A-133: an Updated notice whose row was removed is stale and goes (liveNotice).
     // FW-9: today's total after today's messages, before the notice and the next prompt.
     const live = withNotice(withDayTotal(th, dayFoodTotal(rows, today), today), liveNotice(notice ? { type: 'notice', key: 'notice', ...notice } : null, rows));
+    // MR-11: the meal a reminder's Log opened the chat for, asked last — until something is logged
+    // after it was asked (the answer) or the day closes.
+    const answered = mealAsk && (rows || []).some((r) => r && !isMarker(r) && String(r.created_at || '') >= mealAsk.since);
+    if (mealAsk && !answered && !closedSet.has(mealAsk.day) && !busy) live.push({ type: 'mealAsk', key: 'mealAsk', meal: mealAsk.meal });
     if (busy || fuBusy) live.push({ type: 'typing', key: 'typing' });
     return live;
-  }, [rows, today, question, closedSet, eveningOpen, evening, notice, busy, fuBusy]);
+  }, [rows, today, question, closedSet, eveningOpen, evening, mealAsk, notice, busy, fuBusy]);
   const data = useMemo(() => thread.slice().reverse(), [thread]); // inverted list opens at the latest (FL-39)
 
   // BK-14 / A-77: the open follow-up's answer field shows that question's kept draft, and
@@ -701,6 +717,12 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
           <AppBubble>
             <Text style={s.appText}>{t(`nutri_q_${x.id}${x.tense === 'neutral' ? '' : '_' + x.tense}`)}</Text>
             {doneChip(today)}
+          </AppBubble>
+        );
+      case 'mealAsk':
+        return (
+          <AppBubble>
+            <Text style={s.appText}>{mealChatAsk(t, x.meal, language, timeFormat)}</Text>
           </AppBubble>
         );
       case 'evening': {

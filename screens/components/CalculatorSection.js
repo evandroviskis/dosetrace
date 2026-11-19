@@ -92,6 +92,7 @@ import { parseMeasure, savedFieldText, canonicalDecimal } from '../../lib/doseMa
 import { progressLayout, dailyBurnGate, legacyBurnFromSaved, numbersLine, weighInsLine, weightEditAsk, weightEditWrite } from '../../lib/progressCard';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { DTSheet, DTPickerSheet, DTWheel, AndroidDateDialog } from './ProtocolParts';
+import MealTimesSheet, { shouldAskMeals } from './MealTimesSheet';
 import { FeaturePreviewSheet } from '../../components/FeaturePreviews';
 import FoldChevron from '../../components/FoldChevron';
 import RowChevron from '../../components/RowChevron';
@@ -195,6 +196,7 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const [rcThen, setRcThen] = useState(() => (rcDraft && rcDraft.then) || '');
   const [rcStart, setRcStart] = useState(null);     // { date, weightKg } — open check-in
   const [rcStartOpen, setRcStartOpen] = useState(false); // the start sheet (part 9)
+  const [mealsOpen, setMealsOpen] = useState(false); // MR-3: "Your meals", right after a check starts
   const [rcExplain, setRcExplain] = useState(false);     // free plan: "See how it works" (part 11)
   const [soFarOpen, setSoFarOpen] = useState(false);
   const [rcLogOpen, setRcLogOpen] = useState(false); // founder 2026-10-27: the history arrives closed     // "Your reality check so far" (part 8)
@@ -1051,6 +1053,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     saveCalcInputs(CLEAR_CLOSED_CHECK).catch(() => {});
     calcChanged();
     syncAllNotifications().catch(() => {});
+    askMealsAfterStart();
+  }
+
+  // MR-3 (docs/specs/meal-reminders.md): once the check is open, "Your meals" asks which meals the
+  // person eats — only when nothing was chosen and food reminders are on. It opens after the start
+  // sheet has gone (two sheets never animate at once); "Not now" keeps the 20:00 question.
+  function askMealsAfterStart() {
+    getCachedUser().then((user) => {
+      if (user && shouldAskMeals(user.user_metadata)) setTimeout(() => setMealsOpen(true), 450);
+    }).catch(() => {});
   }
 
   // Start over (after "Start over?"): clear the open check and its reminders (back to
@@ -2006,6 +2018,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         {/* A-212: "Atualizar a pesagem de {date}?" asks inside the sheet so it shows over it. */}
         <DTSheet config={rcStartOpen ? confirm : null} onClose={closeConfirm} />
       </SheetModal>
+
+      {/* MR-3: "Your meals" right after a Reality check starts (picture food-goals-progress part 4 a). */}
+      <MealTimesSheet visible={mealsOpen} onClose={() => setMealsOpen(false)} />
 
       {/* Reality check typed calories (founder 2026-10-02: keep typing the calories by hand). */}
       <SheetModal visible={kcalOpen} onClose={closeTypedKcal} s={s}>
