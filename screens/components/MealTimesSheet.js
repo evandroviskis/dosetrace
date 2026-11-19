@@ -235,8 +235,8 @@ const makeStyles = (c) => StyleSheet.create({
   btnText: { fontSize: 16, fontWeight: '700', color: c.onAct },
   grow: { flex: 1, minWidth: 0, gap: 2 },
   rowCard: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.line },
-  rowSettings: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingLeft: 40 },
+  rowSettings: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, minHeight: 60, paddingVertical: 10, paddingLeft: 40, borderBottomWidth: 1, borderBottomColor: c.line },
   rowLabel: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
-  rowLabelSettings: { fontSize: 16, lineHeight: 21, color: c.ink },
+  rowLabelSettings: { fontSize: 17, color: c.ink },
   rowSub: { fontSize: 13, lineHeight: 18, color: c.ink2 },
 });

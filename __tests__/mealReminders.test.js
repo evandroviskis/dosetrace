@@ -416,3 +416,14 @@ function serverMealStrings() {
   }
   return out;
 }
+
+test('MR-16 (simulator 2026-11-18): the Settings meal row lines up with the other notification rows', () => {
+  // Seen on the simulator: the row's text started left of the other rows' text and its chevron ran past
+  // their right edge (no side margin), and it had no line under it.
+  const sheet = read('screens/components/MealTimesSheet.js');
+  assert.match(sheet, /rowSettings: \{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, minHeight: 60, paddingVertical: 10, paddingLeft: 40, borderBottomWidth: 1, borderBottomColor: c\.line \}/);
+  assert.match(sheet, /rowLabelSettings: \{ fontSize: 17, color: c\.ink \}/);
+  const st = read('screens/SettingsScreen.js');
+  assert.match(st, /rowLabel: \{ fontSize: 17, color: c\.ink \}/);
+  assert.match(st, /row: \{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginHorizontal: 16,/);
+});
