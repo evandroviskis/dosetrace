@@ -9,6 +9,10 @@
  * Reports the user's own weigh-ins. No targets, no "good/bad" zones, no interpretation —
  * the user reads the divergence (waist falling while weight stalls) themselves.
  *
+ * WT-4 (docs/specs/weight-trend.md, founder 2026-11-18): when the weight series carries a 7-day
+ * average (`avg`, lib/weightTrend), the average is the strong line and each weigh-in a faint point;
+ * the legend names both. Without any average point the chart is as before.
+ *
  * S25 2026-11-07: each side's gutter fits its widest axis label ("82,4" was cut to "32,4" by the
  * fixed 26-unit gutter): the labels are measured on screen at the SVG's font size
  * (components/useColumnWidth) and the gutter is lib/chartAxisGutter axisGutter.
@@ -24,6 +28,7 @@ import { axisGutter } from '../../lib/chartAxisGutter';
 import useColumnWidth from '../../components/useColumnWidth';
 
 const W = 320, H = 150, TOP = 14, BOT = 114, AXIS_FONT = 11;
+const MIN_LABEL_GAP = 64; // viewBox units between date labels (a short date is ~40 wide at 11)
 
 // Dates and axis numbers in the app language (lib/localeFormat, founder 2026-10-02).
 const shortDate = (dateStr, language) => formatDate(dateStr, language, 'dayMonth') || dateStr;
@@ -62,12 +67,16 @@ export default function ProgressChart({ series, language = 'en', width }) {
   const span = (t1 - t0) || 1;
   const X = d => L + ((new Date(d + 'T12:00:00').getTime() - t0) / span) * (R - L);
   const mid = allDates[Math.floor((allDates.length - 1) / 2)];
-  const labels = [...new Set([allDates[0], mid, allDates[allDates.length - 1]])];
+  // Simulator 2026-11-18: a middle date too close to an end date printed glued to it ("Nov 10Nov 18").
+  const midOk = X(mid) - X(allDates[0]) >= MIN_LABEL_GAP && X(allDates[allDates.length - 1]) - X(mid) >= MIN_LABEL_GAP;
+  const labels = [...new Set([allDates[0], ...(midOk ? [mid] : []), allDates[allDates.length - 1]])];
   const draw = (sr, { lo, hi }) => {
     const Y = v => TOP + ((hi - v) / (hi - lo)) * (BOT - TOP);
     return { lo, hi, pts: sr.points.map(p => ({ x: X(p.date), y: Y(p.value) })) };
   };
   const w = weight ? draw(weight, wRange) : null;
+  const avgPts = weight && weight.avg && weight.avg.length ? weight.avg.map(p => ({ x: X(p.date), y: TOP + ((wRange.hi - p.value) / (wRange.hi - wRange.lo)) * (BOT - TOP) })) : null;
+  const avgOn = !!avgPts;
   const c = waist ? draw(waist, cRange) : null;
   const h = Math.round(((width || W) * H) / W);
   return (
@@ -89,8 +98,11 @@ export default function ProgressChart({ series, language = 'en', width }) {
         ) : null}
         {w ? (
           <>
-            <Polyline fill="none" stroke={colors.data} strokeWidth={2} points={w.pts.map(p => `${p.x},${p.y.toFixed(1)}`).join(' ')} />
-            {w.pts.map((p, i) => <Circle key={`w${i}`} cx={p.x} cy={p.y} r={4} fill={colors.data} />)}
+            {avgOn ? null : <Polyline fill="none" stroke={colors.data} strokeWidth={2} points={w.pts.map(p => `${p.x},${p.y.toFixed(1)}`).join(' ')} />}
+            {w.pts.map((p, i) => <Circle key={`w${i}`} cx={p.x} cy={p.y} r={avgOn ? 3 : 4} fill={colors.data} opacity={avgOn ? 0.35 : 1} />)}
+            {avgOn ? (avgPts.length > 1
+              ? <Polyline fill="none" stroke={colors.data} strokeWidth={2.5} strokeLinejoin="round" points={avgPts.map(p => `${p.x},${p.y.toFixed(1)}`).join(' ')} />
+              : <Circle cx={avgPts[0].x} cy={avgPts[0].y} r={4} fill={colors.data} />) : null}
             <SvgText x={L - 4} y={18} textAnchor="end" fontFamily={MONO['400']} fontSize={AXIS_FONT} fill={colors.data}>{leftLabels[0]}</SvgText>
             <SvgText x={L - 4} y={118} textAnchor="end" fontFamily={MONO['400']} fontSize={AXIS_FONT} fill={colors.data}>{leftLabels[1]}</SvgText>
           </>
@@ -100,7 +112,18 @@ export default function ProgressChart({ series, language = 'en', width }) {
         ))}
       </Svg>
       <View style={s.legend}>
-        {weight ? (
+        {weight && avgOn ? (
+          <>
+            <View style={s.legendItem}>
+              <View style={[s.legendLine, { backgroundColor: colors.data }]} />
+              <Text style={s.legendText}>{weight.avgLabel} ({weight.unit})</Text>
+            </View>
+            <View style={s.legendItem}>
+              <View style={[s.legendDot, { backgroundColor: colors.data, opacity: 0.35 }]} />
+              <Text style={s.legendText}>{weight.pointLabel}</Text>
+            </View>
+          </>
+        ) : weight ? (
           <View style={s.legendItem}>
             <View style={[s.legendDot, { backgroundColor: colors.data }]} />
             <Text style={s.legendText}>{weight.label} ({weight.unit})</Text>
@@ -124,6 +147,7 @@ const makeStyles = (c) => StyleSheet.create({
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendLine: { width: 16, height: 3, borderRadius: 2 },
   legendSquare: { width: 8, height: 8, borderWidth: 1.3, borderColor: c.ink2 },
   legendText: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2 },
 });

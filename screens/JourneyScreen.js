@@ -224,7 +224,7 @@ export default function JourneyScreen() {
             {tile ? (
               <>
                 <View style={s.num}>
-                  <Text style={s.cap}>{t('cal_weight')}</Text>
+                  <Text style={s.cap}>{t(tile.avg7 ? 'cal_weight_avg7' : 'cal_weight')}</Text>
                   <Text style={s.big}>{formatNumber(tile.weight, language)}<Text style={s.unit}> {t(tile.unit === 'lb' ? 'cal_unit_lb' : 'cal_unit_kg')}</Text></Text>
                   {tile.since ? (
                     <Text style={s.foot}>

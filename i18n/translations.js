@@ -336,6 +336,14 @@ export const translations = {
     hy_edit: 'Edit',
     hy_daily_plan: 'Your daily plan',
     hy_estimated: 'Estimated',
+    cal_weight_avg7: "Weight · 7-day average",
+    cal_scale_today: "On the scale today: {w}",
+    cal_scale_last: "Last weigh-in, {date}: {w}",
+    cal_week_change: "{d} vs the previous 7 days",
+    cal_burn_measured_when: "Measured once your Reality check is done.",
+    cal_weight_faq_link: "Why does the day's weight go up and down?",
+    cal_chart_avg7: "7-day average",
+    cal_chart_weighin: "Each weigh-in",
     hy_set_target: 'Set a target',
     hy_rc_measured_chip: 'Measured',
     nutri_echo_updated: 'Updated — {items}.',
@@ -1416,6 +1424,52 @@ export const translations = {
             id: 'journey_reality',
             q: "What is the reality check?",
             a: "It estimates how many calories you really burn a day, from your own numbers: a weigh-in at the start, another about three weeks later, and at least 7 days in a row of fully logged food (or your typed average calories). The result replaces the formula estimate in Your daily plan. It is math from your data, never advice."
+          }
+        ]
+      },
+      {
+        id: 'weight',
+        category: "Your weight",
+        questions: [
+          {
+            id: 'weight_up_eating_less',
+            q: "Why can weight go up even while eating less?",
+            a: "The scale weighs everything at once: fat, but also water, glycogen (the carbohydrate stored in muscle and liver, held with water), and food still being digested. More carbohydrate or salt than usual, or a hard workout, changes how much water the body holds within a day or two, and the scale moves with it. Fat changes much more slowly, so one weigh-in cannot tell which of these changed. Source: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_day_to_day',
+            q: "How much can weight change from one day to the next?",
+            a: "Often more than people expect. Glycogen and the water stored with it can weigh 1 to 2 kg (about 2 to 4 lb), and food and drink still in the gut count until they are digested. Body weight also follows a weekly pattern, usually higher after the weekend and lower again during the week. Sources: Kreitzman et al., 1992; Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_glycogen',
+            q: "What is glycogen and why does it weigh?",
+            a: "Glycogen is the form in which the body stores carbohydrate, in the muscles and the liver. Each gram is stored with about 3 g of water. Eating more or less carbohydrate than usual fills or empties this store within days, and the scale follows, without any change in fat. Source: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_training',
+            q: "Can a hard workout change weight over the next days?",
+            a: "Yes. After a hard or unaccustomed workout, the worked muscles hold extra fluid while they recover, and this can last several days. The scale can show it. Source: Clarkson and Hubal, Am J Phys Med Rehabil, 2002."
+          },
+          {
+            id: 'weight_average',
+            q: "Why does DoseTrace show the 7-day average?",
+            a: "Because a single weigh-in carries that day's water and food. The average of the weigh-ins of the last 7 days evens out these swings and the weekly pattern, so the direction of the weight is easier to see. The average appears once there are at least 4 weigh-ins in the last 7 days; with fewer, the latest weigh-in shows. The day's weight stays under it, small. Source: Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_bia',
+            q: "Why does a bioimpedance scale's body fat change so much?",
+            a: "These scales estimate body fat from how a weak electrical current passes through the body, and that depends on the body's water. Hydration, a recent meal, exercise, or the time of day can change the reading. Readings taken under the same conditions compare better. Source: Kyle et al., Clin Nutr, 2004."
+          },
+          {
+            id: 'weight_how_to_weigh',
+            q: "How do I weigh myself so the days compare?",
+            a: "Use the same scale, on waking, after using the bathroom and before eating or drinking, with the same light clothing. The more days you weigh in, the more weigh-ins the 7-day average uses."
+          },
+          {
+            id: 'weight_professional',
+            q: "When should a weight change be seen by a health professional?",
+            a: "A fast weight gain, or swelling of the legs, feet, hands, or face, can have causes that need a health professional. DoseTrace shows your numbers and does not explain them: talk to your doctor or another health professional about any change that concerns you."
           }
         ]
       },
@@ -3307,6 +3361,14 @@ export const translations = {
     hy_edit: 'Editar',
     hy_daily_plan: 'Tu plan diario',
     hy_estimated: 'Estimado',
+    cal_weight_avg7: "Peso · media de 7 días",
+    cal_scale_today: "Hoy en la báscula: {w}",
+    cal_scale_last: "Último pesaje, {date}: {w}",
+    cal_week_change: "{d} respecto a los 7 días anteriores",
+    cal_burn_measured_when: "Se mide al terminar «Tus cifras reales».",
+    cal_weight_faq_link: "¿Por qué el peso del día sube y baja?",
+    cal_chart_avg7: "Media de 7 días",
+    cal_chart_weighin: "Cada pesaje",
     hy_set_target: 'Fijar un objetivo',
     hy_rc_measured_chip: 'Medido',
     nutri_echo_updated: 'Actualizado: {items}.',
@@ -4386,6 +4448,52 @@ export const translations = {
             id: 'journey_reality',
             q: "¿Qué son Tus cifras reales?",
             a: "Estiman cuántas calorías quemas de verdad al día, con tus propios números: un pesaje al empezar, otro unas tres semanas después y al menos 7 días seguidos con toda tu comida registrada (o tu promedio de calorías escrito). El resultado sustituye la estimación por fórmula en Tu plan diario. Son cálculos con tus datos, nunca consejos."
+          }
+        ]
+      },
+      {
+        id: 'weight',
+        category: "Tu peso",
+        questions: [
+          {
+            id: 'weight_up_eating_less',
+            q: "¿Por qué el peso puede subir aunque comas menos?",
+            a: "La báscula pesa todo a la vez: la grasa, pero también el agua, el glucógeno (los carbohidratos guardados en los músculos y el hígado, almacenados con agua) y la comida que aún se está digiriendo. Más carbohidratos o sal de lo habitual, o un entrenamiento duro, cambian en uno o dos días cuánta agua retiene el cuerpo, y la báscula lo refleja. La grasa cambia mucho más despacio; por eso, un solo pesaje no muestra cuál de estas cosas cambió. Fuente: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_day_to_day',
+            q: "¿Cuánto puede variar el peso de un día a otro?",
+            a: "A menudo más de lo que se cree. El glucógeno y el agua que se guarda con él pueden pesar de 1 a 2 kg, y la comida y la bebida que siguen en el intestino cuentan hasta digerirse. El peso también sigue un patrón semanal: suele ser mayor después del fin de semana y volver a bajar durante la semana. Fuentes: Kreitzman et al., 1992; Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_glycogen',
+            q: "¿Qué es el glucógeno y por qué pesa?",
+            a: "El glucógeno es la forma en que el cuerpo guarda los carbohidratos, en los músculos y el hígado. Cada gramo se almacena con unos 3 g de agua. Comer más o menos carbohidratos de lo habitual llena o vacía esta reserva en pocos días, y la báscula lo sigue, sin ningún cambio en la grasa. Fuente: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_training',
+            q: "¿Un entrenamiento duro cambia el peso de los días siguientes?",
+            a: "Sí. Después de un entrenamiento duro o distinto del habitual, los músculos trabajados retienen más líquido mientras se recuperan, y esto puede durar varios días. La báscula puede mostrarlo. Fuente: Clarkson y Hubal, Am J Phys Med Rehabil, 2002."
+          },
+          {
+            id: 'weight_average',
+            q: "¿Por qué DoseTrace muestra la media de 7 días?",
+            a: "Porque un solo pesaje lleva el agua y la comida de ese día. La media de los pesajes de los últimos 7 días suaviza esas oscilaciones y el patrón semanal, y así se ve mejor hacia dónde va el peso. La media aparece cuando hay al menos 4 pesajes en los últimos 7 días; con menos, aparece el último pesaje. El peso del día sigue debajo, en letra más pequeña. Fuente: Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_bia',
+            q: "¿Por qué cambia tanto la grasa de una báscula de bioimpedancia?",
+            a: "Estas básculas estiman la grasa según cómo pasa una corriente eléctrica débil por el cuerpo, y eso depende del agua del cuerpo. La hidratación, una comida reciente, el ejercicio o la hora del día pueden cambiar la lectura. Las lecturas hechas en las mismas condiciones se comparan mejor. Fuente: Kyle et al., Clin Nutr, 2004."
+          },
+          {
+            id: 'weight_how_to_weigh',
+            q: "¿Cómo pesarme para comparar un día con otro?",
+            a: "Usa la misma báscula, al despertar, después de ir al baño y antes de comer o beber, con la misma ropa ligera. Cuantos más días te peses, más pesajes usa la media de 7 días."
+          },
+          {
+            id: 'weight_professional',
+            q: "¿Cuándo debe ver un profesional de salud un cambio de peso?",
+            a: "Un aumento de peso rápido, o hinchazón en las piernas, los pies, las manos o la cara, puede tener causas que necesitan un profesional de salud. DoseTrace muestra tus números y no los explica: habla con tu médico u otro profesional de salud sobre cualquier cambio que te preocupe."
           }
         ]
       },
@@ -6277,6 +6385,14 @@ export const translations = {
     hy_edit: 'Editar',
     hy_daily_plan: 'Seu plano diário',
     hy_estimated: 'Estimado',
+    cal_weight_avg7: "Peso · média de 7 dias",
+    cal_scale_today: "Hoje na balança: {w}",
+    cal_scale_last: "Última pesagem, {date}: {w}",
+    cal_week_change: "{d} em relação aos 7 dias anteriores",
+    cal_burn_measured_when: "Medido ao concluir “Seus números reais”.",
+    cal_weight_faq_link: "Por que o peso do dia sobe e desce?",
+    cal_chart_avg7: "Média de 7 dias",
+    cal_chart_weighin: "Cada pesagem",
     hy_set_target: 'Definir meta',
     hy_rc_measured_chip: 'Medido',
     nutri_echo_updated: 'Atualizado — {items}.',
@@ -7356,6 +7472,52 @@ export const translations = {
             id: 'journey_reality',
             q: "O que são Seus números reais?",
             a: "Eles estimam quantas calorias você realmente gasta por dia, com os seus próprios números: uma pesagem no início, outra cerca de três semanas depois e pelo menos 7 dias seguidos com toda a comida registrada (ou a sua média de calorias digitada). O resultado substitui a estimativa por fórmula em Seu plano diário. É cálculo com os seus dados, nunca conselho."
+          }
+        ]
+      },
+      {
+        id: 'weight',
+        category: "Seu peso",
+        questions: [
+          {
+            id: 'weight_up_eating_less',
+            q: "Por que o peso pode subir mesmo comendo menos?",
+            a: "A balança pesa tudo de uma vez: a gordura, mas também a água, o glicogênio (o carboidrato guardado nos músculos e no fígado, armazenado com água) e a comida que ainda está sendo digerida. Mais carboidrato ou sal do que o habitual, ou um treino pesado, mudam em um ou dois dias a quantidade de água que o corpo retém, e a balança acompanha. A gordura muda bem mais devagar; por isso, uma pesagem sozinha não mostra qual dessas coisas mudou. Fonte: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_day_to_day',
+            q: "Quanto o peso pode variar de um dia para o outro?",
+            a: "Muitas vezes mais do que se imagina. O glicogênio e a água guardada com ele podem pesar de 1 a 2 kg, e a comida e a bebida que ainda estão no intestino contam até serem digeridas. O peso também segue um padrão semanal: costuma ser maior depois do fim de semana e voltar a cair durante a semana. Fontes: Kreitzman et al., 1992; Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_glycogen',
+            q: "O que é glicogênio e por que ele pesa?",
+            a: "Glicogênio é a forma como o corpo guarda carboidrato, nos músculos e no fígado. Cada grama é armazenado com cerca de 3 g de água. Comer mais ou menos carboidrato do que o habitual enche ou esvazia esse estoque em poucos dias, e a balança acompanha, sem nenhuma mudança na gordura. Fonte: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_training',
+            q: "Um treino pesado muda o peso dos dias seguintes?",
+            a: "Sim. Depois de um treino pesado ou diferente do habitual, os músculos trabalhados retêm mais líquido enquanto se recuperam, e isso pode durar vários dias. A balança pode mostrar essa diferença. Fonte: Clarkson e Hubal, Am J Phys Med Rehabil, 2002."
+          },
+          {
+            id: 'weight_average',
+            q: "Por que o DoseTrace mostra a média de 7 dias?",
+            a: "Porque uma pesagem sozinha carrega a água e a comida daquele dia. A média das pesagens dos últimos 7 dias suaviza essas oscilações e o padrão semanal, e assim fica mais fácil ver para onde o peso está indo. A média aparece quando há pelo menos 4 pesagens nos últimos 7 dias; com menos, aparece a última pesagem. O peso do dia continua embaixo, em letra menor. Fonte: Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_bia',
+            q: "Por que a gordura da balança de bioimpedância muda tanto?",
+            a: "Essas balanças estimam a gordura pela forma como uma corrente elétrica fraca passa pelo corpo, e isso depende da água do corpo. Hidratação, uma refeição recente, exercício ou o horário do dia podem mudar a leitura. Leituras feitas nas mesmas condições são mais comparáveis. Fonte: Kyle et al., Clin Nutr, 2004."
+          },
+          {
+            id: 'weight_how_to_weigh',
+            q: "Como me pesar para comparar um dia com o outro?",
+            a: "Use a mesma balança, ao acordar, depois de ir ao banheiro e antes de comer ou beber, com a mesma roupa leve. Quanto mais dias você se pesar, mais pesagens a média de 7 dias usa."
+          },
+          {
+            id: 'weight_professional',
+            q: "Quando uma mudança de peso deve ser vista por um profissional de saúde?",
+            a: "Um ganho de peso rápido, ou inchaço nas pernas, nos pés, nas mãos ou no rosto, pode ter causas que precisam de um profissional de saúde. O DoseTrace mostra os seus números e não os explica: converse com o seu médico ou outro profissional de saúde sobre qualquer mudança que preocupe você."
           }
         ]
       },
@@ -9246,6 +9408,14 @@ export const translations = {
     hy_edit: 'Modifier',
     hy_daily_plan: 'Votre plan quotidien',
     hy_estimated: 'Estimé',
+    cal_weight_avg7: "Poids · moyenne sur 7 jours",
+    cal_scale_today: "Sur la balance aujourd'hui : {w}",
+    cal_scale_last: "Dernière pesée, {date} : {w}",
+    cal_week_change: "{d} par rapport aux 7 jours précédents",
+    cal_burn_measured_when: "Mesurée à la fin de « Vos vrais chiffres ».",
+    cal_weight_faq_link: "Pourquoi le poids du jour varie-t-il ?",
+    cal_chart_avg7: "Moyenne sur 7 jours",
+    cal_chart_weighin: "Chaque pesée",
     hy_set_target: 'Fixer un objectif',
     hy_rc_measured_chip: 'Mesuré',
     nutri_echo_updated: 'Mis à jour — {items}.',
@@ -10325,6 +10495,52 @@ export const translations = {
             id: 'journey_reality',
             q: "Que sont Vos vrais chiffres ?",
             a: "Ils estiment combien de calories vous brûlez vraiment par jour, à partir de vos propres chiffres : une pesée au départ, une autre environ trois semaines plus tard et au moins 7 jours d'affilée de repas entièrement enregistrés (ou votre moyenne de calories saisie). Le résultat remplace l'estimation par formule dans Votre plan quotidien. Ce sont des calculs à partir de vos données, jamais des conseils."
+          }
+        ]
+      },
+      {
+        id: 'weight',
+        category: "Votre poids",
+        questions: [
+          {
+            id: 'weight_up_eating_less',
+            q: "Pourquoi le poids peut-il monter alors que vous mangez moins ?",
+            a: "La balance pèse tout à la fois : la graisse, mais aussi l'eau, le glycogène (les glucides stockés dans les muscles et le foie, avec de l'eau) et les aliments encore en cours de digestion. Plus de glucides ou de sel que d'habitude, ou un entraînement intense, modifient en un ou deux jours la quantité d'eau retenue par le corps, et la balance suit. La graisse change beaucoup plus lentement ; une seule pesée ne montre donc pas lequel de ces éléments a changé. Source : Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_day_to_day',
+            q: "De combien le poids peut-il varier d'un jour à l'autre ?",
+            a: "Souvent plus qu'on ne le pense. Le glycogène et l'eau stockée avec lui peuvent peser de 1 à 2 kg, et les aliments et boissons encore dans l'intestin comptent jusqu'à leur digestion. Le poids suit aussi un rythme hebdomadaire : il est souvent plus élevé après le week-end et redescend pendant la semaine. Sources : Kreitzman et al., 1992 ; Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_glycogen',
+            q: "Qu'est-ce que le glycogène et pourquoi pèse-t-il ?",
+            a: "Le glycogène est la forme sous laquelle le corps stocke les glucides, dans les muscles et le foie. Chaque gramme est stocké avec environ 3 g d'eau. Manger plus ou moins de glucides que d'habitude remplit ou vide cette réserve en quelques jours, et la balance suit, sans aucun changement de la graisse. Source : Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_training',
+            q: "Un entraînement intense change-t-il le poids des jours suivants ?",
+            a: "Oui. Après un entraînement intense ou inhabituel, les muscles sollicités retiennent davantage de liquide pendant leur récupération, et cela peut durer plusieurs jours. La balance peut le montrer. Source : Clarkson et Hubal, Am J Phys Med Rehabil, 2002."
+          },
+          {
+            id: 'weight_average',
+            q: "Pourquoi DoseTrace affiche-t-il la moyenne sur 7 jours ?",
+            a: "Parce qu'une seule pesée porte l'eau et les aliments de ce jour-là. La moyenne des pesées des 7 derniers jours lisse ces variations et le rythme hebdomadaire, ce qui rend la direction du poids plus facile à voir. La moyenne apparaît dès qu'il y a au moins 4 pesées sur les 7 derniers jours ; avec moins, c'est la dernière pesée qui s'affiche. Le poids du jour reste en dessous, en petit. Source : Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_bia',
+            q: "Pourquoi la masse grasse d'une balance à bio-impédance change-t-elle autant ?",
+            a: "Ces balances estiment la masse grasse d'après la façon dont un faible courant électrique traverse le corps, ce qui dépend de l'eau du corps. L'hydratation, un repas récent, l'exercice ou l'heure de la journée peuvent changer la mesure. Des mesures prises dans les mêmes conditions se comparent mieux. Source : Kyle et al., Clin Nutr, 2004."
+          },
+          {
+            id: 'weight_how_to_weigh',
+            q: "Comment me peser pour comparer les jours entre eux ?",
+            a: "Utilisez la même balance, au réveil, après le passage aux toilettes et avant de manger ou de boire, avec les mêmes vêtements légers. Plus vous vous pesez de jours, plus la moyenne sur 7 jours utilise de pesées."
+          },
+          {
+            id: 'weight_professional',
+            q: "Quand un changement de poids doit-il être vu par un professionnel de santé ?",
+            a: "Une prise de poids rapide, ou un gonflement des jambes, des pieds, des mains ou du visage, peut avoir des causes qui nécessitent un professionnel de santé. DoseTrace affiche vos chiffres et ne les explique pas : parlez à votre médecin ou à un autre professionnel de santé de tout changement qui vous inquiète."
           }
         ]
       },
@@ -12215,6 +12431,14 @@ export const translations = {
     hy_edit: 'Bearbeiten',
     hy_daily_plan: 'Dein Tagesplan',
     hy_estimated: 'Geschätzt',
+    cal_weight_avg7: "Gewicht · 7-Tage-Schnitt",
+    cal_scale_today: "Heute auf der Waage: {w}",
+    cal_scale_last: "Letzte Wägung, {date}: {w}",
+    cal_week_change: "{d} gegenüber den 7 Tagen davor",
+    cal_burn_measured_when: "Gemessen, sobald „Deine echten Zahlen“ fertig ist.",
+    cal_weight_faq_link: "Warum schwankt das Tagesgewicht?",
+    cal_chart_avg7: "7-Tage-Schnitt",
+    cal_chart_weighin: "Jede Wägung",
     hy_set_target: 'Ziel festlegen',
     hy_rc_measured_chip: 'Gemessen',
     nutri_echo_updated: 'Aktualisiert – {items}.',
@@ -13294,6 +13518,52 @@ export const translations = {
             id: 'journey_reality',
             q: "Was sind Deine echten Zahlen?",
             a: "Damit schätzt du, wie viele Kalorien du wirklich am Tag verbrauchst – aus deinen eigenen Zahlen: eine Wägung am Anfang, eine zweite etwa drei Wochen später und mindestens 7 Tage in Folge mit vollständig eingetragenem Essen (oder deinem eingegebenen Kaloriendurchschnitt). Das Ergebnis ersetzt die Formelschätzung in „Dein Tagesplan“. Das ist reine Rechnung mit deinen Daten, nie ein Rat."
+          }
+        ]
+      },
+      {
+        id: 'weight',
+        category: "Dein Gewicht",
+        questions: [
+          {
+            id: 'weight_up_eating_less',
+            q: "Warum kann das Gewicht steigen, obwohl du weniger isst?",
+            a: "Die Waage wiegt alles auf einmal: Fett, aber auch Wasser, Glykogen (die in Muskeln und Leber gespeicherten Kohlenhydrate, zusammen mit Wasser) und Essen, das noch verdaut wird. Mehr Kohlenhydrate oder Salz als sonst oder ein hartes Training verändern innerhalb von ein, zwei Tagen, wie viel Wasser der Körper hält, und die Waage folgt. Fett verändert sich viel langsamer; eine einzelne Wägung zeigt deshalb nicht, was sich davon geändert hat. Quelle: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_day_to_day',
+            q: "Wie stark kann das Gewicht von einem Tag zum nächsten schwanken?",
+            a: "Oft stärker als gedacht. Glykogen und das mit ihm gespeicherte Wasser können 1 bis 2 kg wiegen, und Essen und Getränke im Darm zählen mit, bis sie verdaut sind. Das Gewicht folgt außerdem einem Wochenmuster: nach dem Wochenende meist höher, unter der Woche wieder niedriger. Quellen: Kreitzman et al., 1992; Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_glycogen',
+            q: "Was ist Glykogen und warum wiegt es?",
+            a: "Glykogen ist die Form, in der der Körper Kohlenhydrate speichert, in den Muskeln und der Leber. Jedes Gramm wird mit etwa 3 g Wasser gespeichert. Mehr oder weniger Kohlenhydrate als sonst füllen oder leeren diesen Speicher innerhalb weniger Tage, und die Waage folgt, ohne jede Veränderung beim Fett. Quelle: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_training',
+            q: "Verändert ein hartes Training das Gewicht der folgenden Tage?",
+            a: "Ja. Nach einem harten oder ungewohnten Training halten die beanspruchten Muskeln während der Erholung mehr Flüssigkeit, und das kann mehrere Tage dauern. Die Waage kann das zeigen. Quelle: Clarkson und Hubal, Am J Phys Med Rehabil, 2002."
+          },
+          {
+            id: 'weight_average',
+            q: "Warum zeigt DoseTrace den 7-Tage-Schnitt?",
+            a: "Weil eine einzelne Wägung das Wasser und das Essen dieses Tages mitträgt. Der Schnitt der Wägungen der letzten 7 Tage glättet diese Schwankungen und das Wochenmuster, sodass die Richtung des Gewichts leichter zu sehen ist. Der Schnitt erscheint ab 4 Wägungen in den letzten 7 Tagen; mit weniger erscheint die letzte Wägung. Das Tagesgewicht steht klein darunter. Quelle: Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_bia',
+            q: "Warum schwankt der Körperfettwert einer Bioimpedanz-Waage so stark?",
+            a: "Diese Waagen schätzen das Körperfett daraus, wie ein schwacher Strom durch den Körper fließt, und das hängt vom Körperwasser ab. Flüssigkeitshaushalt, eine Mahlzeit kurz davor, Sport oder die Tageszeit können den Wert verändern. Messungen unter gleichen Bedingungen lassen sich besser vergleichen. Quelle: Kyle et al., Clin Nutr, 2004."
+          },
+          {
+            id: 'weight_how_to_weigh',
+            q: "Wie wiege ich mich, damit die Tage vergleichbar sind?",
+            a: "Nimm dieselbe Waage, morgens nach dem Aufstehen, nach dem Toilettengang und vor dem Essen oder Trinken, mit derselben leichten Kleidung. Je mehr Tage du dich wiegst, desto mehr Wägungen nutzt der 7-Tage-Schnitt."
+          },
+          {
+            id: 'weight_professional',
+            q: "Wann sollte eine Gewichtsveränderung ärztlich angesehen werden?",
+            a: "Eine schnelle Gewichtszunahme oder Schwellungen an Beinen, Füßen, Händen oder im Gesicht können Ursachen haben, die eine medizinische Fachperson braucht. DoseTrace zeigt deine Zahlen und erklärt sie nicht: Sprich mit deiner Ärztin, deinem Arzt oder einer anderen medizinischen Fachperson über jede Veränderung, die dich beunruhigt."
           }
         ]
       },
@@ -15185,6 +15455,14 @@ export const translations = {
     hy_edit: 'Modifica',
     hy_daily_plan: 'Il tuo piano giornaliero',
     hy_estimated: 'Stimato',
+    cal_weight_avg7: "Peso · media di 7 giorni",
+    cal_scale_today: "Oggi sulla bilancia: {w}",
+    cal_scale_last: "Ultima pesata, {date}: {w}",
+    cal_week_change: "{d} rispetto ai 7 giorni precedenti",
+    cal_burn_measured_when: "Misurato al termine di «I tuoi numeri reali».",
+    cal_weight_faq_link: "Perché il peso del giorno sale e scende?",
+    cal_chart_avg7: "Media di 7 giorni",
+    cal_chart_weighin: "Ogni pesata",
     hy_set_target: 'Imposta un obiettivo',
     hy_rc_measured_chip: 'Misurato',
     nutri_echo_updated: 'Aggiornato — {items}.',
@@ -16264,6 +16542,52 @@ export const translations = {
             id: 'journey_reality',
             q: "Che cosa sono I tuoi numeri reali?",
             a: "Stimano quante calorie bruci davvero al giorno, dai tuoi numeri: una pesata all'inizio, un'altra circa tre settimane dopo e almeno 7 giorni di fila con tutto il cibo registrato (o la tua media di calorie inserita). Il risultato sostituisce la stima basata sulla formula in «Il tuo piano giornaliero». Sono calcoli dai tuoi dati, mai consigli."
+          }
+        ]
+      },
+      {
+        id: 'weight',
+        category: "Il tuo peso",
+        questions: [
+          {
+            id: 'weight_up_eating_less',
+            q: "Perché il peso può salire anche mangiando meno?",
+            a: "La bilancia pesa tutto insieme: il grasso, ma anche l'acqua, il glicogeno (i carboidrati conservati nei muscoli e nel fegato, insieme all'acqua) e il cibo ancora in digestione. Più carboidrati o sale del solito, o un allenamento intenso, cambiano in uno o due giorni quanta acqua trattiene il corpo, e la bilancia segue. Il grasso cambia molto più lentamente; per questo una sola pesata non mostra quale di queste cose è cambiata. Fonte: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_day_to_day',
+            q: "Quanto può variare il peso da un giorno all'altro?",
+            a: "Spesso più di quanto si pensi. Il glicogeno e l'acqua conservata con esso possono pesare da 1 a 2 kg, e il cibo e le bevande ancora nell'intestino contano finché non sono digeriti. Il peso segue anche un andamento settimanale: di solito più alto dopo il fine settimana e di nuovo più basso durante la settimana. Fonti: Kreitzman et al., 1992; Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_glycogen',
+            q: "Che cos'è il glicogeno e perché pesa?",
+            a: "Il glicogeno è la forma in cui il corpo conserva i carboidrati, nei muscoli e nel fegato. Ogni grammo viene conservato con circa 3 g di acqua. Mangiare più o meno carboidrati del solito riempie o svuota questa riserva in pochi giorni, e la bilancia segue, senza alcun cambiamento del grasso. Fonte: Kreitzman et al., Am J Clin Nutr, 1992."
+          },
+          {
+            id: 'weight_training',
+            q: "Un allenamento intenso cambia il peso dei giorni successivi?",
+            a: "Sì. Dopo un allenamento intenso o insolito, i muscoli allenati trattengono più liquido mentre recuperano, e questo può durare diversi giorni. La bilancia può mostrarlo. Fonte: Clarkson e Hubal, Am J Phys Med Rehabil, 2002."
+          },
+          {
+            id: 'weight_average',
+            q: "Perché DoseTrace mostra la media di 7 giorni?",
+            a: "Perché una sola pesata porta con sé l'acqua e il cibo di quel giorno. La media delle pesate degli ultimi 7 giorni attenua queste oscillazioni e l'andamento settimanale, così è più facile vedere la direzione del peso. La media compare quando ci sono almeno 4 pesate negli ultimi 7 giorni; con meno, compare l'ultima pesata. Il peso del giorno resta sotto, in piccolo. Fonte: Turicchi et al., PLoS One, 2020."
+          },
+          {
+            id: 'weight_bia',
+            q: "Perché il grasso di una bilancia a bioimpedenza cambia così tanto?",
+            a: "Queste bilance stimano il grasso da come una debole corrente elettrica attraversa il corpo, e questo dipende dall'acqua del corpo. Idratazione, un pasto recente, l'esercizio o l'ora del giorno possono cambiare la misura. Le misure prese nelle stesse condizioni si confrontano meglio. Fonte: Kyle et al., Clin Nutr, 2004."
+          },
+          {
+            id: 'weight_how_to_weigh',
+            q: "Come pesarmi per confrontare un giorno con l'altro?",
+            a: "Usa la stessa bilancia, al risveglio, dopo il bagno e prima di mangiare o bere, con gli stessi vestiti leggeri. Più giorni ti pesi, più pesate usa la media di 7 giorni."
+          },
+          {
+            id: 'weight_professional',
+            q: "Quando un cambiamento di peso va visto da un professionista sanitario?",
+            a: "Un aumento di peso rapido, o un gonfiore a gambe, piedi, mani o viso, può avere cause che richiedono un professionista sanitario. DoseTrace mostra i tuoi numeri e non li spiega: parla con il tuo medico o con un altro professionista sanitario di qualsiasi cambiamento che ti preoccupi."
           }
         ]
       },

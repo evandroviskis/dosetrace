@@ -29,6 +29,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { numbersWeight, afterWeighInDelete } from '../../lib/numbersWeight';
+import { weightTrend } from '../../lib/weightTrend';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import Modal from '../../components/PresenceModal';
 import { useWindowSize } from '../../lib/windowSize';
@@ -842,9 +843,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     const toW = kg => unit === 'imperial' ? kgToLb(kg) : kg;
     const toL = cm => unit === 'imperial' ? cmToIn(cm) : cm;
     const weightPts = snapshots.filter(x => x.weightKg != null).map(x => ({ date: x.date, value: toW(x.weightKg) }));
+    // WT-4: each weigh-in's own trailing 7-day average (the strong line); null below 4 weigh-ins.
+    const avg = weightTrend({ snapshots, today: todayISO() }).series.filter(p => p.avg != null).map(p => ({ date: p.date, value: toW(p.avg) }));
     const waistPts = snapshots.filter(x => x.waistCm != null).map(x => ({ date: x.date, value: toL(x.waistCm) }));
     return [
-      { key: 'weight', label: t('cal_snap_weight'), color: colors.data, unit: wUnit, points: weightPts },
+      { key: 'weight', label: t('cal_snap_weight'), color: colors.data, unit: wUnit, points: weightPts, avg, avgLabel: t('cal_chart_avg7'), pointLabel: t('cal_chart_weighin') },
       { key: 'waist', label: t('cal_snap_waist'), color: colors.ink2, unit: hUnit, points: waistPts },
     ].filter(sr => sr.points.length > 0);
   }, [snapshots, unit, colors, language]);
@@ -859,6 +862,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     return [...snapshots].sort((a, b) => (a.date < b.date ? -1 : 1))[snapshots.length - 1];
   }, [snapshots]);
   const currentWeightKg = latestSnap?.weightKg != null ? latestSnap.weightKg : metric.weightKg;
+  // WT-1/WT-2 (docs/specs/weight-trend.md): the 7-day average is the big number (display only; the
+  // math above keeps the latest weigh-in).
+  const trend = useMemo(() => weightTrend({ snapshots, today: todayISO() }), [snapshots]);
   const currentBF = latestSnap?.bodyFatPct != null ? latestSnap.bodyFatPct : (isUnknown ? null : num(bodyFat));
 
   // Measured weekly rate for each metric, from the dated weigh-in series (so a
@@ -1405,17 +1411,28 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // formula line. Once a reality check exists the MEASURED maintenance is the daily burn and
   // the estimate drops to the formula line. Without a daily burn it reads "—" in ink3 with
   // the fill-in line; an existing user's kept burn (PO-13) adds "Complete your numbers".
-  const heroWeight = fmtW(currentWeightKg);
+  const heroWeight = fmtW(trend.avg7 != null ? trend.avg7 : currentWeightKg);
+  const openWeightFaq = () => navigation.navigate('FAQ', { openGroup: 'weight' });
   const heroPart = (
     <View key="hero" style={s.gap12}>
       <View style={s.heroPair}>
         <View style={[s.heroCol, fontScale >= 1.3 && s.heroColStack]}>
-          <Text style={s.foot2}>{t('cal_weight')}</Text>
+          <Text style={s.foot2}>{trend.avg7 != null ? t('cal_weight_avg7') : t('cal_weight')}</Text>
           {heroWeight != null ? (
             <Text style={s.display} numberOfLines={1} adjustsFontSizeToFit>
               {heroWeight}<Text style={s.unit}> {wUnit}</Text>
             </Text>
           ) : <Text style={[s.display, s.displayEmpty]}>—</Text>}
+          {trend.avg7 != null && trend.latest ? (
+            <Text style={[s.foot2, s.tnum]}>
+              {t(trend.latest.date === todayISO() ? 'cal_scale_today' : 'cal_scale_last').replace('{date}', fmtShort(trend.latest.date)).replace('{w}', `${fmtW(trend.latest.kg)}\u00A0${wUnit}`)}
+            </Text>
+          ) : null}
+          {trend.avg7 != null && trend.weekChange != null ? (
+            <Text style={[s.foot2, s.tnum]}>
+              {t('cal_week_change').replace('{d}', `${signed(Math.round((unit === 'imperial' ? kgToLb(trend.weekChange) : trend.weekChange) * 10) / 10)}\u00A0${wUnit}`)}
+            </Text>
+          ) : null}
         </View>
         <View style={[s.heroCol, fontScale >= 1.3 && s.heroColStack]}>
           <Text style={s.foot2}>{t('cal_tdee')}</Text>
@@ -1450,9 +1467,17 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         ) : (
           <Text style={s.sec2}>{t('cal_fill_numbers')}</Text>
         )}
+        {plan && !scoreCheck ? (
+          <Text style={s.foot2}>{t('cal_burn_measured_when')}</Text>
+        ) : null}
         {(plan || scoreCheck) && !burnGate.complete ? (
           <TouchableOpacity onPress={() => setNumbersOpen(true)} style={s.linkHit} activeOpacity={0.7} accessibilityRole="button">
             <Text style={s.linkU}>{t('cal_complete_numbers')}</Text>
+          </TouchableOpacity>
+        ) : null}
+        {heroWeight != null ? (
+          <TouchableOpacity onPress={openWeightFaq} style={s.linkHit} activeOpacity={0.7} accessibilityRole="link">
+            <Text style={s.linkU}>{t('cal_weight_faq_link')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>

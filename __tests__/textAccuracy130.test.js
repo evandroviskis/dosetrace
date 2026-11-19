@@ -42,7 +42,7 @@ test('5a: the FAQ reality-check answer says it estimates, never measures', () =>
 });
 
 test('5b: the FAQ price answer offers the 7-day trial to eligible new subscribers only', () => {
-  const i = idx(/How much/i);
+  const i = idx(/How much does Premium/i); // WT-7 added "How much can weight change"
   assert.ok(i >= 0);
   const NEW = { en: /New subscribers/, es: /nuevos suscriptores/i, pt: /Novos assinantes/, fr: /nouveaux abonnés/i, de: /Neue Abonnent/, it: /nuovi abbonati/i };
   const SHOWS = { en: /shows whether it applies to you/, es: /te muestra si/, pt: /mostra se/, fr: /vous indique s/, de: /siehst du, ob/, it: /ti mostra se/ };

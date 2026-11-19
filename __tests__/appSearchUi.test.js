@@ -398,9 +398,9 @@ test('AS-27: a text opens at its paragraph with the words marked; Back returns t
   const faqHit = TX.makeTextSearch(TX.buildTextIndex(t, 'ios'))('frasco vence')[0];
   assert.deepEqual(textAction(faqHit, 'frasco vence').route, 'FAQ');
   assert.match(code('screens/FAQScreen.js'), /route\.params\.openQuestion/);
-  const learnHit = TX.makeTextSearch(TX.buildTextIndex(t, 'ios'))('glicogênio')[0];
+  const learnHit = TX.makeTextSearch(TX.buildTextIndex(t, 'ios'))('músculos vazios')[0]; // WT-7: "glicogênio" now also finds the Your weight FAQ
   assert.equal(learnHit.unit.src, 'learn');
-  assert.deepEqual(textAction(learnHit, 'glicogênio').params.focus, 'learn');
+  assert.deepEqual(textAction(learnHit, 'músculos vazios').params.focus, 'learn');
   assert.match(code('screens/components/LearnBlock.js'), /apply\(learnRequest\(\)\);\s*return onLearnRequest\(apply\);/);
   assert.match(code('screens/components/CalculatorSection.js'), /requestLearn\(\{ key: learnItem, mark, n: landKey \}\)/);
   const store = require('../lib/appSearchStore');

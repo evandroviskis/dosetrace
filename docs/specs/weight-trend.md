@@ -1,0 +1,22 @@
+# Weight: the 7-day average is the big number (food goals design, part 6)
+
+- source: founder 2026-11-17 ("hoje eu me pesei de 89,4… Isso não pode parecer para o usuário que é uma coisa ruim. Ele não pode desanimar e achar que o aplicativo está ensinando errado… talvez alguns FAQs, onde a gente explica o porquê que o peso talvez suba"); council 2026-11-17 (regulatory, UX, product, growth: unanimous on the 7-day average as the big number; the card triggered by "weight up while food below plan" CUT because the trigger interprets the user's result).
+- picture: docs/design/food-goals-progress.html part 6 (claude.ai/artifact/6t3vCHEhC4URggQv72YEUZ).
+- checklist-signed: founder 2026-11-18 20:40 EST ("Pode executar a parte 6").
+- decided by logic: the "measured after 14 days" line of the picture reads "measured once Reality check is done" because the check's length is the user's (at least 14 days, reminder at the chosen day); the math (BMR, plan, reality check, target projection) keeps using the latest weigh-in, only the display changes; the week change compares two 7-day averages and shows only when both exist.
+- hard line: general facts with a source only. Never "don't worry", "it's normal", "it's water", "you gained muscle", "you are losing fat", "trust the process", "the app is right"; no weight explanation near any compound.
+- committed-to: next delivery (EAS Update, JS only).
+
+## Acceptance checklist
+
+| ID | Criterion | Status | Evidence | Deviation |
+|---|---|---|---|---|
+| WT-1 | lib/weightTrend: the 7-day average is the mean of the weigh-ins dated in the last 7 days (today and the 6 before, one per day), only with at least 4 of them; else none. The week change is that average minus the average of the 7 days before (also at least 4), else none. Each weigh-in in the chart gets its own trailing 7-day average under the same rule. | built | __tests__/weightTrend.test.js: "WT-1" |  |
+| WT-2 | Progress card hero: with an average, the label reads "Weight · 7-day average" and the big number is the average; under it, small, "On the scale today: X" (latest weigh-in today) or "Last weigh-in, date: X", and the week change when it exists. Without an average the hero is exactly as before (latest weigh-in). | built | __tests__/weightTrend.test.js: "WT-2" |  |
+| WT-3 | Journey Progress tile shows the same number and label as the hero (lib/progressTile). | built | __tests__/weightTrend.test.js: "WT-3" |  |
+| WT-4 | Weigh-ins chart: the 7-day average is the strong line, each weigh-in a faint point; the legend names both. With no average point the chart is as before. | built | __tests__/weightTrend.test.js: "WT-4"; __tests__/weightTrend.test.js: "WT-4 (simulator 2026-11-18)" (a middle date too close to an end date is dropped; it printed "Nov 10Nov 18") |  |
+| WT-5 | Daily burn while it is the formula estimate: the "Estimated" chip stays and a line under the hero says it is measured once Reality check is done. A measured burn shows as before. | built | __tests__/weightTrend.test.js: "WT-5" |  |
+| WT-6 | A fixed link "Why does the day's weight go up and down? ›" under the hero, shown whenever a weight shows (never triggered by the user's numbers), opens the FAQ at the "Your weight" group. | built | __tests__/weightTrend.test.js: "WT-6" |  |
+| WT-7 | FAQ group "Your weight", 8 questions in the 6 languages: up while eating less, day to day, glycogen (about 3 g of water per gram; Kreitzman 1992), hard workout (Clarkson and Hubal 2002), why the 7-day average (Turicchi 2020), bioimpedance (Kyle 2004), how to weigh, fast gain or swelling: see a health professional. Each factual answer names its source; none of the forbidden phrases in any language; no compound named. | built | __tests__/weightTrend.test.js: "WT-7" |  |
+| WT-8 | The math is unchanged: the plan, BMR, reality check and target projection keep reading the latest weigh-in. | built | __tests__/weightTrend.test.js: "WT-8" |  |
+| WT-9 | Theme tokens only, no emoji; Progress and Journey seen on the simulator in light and dark (with and without an average). | built | __tests__/weightTrend.test.js: "WT-9"; simulator 2026-11-18 (iPhone 17 Pro Max, test account, lb): without an average the hero and tile show the latest weigh-in as before; with 4 weigh-ins this week the tile and hero read "Weight · 7-day average 185.2 lb", "On the scale today: 185.4 lb", "−0.9 lb vs the previous 7 days"; the chart draws the average line strong and the weigh-ins faint; the FAQ link opens Your weight; all seen in dark and in light |  |

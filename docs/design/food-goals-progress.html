@@ -1,0 +1,401 @@
+<title>Metas do dia na comida</title>
+<style>
+:root{--bg:#ecebe7;--card:#ffffff;--ink:#141414;--ink2:#555;--ink3:#8a8a86;--line:#d6d5d0;--bar:#e3e2dd;--fill:#1d3a6b;--over:#8a8a86;--me:#141414;--meInk:#fff;--note:#fff8e6;--noteInk:#5b4a12;--page:#f6f5f2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f0f10;--card:#1c1c1e;--ink:#f2f2f0;--ink2:#b5b5b0;--ink3:#86868a;--line:#2e2e31;--bar:#2c2c2f;--fill:#7fa6e6;--over:#86868a;--me:#f2f2f0;--meInk:#111;--note:#2a2410;--noteInk:#e8d79a;--page:#161618;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f0f10;--card:#1c1c1e;--ink:#f2f2f0;--ink2:#b5b5b0;--ink3:#86868a;--line:#2e2e31;--bar:#2c2c2f;--fill:#7fa6e6;--over:#86868a;--me:#f2f2f0;--meInk:#111;--note:#2a2410;--noteInk:#e8d79a;--page:#161618;color-scheme:dark}
+body{background:var(--page);color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;padding:24px 16px 48px}
+h1{font-size:22px;margin:0 0 4px;text-wrap:balance}h2{font-size:17px;margin:36px 0 6px}
+.lead{color:var(--ink2);max-width:70ch;margin:0 0 8px}
+.row{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.col{flex:1 1 300px;min-width:0;max-width:380px}
+.tag{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin:0 0 8px;font-weight:600}
+.phone{background:var(--bg);border-radius:28px;padding:18px 14px;border:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.me{align-self:flex-end;background:var(--me);color:var(--meInk);border-radius:18px;padding:10px 14px;max-width:85%}
+.card{background:var(--card);border-radius:18px;padding:12px 14px;border:1px solid var(--line)}
+.it{display:flex;justify-content:space-between;gap:8px}.it b{font-variant-numeric:tabular-nums}
+.tot{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+.tot .k{font-weight:700;font-size:18px}.sub{color:var(--ink2);font-size:13px}
+.add{margin-top:6px;font-size:13px;color:var(--fill);font-weight:600}
+.day{padding:4px 2px}.day .cap{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+.day .old{font-weight:700;font-variant-numeric:tabular-nums}
+.m{display:grid;grid-template-columns:92px 1fr;gap:4px 10px;align-items:center;margin-top:8px}
+.m .l{font-size:13px;color:var(--ink2)}
+.m .v{font-size:13px;font-variant-numeric:tabular-nums;text-align:right;grid-column:2}
+.track{height:8px;border-radius:4px;background:var(--bar);overflow:hidden;position:relative}
+.track i{display:block;height:100%;background:var(--fill);border-radius:4px}
+.track i.ov{background:var(--over)}
+.mrow{display:contents}
+.bot{background:var(--card);border-radius:18px;padding:10px 14px;max-width:88%;border:1px solid var(--line)}
+.foot{font-size:12px;color:var(--ink3);text-align:center}
+.hero{background:var(--card);border-radius:18px;padding:14px;border:1px solid var(--line)}
+.hero .t{font-weight:700}
+.btn{margin-top:10px;background:var(--fill);color:var(--card);text-align:center;border-radius:12px;padding:10px;font-weight:600}
+.notif{background:var(--card);border-radius:16px;padding:10px 12px;border:1px solid var(--line);font-size:14px}
+.notif .a{font-size:12px;color:var(--ink3);display:flex;justify-content:space-between}
+.notif b{display:block;margin:2px 0}
+.lock{background:var(--note);color:var(--noteInk);border-radius:12px;padding:10px 12px;font-size:13px}
+.rules{max-width:72ch;color:var(--ink2);padding-left:18px}.rules li{margin:4px 0}
+.q{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;max-width:72ch}
+.q ol{margin:6px 0 0;padding-left:18px}
+.rec{font-size:12px;color:var(--fill);font-weight:700}
+.t2{font-weight:700;font-size:16px;margin-bottom:8px}
+.c{font-size:12px;color:var(--ink3);display:block}
+.goals{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.g{border:1px solid var(--line);border-radius:12px;padding:6px 8px}.g b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.g.on{border-color:var(--fill);border-width:2px}
+.cell{margin-top:10px}.cell b{display:block;font-size:17px}
+.chip{margin-top:8px;font-size:12px;color:var(--ink2);border:1px solid var(--line);border-radius:10px;padding:4px 8px;display:inline-block}
+.today{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.today .cap{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:600}
+.track s{position:absolute;top:-2px;bottom:-2px;width:0;border-left:2px solid transparent}
+.week{position:relative;height:96px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;margin-top:8px;padding-bottom:18px}
+.week .d{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative}
+.week .d i{display:block;width:70%;background:var(--fill);border-radius:4px 4px 0 0;opacity:.85}
+.week .d.now i{opacity:.45}
+.week .d span{position:absolute;bottom:-17px;font-size:11px;color:var(--ink3)}
+.week .plan{position:absolute;left:0;right:0;border-top:1px dashed var(--ink3);z-index:1}
+.week .plan span{position:absolute;right:0;top:-16px;font-size:11px;color:var(--ink3);background:var(--card);padding:0 2px}
+.link{margin-top:10px;color:var(--fill);font-weight:600;font-size:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12px;margin-bottom:4px}.seg span{padding:4px 10px;color:var(--ink2)}.seg .on{background:var(--fill);color:var(--card);font-weight:600}
+.mc{margin-top:14px}.mc .h{display:flex;justify-content:space-between;font-size:13px;font-weight:600}.mc .h span{color:var(--ink3);font-weight:400}
+.bars{position:relative;height:84px;display:grid;grid-template-columns:repeat(14,1fr);gap:3px;align-items:end;margin-top:6px}
+.bars .pl{position:absolute;left:0;right:0;border-top:1.5px dashed var(--ink2);z-index:2}
+.dc{position:relative;height:100%}
+.dc b,.dc u,.dc em{position:absolute;left:0;right:0;display:block}
+.dc b{background:var(--fill);border-radius:2px 2px 0 0}
+.dc u{background:repeating-linear-gradient(135deg,var(--ink2) 0 2px,transparent 2px 5px);border:1px solid var(--ink2);border-bottom:0;border-radius:2px 2px 0 0}
+.dc em{border:1.5px dashed var(--fill);border-bottom:0;opacity:.7;border-radius:2px 2px 0 0}
+.dc.now b{opacity:.4}
+.dc.none::after{content:"";position:absolute;bottom:0;left:30%;right:30%;height:2px;background:var(--ink3)}
+.cnt{font-size:13px;margin-top:6px;font-variant-numeric:tabular-nums}.cnt b{font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:12px;color:var(--ink2)}
+.legend i{display:inline-block;width:12px;height:10px;margin-right:5px;vertical-align:-1px;border-radius:2px}
+.lg-in{background:var(--fill)}.lg-ov{background:repeating-linear-gradient(135deg,var(--ink2) 0 2px,transparent 2px 5px);border:1px solid var(--ink2)}.lg-un{border:1.5px dashed var(--fill)}
+.comp{display:grid;grid-template-columns:1fr auto auto;gap:6px 12px;font-size:14px;font-variant-numeric:tabular-nums;margin-top:8px}
+.comp .hd{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.comp .dn{color:var(--fill);font-weight:700}
+.big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.how{font-size:12px;color:var(--ink3)}
+.opt{display:flex;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:12px;padding:9px 12px;margin-top:6px;font-size:14px}
+.opt span{color:var(--ink3);font-size:13px}.opt.on{border:2px solid var(--fill)}
+.times{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.tm{display:flex;justify-content:space-between;padding:6px 0;font-size:14px;border-bottom:1px solid var(--line)}.tm b{font-variant-numeric:tabular-nums;color:var(--fill)}
+.cap2{font-size:12px;color:var(--ink2);font-weight:600}
+.tl{position:relative;height:34px;margin-top:6px;border-bottom:2px solid var(--bar)}
+.tl .mk{position:absolute;bottom:-6px;width:10px;height:10px;border-radius:50%;background:var(--fill);transform:translateX(-50%)}
+.tl em{position:absolute;top:0;font-style:normal;font-size:11px;color:var(--ink2);transform:translateX(-50%);font-variant-numeric:tabular-nums}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-top:8px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.acts span{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:3px 8px;color:var(--fill);font-weight:600}
+</style>
+
+<h1>Metas do dia na comida</h1>
+<p class="lead">O plano do cartão Progresso (calorias, proteína e carboidrato) aparece onde o senhor registra a comida. O app mostra a conta: "120 de 180 g". Não diz "coma mais" nem sugere alimento (regra da IA). Cores do tema, claro e escuro.</p>
+
+<h2>1. Progresso › Seu plano diário: plano, o que já comeu e quanto falta</h2>
+<div class="row">
+  <div class="col">
+    <p class="tag">Hoje no app</p>
+    <div class="phone">
+      <div class="card">
+        <div class="t2">Seu plano diário</div>
+        <div class="goals"><div class="g"><span class="c">Perder</span><b>1.800</b><span class="c">−15–20%</span></div><div class="g on"><span class="c">Manter</span><b>2.200</b><span class="c">Gasto diário</span></div><div class="g"><span class="c">Ganhar</span><b>2.500</b><span class="c">+10–15%</span></div></div>
+        <div class="cell"><span class="c">Proteína</span><b>180 g/dia</b><span class="c">150–205 · por kg de peso corporal</span></div>
+        <div class="chip">gordura ≈ 60 g · carboidratos ≈ 250 g</div>
+      </div>
+      <div class="foot">Mostra só o plano. O que já foi comido fica na conversa da comida; a conta é do senhor.</div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="tag">Proposta <span class="rec">· recomendada</span></p>
+    <div class="phone">
+      <div class="card">
+        <div class="t2">Seu plano diário</div>
+        <div class="goals"><div class="g"><span class="c">Perder</span><b>1.800</b><span class="c">−15–20%</span></div><div class="g on"><span class="c">Manter</span><b>2.200</b><span class="c">Gasto diário</span></div><div class="g"><span class="c">Ganhar</span><b>2.500</b><span class="c">+10–15%</span></div></div>
+        <div class="cell"><span class="c">Proteína</span><b>180 g/dia</b><span class="c">150–205 · por kg de peso corporal</span></div>
+        <div class="chip">gordura ≈ 60 g · carboidratos ≈ 250 g</div>
+        <div class="today">
+          <div class="cap">Hoje · registrado até agora</div>
+          <div class="m">
+            <span class="l">Calorias</span><div class="track"><i style="width:75%"></i></div><span class="v">1.650 de 2.200 kcal · faltam 550</span>
+            <span class="l">Proteína</span><div class="track"><i style="width:67%"></i><s style="left:83%"></s></div><span class="v">120 de 180 g · faltam 60 g</span>
+            <span class="l">Carboidrato</span><div class="track"><i style="width:92%"></i></div><span class="v">230 de 250 g · faltam 20 g</span>
+          </div>
+          <div class="link">Registrar comida ›</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="t2">Plano e realizado</div>
+        <div class="seg"><span>7 dias</span><span class="on">14 dias</span></div>
+        <div id="charts"></div>
+        <div class="legend"><span><i class="lg-in"></i>comido até o plano</span><span><i class="lg-ov"></i>acima do plano</span><span><i class="lg-un"></i>faltou para o plano</span></div>
+        <div class="sub" style="margin-top:8px">"No plano" = até 10% para mais ou para menos, a margem das estimativas da IA. Dia sem registro fica vazio e não conta. Hoje ainda não conta.</div>
+        <div class="sub" style="margin-top:6px">Para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde que acompanha você.</div>
+      </div>
+      <div class="foot">Plano (onde quero chegar), registrado (o que fiz) e a diferença (onde estou), no mesmo cartão.</div>
+    </div>
+  </div>
+  <div class="col">
+    <ul class="rules" style="margin-top:22px">
+      <li>Os números de "Hoje" seguem a meta escolhida nas três caixas: tocar em Perder muda o plano e as barras juntas.</li>
+      <li>"Plano e realizado": um gráfico para cada um (calorias, proteína, carboidrato), em 7 ou 14 dias. A linha tracejada é o plano; cada coluna mostra o que foi comido, a parte que passou do plano e a que faltou.</li>
+      <li>Embaixo de cada gráfico, a contagem: "carboidrato acima do plano em 8 de 12 dias; proteína abaixo em 9". É a resposta, em números, para "por que não emagreci?". O app mostra os fatos lado a lado; a conclusão é da pessoa (regra da IA: o app não diz "o erro é a dieta").</li>
+      <li>Gordura fica só no plano: o registro da comida hoje não soma gordura em lugar nenhum.</li>
+      <li>Sem nenhum registro hoje: as barras vazias e "Registrar comida ›".</li>
+      <li>A linha que já existe ("para mudar proteína, carboidrato ou calorias, converse com o treinador ou o profissional de saúde") continua no cartão.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>2. Conversa da comida, depois de registrar 2 scoops de whey</h2>
+<div class="row">
+  <div class="col">
+    <p class="tag">Hoje no app</p>
+    <div class="phone">
+      <div class="me">2 scoops de whey com água</div>
+      <div class="card"><div class="it"><span>2 × scoop de whey</span><b>~240 kcal</b></div>
+        <div class="tot"><div class="k">≈ 240 kcal</div><div class="sub">6 g carboidrato · 50 g proteína</div></div></div>
+      <div class="day"><div class="cap">Hoje</div><div class="old">~1.650 kcal · 230 g carboidrato · 120 g proteína</div></div>
+      <div class="bot">Mais alguma coisa hoje?</div>
+      <div class="foot">Nada mostra o plano: a meta de proteína só aparece em Progresso.</div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="tag">Proposta <span class="rec">· recomendada</span></p>
+    <div class="phone">
+      <div class="me">2 scoops de whey com água</div>
+      <div class="card"><div class="it"><span>2 × scoop de whey</span><b>~240 kcal</b></div>
+        <div class="tot"><div class="k">≈ 240 kcal</div><div class="sub">6 g carboidrato · 50 g proteína</div>
+        <div class="add">+50 g de proteína no seu dia</div></div></div>
+      <div class="card day">
+        <div class="cap">Hoje · seu plano</div>
+        <div class="m">
+          <span class="l">Calorias</span><div class="track"><i style="width:75%"></i></div><span class="v">1.650 de 2.200 kcal · faltam 550</span>
+          <span class="l">Proteína</span><div class="track"><i style="width:67%"></i></div><span class="v">120 de 180 g · faltam 60 g</span>
+          <span class="l">Carboidrato</span><div class="track"><i style="width:92%"></i></div><span class="v">230 de 250 g · faltam 20 g</span>
+        </div>
+      </div>
+      <div class="bot">Mais alguma coisa hoje?</div>
+      <div class="foot">Estimativas da IA (±10–15%). Não é orientação médica nem de dieta.</div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="tag">Quando passa do plano</p>
+    <div class="phone">
+      <div class="card day">
+        <div class="cap">Hoje · seu plano</div>
+        <div class="m">
+          <span class="l">Calorias</span><div class="track"><i style="width:100%" class="ov"></i></div><span class="v">2.350 de 2.200 kcal · 150 acima</span>
+          <span class="l">Proteína</span><div class="track"><i style="width:94%"></i></div><span class="v">170 de 180 g · faltam 10 g</span>
+          <span class="l">Carboidrato</span><div class="track"><i style="width:100%" class="ov"></i></div><span class="v">270 de 250 g · 20 g acima</span>
+        </div>
+      </div>
+      <div class="foot">"Acima" em cinza, sem vermelho e sem alerta: informa, não julga.</div>
+      <div class="lock">Sem plano em Progresso: só os números do dia e a linha "Monte seu plano em Progresso para comparar".</div>
+    </div>
+  </div>
+</div>
+
+<h2>3. Cartão da comida no Hoje (e em Evolução)</h2>
+<div class="row">
+  <div class="col">
+    <p class="tag">Proposta</p>
+    <div class="hero">
+      <div class="t">Diário de comida</div>
+      <div class="m">
+        <span class="l">Calorias</span><div class="track"><i style="width:64%"></i></div><span class="v">1.400 de 2.200 kcal</span>
+        <span class="l">Proteína</span><div class="track"><i style="width:53%"></i></div><span class="v">95 de 180 g</span>
+        <span class="l">Carboidrato</span><div class="track"><i style="width:72%"></i></div><span class="v">180 de 250 g</span>
+      </div>
+      <div class="btn">Registrar comida</div>
+    </div>
+  </div>
+  <div class="col"><p class="lead" style="margin-top:22px">Mesmas três barras, no lugar das linhas de hoje. Abrir o app já mostra onde o dia está, sem entrar em Progresso.</p></div>
+</div>
+
+<h2>4. Lembretes no ritmo das refeições da pessoa</h2>
+<p class="lead">Ao começar "Seus números reais", o app pergunta quais refeições a pessoa faz. Cada lembrete chega depois do horário de uma refeição e já traz o dia até ali. O resumo das 16:00 sai: os números vão no lembrete depois de cada refeição.</p>
+<div class="row">
+  <div class="col">
+    <p class="tag">a) A pergunta, ao começar "Seus números reais"</p>
+    <div class="phone">
+      <div class="card">
+        <div class="t2">Suas refeições</div>
+        <div class="sub" style="margin-bottom:10px">Os lembretes de comida chegam depois de cada uma. Dá para mudar em Ajustes.</div>
+        <div class="opt on"><b>Café, almoço e jantar</b><span>3 lembretes</span></div>
+        <div class="opt"><b>Refeições e lanches</b><span>5 lembretes</span></div>
+        <div class="opt"><b>A cada 3 horas</b><span>6 lembretes</span></div>
+        <div class="opt"><b>Escolher os horários</b><span></span></div>
+        <div class="times">
+          <div class="tm"><span>Café da manhã</span><b>07:30</b></div>
+          <div class="tm"><span>Almoço</span><b>12:30</b></div>
+          <div class="tm"><span>Jantar</span><b>19:30</b></div>
+          <div class="link" style="margin-top:6px">+ Adicionar refeição</div>
+        </div>
+        <div class="btn">Continuar</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="tag">b) Quando cada um chega</p>
+    <div class="card">
+      <div class="cap2">Café, almoço e jantar</div>
+      <div class="tl"><span style="left:14%" class="mk"></span><span style="left:42%" class="mk"></span><span style="left:81%" class="mk"></span>
+        <em style="left:14%">08:30</em><em style="left:42%">13:30</em><em style="left:81%">20:30</em></div>
+      <div class="cap2" style="margin-top:16px">A cada 3 horas (atleta)</div>
+      <div class="tl"><span style="left:11%" class="mk"></span><span style="left:28%" class="mk"></span><span style="left:44%" class="mk"></span><span style="left:61%" class="mk"></span><span style="left:78%" class="mk"></span><span style="left:94%" class="mk"></span>
+        <em style="left:11%">08</em><em style="left:28%">11</em><em style="left:44%">14</em><em style="left:61%">17</em><em style="left:78%">20</em><em style="left:94%">23</em></div>
+      <div class="axis"><span>06:00</span><span>24:00</span></div>
+    </div>
+    <ul class="rules">
+      <li>Chega 1 hora depois do horário da refeição: a pergunta "almoçou?" só faz sentido depois do almoço.</li>
+      <li>Se a pessoa já registrou algo desde a refeição anterior, aquele lembrete não sai. Quem registra sozinho não é incomodado.</li>
+      <li>O último lembrete do dia substitui o das 20:00 de hoje. Quem não responder à pergunta continua com o das 20:00.</li>
+      <li>"Nada mais hoje" cancela os lembretes que faltam no dia, como já acontece.</li>
+    </ul>
+  </div>
+  <div class="col">
+    <p class="tag">c) Os lembretes</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="notif"><div class="a"><span>DoseTrace</span><span>13:30</span></div>
+        <b>Já almoçou?</b>Registre o almoço e o que comeu desde o café. Hoje até agora: proteína 45 de 180 g · calorias 650 de 2.200.
+        <div class="acts"><span>Registrar</span><span>Pular esta refeição</span><span>Nada mais hoje</span></div></div>
+      <div class="notif"><div class="a"><span>DoseTrace</span><span>17:00</span></div>
+        <b>Refeição das 16:00</b>Registre o que comeu. Hoje até agora: proteína 110 de 180 g · carboidrato 160 de 250 g.
+        <div class="acts"><span>Registrar</span><span>Pular esta refeição</span><span>Nada mais hoje</span></div></div>
+      <div class="notif"><div class="a"><span>DoseTrace</span><span>20:30</span></div>
+        <b>Já jantou?</b>Registre o jantar. Hoje até agora: proteína 120 de 180 g · calorias 1.650 de 2.200.
+        <div class="acts"><span>Registrar</span><span>Nada mais hoje</span></div></div>
+    </div>
+    <ul class="rules">
+      <li>"Registrar" abre a conversa já perguntando por aquela refeição. Depois dela, a conversa pergunta pelos lanches entre as refeições, como já faz hoje.</li>
+      <li>Os números vêm do que já foi registrado. Nunca "coma mais" nem sugestão de alimento.</li>
+      <li>O aviso de "perto do limite" aparece na conversa, na hora do registro, porque o total só muda ali.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>5. Peso e gordura: quando o peso sobe e a gordura cai</h2>
+<p class="lead">A pesagem já aceita a % de gordura (campo opcional em "Registrar o peso de hoje"). O que falta é o app usar esse número: mostrar quanto do peso é gordura e quanto é massa magra, e refazer a conta do gasto diário com ele. Sem % de gordura, tudo continua como hoje.</p>
+<div class="row">
+  <div class="col">
+    <p class="tag">Hoje no app</p>
+    <div class="phone">
+      <div class="card">
+        <div class="t2">Pesagem de hoje</div>
+        <div class="big">89,4 kg</div>
+        <div class="sub">+0,8 kg desde 10/11 · 20,3% de gordura</div>
+      </div>
+      <div class="foot">O peso subiu, e é só isso que se vê. A % de gordura fica numa coluna da tabela de pesagens.</div>
+    </div>
+  </div>
+  <div class="col">
+    <p class="tag">Proposta</p>
+    <div class="phone">
+      <div class="card">
+        <div class="t2">Pesagem de hoje</div>
+        <div class="big">89,4 kg</div>
+        <div class="comp">
+          <span class="hd"></span><span class="hd">Hoje</span><span class="hd">desde 10/11</span>
+          <span>Peso</span><span>89,4 kg</span><span>+0,8 kg</span>
+          <span>Gordura</span><span>18,1 kg · 20,3%</span><span class="dn">−0,5 kg</span>
+          <span>Massa magra</span><span>71,3 kg</span><span>+1,3 kg</span>
+        </div>
+        <div class="how" style="margin-top:8px">Massa magra = músculo, água, glicogênio, ossos. Sobe com treino pesado e com água retida; nem toda subida é músculo.</div>
+      </div>
+      <div class="card">
+        <div class="t2">Seu gasto diário medido</div>
+        <div class="comp">
+          <span>Só com o peso</span><span>1.760 kcal</span><span></span>
+          <span>Com peso e gordura</span><span class="dn">2.370 kcal</span><span></span>
+        </div>
+        <div class="how" style="margin-top:8px">Calculado com peso e gordura: média de 2 pesagens com gordura no início e 2 no fim dos 14 dias. Comida: média de 2.200 kcal por dia.</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <ul class="rules" style="margin-top:22px">
+      <li><b>Por que a conta muda tanto:</b> hoje o app conta todo quilo como gordura (7.700 kcal). 1 kg de gordura guarda cerca de 9.400 kcal; 1 kg de massa magra, cerca de 1.800 (Hall, 2008). No exemplo, peso +0,8 kg com gordura −0,5 kg mostra que o senhor gastou mais do que comeu, e não menos.</li>
+      <li><b>Cuidado honesto:</b> a balança de bioimpedância muda 1 a 3 pontos com água e glicogênio, exatamente o que acontece depois de um treino de perna. Por isso o app nunca usa uma leitura só: usa a média das leituras do começo e do fim do período, e só quando há pelo menos 2 em cada ponta. Se não houver, faz a conta só com o peso, como hoje, e diz qual conta usou.</li>
+      <li>Dica junto ao campo: "mesma balança, ao acordar, antes de comer". Sem julgamento: nada de "bom" ou "ruim", só os números.</li>
+      <li>A meta por % de gordura em "Seu objetivo" já existe e continua igual.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>6. Peso do dia × média de 7 dias (conselho, unânime)</h2>
+<p class="lead">A balança do dia varia 1 a 2 kg com água, sal, glicogênio e treino. O número grande passa a ser a média de 7 dias; o peso do dia fica pequeno. É o que MacroFactor, Happy Scale e Libra fazem.</p>
+<div class="row">
+  <div class="col">
+    <p class="tag">Hoje no app</p>
+    <div class="phone"><div class="card"><div class="t2">Peso</div><div class="big">89,4 kg</div><div class="sub">+0,8 kg desde 10/11</div>
+      <div class="sub" style="margin-top:8px">Gasto diário: 2.700 kcal</div></div>
+      <div class="foot">O número do dia, sozinho, parece dizer "engordei" e "o app errou".</div></div>
+  </div>
+  <div class="col">
+    <p class="tag">Proposta</p>
+    <div class="phone"><div class="card">
+      <div class="t2">Peso · média de 7 dias</div><div class="big">88,9 kg</div>
+      <div class="sub">−0,2 kg na semana · hoje na balança: 89,4 kg</div>
+      <svg viewBox="0 0 300 90" style="width:100%;margin-top:10px" aria-label="Pesos do dia e média de 7 dias">
+        <g fill="var(--ink3)" opacity=".55"><circle cx="10" cy="40" r="3"/><circle cx="30" cy="52" r="3"/><circle cx="50" cy="34" r="3"/><circle cx="70" cy="46" r="3"/><circle cx="90" cy="58" r="3"/><circle cx="110" cy="38" r="3"/><circle cx="130" cy="44" r="3"/><circle cx="150" cy="56" r="3"/><circle cx="170" cy="40" r="3"/><circle cx="190" cy="50" r="3"/><circle cx="210" cy="62" r="3"/><circle cx="230" cy="42" r="3"/><circle cx="250" cy="30" r="3"/><circle cx="270" cy="52" r="3"/><circle cx="290" cy="20" r="3"/></g>
+        <polyline fill="none" stroke="var(--fill)" stroke-width="3" points="10,45 50,45 90,46 130,47 170,47 210,48 250,46 290,44"/>
+      </svg>
+      <div class="how">Linha: média de 7 dias. Pontos: cada pesagem.</div>
+      <div class="sub" style="margin-top:10px">Gasto diário <b>estimado</b>: 2.700 kcal · medido depois de 14 dias de "Seus números reais"</div>
+      <div class="link">Por que o peso do dia sobe e desce? ›</div>
+    </div>
+    <div class="foot">Com menos de 4 pesagens na semana, mostra o peso do dia como hoje.</div></div>
+  </div>
+  <div class="col">
+    <p class="tag">O link abre o FAQ "Seu peso" (fatos gerais, com fonte)</p>
+    <ul class="rules">
+      <li>Por que o peso pode subir mesmo comendo menos?</li>
+      <li>Quanto o peso varia de um dia para o outro?</li>
+      <li>O que é glicogênio e por que ele pesa? (cerca de 3 g de água por grama; Kreitzman, 1992)</li>
+      <li>Treino pesado muda o peso dos dias seguintes?</li>
+      <li>Por que olhar a média de 7 dias? (Turicchi, 2020)</li>
+      <li>Por que a balança de bioimpedância muda tanto? (Kyle, 2004)</li>
+      <li>Como me pesar para comparar um dia com o outro?</li>
+      <li>Ganho rápido de peso ou inchaço: fale com um profissional de saúde.</li>
+    </ul>
+    <div class="lock" style="margin-top:8px">Nunca: "não se preocupe", "é normal", "é água", "você ganhou músculo", "o app está certo". Nenhuma explicação de peso perto dos compostos ("testosterona retém água" seria interpretar o efeito de um remédio).</div>
+  </div>
+</div>
+
+<h2>O que o senhor decide</h2>
+<div class="q"><ol>
+  <li>Parte 6 (média de 7 dias como número grande, "estimado" no gasto até medir, link para o FAQ "Seu peso"): pode construir? É a primeira da fila.</li>
+  <li>Parte 1 "Plano e realizado" (gráficos de 7/14 dias): em 08/11 o senhor limitou a semana a "uma linha, não tela de planejamento" e deixou o resto para o GymTrace. Este pedido de hoje substitui aquele limite?</li>
+  <li>Parte 5 (gordura e massa magra; gasto refeito com a gordura): agora, só com médias de pelo menos 2 leituras, ou depois / no GymTrace?</li>
+  <li>Partes 2, 3 e 4 (conversa, cartão do Hoje, lembretes por refeição a 1 h da refeição com os horários iniciais propostos): pode?</li>
+</ol></div>
+<script>
+(function(){
+  var days=['10','11','12','13','14','15','16','17','18','19','20','21','22','Hoje'];
+  var M=[
+    {n:'Calorias',u:'kcal',p:2200,v:[2150,2300,2050,2250,2400,2100,0,2180,2260,2120,2350,2200,2050,1650]},
+    {n:'Proteína',u:'g',p:180,v:[140,150,175,120,130,160,0,145,180,170,125,150,140,120]},
+    {n:'Carboidrato',u:'g',p:250,v:[290,310,270,240,320,300,0,295,280,260,330,285,265,230]}
+  ];
+  var box=document.getElementById('charts'); if(!box) return;
+  var fmt=function(x){return x.toLocaleString('pt-BR');};
+  M.forEach(function(m){
+    var max=m.p*1.5, ov=0, un=0, ok=0, n=0;
+    var cols=m.v.map(function(v,i){
+      var now=i===m.v.length-1, h=function(x){return (Math.min(x,max)/max*100).toFixed(1)+'%';};
+      if(!v) return '<div class="dc none" title="sem registro"></div>';
+      if(!now){n++; if(v>m.p*1.1) ov++; else if(v<m.p*0.9) un++; else ok++;}
+      var s='<b style="bottom:0;height:'+h(Math.min(v,m.p))+'"></b>';
+      if(v>m.p) s+='<u style="bottom:'+h(m.p)+';height:calc('+h(v)+' - '+h(m.p)+')"></u>';
+      if(v<m.p && !now) s+='<em style="bottom:'+h(v)+';height:calc('+h(m.p)+' - '+h(v)+')"></em>';
+      return '<div class="dc'+(now?' now':'')+'" title="'+days[i]+': '+fmt(v)+' '+m.u+'">'+s+'</div>';
+    }).join('');
+    var pl=(m.p/max*100).toFixed(1);
+    var el=document.createElement('div'); el.className='mc';
+    el.innerHTML='<div class="h">'+m.n+' <span>plano '+fmt(m.p)+' '+m.u+'/dia</span></div>'+
+      '<div class="bars"><div class="pl" style="bottom:'+pl+'%"></div>'+cols+'</div>'+
+      '<div class="cnt">No plano em <b>'+ok+'</b> · acima em <b>'+ov+'</b> · abaixo em <b>'+un+'</b> de '+n+' dias</div>';
+    box.appendChild(el);
+  });
+})();
+</script>

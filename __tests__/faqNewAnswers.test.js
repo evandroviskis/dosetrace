@@ -25,7 +25,7 @@ test('four new answers in every language, named with the app\'s own feature name
     assert.ok(has(l, t.body_card_labs_title), `${l}: the lab question names the ${t.body_card_labs_title}`);
     assert.ok(t.faq_categories.some((c) => c.category === t.tab_body), `${l}: a ${t.tab_body} section`);
     assert.ok(t.faq_categories.some((c) => c.category === t.tab_journey), `${l}: a ${t.tab_journey} section`);
-    assert.equal(t.faq_categories.length, 7, `${l}: seven sections (CE-6: + the curve group)`);
+    assert.equal(t.faq_categories.length, 8, `${l}: eight sections (CE-6: + the curve group; WT-7: + Your weight)`);
   }
 });
 
