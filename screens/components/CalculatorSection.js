@@ -95,6 +95,10 @@ import { DTSheet, DTPickerSheet, DTWheel, AndroidDateDialog } from './ProtocolPa
 import { FeaturePreviewSheet } from '../../components/FeaturePreviews';
 import FoldChevron from '../../components/FoldChevron';
 import RowChevron from '../../components/RowChevron';
+import PlanBars from './PlanBars';
+import PlanActualCard from './PlanActualCard';
+import { planTargets, todayBars } from '../../lib/planActual';
+import { dayFoodTotal } from '../../lib/foodThread';
 import { loadFoodAccess, ensureFreeStart } from '../../lib/foodLogActions';
 import CheckMark from '../../components/CheckMark';
 import SegmentedBar from '../../components/SegmentedBar';
@@ -1201,6 +1205,13 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     if (scoreCheck && plan.tdeeVal) return goalsForTdee(scoreCheck.tdee, { bmr: plan.bmr, sex });
     return plan.allGoals;
   }, [plan, scoreCheck, sex]);
+  // PA-1 (docs/specs/food-plan-actual.md): the card's whole plan for the chosen goal — the tile's calories
+  // (measured once a reality check exists), the card's protein and the carbs that goal leaves — through the
+  // one lib the food chat and the food card use too (lib/planActual), so the chip, the bars and the charts
+  // show one number. Found while building: the chip used to read the formula goal under a measured burn.
+  const planNow = useMemo(() => (plan ? planTargets({ goalKcal: ((effectiveGoals || plan.allGoals)[goal] || plan.target).mid, proteinG: plan.protein ? plan.protein.rec : null, weightKg: metric.weightKg }) : null), [plan, effectiveGoals, goal, metric]);
+  // PA-4: today's food read so far against that plan (it follows the goal tile tapped).
+  const todayRows = useMemo(() => todayBars(dayFoodTotal(foodRows, todayISO()), planNow), [foodRows, planNow, dayKey]);
 
   const scrollRef = useRef(null);
   // A-152: the page's own fields (Your numbers) stay above the keyboard, iPhone and Android.
@@ -1545,8 +1556,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         {plan.bmi != null && plan.healthyRange && (
           <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_bmi')} {formatNumber(Math.round(plan.bmi * 10) / 10, language, { digits: 1 })} · {t('cal_healthy_range')} {Math.round(toDisplayW(plan.healthyRange.min))}–{Math.round(toDisplayW(plan.healthyRange.max))}{'\u00A0'}{wUnit}</Text></View>
         )}
-        {plan.macros && (
-          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_fat_g')} ≈ {round5(plan.macros.fatG)} g · {t('cal_carbs_g')} ≈ {round5(plan.macros.carbsG)} g</Text></View>
+        {planNow && planNow.fat_g != null && (
+          <View style={s.chipBox}><Text style={[s.cap2, s.tnum]}>{t('cal_fat_g')} ≈ {fmtInt(planNow.fat_g)} g · {t('cal_carbs_g')} ≈ {fmtInt(planNow.carb_g || 0)} g</Text></View>
         )}
       </View>
       {/* Safety notes from the engine; the floor warning from the goals the cards show (formula or
@@ -1555,6 +1566,16 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
         const txt = warnText(w);
         return txt ? <View key={w.code} style={s.warnbox}><Text style={s.warnText}>{txt}</Text></View> : null;
       })}
+      {/* PA-4 (picture food-goals-progress part 1): what was logged today beside the plan, and the way to the
+          food chat. Numbers only — never "eat more / less". */}
+      <View style={s.todayBlock}>
+        <Text style={s.todayCap}>{t('pa_today_logged')}</Text>
+        <PlanBars rows={todayRows} />
+        <TouchableOpacity style={s.todayLink} onPress={() => navigation.navigate('FoodChat')} accessibilityRole="button" activeOpacity={0.7}>
+          <Text style={s.todayLinkText}>{t('nutri_hero_cta')}</Text>
+          <RowChevron color={colors.data} />
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity
         onPress={() => setIntroOpen(v => !v)}
         accessibilityRole="button"
@@ -1923,7 +1944,9 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
       {layout.card.map(k => cardParts[k])}
     </View>
   );
-  const screenParts = { card: cardEl, plan: planEl, rc: rcEl };
+  // PA-6: Plan and actual (7 / 14 days) right under the daily plan.
+  const planActualEl = planNow ? <PlanActualCard key="planActual" rows={foodRows} plan={planNow} todayISO={todayISO()} /> : null;
+  const screenParts = { card: cardEl, plan: planEl, planActual: planActualEl, rc: rcEl };
 
   return (
     <ScrollView {...pageLift.scrollProps} showsVerticalScrollIndicator={false} style={s.scroll} contentContainerStyle={s.centered} keyboardShouldPersistTaps="handled">
@@ -2303,6 +2326,11 @@ const makeStyles = (c) => StyleSheet.create({
   // prototype .fh rows: 60 high, gap 12, a line above inside a card
   foldRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, borderTopWidth: 1, borderTopColor: c.line },
   foldRowSm: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 40, borderTopWidth: 1, borderTopColor: c.line },
+  // PA-4: Today · logged so far (a hairline, the caption, the bars, Log food ›).
+  todayBlock: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12, gap: 8 },
+  todayCap: { fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase', color: c.ink2 },
+  todayLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, minHeight: 40 },
+  todayLinkText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.data },
   // the one card's folds (prototype .fh in the card: a line above, min 56)
   foldBlock: { gap: 12 },
   foldRowCard: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.line },

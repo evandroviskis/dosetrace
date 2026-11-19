@@ -7,7 +7,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadFn, read } = require('./helpers/extractFn');
-const { weekSummary, todaySummary, shiftDay } = require('../lib/foodThread');
+const { weekSummary, todaySummary, shiftDay, dayFoodTotal } = require('../lib/foodThread');
 const { translations: T } = require('../i18n/translations');
 
 const TODAY = '2026-11-01';
@@ -39,6 +39,7 @@ test('the card reads 6 days back and shows the week line under the day total', a
     getFoodLogsSince: (uid, since) => db.filter((r) => r.user_id === uid && r.entry_date >= since),
     readCheckNow: async () => null,
     todaySummary, weekSummary, shiftDay,
+    dayFoodTotal, readProgressTile: async () => null, // PA-9 (food-plan-actual): the day total and the Progress plan for the bars
   });
   const { state } = await readFoodCard();
   assert.equal(state.sum.kcal, 1840, 'the day total is still today only');

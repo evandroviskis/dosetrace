@@ -45,6 +45,9 @@ import { formatTime } from '../lib/timeFormat';
 import { syncAllNotifications, closeFoodDay } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
+import PlanBars from './components/PlanBars';
+import { todayBars, addedProtein } from '../lib/planActual';
+import { readProgressTile } from '../lib/progressTileLoad';
 import { useUnfoldToPage } from '../components/BookPanes';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 const EDITOR_OPEN_KEY = 'foodChat:editorOpen';
@@ -112,6 +115,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const [consentOpen, setConsentOpen] = useState(false);
   const [showDemo, setShowDemo] = useState(false); // "See how it works" sheet
   const [loaded, setLoaded] = useState(false);
+  // PA-7 / PA-8 (docs/specs/food-plan-actual.md): the Progress plan for the day's bars, or null (no plan yet).
+  const [plan, setPlan] = useState(null);
   const inputRef = useRef(null);
   const askedRef = useRef({ day: null, ids: [], current: null });
   const lastTouch = useRef(Date.now());
@@ -139,6 +144,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const user = await getCachedUser();
     const uid = user?.id || null;
     try { const a = await loadFoodAccess(uid); setAccess(a.access); setRcStart(a.rcStart); } catch { setAccess(null); }
+    // PA-7: the plan of the Progress card (one loader), re-read on every focus so a goal changed there shows here.
+    setPlan((await readProgressTile().catch(() => null))?.plan || null);
     setUserId(uid);
     userIdRef.current = uid;
     try {
@@ -527,6 +534,12 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     return live;
   }, [rows, today, question, closedSet, eveningOpen, evening, notice, busy, fuBusy]);
   const data = useMemo(() => thread.slice().reverse(), [thread]); // inverted list opens at the latest (FL-39)
+  // PA-7: the entry just logged = the latest of today's entries; it carries "+N g protein in your day".
+  const lastTodayEntry = useMemo(() => {
+    let key = null;
+    for (const x of thread) if (x.type === 'entry' && x.entry_date === today) key = x.key;
+    return key;
+  }, [thread, today]);
 
   // BK-14 / A-77: the open follow-up's answer field shows that question's kept draft, and
   // each keystroke updates it. Send, Skip and Day done clear it (they end the question).
@@ -623,15 +636,25 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             <View style={s.entryTot}>
               <Text style={s.entryTotText}>≈ {Math.round(x.kcal || 0)} {t('cal_kcal')}</Text>
               <Text style={s.entryMacro}>{Math.round(x.carb_g || 0)} g {t('nutri_carbs')} · {Math.round(x.protein_g || 0)} g {t('nutri_protein')}{x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}</Text>
+              {x.key === lastTodayEntry && addedProtein(x) != null ? <Text style={s.entryAdded}>{t('pa_added_protein').replace('{n}', formatInt(addedProtein(x), language))}</Text> : null}
             </View>
           </TouchableOpacity>
         );
       case 'day_total':
         // FW-9 (picture docs/design/food-week-fiber-pace.html column 4): the day's total, fiber only when known.
-        return (
+        // PA-7 (picture food-goals-progress part 2): with a plan, "Today · your plan" and the three bars; the
+        // fiber stays a number (no fiber target). PA-8: no plan → the numbers as before and the way to set one.
+        return plan ? (
+          <View style={s.dayPlan} accessibilityRole="summary">
+            <Text style={s.dayTotalHead}>{t('pa_today_plan')}</Text>
+            <PlanBars rows={todayBars(x, plan)} />
+            {x.fiber_g != null ? <Text style={s.dayFiber}>{`${Math.round(x.fiber_g)} g ${t('nutri_fiber')}`}</Text> : null}
+          </View>
+        ) : (
           <View style={s.dayTotal} accessibilityRole="summary">
             <Text style={s.dayTotalHead}>{t('nutri_today')}</Text>
             <Text style={s.dayTotalText}>{`~${formatInt(x.kcal, language)} ${t('cal_kcal')} · ${x.carb_g} g ${t('nutri_carbs')} · ${x.protein_g} g ${t('nutri_protein')}${x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}`}</Text>
+            <Text style={s.dayNoPlan}>{t('pa_no_plan')}</Text>
           </View>
         );
       case 'echo': {
@@ -905,6 +928,11 @@ const makeStyles = (c) => StyleSheet.create({
   dayTotal: { alignSelf: 'stretch', paddingHorizontal: 4, paddingVertical: 6, gap: 2 },
   dayTotalHead: { fontSize: 12, fontWeight: '600', color: c.ink2, letterSpacing: 0.4, textTransform: 'uppercase' },
   dayTotalText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  // PA-7 / PA-8 (picture food-goals-progress part 2): the day against the plan, a raised card like an entry.
+  entryAdded: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: c.data, marginTop: 4, fontVariant: ['tabular-nums'] },
+  dayPlan: { alignSelf: 'stretch', backgroundColor: c.raised, borderRadius: 20, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 8 },
+  dayFiber: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  dayNoPlan: { fontSize: 13, lineHeight: 18, color: c.ink2 },
   // The fixed "no diet advice" card: an outline, never a tinted box.
   deflect: { alignSelf: 'stretch', borderWidth: 1, borderColor: c.line, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 4 },
   deflectTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },

@@ -20,7 +20,10 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { getFoodLogsSince } from '../../lib/database';
 import { addSyncListener } from '../../lib/sync';
-import { todayFoodHeroPolicy, todaySummary, weekSummary, shiftDay } from '../../lib/foodThread';
+import { todayFoodHeroPolicy, todaySummary, weekSummary, shiftDay, dayFoodTotal } from '../../lib/foodThread';
+import { todayBars, barText } from '../../lib/planActual';
+import { readProgressTile } from '../../lib/progressTileLoad';
+import PlanBars from './PlanBars';
 import { formatInt } from '../../lib/localeFormat';
 import { intakeRun, MIN_RUN_DAYS } from '../../lib/nutrition';
 import { catchUpFood, loadFoodAccess } from '../../lib/foodLogActions';
@@ -30,7 +33,7 @@ import { localISO } from '../../lib/localDate';
 import FeatureIcon from '../../components/FeatureIcon';
 import RowChevron from '../../components/RowChevron';
 import { fontFamilyFor } from '../../lib/fonts';
-import { pluralKey } from '../../lib/plural';
+import { pluralKey, isOne } from '../../lib/plural';
 import useClock from '../../components/useClock';
 
 const { REALITY_CHECK_DAYS: CHECK_DAYS } = require('../../lib/realityCheckRules'); // DV-147: one owner
@@ -48,7 +51,9 @@ async function readFoodCard() {
   const rows = uid ? (getFoodLogsSince(uid, since) || []) : [];
   // Founder 2026-10-09: after the weigh-in the line says so (never "time to weigh in" again).
   const now = await readCheckNow().catch(() => null);
-  return { uid, state: { access, rcStart, today, rows, sum: todaySummary(rows, today), week: weekSummary(rows, today), checkState: now ? now.outcome.state : null } };
+  // PA-9 (docs/specs/food-plan-actual.md): the Progress plan (the one loader, lib/progressTileLoad) for the day's bars.
+  const tile = await readProgressTile().catch(() => null);
+  return { uid, state: { access, rcStart, today, rows, sum: todaySummary(rows, today), week: weekSummary(rows, today), checkState: now ? now.outcome.state : null, dayTotal: dayFoodTotal(rows, today), plan: tile && tile.plan ? tile.plan : null } };
 }
 
 // A-146: reload on the sync events that bring data (the ones Today's dose lists use). A burst
@@ -132,6 +137,12 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady, p
     ? [policy.weighInDue ? t(state.checkState === 'needs_food' || state.checkState === 'ready' ? 'nutri_hero_weighed' : 'nutri_hero_weigh') : t('nutri_hero_day').replace('{n}', String(policy.day)).replace('{total}', String(policy.of)), runShort].filter(Boolean).join(' · ')
     : null;
   const { items, kcal, closed } = state.sum;
+  // PA-9 (picture food-goals-progress part 3): with a plan the day line becomes the three bars (short text);
+  // without one the day line stays as before.
+  const plan = state.plan;
+  const barsLabel = !locked && plan
+    ? todayBars(state.dayTotal, plan).map((r) => `${t(`pa_${r.key}`)}: ${barText(r, { t, fmt: (n) => formatInt(n, language), isOne: (n) => isOne(n, language), short: true })}`).join(', ')
+    : null;
   const todayLine = closed
     ? t('nutri_hero_closed').replace('{kcal}', formatInt(kcal, language))
     : items > 0 ? t(pluralKey('nutri_hero_today', items, language)).replace('{n}', String(items)).replace('{kcal}', formatInt(kcal, language)) : t('nutri_hero_empty');
@@ -167,7 +178,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady, p
       activeOpacity={0.8}
       onPress={openFood}
       accessibilityRole="button"
-      accessibilityLabel={`${t('nutri_ai_badge')}. ${checkLine ? checkLine + '. ' : ''}${todayLine}${weekLine ? '. ' + weekLine : ''}`}
+      accessibilityLabel={`${t('nutri_ai_badge')}. ${checkLine ? checkLine + '. ' : ''}${barsLabel || todayLine}${weekLine ? '. ' + weekLine : ''}`}
     >
       {/* Redesign (Graduated, approved 2026-09-29): the whole card opens the food chat;
           the day's line is the headline, the reality check under it; no tinted box. */}
@@ -183,7 +194,7 @@ export default function FoodLogHero({ variant = 'journey', onChanged, onReady, p
         <Text style={s.title}>{t('nutri_ai_badge')}</Text>
         <RowChevron color={colors.tick} />
       </View>
-      <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>
+      {!locked && plan ? <PlanBars rows={todayBars(state.dayTotal, plan)} short /> : <Text style={s.line}>{locked ? t(state.access.reason === 'premium_ended' ? 'nutri_hero_locked_premium' : 'nutri_hero_locked') : todayLine}</Text>}
       {week ? (
         <View style={s.week}>
           <Text style={s.weekHead}>{t(pluralKey('nutri_week_head', week.foodDays, language)).replace('{n}', String(week.foodDays))}</Text>

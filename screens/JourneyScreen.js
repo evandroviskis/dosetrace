@@ -35,13 +35,11 @@ import { useTheme } from '../lib/theme';
 import { hasPremium } from '../lib/entitlement';
 import { Analytics } from '../lib/analytics';
 import { usePremiumUpdates } from '../lib/usePremium';
-import { getCalcInputs } from '../lib/realityCheck';
 import { addSyncListener } from '../lib/sync';
 import { curveReloadOnSync, sameCurveLevel } from '../lib/curveReload';
 import { getCachedUser } from '../lib/supabase';
-import { profileMeta } from '../lib/pendingGateStore';
-import { getActiveProtocols, getHistoryProtocols, getLogsSince, getCalcSnapshots, getRealityChecks } from '../lib/database';
-import { progressTile } from '../lib/progressTile';
+import { getActiveProtocols, getHistoryProtocols, getLogsSince } from '../lib/database';
+import { readProgressTile } from '../lib/progressTileLoad';
 import { formatDate, formatNumber, formatInt } from '../lib/localeFormat';
 import LearnBlock from './components/LearnBlock';
 import { defaultCurveLevel, CURVE_LOG_LOOKBACK_DAYS, curveHistoryProtocols } from '../lib/serumModel';
@@ -123,13 +121,10 @@ export default function JourneyScreen() {
   // Progress tile (redesign part 2): the Progress hero's numbers (lib/progressTile), or null
   // until the user's numbers give an estimate (the tile then shows the prompt sentence).
   const [tile, setTile] = useState(null);
+  // PA-10 (docs/specs/food-plan-actual.md): the one read of the Progress numbers (lib/progressTileLoad),
+  // the same the food card and the food chat use for the plan.
   const loadTile = useCallback(async () => {
-    const saved = await getCalcInputs().catch(() => null);
-    const user = await getCachedUser().catch(() => null);
-    const uid = user && user.id;
-    let snapshots = [], checks = [];
-    try { if (uid) { snapshots = getCalcSnapshots(uid); checks = getRealityChecks(uid); } } catch { /* empty */ }
-    setTile(progressTile({ saved, meta: profileMeta(user), snapshots, checks })); // DV-114 Gate B 2
+    setTile(await readProgressTile());
   }, []);
   // Dose accumulation tile: the compound the Curve opens on — the first one the user left
   // selected there (lib/curveView), else the first charted — and its Est. level now, the same

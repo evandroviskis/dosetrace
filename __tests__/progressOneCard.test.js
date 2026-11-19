@@ -17,7 +17,7 @@ test('PO-1: with numbers the card is hero, Your target, Log today\'s weight, Wei
   const { progressLayout } = P();
   const l = progressLayout({ filled: true, hasPlan: true, weighInCount: 5 });
   assert.deepEqual(l.card, ['hero', 'target', 'logWeight', 'weighIns', 'numbers']);
-  assert.deepEqual(l.screen, ['card', 'plan', 'rc']);
+  assert.deepEqual(l.screen, ['card', 'plan', 'planActual', 'rc']); // PA-6 (founder 2026-11-18): Plan and actual under the plan
   assert.equal(l.numbersFoldable, true);
 });
 

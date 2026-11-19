@@ -229,7 +229,9 @@ test('Gate B 2: the profile is read with the kept answer laid over it wherever i
   assert.match(calc, /profileBodyInputs\(\{ meta: profileMeta\(user\), /);
   assert.match(calc, /metaRef\.current = profileMeta\(user\);/);
   assert.match(calc, /activitySource\(\{ meta: profileMeta\(user\), /);
-  assert.match(read('screens/JourneyScreen.js'), /progressTile\(\{ saved, meta: profileMeta\(user\), /);
+  // PA-10 (food-plan-actual): Journey's tile reads through the one loader, which keeps the profile with a kept answer.
+  assert.match(read('screens/JourneyScreen.js'), /setTile\(await readProgressTile\(\)\);/);
+  assert.match(read('lib/progressTileLoad.js'), /progressTile\(\{ saved, meta: profileMeta\(user\), /);
 });
 
 // Gate B re-review 2026-11-01 (finding 1, low): a flush already sending an older kept answer could land after

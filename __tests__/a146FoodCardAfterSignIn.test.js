@@ -9,7 +9,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadFn, read } = require('./helpers/extractFn');
-const { todaySummary, weekSummary, shiftDay } = require('../lib/foodThread');
+const { todaySummary, weekSummary, shiftDay, dayFoodTotal } = require('../lib/foodThread');
 
 const FILE = 'screens/components/FoodLogHero.js';
 const TODAY = '2026-10-17';
@@ -30,7 +30,8 @@ function cardReader(db) {
     loadFoodAccess: async () => ({ access: { canLog: true, freeFrom: null, reason: null }, rcStart: { date: '2026-10-10' } }),
     getFoodLogsSince: (uid, since) => db.filter((r) => r.user_id === uid && r.entry_date >= since),
     readCheckNow: async () => null,
-    todaySummary, weekSummary, shiftDay, // DV-232: the week line
+    todaySummary, weekSummary, shiftDay,
+    dayFoodTotal, readProgressTile: async () => null, // PA-9 (food-plan-actual): the day total and the Progress plan for the bars // DV-232: the week line
   });
 }
 
