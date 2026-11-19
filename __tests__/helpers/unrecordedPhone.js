@@ -22,7 +22,7 @@ function unrecordedPhone(db, { now } = {}) {
     withImmediateTransaction: fromDb('withImmediateTransaction'),
   };
   const DateFixed = now ? class extends Date { constructor(...a) { if (a.length) super(...a); else super(now); } static now() { return now; } } : Date;
-  const deps = { ...dbFns, ...UP, vialCapacity, Date: DateFixed };
+  const deps = { ...dbFns, ...UP, UNRECORDED_LOOKBACK_DAYS: UP.LOOKBACK_DAYS, vialCapacity, Date: DateFixed };
   const save = loadFn('lib/doseActions.js', 'export function saveUnrecordedAnswer(', 'saveUnrecordedAnswer', deps);
   const undo = loadFn('lib/doseActions.js', 'export function undoUnrecordedAnswer(', 'undoUnrecordedAnswer', deps);
   const logs = (userId) => dbFns.getLogsSince(userId, '2000-01-01T00:00:00.000Z');

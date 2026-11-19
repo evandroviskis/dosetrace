@@ -67,8 +67,16 @@ const UnrecordedHost = forwardRef(function UnrecordedHost({ onOpenChange, onAnsw
   }
   function save(ask, { choice, picked }) {
     let res = null;
-    try { res = saveUnrecordedAnswer({ protocolId: ask.protocol.id, entries: ask.entries, choice, picked }); } catch { res = null; }
-    if (!res) return false;
+    let failed = false;
+    try { res = saveUnrecordedAnswer({ protocolId: ask.protocol.id, entries: ask.entries, choice, picked, zoneHistory: ask.zoneHistory || null }); } catch { res = null; failed = true; }
+    // KLOW 2026-11-19: nothing left to write (answered meanwhile, the protocol gone) → the question is out of
+    // date: move on and refresh, never a dead Salvar. Only a failed write keeps the sheet where it is.
+    if (!res) {
+      if (failed) return false;
+      if (onChanged) onChanged();
+      if (queue && queue[queue.length - 1] === ask) close();
+      return true;
+    }
     if (res.plan.vialFinished) {
       const id = res.undo.insertedIds.length ? res.undo.insertedIds[res.undo.insertedIds.length - 1] : (res.plan.updates[0] && res.plan.updates[0].id);
       finished.current.push({ protocol: ask.protocol, logId: id });
