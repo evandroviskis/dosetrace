@@ -2513,7 +2513,7 @@ export default function TodayScreen() {
     const inLabel = laterInLabel(slot.slotMs, Date.now(), t);
     const picked = book && isPickedDose(p.id, todayKey);
     return (
-      <View key={`later-${p.id}`} style={[s.laterRow, i > 0 && s.laterRowSep, picked && s.laterRowPicked]}>
+      <View key={`later-${p.id}`} style={[s.earlyRow, i > 0 && s.earlyRowSep, picked && s.earlyRowPicked]}>
         <TouchableOpacity
           style={s.laterMain}
           activeOpacity={0.7}
@@ -3262,9 +3262,9 @@ const todayV21Styles = (c) => ({
   subLabText: { fontSize: 15, fontWeight: '600', color: c.ink2 },
   laterLab: { marginTop: 6 },
   laterList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
-  laterRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
-  laterRowSep: { borderTopWidth: 1, borderTopColor: c.line },
-  laterRowPicked: { borderWidth: 2, borderColor: c.ink, borderRadius: 14, paddingHorizontal: 10, marginHorizontal: -12 },
+  earlyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+  earlyRowSep: { borderTopWidth: 1, borderTopColor: c.line },
+  earlyRowPicked: { borderWidth: 2, borderColor: c.ink, borderRadius: 14, paddingHorizontal: 10, marginHorizontal: -12 },
   laterMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
   sectionTitle: { fontSize: 22, fontWeight: '700', color: c.ink },
   alist: { backgroundColor: c.raised, borderRadius: 22, paddingLeft: 16, paddingRight: 8 },

@@ -250,7 +250,7 @@ test('ED-11: accessibility labels and headers', () => {
 });
 
 test('ED-12: the new styles use theme tokens only', () => {
-  for (const name of ['subLabText', 'laterLab', 'laterList', 'laterRow', 'laterRowSep', 'laterRowPicked', 'laterMain']) {
+  for (const name of ['subLabText', 'laterLab', 'laterList', 'earlyRow', 'earlyRowSep', 'earlyRowPicked', 'laterMain']) {
     const m = TODAY.match(new RegExp(`\\n  ${name}: \\{[^\\n]*\\}`));
     assert.ok(m, `${name} style exists`);
     assert.ok(!/#[0-9a-fA-F]{3,8}|'white'|'black'|rgba?\(/.test(m[0]), `${name} uses tokens`);
