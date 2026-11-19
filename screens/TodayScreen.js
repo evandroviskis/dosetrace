@@ -99,6 +99,7 @@ import useKeyboardLift from '../components/useKeyboardLift';
 import { getDraft, setDraft, clearDraft } from '../lib/draftStore';
 import { DTSheet, VialCells, EndDateStep } from './components/ProtocolParts';
 import { cardSlot, cardPlan, caughtUpPlan, reminderFocus, dosePageKey } from '../lib/dosePageState';
+import { isEarlyTake, splitTodayDoses, hoursLeft, laterInLabel } from '../lib/earlyDose';
 import { supplyNotice } from '../lib/supplyNotice';
 import { displayColor } from '../lib/protocolColors';
 import { undoBarRuns, enqueueVialPrompt, nextVialPrompt } from '../lib/undoBar';
@@ -123,7 +124,9 @@ const measureWin = (ref) => new Promise((res) => {
 // "Mark taken" — presses, turns into a check, and hands its on-screen position
 // to the parent so a drop can travel from here into the progress ring. Keyed by
 // the taken count, so a multi-dose protocol gets a fresh button per dose.
-function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
+// confirmFirst (docs/specs/early-dose-guard.md): a dose more than 2 h before its time is asked
+// first ("Esta dose é para as 20:00"), so the button stays as it is until "Sim".
+function TakeButton({ label, takenLabel, onTake, s, colors, askFirst, confirmFirst }) {
   const ref = useRef(null);
   const [ok, setOk] = useState(false);
   const press = useSharedValue(1);
@@ -135,7 +138,7 @@ function TakeButton({ label, takenLabel, onTake, s, colors, askFirst }) {
     lightHaptic();
     // S-25: an injectable is asked where it was injected first — the button stays
     // "Mark taken" until the answer writes the dose (Cancel leaves it as it was).
-    if (askFirst) { onTake(null); return; }
+    if (askFirst || confirmFirst) { onTake(null); return; }
     press.value = withSequence(withTiming(0.96, { duration: 90 }), withTiming(1, { duration: 150 }));
     chk.value = withDelay(90, withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }));
     setOk(true);
@@ -1742,6 +1745,20 @@ export default function TodayScreen() {
     }
   }, [ringTarget, doneDoses]);
 
+  // Early dose: the question before an early Concluir (picture early-dose-guard.html). It writes
+  // nothing; Voltar, a tap outside or Android back leave the dose as it was.
+  function askEarlyTake(p, slot, onYes, onBack) {
+    const name = p.compound_id ? t(p.compound_id) : p.name;
+    const dose = `${decimalText(p.dose, language)} ${unitText(p.dose_unit, language)}`;
+    const time = formatTimeAMPM(new Date(slot.slotMs).toTimeString().slice(0, 5));
+    showTodaySheet({
+      title: t('today_early_title').replace('{time}', time),
+      body: t('today_early_body').replace('{name}', name).replace('{dose}', dose).replace('{n}', String(hoursLeft(slot.slotMs, Date.now()))),
+      buttons: [{ label: t('back'), kind: 'secondary', onPress: onBack }, { label: t('today_early_yes'), kind: 'primary', onPress: onYes }],
+      onDismiss: onBack,
+    });
+  }
+
   // opts.slot (A-78): the slot this tap logs — { slotMs, ti } of the card's next open slot or
   // the dose page's slot, plus flipRowId for a skipped slot's "Mark taken" (that row turns
   // Taken). Without it the shared plan falls back to its own rules (older callers).
@@ -1778,6 +1795,15 @@ export default function TodayScreen() {
         ],
         onDismiss: () => resetTake(p.id),
       });
+      return;
+    }
+    // Early dose (docs/specs/early-dose-guard.md, founder 2026-11-19 option B): more than 2 h before
+    // its time, ask before writing anything; "Sim" runs this same take for the same slot, at the
+    // time of that tap. After yesterday's which-day question, before the site question.
+    if (!opts.earlyConfirmed && isEarlyTake(slot.slotMs, tapMs)) {
+      askEarlyTake(p, slot,
+        () => handleTake(p, null, 0, { ...opts, earlyConfirmed: true, tapMs: Date.now() }),
+        () => resetTake(p.id));
       return;
     }
     // An injectable: ask where it was injected; the answer writes it (S-25).
@@ -2130,6 +2156,13 @@ export default function TodayScreen() {
     if (!notifFocus.take) return reminderPlan && reminderPlan.kind === 'open' ? p : null;
     return cardPlan({ protocol: p, logs: todayRows, nowMs: Date.now() }).next ? p : null;
   })();
+  // Early dose (docs/specs/early-dose-guard.md, option B): today's doses split into "Agora" (due
+  // within 2 h, late or untimed: the full cards) and "Mais tarde hoje" (one row each, Concluir asks).
+  // Computed in render from the clock, so the minute tick (useClock) moves 20:00 up at 18:00. The
+  // reminder's dose stays on top, outside both.
+  const doseSplit = splitTodayDoses({ cards: todayCards.filter(p => !focusCard || p.id !== focusCard.id), logs: todayRows, nowMs: Date.now() });
+  const nowCards = doseSplit.now;
+  const laterDoses = doseSplit.later;
   // DV-036 (AD-79 item 9, option A): the reminder's dose was already logged (e.g. from the
   // notification's own button) → the ink toast says so, with the time, for a few seconds. Once per
   // tap, and only for a row written BEFORE the tap (nonce = the tap's time): a take or skip from the
@@ -2459,11 +2492,50 @@ export default function TodayScreen() {
               takenLabel={takenLabel}
               onTake={(rect) => handleTake(p, rect, 0, { slot: opts.takeSlot || cp.next, cancelUpTo: opts.cancelUpTo })}
               askFirst={needsSiteQuestion(p.type)}
+              confirmFirst={isEarlyTake((opts.takeSlot || cp.next).slotMs, Date.now())}
               s={s}
               colors={colors}
             />
           </View>
         )}
+      </View>
+    );
+  }
+
+  // "Mais tarde hoje" (docs/specs/early-dose-guard.md, picture laterList()): the protocol's dot,
+  // "name · time", "dose · em 11 h 50 min" and a small Concluir, which goes through the one take
+  // (handleTake asks first: the dose is more than 2 h away). No Pular: the dose moves up to "Agora"
+  // with its Pular 2 h before its time. The row opens the protocol, as the card does.
+  function renderLaterRow({ protocol: p, slot }, i) {
+    const name = p.compound_id ? t(p.compound_id) : p.name;
+    const time = formatTimeAMPM(new Date(slot.slotMs).toTimeString().slice(0, 5));
+    const amount = `${decimalText(p.dose, language)} ${unitText(p.dose_unit, language)}`;
+    const inLabel = laterInLabel(slot.slotMs, Date.now(), t);
+    const picked = book && isPickedDose(p.id, todayKey);
+    return (
+      <View key={`later-${p.id}`} style={[s.earlyRow, i > 0 && s.earlyRowSep, picked && s.earlyRowPicked]}>
+        <TouchableOpacity
+          style={s.laterMain}
+          activeOpacity={0.7}
+          onPress={() => (book ? openDoseOnPage(p) : navigation.navigate('Protocols', { openProtocolId: p.id }))}
+          accessibilityRole="button"
+          accessibilityState={book ? { selected: picked } : undefined}
+          accessibilityLabel={`${name}, ${time}, ${amount}, ${inLabel}`}
+        >
+          <View style={[s.updot, { backgroundColor: displayColor(p.color) || colors.data }]} />
+          <View style={s.upMain}>
+            <Text style={s.upName} numberOfLines={2}>{name} · {time}</Text>
+            <Text style={s.upAmt}><Text style={s.upAmtVal}>{amount}</Text> · {inLabel}</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={s.skipLineBtn}
+          onPress={() => { lightHaptic(); handleTake(p, null, 0, { slot }); }}
+          accessibilityRole="button"
+          accessibilityLabel={`${t('today_mark_taken')}, ${name}, ${time}`}
+        >
+          <Text style={s.skipLineBtnText}>{t('today_mark_taken')}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -2539,7 +2611,7 @@ export default function TodayScreen() {
 
   // A-135: what this render draws, for the mould (counts and presence only).
   presentRef.current = { alerts: alerts.length, pending: pendingYest.filter((it) => protocols.some((x) => x.id === it.protocolId)).length, tracker: protocols.length > 0, empty: protocols.length === 0 && !loading, doses: protocols.length > 0 };
-  doseIdsRef.current = todayCards.filter((p) => !focusCard || p.id !== focusCard.id).map((p) => p.id);
+  doseIdsRef.current = nowCards.map((p) => p.id);
   const firstSkel = (plan.find((b) => !ready[SKEL_SECTION[b.key]]) || {}).key;
   const skel = (key) => (ready[SKEL_SECTION[key]] ? null : <SkeletonBlock spec={plan.find((b) => b.key === key)} first={key === firstSkel} />);
 
@@ -2713,7 +2785,24 @@ export default function TodayScreen() {
               <Text style={s.sectionTitle}>{t('today_doses').charAt(0).toUpperCase() + t('today_doses').slice(1)}</Text>
               {totalDoses > 0 && <Text style={s.labCount}>{dosesTakenLabel(doneDoses, totalDoses, t, language)}</Text>}
             </View>
-            {todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))}
+            {/* Early dose (option B): "Agora" is labelled only beside "Mais tarde hoje"; each block
+                with its own count. */}
+            {nowCards.length > 0 && laterDoses.length > 0 && (
+              <View style={s.lab}>
+                <Text style={s.subLabText} accessibilityRole="header">{t('today_now_title')}</Text>
+                <Text style={s.labCount}>{nowCards.length}</Text>
+              </View>
+            )}
+            {nowCards.map(p => renderDoseCard(p))}
+            {laterDoses.length > 0 && (
+              <>
+                <View style={[s.lab, nowCards.length > 0 && s.laterLab]}>
+                  <Text style={s.subLabText} accessibilityRole="header">{t('today_later_title')}</Text>
+                  <Text style={s.labCount}>{laterDoses.length}</Text>
+                </View>
+                <View style={s.laterList}>{laterDoses.map((it, i) => renderLaterRow(it, i))}</View>
+              </>
+            )}
             {todayCards.length === 0 && allDoneToday && (
               // Part 13 (prototype caught()): the ok check beside the line. DV-129 (option A): each
               // dose skipped today sits under it — name · "Skipped — you can still log it" and its
@@ -3168,6 +3257,15 @@ const todayV21Styles = (c) => ({
   lab: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 4, gap: 8 },
   labText: { fontSize: 17, fontWeight: '600', color: c.ink },
   labCount: { fontSize: 15, fontWeight: '500', color: c.ink3, fontVariant: ['tabular-nums'] },
+  // Early dose (option B): the "Agora" / "Mais tarde hoje" labels inside the doses block and the
+  // later list (the raised list of the Taken block, rows like Tomorrow's).
+  subLabText: { fontSize: 15, fontWeight: '600', color: c.ink2 },
+  laterLab: { marginTop: 6 },
+  laterList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
+  earlyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 },
+  earlyRowSep: { borderTopWidth: 1, borderTopColor: c.line },
+  earlyRowPicked: { borderWidth: 2, borderColor: c.ink, borderRadius: 14, paddingHorizontal: 10, marginHorizontal: -12 },
+  laterMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
   sectionTitle: { fontSize: 22, fontWeight: '700', color: c.ink },
   alist: { backgroundColor: c.raised, borderRadius: 22, paddingLeft: 16, paddingRight: 8 },
   aitem: {},

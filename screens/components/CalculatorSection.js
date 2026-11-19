@@ -30,6 +30,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { numbersWeight, afterWeighInDelete } from '../../lib/numbersWeight';
 import { weightTrend } from '../../lib/weightTrend';
+import { bodyComposition, measuredBurn, resultMathPatch, resultMath } from '../../lib/bodyFatBurn';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import Modal from '../../components/PresenceModal';
 import { useWindowSize } from '../../lib/windowSize';
@@ -50,7 +51,7 @@ import useSheetKeyboard from '../../components/useSheetKeyboard';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { MONO } from '../../lib/fonts';
 import {
-  energyPlan, ACTIVITY_LEVELS, realityCheckTDEE, weeklyRateKg,
+  energyPlan, ACTIVITY_LEVELS, weeklyRateKg,
   targetProjection, seriesRatePerWeek, goalsForTdee, planWarnings, TARGET_MIN_WINDOW_DAYS, weeklyPace,
   lbToKg, kgToLb, inToCm, cmToIn,
 } from '../../lib/energyCalc';
@@ -871,6 +872,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   // WT-1/WT-2 (docs/specs/weight-trend.md): the 7-day average is the big number (display only; the
   // math above keeps the latest weigh-in).
   const trend = useMemo(() => weightTrend({ snapshots, today: todayISO() }), [snapshots]);
+  // BF-2 (docs/specs/body-fat-burn.md): fat and lean mass from the weigh-ins with a body fat % (display only).
+  const comp = useMemo(() => bodyComposition({ snapshots }), [snapshots]);
   const currentBF = latestSnap?.bodyFatPct != null ? latestSnap.bodyFatPct : (isUnknown ? null : num(bodyFat));
 
   // Measured weekly rate for each metric, from the dated weigh-in series (so a
@@ -963,9 +966,12 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   );
   const outcomeResult = useMemo(() => {
     if (outcome.state !== 'ready') return null;
-    const res = realityCheckTDEE({ avgDailyCalories: outcome.avgDailyCalories, weightChangeKg: outcome.weightChangeKg, days: outcome.days });
-    return { ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg: outcome.weightChangeKg, days: outcome.days }), weighIn: outcome.weighIn, source: outcome.source };
-  }, [outcome]);
+    // BF-4 / BF-5 / BF-6 (docs/specs/body-fat-burn.md): with body fat when there are 2 fat readings in the first
+    // 7 days and 2 in the last 7 (precision principle: that burn is THE measured burn saved below), else the
+    // weight-only math as before.
+    const res = measuredBurn({ startISO: String(rcStart.date).slice(0, 10), endISO: outcome.weighIn.date, snapshots, avgDailyCalories: outcome.avgDailyCalories, weightChangeKg: outcome.weightChangeKg, days: outcome.days });
+    return { ...res, ratePerWeekKg: weeklyRateKg({ weightChangeKg: outcome.weightChangeKg, days: outcome.days }), weighIn: outcome.weighIn, source: outcome.source, days: outcome.days, avgDailyCalories: outcome.avgDailyCalories };
+  }, [outcome, rcStart, snapshots]);
   // A finished check is saved once and closed — only for someone who may see the result
   // (FL-41: a free user after the free days keeps the check open until Premium or Stop).
   // A check that already has a saved result (saved with the old typed form before this
@@ -1136,8 +1142,11 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
     // Which intake this result used (food log or the typed average), kept next to it in the
     // synced calc_inputs payload; a typed value is never removed by finishing.
     const srcPatch = resultSourcePatch(res.weighIn.date, res.source);
-    setRcInputs(prev => mergeCalcInputs(prev, srcPatch));
-    await saveCalcInputs(srcPatch).catch(() => {});
+    // BF-7: and the math it used (with body fat or weight only, and why), for the result view.
+    const mathPatch = resultMathPatch(res.weighIn.date, res, { days: res.days, avgKcal: res.avgDailyCalories });
+    const resPatch = mergeCalcInputs(srcPatch, mathPatch);
+    setRcInputs(prev => mergeCalcInputs(prev, resPatch));
+    await saveCalcInputs(resPatch).catch(() => {});
     setRcStart(null);
     await clearRealityStart();
     calcChanged();
@@ -1472,6 +1481,29 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           ) : <Text style={[s.display, s.displayEmpty]}>—</Text>}
         </View>
       </View>
+      {/* BF-3 (docs/specs/body-fat-burn.md): with a body fat reading, how much of the weight is fat and lean
+          mass, and the change between two averages when both exist. No colour on the changes (no judgement). */}
+      {comp ? (
+        <View style={s.gap6}>
+          <View style={s.bcRow}>
+            <View style={s.grow} />
+            <Text style={[s.foot2, s.tnum, s.bcCell]}>{t(comp.now.date === todayISO() ? 'cal_bc_today' : 'cal_bc_on').replace('{date}', fmtShort(comp.now.date))}</Text>
+            {comp.change ? <Text style={[s.foot2, s.tnum, s.bcChg]}>{t('cal_bc_since').replace('{date}', fmtShort(comp.change.since))}</Text> : null}
+          </View>
+          {[
+            ['weight', t('cal_snap_weight'), `${fmtW(comp.now.weightKg)}\u00A0${wUnit}`, comp.change ? comp.change.weightKg : null],
+            ['fat', t('cal_bc_fat'), `${fmtW(comp.now.fatKg)}\u00A0${wUnit} · ${decimalText(Math.round(comp.now.bodyFatPct * 10) / 10, language)}%`, comp.change ? comp.change.fatKg : null],
+            ['lean', t('cal_bc_lean'), `${fmtW(comp.now.leanKg)}\u00A0${wUnit}`, comp.change ? comp.change.leanKg : null],
+          ].map(([k, label, now, d]) => (
+            <View key={k} style={s.bcRow}>
+              <Text style={[s.sec2, s.grow]}>{label}</Text>
+              <Text style={[s.val15, s.bcCell]}>{now}</Text>
+              {comp.change ? <Text style={[s.val15, s.ink2Text, s.bcChg]}>{`${signed(Math.round((unit === 'imperial' ? kgToLb(d) : d) * 10) / 10)}\u00A0${wUnit}`}</Text> : null}
+            </View>
+          ))}
+          <Text style={s.foot2}>{t('cal_bc_note')}</Text>
+        </View>
+      ) : null}
       <View style={s.gap6}>
         {progressSummary ? (
           <Text style={[s.sec2, s.tnum]}>
@@ -1760,6 +1792,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
   const soFarEmpty = !!soFar && soFar.rows.every(r => r.state !== 'food');
   // The intake the newest result used; none for a result saved before sources were kept.
   const latestSource = realityLog.length ? resultSource(rcInputs, realityLog[realityLog.length - 1].date) : null;
+  // BF-8: the math the newest result used; none for a result saved before this version (shown as before).
+  const latestMath = realityLog.length ? resultMath(rcInputs, realityLog[realityLog.length - 1].date) : null;
   // DV-058 / DV-104: the check closed without a number, until a new check or a newer result.
   const closedCheck = closedCheckShown(rcInputs && rcInputs.rcClosed, { rcStart, realityLog });
   const closedView = closedCheck ? (
@@ -1850,6 +1884,23 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
           <Text style={[s.body, s.tnum]}>{t('cal_rc_result_prefix')} <Text style={s.mono}>{fmtInt(round10(scoreCheck.tdee))} {t('cal_kcal')}/{t('cal_day')}</Text>.</Text>
           {latestSource ? (
             <Text style={s.foot2}>{t(latestSource === 'typed' ? 'cal_rc_src_typed' : 'cal_rc_src_food')}</Text>
+          ) : null}
+          {/* BF-8 (docs/specs/body-fat-burn.md): which math gave the number above. */}
+          {latestMath && latestMath.method === 'fat' ? (
+            <View style={s.gap6}>
+              <View style={s.bcRow}>
+                <Text style={[s.foot2, s.grow]}>{t('cal_bfm_weight_only')}</Text>
+                <Text style={[s.foot2, s.tnum]}>{latestMath.weightOnly != null ? `${fmtInt(round10(latestMath.weightOnly))}\u00A0${t('cal_kcal')}` : '—'}</Text>
+              </View>
+              <View style={s.bcRow}>
+                <Text style={[s.sec, s.grow]}>{t('cal_bfm_with_fat')}</Text>
+                <Text style={s.val15}>{fmtInt(round10(latestMath.withFat))}{'\u00A0'}{t('cal_kcal')}</Text>
+              </View>
+              <Text style={[s.foot2, s.tnum]}>{t('cal_bfm_fat_line').replace('{a}', String(latestMath.startN)).replace('{b}', String(latestMath.endN)).replace('{n}', String(latestMath.days)).replace('{kcal}', fmtInt(latestMath.avgKcal))}</Text>
+              <Text style={s.foot2}>{t('cal_bfm_why')}</Text>
+            </View>
+          ) : latestMath && latestMath.method === 'weight' ? (
+            <Text style={s.foot2}>{t(latestMath.reason === 'range' ? 'cal_bfm_weight_line_range' : 'cal_bfm_weight_line_readings')}</Text>
           ) : null}
           {/* Founder 2026-10-27 (collapse rule): the history arrives closed; the result above stays. */}
           {foldRow('rcLog', t('cal_rc_log_title'), t(pluralKey('cal_rc_log_n', realityLog.length, language)).replace('{n}', String(realityLog.length)), rcLogOpen, () => setRcLogOpen((o) => !o))}
@@ -1995,6 +2046,8 @@ export default function CalculatorSection({ header = null, flushRef = null, pane
             <TextInput style={s.input} value={wiBf} onChangeText={(v) => { setWiBf(v); setWiBad(false); }} keyboardType="decimal-pad" placeholder={currentBF != null ? decimalText(Math.round(currentBF * 10) / 10, language) : '—'} placeholderTextColor={colors.ink3} />
           </View>
         </View>
+        {/* BF-9 (docs/specs/body-fat-burn.md): how to compare one reading with another. */}
+        <Text style={s.foot2}>{t('cal_bf_hint')}</Text>
         <View style={s.fld}>
           <Text style={s.fieldLab}>{t('cal_waist')} ({hUnit}) · {t('cal_optional')}</Text>
           <TextInput style={s.input} value={wiWaist} onChangeText={(v) => { setWiWaist(v); setWiBad(false); }} keyboardType="decimal-pad" placeholder={waist || '—'} placeholderTextColor={colors.ink3} />
@@ -2397,6 +2450,10 @@ const makeStyles = (c) => StyleSheet.create({
   measureSelf: { alignSelf: 'flex-start' }, // a measured cell reports its own text width (useColumnWidth)
   runLine: { paddingTop: 4 },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8 },
+  // BF-3: the weight / fat / lean table (label, now, change), columns fixed so the rows line up.
+  bcRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  bcChg: { width: '24%', textAlign: 'right' },
+  bcCell: { width: '42%', textAlign: 'right' },
   // weigh-ins history (prototype .hist: 1 / 1 / 0.9 / 0.8)
   histHead: { flexDirection: 'row', paddingBottom: 9 },
   histRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: 1, borderTopColor: c.line },

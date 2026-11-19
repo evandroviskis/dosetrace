@@ -42,7 +42,10 @@ test('FT-6: one column is exactly the old Today order', () => {
   assert.match(constBlock(TODAY, 'trackerEl'), /<TodayTracker/);
   assert.match(constBlock(TODAY, 'foodEl'), /<FoodLogHero variant="today"/);
   const doses = constBlock(TODAY, 'dosesEl');
-  assert.ok(doses.includes('todayCards.filter(p => !focusCard || p.id !== focusCard.id).map(p => renderDoseCard(p))'));
+  // Early dose (docs/specs/early-dose-guard.md, option B): the doses are Agora (cards) + Mais tarde hoje.
+  assert.match(TODAY, /const doseSplit = splitTodayDoses\(\{ cards: todayCards\.filter\(p => !focusCard \|\| p\.id !== focusCard\.id\)/);
+  assert.ok(doses.includes('{nowCards.map(p => renderDoseCard(p))}'));
+  assert.ok(doses.includes('laterDoses.map((it, i) => renderLaterRow(it, i))'));
   assert.ok(doses.includes('takenNames.length > 0'));
   assert.match(constBlock(TODAY, 'upcomingEl'), /foldRow\('tom'[\s\S]*foldRow\('n5'/);
   assert.match(constBlock(TODAY, 'focusEl'), /focusCard/);
