@@ -115,6 +115,7 @@ function foodFn(N, { user = { id: 'u1', user_metadata: {} }, start, startThrows 
     foodNudgeDays: plan.foodNudgeDays, remindersForAccess: (d) => d, FOOD_WINDOW_DAYS: 7, FOOD_HOUR: 20, FOOD_MIN: 0,
     getT: async () => (k) => k, Platform: { OS: 'android' },
     scheduleReq: async (n, req) => { n.scheduled.set(req.identifier, req); },
+    normalizeMeals: require('../lib/mealReminders').normalizeMeals, // MR-7: no choice → the 20:00 question
   });
 }
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return plan.ymd(d); };

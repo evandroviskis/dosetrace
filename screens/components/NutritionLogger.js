@@ -24,6 +24,7 @@ import { useTheme } from '../../lib/theme';
 import { syncAllNotifications } from '../../lib/notifications';
 import FeatureIcon from '../../components/FeatureIcon';
 import { DTSheet } from './ProtocolParts';
+import { MealTimesRow } from './MealTimesSheet';
 
 // The animated example (prototype FC-demo) — used for "See how it works" in the food
 // chat and for the locked upsell here. Respects Reduce Motion (static final frame).
@@ -107,20 +108,26 @@ export function FoodReminderRow() {
     }
     syncAllNotifications().catch(() => {});
   }
+  // MR-4 (docs/specs/meal-reminders.md): the meal times are changed right here, under the switch;
+  // with a choice the subtitle says the reminders come after each meal instead of at 8 pm.
+  const [meals, setMeals] = useState(null);
   return (
-    <View style={s.remindRow}>
-      <FeatureIcon name="food" size={22} color={colors.ink2} />
-      <View style={[s.grow, s.gap2]}>
-        <Text style={s.head}>{t('settings_food_reminders')}</Text>
-        <Text style={s.foot2}>{t('settings_food_reminders_sub')}</Text>
+    <>
+      <View style={s.remindRow}>
+        <FeatureIcon name="food" size={22} color={colors.ink2} />
+        <View style={[s.grow, s.gap2]}>
+          <Text style={s.head}>{t('settings_food_reminders')}</Text>
+          <Text style={s.foot2}>{t(meals ? 'settings_food_reminders_sub_meals' : 'settings_food_reminders_sub')}</Text>
+        </View>
+        <GradSwitch
+          value={foodReminders}
+          onValueChange={toggleFoodReminders}
+          accessibilityLabel={t('settings_food_reminders')}
+        />
+        <DTSheet config={sheet} onClose={() => setSheet(null)} />
       </View>
-      <GradSwitch
-        value={foodReminders}
-        onValueChange={toggleFoodReminders}
-        accessibilityLabel={t('settings_food_reminders')}
-      />
-      <DTSheet config={sheet} onClose={() => setSheet(null)} />
-    </View>
+      {foodReminders ? <MealTimesRow onChange={setMeals} /> : null}
+    </>
   );
 }
 

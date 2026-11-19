@@ -154,3 +154,107 @@ export function morningSummaryPlan(
   }
   return plans;
 }
+
+// ── Meal reminders (docs/specs/meal-reminders.md MR-14) ─────────────────────────
+// Port of lib/mealReminders.js: the same choices, the same 1-hour delay, the same "logged since
+// halfway from the previous meal" rule and the same text — parity in __tests__/serverPlanParity.test.js.
+// The server computes the day's totals at SEND time from food_logs (exact); it has no plan engine,
+// so its text carries the totals without "of <plan>" (the app's local text carries the plan).
+export interface Meal { at: string; kind: string }
+const MEAL_PLANS = ['three', 'five', 'every3h', 'custom'];
+const MEAL_KINDS = ['breakfast', 'lunch', 'dinner', 'snack', 'meal'];
+const MAX_MEALS = 8;
+const MEAL_DELAY_MIN = 60;
+const LAST_FIRE_MIN = 23 * 60 + 59;
+const DAY_MIN = 24 * 60;
+const PRESETS: Record<string, [string, string][]> = {
+  three: [['07:30', 'breakfast'], ['12:30', 'lunch'], ['19:30', 'dinner']],
+  five: [['07:30', 'breakfast'], ['10:00', 'snack'], ['12:30', 'lunch'], ['16:00', 'snack'], ['19:30', 'dinner']],
+  every3h: [['07:00', 'meal'], ['10:00', 'meal'], ['13:00', 'meal'], ['16:00', 'meal'], ['19:00', 'meal'], ['22:00', 'meal']],
+};
+const HM = /^([01]\d|2[0-3]):([0-5]\d)$/;
+function toMin(at: unknown): number | null {
+  const m = HM.exec(String(at || ''));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+function cleanMeals(list: unknown): Meal[] {
+  const seen = new Set<string>();
+  const out: Meal[] = [];
+  for (const m of Array.isArray(list) ? list : []) {
+    const at = m && typeof m === 'object' ? (m as { at?: string }).at : m;
+    if (toMin(at) == null || seen.has(String(at))) continue;
+    seen.add(String(at));
+    const kind = m && typeof m === 'object' && MEAL_KINDS.includes((m as { kind?: string }).kind as string) ? (m as { kind: string }).kind : 'meal';
+    out.push({ at: String(at), kind });
+  }
+  out.sort((a, b) => (toMin(a.at) as number) - (toMin(b.at) as number));
+  return out.slice(0, MAX_MEALS);
+}
+export function normalizeMeals(stored: unknown): { plan: string; meals: Meal[] } | null {
+  if (!stored || typeof stored !== 'object') return null;
+  const plan = (stored as { plan?: string }).plan as string;
+  if (!MEAL_PLANS.includes(plan)) return null;
+  if (plan !== 'custom') return { plan, meals: PRESETS[plan].map(([at, kind]) => ({ at, kind })) };
+  const meals = cleanMeals((stored as { meals?: unknown }).meals);
+  return meals.length ? { plan, meals } : null;
+}
+export function mealFireMin(at: string): number | null {
+  const m = toMin(at);
+  return m == null ? null : Math.min(m + MEAL_DELAY_MIN, LAST_FIRE_MIN);
+}
+export function mealWindowStartMin(meals: Meal[], i: number): number | null {
+  const mins = (meals || []).map((m) => toMin(m.at) as number);
+  if (i < 0 || i >= mins.length) return null;
+  const prev = i === 0 ? mins[mins.length - 1] - DAY_MIN : mins[i - 1];
+  return Math.max(0, Math.floor((prev + mins[i]) / 2));
+}
+// logged: the day's real food rows as the user's local { key (created day), minute (created) , entryKey }.
+export function loggedForMeal(logged: { entryKey: string; key: string; minute: number }[], dayKey: string, meals: Meal[], i: number): boolean {
+  const start = mealWindowStartMin(meals, i);
+  if (start == null) return false;
+  return (logged || []).some((r) => r.entryKey === dayKey && r.key === dayKey && r.minute >= start);
+}
+// The meals whose reminder falls in this run's window [nowMin - runWindowMin, nowMin].
+export function mealsDueNow(meals: Meal[], nowMin: number, runWindowMin: number): number[] {
+  const out: number[] = [];
+  (meals || []).forEach((m, i) => {
+    const f = mealFireMin(m.at);
+    if (f != null && f <= nowMin && f > nowMin - runWindowMin) out.push(i);
+  });
+  return out;
+}
+function fillVars(str: string, vars: Record<string, unknown>): string {
+  return String(str).replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? String(vars[k]) : '')).replace(/\s{2,}/g, ' ').trim();
+}
+// lib/localeFormat formatInt: no-break space in French; Spanish and Italian leave 4 digits ungrouped.
+const GROUP: Record<string, string> = { en: ',', es: '.', pt: '.', fr: ' ', de: '.', it: '.' };
+const MIN_GROUPED: Record<string, number> = { es: 10000, it: 10000 };
+function intText(v: number, lang: string): string {
+  const s = String(Math.round(Math.abs(v)));
+  if (s.length < 4 || Number(s) < (MIN_GROUPED[lang] || 1000)) return (v < 0 ? '-' : '') + s;
+  return (v < 0 ? '-' : '') + s.replace(/\B(?=(\d{3})+(?!\d))/g, GROUP[lang] || ',');
+}
+// The meal's clock time as the app shows it by default (lib/timeFormat 'auto'): "4:00 PM" in English,
+// "16:00" / "7:00" (hour not padded) otherwise.
+export function mealTimeLabel(at: string, lang: string): string {
+  const m = toMin(at);
+  if (m == null) return '—';
+  const h = Math.floor(m / 60), mm = pad2(m % 60);
+  if (lang !== 'en') return `${h}:${mm}`;
+  return `${h % 12 === 0 ? 12 : h % 12}:${mm} ${h < 12 ? 'AM' : 'PM'}`;
+}
+export function mealPushContent(t: (k: string) => string, lang: string, meals: Meal[], i: number, totals: { kcal: number; protein_g: number }): { title: string; body: string; category: string } {
+  const meal = meals[i];
+  const named = ['breakfast', 'lunch', 'dinner'].includes(meal.kind);
+  const kind = named ? meal.kind : 'any';
+  const title = kind === 'any' ? fillVars(t('notif_meal_title_at'), { time: mealTimeLabel(meal.at, lang) }) : t(`notif_meal_title_${kind}`);
+  const since = kind === 'lunch' && i > 0 && meals[i - 1].kind === 'breakfast';
+  const ask = t(since ? 'notif_meal_body_lunch_since' : `notif_meal_body_${kind}`);
+  let line = '';
+  if ((totals && totals.kcal > 0) || (totals && totals.protein_g > 0)) {
+    const protein = fillVars(t('notif_meal_protein'), { v: intText(totals.protein_g || 0, lang) });
+    const calories = fillVars(t('notif_meal_kcal'), { v: intText(totals.kcal || 0, lang) });
+    line = fillVars(t('notif_meal_so_far'), { protein, calories });
+  }
+  return { title, body: line ? `${ask} ${line}` : ask, category: i === meals.length - 1 ? 'food-evening' : 'food-meal' };
+}

@@ -29,8 +29,10 @@ test('iPhone with no expiry alerts: at most 24 each, the total shared', () => {
   const b = doseBudget({ os: 'ios', protocolCount: 1, expiryAlerts: 0 });
   assert.equal(b.perProtocol, 24);
   assert.equal(b.windowDays, 10);
-  // 1.3.2 (DV-053): the total is what the 64 leave after every other kind at its most (44), shared.
+  // 1.3.2 (DV-053): the total is what the 64 leave after every other kind at its most, shared.
+  // MR-12 (docs/specs/meal-reminders.md): the food reserve grows from 7 to 14 (meal reminders), so
+  // the worst-case total is 64 - 27 = 37 (was 44); with the real counts it is larger (rem132Reverify).
   const four = doseBudget({ os: 'ios', protocolCount: 4, expiryAlerts: 0 });
-  assert.equal(four.total, 44);
-  assert.equal(four.perProtocol, 11);
+  assert.equal(four.total, 37);
+  assert.equal(four.perProtocol, 9);
 });
