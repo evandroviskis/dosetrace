@@ -12443,7 +12443,7 @@ export const translations = {
     nutri_delete_confirm: 'Diesen Eintrag entfernen?',
     nutri_est_note: 'KI-Schätzungen (±10–15 %) – keine medizinische oder Ernährungsberatung.',
     nutri_ai_badge: 'KI-Essensprotokoll',
-    nutri_composer_hint: 'Beschreibe es in einem Satz – die KI schätzt Kalorien, Kohlenhydrate und Eiweiß.',
+    nutri_composer_hint: 'Beschreibe es in einem Satz – die KI schätzt Kalorien, Kohlenhydrate und Protein.',
     nutri_how: 'So funktioniert es',
     nutri_how_cta: 'Verstanden',
     nutri_avg_label: '7-Tage-Durchschnitt',
@@ -12454,9 +12454,9 @@ export const translations = {
     nutri_day_yesterday: 'Gestern',
     nutri_none: 'Noch keine Mahlzeiten erfasst.',
     nutri_carbs: 'Kohlenhydrate',
-    nutri_protein: 'Eiweiß',
+    nutri_protein: 'Protein',
     nutri_locked_title: 'Erfasse deinen Tag in einem Satz',
-    nutri_locked_sub: 'Beschreib, was du gegessen hast – DoseTrace schätzt Kalorien, Kohlenhydrate und Eiweiß und rechnet sie in deine echten Zahlen ein.',
+    nutri_locked_sub: 'Beschreib, was du gegessen hast – DoseTrace schätzt Kalorien, Kohlenhydrate und Protein und rechnet sie in deine echten Zahlen ein.',
     nutri_locked_cta: 'Premium freischalten',
     nutri_echo: 'Notiert: {items}.',
     nutri_check_label: 'Deine echten Zahlen bisher',
@@ -12539,13 +12539,13 @@ export const translations = {
     nutri_week_avg_food: "Durchschnitt der Tage mit Essen",
     nutri_week_days: "{n} Tage",
     nutri_week_days_one: "{n} Tag", // singular (lib/plural.js)
-    nutri_week_talk: "Wenn du Eiweiß, Kohlenhydrate oder Kalorien ändern willst, sprich mit dem Trainer oder der Gesundheitsfachperson, die dich begleitet. DoseTrace zeigt nur deine Zahlen.",
+    nutri_week_talk: "Wenn du Protein, Kohlenhydrate oder Kalorien ändern willst, sprich mit dem Trainer oder der Gesundheitsfachperson, die dich begleitet. DoseTrace zeigt nur deine Zahlen.",
     nutri_week_plan: "dein Plan: {plan} ({day} × 7)",
     nutri_week_plan_days: "Plan für diese {n} Tage: {plan}",
     nutri_week_plan_days_one: "Plan für {n} Tag: {plan}", // singular (lib/plural.js)
     // Food plan beside the logged food (docs/specs/food-plan-actual.md, founder 2026-11-18; picture food-goals-progress.html parts 1-3)
     pa_kcal: "Kalorien",
-    pa_protein: "Eiweiß",
+    pa_protein: "Protein",
     pa_carbs: "Kohlenhydrate",
     pa_today_logged: "Heute · bisher eingetragen",
     pa_today_plan: "Heute · dein Plan",
@@ -12559,7 +12559,7 @@ export const translations = {
     pa_above_kcal_one: "{n} darüber",
     pa_above_g: "{n} g darüber",
     pa_above_g_one: "{n} g darüber",
-    pa_added_protein: "+{n} g Eiweiß für deinen Tag",
+    pa_added_protein: "+{n} g Protein für deinen Tag",
     pa_no_plan: "Erstelle deinen Plan unter Fortschritt, um zu vergleichen",
     pa_title: "Plan und Ist",
     pa_days_7: "7 Tage",
@@ -12596,7 +12596,7 @@ export const translations = {
     nutri_echo_more_one: '+{n} weiteres',
     nutri_which_earlier: 'Noch ein was? Sag mir, was du hattest.',
     nutri_tot_title: 'Summen',
-    nutri_tot_today: 'Heute: {kcal} kcal · {carbs} g Kohlenhydrate · {protein} g Eiweiß',
+    nutri_tot_today: 'Heute: {kcal} kcal · {carbs} g Kohlenhydrate · {protein} g Protein',
     nutri_tot_week: 'Letzte 7 Tage: {total} kcal ÷ {d} Tage ≈ {avg}/Tag (Essen an {n} Tagen)',
     nutri_tot_window: 'Ganze Messung bisher, inkl. heute: {total} kcal ÷ {d} Tage ≈ {avg}/Tag (Essen an {n} Tagen)',
     tab_settings: 'Einstellungen',
@@ -13662,7 +13662,7 @@ export const translations = {
           {
             id: 'journey_food_ai',
             q: "Wie funktioniert das KI-Essensprotokoll?",
-            a: "Schreib in deinen eigenen Worten, was du gegessen hast. Die KI liest jedes Lebensmittel und trägt eine Schätzung für Kalorien, Kohlenhydrate und Eiweiß ein, die du jederzeit korrigieren kannst; auch Essen von bis zu 7 Tagen zuvor zählt. Der kostenlose Plan enthält 7 Tage KI-Essensprotokoll, Premium jeden Tag. Es trägt nur ein, was du ihm sagst, und gibt nie Ernährungsratschläge."
+            a: "Schreib in deinen eigenen Worten, was du gegessen hast. Die KI liest jedes Lebensmittel und trägt eine Schätzung für Kalorien, Kohlenhydrate und Protein ein, die du jederzeit korrigieren kannst; auch Essen von bis zu 7 Tagen zuvor zählt. Der kostenlose Plan enthält 7 Tage KI-Essensprotokoll, Premium jeden Tag. Es trägt nur ein, was du ihm sagst, und gibt nie Ernährungsratschläge."
           },
           {
             id: 'journey_reality',
