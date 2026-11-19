@@ -66,6 +66,8 @@ test('readCheckNow hands Today the result status and whether the result can be s
     REALITY_CHECK_DAYS: 21,
     localISO: () => '2026-10-23',
     realityCheckTDEE, weeklyRateKg: () => 0,
+    // BF-6 (docs/specs/body-fat-burn.md): Today runs the same burn as Progress (weight only here: no body fat).
+    measuredBurn: require('../lib/bodyFatBurn').measuredBurn,
     realityCheckAccess,
     loadFoodAccess: async () => ({ access: { canLog: mode === 'free_days', mode }, premium }),
   });
