@@ -146,6 +146,20 @@ test('EO-S1b (council 2026-11-20, UX): the offer is never swiped away and its ta
   assert.match(APP, /name="ProtocolBuilder" component=\{ProtocolBuilderRoute\} options=\{\{ gestureEnabled: false \}\}/);
 });
 
+test('EO-S12c (council 2026-11-20, regulatory, Apple 3.1.2): the Grátis e Premium sheet, which can start a purchase, has its own Terms of Use and Privacy links; in-app Terms open INSIDE the sheet; a stale buy flag is cleared on every open', () => {
+  const sheet = SRC.slice(SRC.indexOf('export function FreePremiumSheet('));
+  assert.match(sheet, /t\('eo_terms'\)/);
+  assert.match(sheet, /t\('eo_privacy'\)/);
+  assert.match(sheet, /Linking\.openURL\(PRIVACY_URL\)/);
+  assert.match(sheet, /terms\.kind === 'url' \? Linking\.openURL\(terms\.url\)/);
+  const modalEnd = sheet.indexOf('</Modal>');
+  const legal = sheet.indexOf('<LegalModal');
+  assert.ok(legal > 0 && legal < modalEnd, 'the in-app Terms are presented from inside the sheet');
+  assert.match(SRC, /<FreePremiumSheet[\s\S]{0,300}?terms=\{terms\}/);
+  assert.match(SRC, /function openCompare\(\) \{\s+buyAfterCompare\.current = false;\s+setShowFree\(true\);/);
+  assert.match(SRC, /onPress=\{openCompare\}/);
+});
+
 test('EO-S13: the referral code row: dashed coupon, field + Apply, applied state + Remove; stored locally, its own key', () => {
   assert.match(SRC, /borderStyle: 'dashed'/);
   assert.match(SRC, /t\('eo_ref_row'\)/);

@@ -141,6 +141,10 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
   // The offer button inside "Grátis e Premium": the store's purchase sheet opens only once that
   // sheet has closed (iOS cannot present it over a closing page sheet: __tests__/modalStacking).
   const buyAfterCompare = useRef(false);
+  function openCompare() {
+    buyAfterCompare.current = false;
+    setShowFree(true);
+  }
   function buyFromCompare() {
     buyAfterCompare.current = true;
     setShowFree(false);
@@ -428,7 +432,7 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
           </TouchableOpacity>
 
           <View style={s.links}>
-            <TouchableOpacity style={s.linkBtn} onPress={() => setShowFree(true)} accessibilityRole="button">
+            <TouchableOpacity style={s.linkBtn} onPress={openCompare} accessibilityRole="button">
               <Text style={s.link}>{t('eo_free_link')}</Text>
             </TouchableOpacity>
             <View style={s.legalRow}>
@@ -457,6 +461,7 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
         busy={busy || loading}
         onCta={buyFromCompare}
         onDismiss={afterCompareClosed}
+        terms={terms}
       />
       <DTSheet config={sheet} onClose={() => setSheet(null)} />
       {terms.kind === 'inApp' && (
@@ -479,10 +484,13 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
  */
 // freeProtocols: the account's free protocol count (lib/freePlan, OB-28). cta / renewal / onCta: the
 // offer's own button text, renewal line and purchase (null when the store has no price yet).
-export function FreePremiumSheet({ visible, onClose, onDismiss, freeProtocols, cta, renewal, onCta, busy }) {
+export function FreePremiumSheet({ visible, onClose, onDismiss, freeProtocols, cta, renewal, onCta, busy, terms }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
+  // Apple 3.1.2: a purchase can start here, so Terms of Use and Privacy are here too (council
+  // 2026-11-20); in-app Terms are presented from inside this sheet (iOS stacking, modalStacking).
+  const [sheetTerms, setSheetTerms] = useState(false);
   const rows = freePremiumRows(t, { freeProtocols });
   const cell = (v, premium) => (v === true
     ? <CheckMark size={18} color={premium ? colors.data : colors.ink} />
@@ -528,10 +536,33 @@ export function FreePremiumSheet({ visible, onClose, onDismiss, freeProtocols, c
             </TouchableOpacity>
           ) : null}
           {cta && renewal ? <Text style={s.sheetFine}>{renewal}</Text> : null}
+          {terms ? (
+            <View style={s.legalRow}>
+              <TouchableOpacity
+                style={s.linkBtn}
+                onPress={() => (terms.kind === 'url' ? Linking.openURL(terms.url).catch(() => {}) : setSheetTerms(true))}
+                accessibilityRole="link"
+              >
+                <Text style={s.link}>{t('eo_terms')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.linkBtn} onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} accessibilityRole="link">
+                <Text style={s.link}>{t('eo_privacy')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
           <TouchableOpacity style={s.sheetBack} onPress={onClose} accessibilityRole="button">
             <Text style={s.sheetBackText}>{t('back')}</Text>
           </TouchableOpacity>
         </View>
+        {terms && terms.kind === 'inApp' ? (
+          <LegalModal
+            visible={sheetTerms}
+            onClose={() => setSheetTerms(false)}
+            title={t(terms.titleKey)}
+            content={fillStoreText(t(terms.bodyKey), t, Platform.OS)}
+            doneLabel={t('done')}
+          />
+        ) : null}
       </SafeAreaView>
     </Modal>
   );
