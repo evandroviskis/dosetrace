@@ -2,7 +2,7 @@
 
 Escrita em 2026-11-13 pela sessão do painel, a partir de `Second Brain/dosetrace/admin-panel/HANDOFF-afiliados.md`
 (pedido do Evandro na sessão Dosetrace Ads, 2026-11-13) e das notas 021, 022 e 023.
-Estado: **APROVADA pelo Evandro em 2026-11-20** ("Pode construir a spec e os desenhos"). Construída com teste antes (commits af94c945 e fd6baeff, local). **Migração não aplicada, nada publicado**, aguardando o "go". Desenhos: `docs/design/adm-criadores.html`.
+Estado: **APROVADA pelo Evandro em 2026-11-20** ("Pode construir a spec e os desenhos"). Construída com teste antes. **Go do Evandro em 2026-11-20: migração aplicada e publicada em main ccc98df4** (anon 42501 nas 11 tabelas; recusas conferidas ao vivo). Falta: CREATOR_DATA_KEY e RC_WEBHOOK_AUTH na Vercel, webhook no RevenueCat, criador TESTE e prova no S25. Desenhos: `docs/design/adm-criadores.html`.
 Parte do app: `docs/specs/creators-app-side.md` (vai para a sessão do app, que passa pelo dt-council).
 
 Registro consultado antes de propor (`scripts/checar-decisoes.sh afiliado influenciador criador referral webhook A-179`):
