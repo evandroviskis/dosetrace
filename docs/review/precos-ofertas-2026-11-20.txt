@@ -1,0 +1,56 @@
+PREÇOS E PLANO DE 3 MESES NAS LOJAS — 2026-11-20
+(feito por API com o "Pode mexer nas lojas" do fundador, 2026-11-20; tudo conferido relendo as lojas depois)
+
+1. APPLE — NOVA ASSINATURA "quarterly" (3 meses)
+- Id Apple: 6837178615, productId quarterly, grupo 22020365 "DoseTrace Premium" (o mesmo de monthly/yearly).
+- Duração THREE_MONTHS, nome de referência "Premium 3 months", Compartilhamento Familiar desligado (igual às outras).
+- Nomes na loja: en-US "DoseTrace Premium 3 Months", pt-BR "DoseTrace Premium 3 meses", es-ES "DoseTrace Premium 3 meses",
+  fr-FR "DoseTrace Premium 3 mois", de-DE "DoseTrace Premium 3 Monate", it "DoseTrace Premium 3 mesi"
+  (descrição curta "todos os recursos premium, cobrança a cada 3 meses", sem citar teste grátis).
+- Disponível nos mesmos 175 países do mensal.
+- Preço: EUA US$ 12,99; Brasil R$ 39,90; os outros 173 países = equalização automática da Apple a partir de US$ 12,99
+  (ex.: Alemanha 14,99 EUR, Reino Unido 12,99 GBP, Japão 2.000 JPY, México 299 MXN). Sem oferta introdutória.
+- Estado: MISSING_METADATA (não enviado para revisão). Falta: a captura de tela para a revisão da Apple
+  (Review screenshot). Depois disso fica "Pronto para enviar" e vai junto com a atualização do app.
+- Nível no grupo: 3 (yearly 1, monthly 2). A Apple pôs o trimestral abaixo do mensal; não mexi. Se quiser a ordem
+  anual > trimestral > mensal, é trocar os níveis no grupo (decisão do fundador).
+
+2. APPLE — AUMENTO NOS EUA (só novos assinantes; quem já assina fica no preço atual)
+- monthly (6761788502): US$ 2,99 -> US$ 4,99 a partir de 2026-11-21; o preço de US$ 2,99 ficou "preserved" para os atuais.
+- yearly (6761788027): US$ 28,99 -> US$ 39,99 a partir de 2026-11-21; US$ 28,99 "preserved" para os atuais.
+- lifetime (6761788471): US$ 69,99 -> US$ 99,99, imediato (2026-11-20).
+  Atenção: com os EUA como país base, mudar o preço dos EUA faria a Apple recalcular todos os outros países. Para nada
+  mudar fora dos EUA, todos os 175 países foram gravados como preço manual com o valor que tinham agora, inclusive os 3
+  ajustes que a própria Apple já tinha marcado para 2026-12-03 (Botsuana 79,99 USD, Colômbia 249.900 COP,
+  Ruanda 79,99 USD). Conferido: o único país que mudou foi EUA. Efeito colateral: a partir de agora a Apple não ajusta
+  sozinha o vitalício por câmbio/imposto nesses países.
+- Brasil continua como ontem: mensal R$ 14,90 e anual R$ 149,90 a partir de 2026-11-21; vitalício R$ 349,90.
+
+3. GOOGLE PLAY — NOVA ASSINATURA "quarterly"
+- Assinatura quarterly, plano base p3m, renovação automática a cada 3 meses (P3M), carência 7 dias, ATIVO.
+- Nomes: os mesmos 6 idiomas da Apple. Sem ofertas.
+- 174 regiões: EUA 12,99 USD; Brasil 39,90 BRL; 125 regiões com o mesmo preço da Apple (mesma moeda);
+  47 regiões em que a Apple cobra em outra moeda ficaram com a conversão do Google de 12,99 USD.
+  Novas regiões futuras: 12,99 USD / 14,99 EUR.
+
+4. GOOGLE PLAY — AUMENTO SÓ NOS EUA (novas compras; quem já assina continua no preço antigo, sem migratePrices)
+- monthly / p1m: 2,99 -> 4,99 USD
+- yearly / annual: 28,99 -> 39,99 USD (o plano p1y, inativo, não foi tocado)
+- lifetime: 69,99 -> 99,99 USD
+- Efeito imediato (o Google pode levar algumas horas para mostrar). Conferido: só essas 3 linhas mudaram em todas as regiões.
+
+PREÇOS AGORA (EUA | Brasil)
+                     Apple                         Google Play
+  mensal       US$ 4,99* | R$ 14,90*          US$ 4,99 | R$ 14,90
+  3 meses      US$ 12,99 | R$ 39,90           US$ 12,99 | R$ 39,90
+  anual        US$ 39,99* | R$ 149,90*        US$ 39,99 | R$ 149,90
+  vitalício    US$ 99,99 | R$ 349,90          US$ 99,99 | R$ 349,90
+  (* Apple: vale a partir de 2026-11-21)
+
+PENDENTE
+- Ofertas de entrada e retirada do teste grátis de 7 dias: ADIADAS para o dia da atualização do app (não mexi).
+- Apple: captura de tela da revisão do "quarterly"; enviar o produto junto com a versão nova do app.
+- RevenueCat: falta cadastrar o produto "quarterly" (Apple: quarterly; Google: quarterly:p3m) e colocar no pacote da
+  oferta. Não há chave de API do RevenueCat no projeto, então fica para o fundador (ou para um próximo passo com a chave).
+- Achado: no Google Play os nomes de mensal, anual e vitalício ainda dizem "DoseTrace Pro ..." (só em inglês); na Apple
+  já é "Premium". Não mexi porque estava fora deste pedido.
