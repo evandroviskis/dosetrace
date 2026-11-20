@@ -143,13 +143,14 @@ test('PQ-12: storage is the same comma-separated goal string, parsed and written
 });
 
 test('PQ-14: profile goals → protocol goals by type (small table, wellness keys of that type only)', () => {
-  assert.deepEqual(P.purposeFromProfile(['sleep'], 'oral'), ['wt_sleep_quality']);
-  assert.deepEqual(P.purposeFromProfile(['sleep'], 'recon'), ['wt_sleep_opt']);
-  assert.deepEqual(P.purposeFromProfile(['fat_loss', 'strength', 'sleep'], 'rtu'), ['wt_weight', 'wt_strength', 'wt_sleep_opt']);
-  assert.deepEqual(P.purposeFromProfile(['fat_loss', 'immune'], 'oral'), ['wt_immune'], 'a goal with no key in that list is left out');
-  assert.deepEqual(P.purposeFromProfile(['wellness'], 'recon'), [], 'no loose mapping');
-  assert.deepEqual(P.purposeFromProfile(['sleep', 'sleep', 'nope'], 'oral'), ['wt_sleep_quality']);
-  assert.deepEqual(P.purposeFromProfile('sleep,stress', 'oral'), ['wt_sleep_quality', 'wt_stress_mgmt'], 'the stored primary_goal string too');
+  // Mapped through the product's curated table (PQ-17): the same profile goal reads in the product's own key.
+  assert.deepEqual(P.purposeFromProfile(['sleep'], 'oral', 'oral_melatonin'), ['wt_sleep_quality']);
+  assert.deepEqual(P.purposeFromProfile(['sleep'], 'recon', 'lyo_melatonin'), ['wt_sleep_opt']);
+  assert.deepEqual(P.purposeFromProfile(['fat_loss', 'strength', 'sleep'], 'rtu', 'rtu_semaglutide'), ['wt_weight']);
+  assert.deepEqual(P.purposeFromProfile(['fat_loss', 'immune'], 'oral', 'oral_zinc'), ['wt_immune'], 'a goal with no key in that list is left out');
+  assert.deepEqual(P.purposeFromProfile(['wellness'], 'recon', 'lyo_glutathione'), [], 'no loose mapping');
+  assert.deepEqual(P.purposeFromProfile(['sleep', 'sleep', 'nope'], 'oral', 'oral_melatonin'), ['wt_sleep_quality']);
+  assert.deepEqual(P.purposeFromProfile('sleep,stress', 'oral', 'oral_mag_bisglycinate'), ['wt_sleep_quality', 'wt_stress_mgmt'], 'the stored primary_goal string too');
   assert.deepEqual(P.purposeFromProfile(null, 'oral'), []);
   const { GOAL_KEY_T } = require('../lib/goalCategories');
   for (const g of Object.keys(P.PROFILE_PURPOSE)) assert.ok(GOAL_KEY_T[g], `${g} is a profile goal`);

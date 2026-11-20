@@ -15,7 +15,7 @@ const { translations: T } = require('../i18n/translations.js');
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
 
-test('PQ-17: onboarding keeps only the profile goals usual for the product (table first, else the type list)', () => {
+test('PQ-17: onboarding keeps only the profile goals in the product\'s curated table; no entry → no goal', () => {
   // Melatonin capsule: table = sleep + circadian. Her goals fat loss, sleep, immune → only sleep.
   assert.deepEqual(P.purposeFromProfile(['fat_loss', 'sleep', 'immune'], 'oral', 'oral_melatonin'), ['wt_sleep_quality']);
   // Vitamin C: table = immune, antioxidant. Sleep is never written on it.
@@ -24,9 +24,11 @@ test('PQ-17: onboarding keeps only the profile goals usual for the product (tabl
   assert.deepEqual(P.purposeFromProfile(['sleep', 'strength', 'fat_loss'], 'recon', 'lyo_semaglutide'), ['wt_weight']);
   // No match with the table → no goal at all.
   assert.deepEqual(P.purposeFromProfile(['sleep'], 'rtu', 'rtu_testosterone_cypionate'), []);
-  // A product with no table entry (BPC-157, or her own typed name) → the type's list decides.
-  assert.deepEqual(P.purposeFromProfile(['recovery', 'sleep'], 'recon', 'lyo_bpc_157'), ['wt_recovery_support', 'wt_sleep_opt']);
-  assert.deepEqual(P.purposeFromProfile(['immune', 'fat_loss'], 'oral', null), ['wt_immune']);
+  // A product with no table entry (BPC-157, or her own typed name) → no goal from the profile: her
+  // goals were answered for her life in general, not for that product (coordinator 2026-11-20).
+  assert.deepEqual(P.purposeFromProfile(['recovery', 'sleep', 'fat_loss'], 'recon', 'lyo_bpc_157'), []);
+  assert.deepEqual(P.purposeFromProfile(['immune', 'fat_loss'], 'oral', null), []);
+  assert.deepEqual(P.purposeFromProfile(['sleep'], 'oral'), []);
 });
 
 test('PQ-17: the onboarding screens pass the product, and an empty result hides the "Para" row', () => {
