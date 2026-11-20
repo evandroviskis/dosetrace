@@ -69,204 +69,182 @@
   .pick { display:inline-block; font-size: 11px; font-weight: 700; color: var(--pick); border: 1px solid var(--pick); border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
   @media (max-width: 980px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
   @media (max-width: 680px) { .grid, .flows { grid-template-columns: 1fr; } }
-</style>
+.lk{font-size:13px;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--chip);color:var(--fg);text-decoration:none} section+section{border-top:2px solid var(--line);margin-top:24px}</style>
 
-<div class="wrap">
-  <h1 data-t="h1"></h1>
-  <p class="lead" data-t="lead"></p>
-  <div class="bar" role="group" aria-label="Idioma">
-    <button type="button" data-lang="pt" aria-pressed="true">Português (Brasil, R$)</button>
-    <button type="button" data-lang="en" aria-pressed="false">English (US, US$)</button>
-  </div>
+<section id="pt" lang="pt-BR"><div class="wrap">
+  <h1>Abertura nova e oferta de entrada</h1>
+  <p class="lead">Desenho para aprovação, antes de qualquer código ou produto na loja. Segue as respostas de hoje: oferta de 3 meses para todo mundo, teste de 7 dias só no anual, plano grátis com 1 protocolo nas contas novas, código de indicação com 1 mês extra. Os valores na tela vêm da loja na hora; os números abaixo são os combinados.</p>
+  <div class="bar"><a class="lk" href="#pt">Português (Brasil, R$)</a><a class="lk" href="#en">English (US, US$)</a></div>
 
-  <h2 data-t="h_order"></h2>
-  <p class="lead" data-t="order_lead"></p>
+  <h2>1. Onde as perguntas novas entram na abertura de hoje</h2>
+  <p class="lead">A abertura de hoje tem 8 passos antes de criar a conta. A Nina pede 3 perguntas, um resumo e a oferta. A pergunta "o que você acompanha" já existe; entram duas novas. A compra só pode vir depois da conta (a assinatura fica presa a ela).</p>
   <div class="flows">
     <div class="flow">
-      <h3><span data-t="fa_t"></span><span class="pick" data-t="rec"></span></h3>
-      <p data-t="fa_d"></p>
-      <div class="steps" id="flowA"></div>
+      <h3><span>A — encaixar sem tirar nada</span><span class="pick">recomendo</span></h3>
+      <p>"Quantas rotinas" entra na mesma tela de "o que você acompanha"; "o que mais atrapalha" é uma tela nova; o resumo fecha antes da conta; a oferta vem logo depois da conta. 9 telas antes da conta (hoje 8) e a oferta depois.</p>
+      <div class="steps"><span class="st ">Abertura</span><span class="arrow">›</span><span class="st ">Recursos</span><span class="arrow">›</span><span class="st ">Objetivos</span><span class="arrow">›</span><span class="st ">O que acompanha</span><span class="arrow">›</span><span class="st new">+ quantas rotinas</span><span class="arrow">›</span><span class="st new">O que mais atrapalha</span><span class="arrow">›</span><span class="st ">Sobre você</span><span class="arrow">›</span><span class="st ">Rotina</span><span class="arrow">›</span><span class="st ">Termos</span><span class="arrow">›</span><span class="st ">Lembretes</span><span class="arrow">›</span><span class="st new">Resumo</span><span class="arrow">›</span><span class="st acc">Criar conta</span><span class="arrow">›</span><span class="st new">Oferta</span></div>
     </div>
     <div class="flow">
-      <h3 data-t="fb_t"></h3>
-      <p data-t="fb_d"></p>
-      <div class="steps" id="flowB"></div>
+      <h3>B — mais curta</h3>
+      <p>"O que mais atrapalha" toma o lugar de "Seus objetivos". 8 telas, como hoje. Mas "objetivos" é um campo obrigatório guardado para uso futuro (decisão de 23/10): ele deixaria de ser perguntado.</p>
+      <div class="steps"><span class="st ">Abertura</span><span class="arrow">›</span><span class="st ">Recursos</span><span class="arrow">›</span><span class="st gone">Objetivos</span><span class="arrow">›</span><span class="st ">O que acompanha</span><span class="arrow">›</span><span class="st new">+ quantas rotinas</span><span class="arrow">›</span><span class="st new">O que mais atrapalha</span><span class="arrow">›</span><span class="st ">Sobre você</span><span class="arrow">›</span><span class="st ">Rotina</span><span class="arrow">›</span><span class="st ">Termos</span><span class="arrow">›</span><span class="st ">Lembretes</span><span class="arrow">›</span><span class="st new">Resumo</span><span class="arrow">›</span><span class="st acc">Criar conta</span><span class="arrow">›</span><span class="st new">Oferta</span></div>
     </div>
   </div>
 
-  <h2 data-t="h_new"></h2>
-  <p class="lead" data-t="new_lead"></p>
-  <div class="grid" id="grid"></div>
+  <h2>2. As telas novas, no claro e no escuro</h2>
+  <p class="lead">Mesmo visual da abertura de hoje (Graduated): fundo verde-cinza, cartões brancos, um único botão escuro por tela.</p>
+  <div class="grid"><div class="shot"><h4>Quantas rotinas (na tela "o que você acompanha")</h4><p class="why">Um toque. Só ajuda o resumo; não muda nenhuma conta do app.</p><div class="pair"><div class="ph light"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">O que você acompanha?</div><div class="sub">Marque tudo o que se aplica.</div><div class="opt sel"><span>Doses e protocolos</span><span class="ck"></span></div><div class="opt "><span>Exames</span><span class="ck"></span></div><div class="opt sel"><span>Frascos</span><span class="ck"></span></div><div class="opt "><span>Comida e peso</span><span class="ck"></span></div><div class="lbl">Quantas rotinas, hoje?</div><div class="seg"><span class="">1</span><span class="on">2–3</span><span class="">4 ou mais</span></div><div class="spacer"></div><div class="btn p">Continuar</div></div><div class="ph dark"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">O que você acompanha?</div><div class="sub">Marque tudo o que se aplica.</div><div class="opt sel"><span>Doses e protocolos</span><span class="ck"></span></div><div class="opt "><span>Exames</span><span class="ck"></span></div><div class="opt sel"><span>Frascos</span><span class="ck"></span></div><div class="opt "><span>Comida e peso</span><span class="ck"></span></div><div class="lbl">Quantas rotinas, hoje?</div><div class="seg"><span class="">1</span><span class="on">2–3</span><span class="">4 ou mais</span></div><div class="spacer"></div><div class="btn p">Continuar</div></div></div></div><div class="shot"><h4>O que mais atrapalha (tela nova)</h4><p class="why">Um toque, pode marcar mais de uma. Escolhe os 3 ganhos do resumo.</p><div class="pair"><div class="ph light"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">O que mais atrapalha hoje?</div><div class="sub">Marque tudo o que se aplica.</div><div class="opt sel"><span>Fazer a conta da seringa</span><span class="ck"></span></div><div class="opt sel"><span>Lembrar o horário</span><span class="ck"></span></div><div class="opt "><span>Saber quanto resta no frasco</span><span class="ck"></span></div><div class="opt "><span>Guardar os resultados dos exames</span><span class="ck"></span></div><div class="spacer"></div><div class="btn p">Continuar</div></div><div class="ph dark"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">O que mais atrapalha hoje?</div><div class="sub">Marque tudo o que se aplica.</div><div class="opt sel"><span>Fazer a conta da seringa</span><span class="ck"></span></div><div class="opt sel"><span>Lembrar o horário</span><span class="ck"></span></div><div class="opt "><span>Saber quanto resta no frasco</span><span class="ck"></span></div><div class="opt "><span>Guardar os resultados dos exames</span><span class="ck"></span></div><div class="spacer"></div><div class="btn p">Continuar</div></div></div></div><div class="shot"><h4>Resumo, antes de criar a conta</h4><p class="why">Os ganhos seguem o que a pessoa marcou. Linguagem neutra, sem promessa de resultado.</p><div class="pair"><div class="ph light"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div><div class="tt">Seu diário está pronto</div><div class="sub">Feito para o que você marcou.</div><div class="sum"><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 2l4 4M17 7l3-3M19 9L9 19l-4 1 1-4L16 6zM12 10l2 2M9 13l2 2"/></svg></span><span><b>Conta da seringa</b>Unidades e mL a partir do que você informar. A conta é sua; o app não indica dose.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg></span><span><b>Lembretes no horário</b>Cada dose no horário que você escolher.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 2v6L4 18a2 2 0 002 3h12a2 2 0 002-3L15 8V2M8 2h8M7 14h10"/></svg></span><span><b>Exames em um só lugar</b>Seus resultados guardados, para levar ao seu profissional de saúde.</span></div></div><div class="spacer"></div><div class="btn p">Criar conta</div><div class="btn g">Já tenho conta · Entrar</div></div><div class="ph dark"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div><div class="tt">Seu diário está pronto</div><div class="sub">Feito para o que você marcou.</div><div class="sum"><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 2l4 4M17 7l3-3M19 9L9 19l-4 1 1-4L16 6zM12 10l2 2M9 13l2 2"/></svg></span><span><b>Conta da seringa</b>Unidades e mL a partir do que você informar. A conta é sua; o app não indica dose.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg></span><span><b>Lembretes no horário</b>Cada dose no horário que você escolher.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 2v6L4 18a2 2 0 002 3h12a2 2 0 002-3L15 8V2M8 2h8M7 14h10"/></svg></span><span><b>Exames em um só lugar</b>Seus resultados guardados, para levar ao seu profissional de saúde.</span></div></div><div class="spacer"></div><div class="btn p">Criar conta</div><div class="btn g">Já tenho conta · Entrar</div></div></div></div><div class="shot"><h4>Oferta, depois da conta (com direito à oferta)</h4><p class="why">3 meses em destaque, anual com teste ao lado, mensal e vitalício em "Ver todos os planos". O aviso da renovação fica acima do botão, como a loja exige.</p><div class="pair"><div class="ph light"><div class="tt">Comece com 3 meses pela metade</div><div class="sub">Premium: curva da dose no corpo, gráficos de exames, PDF, protocolos sem limite.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Oferta de entrada</span><div class="h"><span>3 meses</span><span class="mono">R$ 19,90</span></div><div class="d">Depois, R$ 39,90 a cada 3 meses</div></div>
+    <div class="plan"><div class="h"><span>Anual</span><span class="mono">R$ 149,90</span></div><div class="d">7 dias grátis, depois R$ 149,90 por ano</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">Ver todos os planos (mensal, vitalício)</div>
+    <div class="fine" style="text-align:center">Tenho um código de indicação ›</div>
+    <div class="spacer"></div>
+    <div class="fine">Depois dos 3 primeiros meses, a assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.</div>
+    <div class="btn p">Começar por R$ 19,90</div>
+    <div class="btn g">Continuar no plano grátis</div>
+    <div class="fine" style="text-align:center">Grátis: 1 protocolo, calculadora, registro de doses, frascos e lembretes.</div>
+    <div class="links"><u>Termos</u><u>Privacidade</u><u>Restaurar compras</u></div></div><div class="ph dark"><div class="tt">Comece com 3 meses pela metade</div><div class="sub">Premium: curva da dose no corpo, gráficos de exames, PDF, protocolos sem limite.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Oferta de entrada</span><div class="h"><span>3 meses</span><span class="mono">R$ 19,90</span></div><div class="d">Depois, R$ 39,90 a cada 3 meses</div></div>
+    <div class="plan"><div class="h"><span>Anual</span><span class="mono">R$ 149,90</span></div><div class="d">7 dias grátis, depois R$ 149,90 por ano</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">Ver todos os planos (mensal, vitalício)</div>
+    <div class="fine" style="text-align:center">Tenho um código de indicação ›</div>
+    <div class="spacer"></div>
+    <div class="fine">Depois dos 3 primeiros meses, a assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.</div>
+    <div class="btn p">Começar por R$ 19,90</div>
+    <div class="btn g">Continuar no plano grátis</div>
+    <div class="fine" style="text-align:center">Grátis: 1 protocolo, calculadora, registro de doses, frascos e lembretes.</div>
+    <div class="links"><u>Termos</u><u>Privacidade</u><u>Restaurar compras</u></div></div></div></div><div class="shot"><h4>Oferta sem direito (já usou uma oferta antes)</h4><p class="why">A loja diz que a pessoa não tem direito: some a metade do preço, aparece o preço cheio. Nada é prometido sem a loja confirmar.</p><div class="pair"><div class="ph light"><div class="tt">Assine o Premium</div><div class="sub">A oferta de entrada vale uma vez por conta da loja.</div>
+    <div class="plan sel" style="margin-top:8px"><div class="h"><span>3 meses</span><span class="mono">R$ 39,90</span></div><div class="d">A cada 3 meses</div></div>
+    <div class="plan"><div class="h"><span>Anual</span><span class="mono">R$ 149,90</span></div><div class="d">7 dias grátis, depois R$ 149,90 por ano</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">Ver todos os planos (mensal, vitalício)</div>
+    <div class="fine" style="text-align:center">Tenho um código de indicação ›</div>
+    <div class="spacer"></div>
+    <div class="fine">A assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.</div>
+    <div class="btn p">Assinar por R$ 39,90</div>
+    <div class="btn g">Continuar no plano grátis</div>
+    <div class="fine" style="text-align:center">Grátis: 1 protocolo, calculadora, registro de doses, frascos e lembretes.</div>
+    <div class="links"><u>Termos</u><u>Privacidade</u><u>Restaurar compras</u></div></div><div class="ph dark"><div class="tt">Assine o Premium</div><div class="sub">A oferta de entrada vale uma vez por conta da loja.</div>
+    <div class="plan sel" style="margin-top:8px"><div class="h"><span>3 meses</span><span class="mono">R$ 39,90</span></div><div class="d">A cada 3 meses</div></div>
+    <div class="plan"><div class="h"><span>Anual</span><span class="mono">R$ 149,90</span></div><div class="d">7 dias grátis, depois R$ 149,90 por ano</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">Ver todos os planos (mensal, vitalício)</div>
+    <div class="fine" style="text-align:center">Tenho um código de indicação ›</div>
+    <div class="spacer"></div>
+    <div class="fine">A assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.</div>
+    <div class="btn p">Assinar por R$ 39,90</div>
+    <div class="btn g">Continuar no plano grátis</div>
+    <div class="fine" style="text-align:center">Grátis: 1 protocolo, calculadora, registro de doses, frascos e lembretes.</div>
+    <div class="links"><u>Termos</u><u>Privacidade</u><u>Restaurar compras</u></div></div></div></div><div class="shot"><h4>Código de indicação aceito</h4><p class="why">O código vale e diz o que dá: 1 mês extra depois do primeiro pagamento. A oferta continua a mesma.</p><div class="pair"><div class="ph light"><div class="tt">Comece com 3 meses pela metade</div><div class="sub">Premium: curva da dose no corpo, gráficos de exames, PDF, protocolos sem limite.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Oferta de entrada</span><div class="h"><span>3 meses</span><span class="mono">R$ 19,90</span></div><div class="d">Depois, R$ 39,90 a cada 3 meses</div></div>
+    <div class="plan"><div class="h"><span>Anual</span><span class="mono">R$ 149,90</span></div><div class="d">7 dias grátis, depois R$ 149,90 por ano</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">Ver todos os planos (mensal, vitalício)</div>
+    <div class="field"><span class="mono">CARLOS</span><span class="ok">Código aceito</span></div><div class="fine">Código CARLOS: 1 mês extra de Premium depois do primeiro pagamento.</div>
+    <div class="spacer"></div>
+    <div class="fine">Depois dos 3 primeiros meses, a assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.</div>
+    <div class="btn p">Começar por R$ 19,90</div>
+    <div class="btn g">Continuar no plano grátis</div>
+    
+    <div class="links"><u>Termos</u><u>Privacidade</u><u>Restaurar compras</u></div></div><div class="ph dark"><div class="tt">Comece com 3 meses pela metade</div><div class="sub">Premium: curva da dose no corpo, gráficos de exames, PDF, protocolos sem limite.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Oferta de entrada</span><div class="h"><span>3 meses</span><span class="mono">R$ 19,90</span></div><div class="d">Depois, R$ 39,90 a cada 3 meses</div></div>
+    <div class="plan"><div class="h"><span>Anual</span><span class="mono">R$ 149,90</span></div><div class="d">7 dias grátis, depois R$ 149,90 por ano</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">Ver todos os planos (mensal, vitalício)</div>
+    <div class="field"><span class="mono">CARLOS</span><span class="ok">Código aceito</span></div><div class="fine">Código CARLOS: 1 mês extra de Premium depois do primeiro pagamento.</div>
+    <div class="spacer"></div>
+    <div class="fine">Depois dos 3 primeiros meses, a assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.</div>
+    <div class="btn p">Começar por R$ 19,90</div>
+    <div class="btn g">Continuar no plano grátis</div>
+    
+    <div class="links"><u>Termos</u><u>Privacidade</u><u>Restaurar compras</u></div></div></div></div></div>
 
-  <h2 data-t="h_rules"></h2>
-  <ul class="note" id="rules"></ul>
+  <h2>3. Regras que esta tela segue (já decididas)</h2>
+  <ul class="note"><li>Preço, oferta e teste aparecem só quando a loja confirma; o app nunca escreve preço. O aviso de renovação usa o valor que a loja devolver para aquele plano (o plano de 3 meses renova a cada 3 meses, não por mês).</li><li>Mesmo preço nas duas lojas; no Android o texto diz "Google Play" no lugar de "App Store".</li><li>Quem já é Premium não vê a oferta: depois da conta vai direto para o app.</li><li>"Continuar no plano grátis" é sempre visível. A oferta não volta a abrir sozinha; num recurso Premium continua a explicação animada e o "Desbloquear com Premium" (regra de 31/10).</li><li>Plano grátis com 1 protocolo só nas contas novas; quem já tem mais continua com o que tem.</li><li>Nenhum pedido de permissão na primeira tela; notificação só no passo Lembretes, como hoje.</li><li>Seis idiomas, português formal. Sem nome de substância, sem conselho de dose.</li></ul>
 </div>
 
-<script>
-const ICON = {
-  syr: '<svg viewBox="0 0 24 24"><path d="M18 2l4 4M17 7l3-3M19 9L9 19l-4 1 1-4L16 6zM12 10l2 2M9 13l2 2"/></svg>',
-  bell: '<svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg>',
-  lab: '<svg viewBox="0 0 24 24"><path d="M9 2v6L4 18a2 2 0 002 3h12a2 2 0 002-3L15 8V2M8 2h8M7 14h10"/></svg>'
-};
-const T = {
- pt: {
-  h1: 'Abertura nova e oferta de entrada',
-  lead: 'Desenho para aprovação, antes de qualquer código ou produto na loja. Segue as respostas de hoje: oferta de 3 meses para todo mundo, teste de 7 dias só no anual, plano grátis com 1 protocolo nas contas novas, código de indicação com 1 mês extra. Os valores na tela vêm da loja na hora; os números abaixo são os combinados.',
-  h_order: '1. Onde as perguntas novas entram na abertura de hoje',
-  order_lead: 'A abertura de hoje tem 8 passos antes de criar a conta. A Nina pede 3 perguntas, um resumo e a oferta. A pergunta "o que você acompanha" já existe; entram duas novas. A compra só pode vir depois da conta (a assinatura fica presa a ela).',
-  fa_t: 'A — encaixar sem tirar nada', rec: 'recomendo',
-  fa_d: '"Quantas rotinas" entra na mesma tela de "o que você acompanha"; "o que mais atrapalha" é uma tela nova; o resumo fecha antes da conta; a oferta vem logo depois da conta. 9 telas antes da conta (hoje 8) e a oferta depois.',
-  fb_t: 'B — mais curta',
-  fb_d: '"O que mais atrapalha" toma o lugar de "Seus objetivos". 8 telas, como hoje. Mas "objetivos" é um campo obrigatório guardado para uso futuro (decisão de 23/10): ele deixaria de ser perguntado.',
-  steps: ['Abertura','Recursos','Objetivos','O que acompanha','+ quantas rotinas','O que mais atrapalha','Sobre você','Rotina','Termos','Lembretes','Resumo','Criar conta','Oferta'],
-  h_new: '2. As telas novas, no claro e no escuro',
-  new_lead: 'Mesmo visual da abertura de hoje (Graduated): fundo verde-cinza, cartões brancos, um único botão escuro por tela.',
-  s1: ['Quantas rotinas (na tela "o que você acompanha")','Um toque. Só ajuda o resumo; não muda nenhuma conta do app.'],
-  s2: ['O que mais atrapalha (tela nova)','Um toque, pode marcar mais de uma. Escolhe os 3 ganhos do resumo.'],
-  s3: ['Resumo, antes de criar a conta','Os ganhos seguem o que a pessoa marcou. Linguagem neutra, sem promessa de resultado.'],
-  s4: ['Oferta, depois da conta (com direito à oferta)','3 meses em destaque, anual com teste ao lado, mensal e vitalício em "Ver todos os planos". O aviso da renovação fica acima do botão, como a loja exige.'],
-  s5: ['Oferta sem direito (já usou uma oferta antes)','A loja diz que a pessoa não tem direito: some a metade do preço, aparece o preço cheio. Nada é prometido sem a loja confirmar.'],
-  s6: ['Código de indicação aceito','O código vale e diz o que dá: 1 mês extra depois do primeiro pagamento. A oferta continua a mesma.'],
-  progress: 'Voltar',
-  q1t: 'O que você acompanha?', q1s: 'Marque tudo o que se aplica.',
-  q1o: ['Doses e protocolos','Exames','Frascos','Comida e peso'],
-  q1n: 'Quantas rotinas, hoje?', q1seg: ['1','2–3','4 ou mais'],
-  q2t: 'O que mais atrapalha hoje?', q2s: 'Marque tudo o que se aplica.',
-  q2o: ['Fazer a conta da seringa','Lembrar o horário','Saber quanto resta no frasco','Guardar os resultados dos exames'],
-  cont: 'Continuar',
-  r_t: 'Seu diário está pronto', r_s: 'Feito para o que você marcou.',
-  r1: ['Conta da seringa','Unidades e mL a partir do que você informar. A conta é sua; o app não indica dose.'],
-  r2: ['Lembretes no horário','Cada dose no horário que você escolher.'],
-  r3: ['Exames em um só lugar','Seus resultados guardados, para levar ao seu profissional de saúde.'],
-  r_btn: 'Criar conta', r_have: 'Já tenho conta · Entrar',
-  o_t: 'Comece com 3 meses pela metade', o_s: 'Premium: curva da dose no corpo, gráficos de exames, PDF, protocolos sem limite.',
-  o_tag: 'Oferta de entrada',
-  o3: ['3 meses','R$ 19,90','Depois, R$ 39,90 a cada 3 meses'],
-  oa: ['Anual','R$ 149,90','7 dias grátis, depois R$ 149,90 por ano'],
-  oall: 'Ver todos os planos (mensal, vitalício)',
-  o_fine: 'Depois dos 3 primeiros meses, a assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.',
-  o_btn: 'Começar por R$ 19,90',
-  o_code: 'Tenho um código de indicação',
-  o_free: 'Continuar no plano grátis',
-  o_free_d: 'Grátis: 1 protocolo, calculadora, registro de doses, frascos e lembretes.',
-  links: ['Termos','Privacidade','Restaurar compras'],
-  n_t: 'Assine o Premium', n_s: 'A oferta de entrada vale uma vez por conta da loja.',
-  n3: ['3 meses','R$ 39,90','A cada 3 meses'],
-  n_fine: 'A assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.',
-  n_btn: 'Assinar por R$ 39,90',
-  c_field: 'CARLOS', c_ok: 'Código aceito',
-  c_line: 'Código CARLOS: 1 mês extra de Premium depois do primeiro pagamento.',
-  h_rules: '3. Regras que esta tela segue (já decididas)',
-  rules: [
-   'Preço, oferta e teste aparecem só quando a loja confirma; o app nunca escreve preço. O aviso de renovação usa o valor que a loja devolver para aquele plano (o plano de 3 meses renova a cada 3 meses, não por mês).',
-   'Mesmo preço nas duas lojas; no Android o texto diz "Google Play" no lugar de "App Store".',
-   'Quem já é Premium não vê a oferta: depois da conta vai direto para o app.',
-   '"Continuar no plano grátis" é sempre visível. A oferta não volta a abrir sozinha; num recurso Premium continua a explicação animada e o "Desbloquear com Premium" (regra de 31/10).',
-   'Plano grátis com 1 protocolo só nas contas novas; quem já tem mais continua com o que tem.',
-   'Nenhum pedido de permissão na primeira tela; notificação só no passo Lembretes, como hoje.',
-   'Seis idiomas, português formal. Sem nome de substância, sem conselho de dose.'
-  ]
- },
- en: {
-  h1: 'New opening and entry offer',
-  lead: 'Picture for approval, before any code or store product. It follows today\'s answers: the 3-month offer for everyone, the 7-day trial on the annual plan only, free plan with 1 protocol for new accounts, a referral code worth 1 extra month. Prices on screen come from the store at runtime; the numbers below are the agreed ones.',
-  h_order: '1. Where the new questions go in today\'s opening',
-  order_lead: 'Today\'s opening has 8 steps before the account. Nina asks for 3 questions, a summary and the offer. "What do you track" already exists; two are new. The purchase can only come after the account (the subscription is tied to it).',
-  fa_t: 'A — fit in, remove nothing', rec: 'recommended',
-  fa_d: '"How many routines" joins the "what do you track" screen; "what gets in the way" is a new screen; the summary closes before the account; the offer comes right after the account. 9 screens before the account (8 today), then the offer.',
-  fb_t: 'B — shorter',
-  fb_d: '"What gets in the way" replaces "Your goals". 8 screens, as today. But "goals" is a required field kept for later use (decision of Oct 23): it would no longer be asked.',
-  steps: ['Welcome','Features','Goals','What you track','+ how many routines','What gets in the way','About you','Routine','Terms','Reminders','Summary','Create account','Offer'],
-  h_new: '2. The new screens, light and dark',
-  new_lead: 'Same look as today\'s opening (Graduated): grey-green ground, white cards, one dark button per screen.',
-  s1: ['How many routines (on "what do you track")','One tap. It only shapes the summary; it changes no number in the app.'],
-  s2: ['What gets in the way (new screen)','One tap, several allowed. It picks the 3 benefits of the summary.'],
-  s3: ['Summary, before the account','The benefits follow what was picked. Neutral words, no promise of results.'],
-  s4: ['Offer, after the account (eligible)','3 months on top, annual with trial beside it, monthly and lifetime under "See all plans". The renewal notice sits above the button, as the stores require.'],
-  s5: ['Offer, not eligible (used an offer before)','The store says no: the half price disappears and the full price shows. Nothing is promised without the store.'],
-  s6: ['Referral code accepted','The code is valid and says what it gives: 1 extra month after the first payment. The offer stays the same.'],
-  progress: 'Back',
-  q1t: 'What do you track?', q1s: 'Select all that apply.',
-  q1o: ['Doses and protocols','Lab tests','Vials','Food and weight'],
-  q1n: 'How many routines today?', q1seg: ['1','2–3','4 or more'],
-  q2t: 'What gets in the way today?', q2s: 'Select all that apply.',
-  q2o: ['Doing the syringe math','Remembering the time','Knowing what\'s left in the vial','Keeping lab results together'],
-  cont: 'Continue',
-  r_t: 'Your journal is ready', r_s: 'Built around what you picked.',
-  r1: ['Syringe math','Units and mL from what you enter. Your numbers; the app never suggests a dose.'],
-  r2: ['Reminders on time','Every dose at the time you choose.'],
-  r3: ['Lab tests in one place','Your results kept together, to take to your health professional.'],
-  r_btn: 'Create account', r_have: 'Already have an account · Sign in',
-  o_t: 'Start with 3 months at half price', o_s: 'Premium: dose-in-body curve, lab charts, PDF, unlimited protocols.',
-  o_tag: 'Entry offer',
-  o3: ['3 months','$7.49','Then $14.99 every 3 months'],
-  oa: ['Annual','$39.99','7 days free, then $39.99 a year'],
-  oall: 'See all plans (monthly, lifetime)',
-  o_fine: 'After the first 3 months the subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.',
-  o_btn: 'Start for $7.49',
-  o_code: 'I have a referral code',
-  o_free: 'Continue with the free plan',
-  o_free_d: 'Free: 1 protocol, calculator, dose log, vials and reminders.',
-  links: ['Terms','Privacy','Restore purchases'],
-  n_t: 'Get Premium', n_s: 'The entry offer is once per store account.',
-  n3: ['3 months','$14.99','Every 3 months'],
-  n_fine: 'The subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.',
-  n_btn: 'Subscribe for $14.99',
-  c_field: 'CARLOS', c_ok: 'Code accepted',
-  c_line: 'Code CARLOS: 1 extra month of Premium after the first payment.',
-  h_rules: '3. Rules this screen follows (already decided)',
-  rules: [
-   'Price, offer and trial show only when the store confirms them; the app never writes a price. The renewal notice uses the value the store returns for that plan (the 3-month plan renews every 3 months, not monthly).',
-   'Same price in both stores; on Android the text says "Google Play" instead of "App Store".',
-   'Someone already Premium never sees the offer: after the account they go straight into the app.',
-   '"Continue with the free plan" is always visible. The offer never reopens on its own; on a Premium feature the animated preview and "Unlock with Premium" stay (rule of Oct 31).',
-   'Free plan with 1 protocol only for new accounts; anyone with more keeps what they have.',
-   'No permission prompt on the first screen; notifications only at the Reminders step, as today.',
-   'Six languages, formal Portuguese. No substance names, no dose advice.'
-  ]
- }
-};
+</section><section id="en" lang="en"><div class="wrap">
+  <h1>New opening and entry offer</h1>
+  <p class="lead">Picture for approval, before any code or store product. It follows today's answers: the 3-month offer for everyone, the 7-day trial on the annual plan only, free plan with 1 protocol for new accounts, a referral code worth 1 extra month. Prices on screen come from the store at runtime; the numbers below are the agreed ones.</p>
+  <div class="bar"><a class="lk" href="#pt">Português (Brasil, R$)</a><a class="lk" href="#en">English (US, US$)</a></div>
 
-function steps(L, b) {
-  const s = T[L].steps;
-  const parts = b
-    ? [[s[0]],[s[1]],[s[2],'gone'],[s[3]],[s[4],'new'],[s[5],'new'],[s[6]],[s[7]],[s[8]],[s[9]],[s[10],'new'],[s[11],'acc'],[s[12],'new']]
-    : [[s[0]],[s[1]],[s[2]],[s[3]],[s[4],'new'],[s[5],'new'],[s[6]],[s[7]],[s[8]],[s[9]],[s[10],'new'],[s[11],'acc'],[s[12],'new']];
-  return parts.map(([n,c],i)=>`<span class="st ${c||''}">${n}</span>${i<parts.length-1?'<span class="arrow">›</span>':''}`).join('');
-}
-function top(n, of) { return `<div class="top"><span>‹</span><div class="dash">${Array.from({length:of},(_,i)=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div></div>`; }
-function opts(list, sel) { return list.map((o,i)=>`<div class="opt ${sel.includes(i)?'sel':''}"><span>${o}</span><span class="ck"></span></div>`).join(''); }
-function screens(L) {
-  const t = T[L];
-  const s1 = `${top(3,9)}<div class="tt">${t.q1t}</div><div class="sub">${t.q1s}</div>${opts(t.q1o,[0,2])}<div class="lbl">${t.q1n}</div><div class="seg">${t.q1seg.map((x,i)=>`<span class="${i===1?'on':''}">${x}</span>`).join('')}</div><div class="spacer"></div><div class="btn p">${t.cont}</div>`;
-  const s2 = `${top(4,9)}<div class="tt">${t.q2t}</div><div class="sub">${t.q2s}</div>${opts(t.q2o,[0,1])}<div class="spacer"></div><div class="btn p">${t.cont}</div>`;
-  const s3 = `${top(8,9)}<div class="tt">${t.r_t}</div><div class="sub">${t.r_s}</div><div class="sum">${[[ICON.syr,t.r1],[ICON.bell,t.r2],[ICON.lab,t.r3]].map(([ic,[a,b]])=>`<div class="it"><span class="ic">${ic}</span><span><b>${a}</b>${b}</span></div>`).join('')}</div><div class="spacer"></div><div class="btn p">${t.r_btn}</div><div class="btn g">${t.r_have}</div>`;
-  const offer = (eligible, code) => {
-    const p3 = eligible ? t.o3 : t.n3;
-    return `<div class="tt">${eligible?t.o_t:t.n_t}</div><div class="sub">${eligible?t.o_s:t.n_s}</div>
-    <div class="plan sel" style="margin-top:8px">${eligible?`<span class="tag">${t.o_tag}</span>`:''}<div class="h"><span>${p3[0]}</span><span class="mono">${p3[1]}</span></div><div class="d">${p3[2]}</div></div>
-    <div class="plan"><div class="h"><span>${t.oa[0]}</span><span class="mono">${t.oa[1]}</span></div><div class="d">${t.oa[2]}</div></div>
-    <div class="fine" style="text-align:center;text-decoration:underline">${t.oall}</div>
-    ${code?`<div class="field"><span class="mono">${t.c_field}</span><span class="ok">${t.c_ok}</span></div><div class="fine">${t.c_line}</div>`:`<div class="fine" style="text-align:center">${t.o_code} ›</div>`}
+  <h2>1. Where the new questions go in today's opening</h2>
+  <p class="lead">Today's opening has 8 steps before the account. Nina asks for 3 questions, a summary and the offer. "What do you track" already exists; two are new. The purchase can only come after the account (the subscription is tied to it).</p>
+  <div class="flows">
+    <div class="flow">
+      <h3><span>A — fit in, remove nothing</span><span class="pick">recommended</span></h3>
+      <p>"How many routines" joins the "what do you track" screen; "what gets in the way" is a new screen; the summary closes before the account; the offer comes right after the account. 9 screens before the account (8 today), then the offer.</p>
+      <div class="steps"><span class="st ">Welcome</span><span class="arrow">›</span><span class="st ">Features</span><span class="arrow">›</span><span class="st ">Goals</span><span class="arrow">›</span><span class="st ">What you track</span><span class="arrow">›</span><span class="st new">+ how many routines</span><span class="arrow">›</span><span class="st new">What gets in the way</span><span class="arrow">›</span><span class="st ">About you</span><span class="arrow">›</span><span class="st ">Routine</span><span class="arrow">›</span><span class="st ">Terms</span><span class="arrow">›</span><span class="st ">Reminders</span><span class="arrow">›</span><span class="st new">Summary</span><span class="arrow">›</span><span class="st acc">Create account</span><span class="arrow">›</span><span class="st new">Offer</span></div>
+    </div>
+    <div class="flow">
+      <h3>B — shorter</h3>
+      <p>"What gets in the way" replaces "Your goals". 8 screens, as today. But "goals" is a required field kept for later use (decision of Oct 23): it would no longer be asked.</p>
+      <div class="steps"><span class="st ">Welcome</span><span class="arrow">›</span><span class="st ">Features</span><span class="arrow">›</span><span class="st gone">Goals</span><span class="arrow">›</span><span class="st ">What you track</span><span class="arrow">›</span><span class="st new">+ how many routines</span><span class="arrow">›</span><span class="st new">What gets in the way</span><span class="arrow">›</span><span class="st ">About you</span><span class="arrow">›</span><span class="st ">Routine</span><span class="arrow">›</span><span class="st ">Terms</span><span class="arrow">›</span><span class="st ">Reminders</span><span class="arrow">›</span><span class="st new">Summary</span><span class="arrow">›</span><span class="st acc">Create account</span><span class="arrow">›</span><span class="st new">Offer</span></div>
+    </div>
+  </div>
+
+  <h2>2. The new screens, light and dark</h2>
+  <p class="lead">Same look as today's opening (Graduated): grey-green ground, white cards, one dark button per screen.</p>
+  <div class="grid"><div class="shot"><h4>How many routines (on "what do you track")</h4><p class="why">One tap. It only shapes the summary; it changes no number in the app.</p><div class="pair"><div class="ph light"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">What do you track?</div><div class="sub">Select all that apply.</div><div class="opt sel"><span>Doses and protocols</span><span class="ck"></span></div><div class="opt "><span>Lab tests</span><span class="ck"></span></div><div class="opt sel"><span>Vials</span><span class="ck"></span></div><div class="opt "><span>Food and weight</span><span class="ck"></span></div><div class="lbl">How many routines today?</div><div class="seg"><span class="">1</span><span class="on">2–3</span><span class="">4 or more</span></div><div class="spacer"></div><div class="btn p">Continue</div></div><div class="ph dark"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">What do you track?</div><div class="sub">Select all that apply.</div><div class="opt sel"><span>Doses and protocols</span><span class="ck"></span></div><div class="opt "><span>Lab tests</span><span class="ck"></span></div><div class="opt sel"><span>Vials</span><span class="ck"></span></div><div class="opt "><span>Food and weight</span><span class="ck"></span></div><div class="lbl">How many routines today?</div><div class="seg"><span class="">1</span><span class="on">2–3</span><span class="">4 or more</span></div><div class="spacer"></div><div class="btn p">Continue</div></div></div></div><div class="shot"><h4>What gets in the way (new screen)</h4><p class="why">One tap, several allowed. It picks the 3 benefits of the summary.</p><div class="pair"><div class="ph light"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">What gets in the way today?</div><div class="sub">Select all that apply.</div><div class="opt sel"><span>Doing the syringe math</span><span class="ck"></span></div><div class="opt sel"><span>Remembering the time</span><span class="ck"></span></div><div class="opt "><span>Knowing what's left in the vial</span><span class="ck"></span></div><div class="opt "><span>Keeping lab results together</span><span class="ck"></span></div><div class="spacer"></div><div class="btn p">Continue</div></div><div class="ph dark"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="tt">What gets in the way today?</div><div class="sub">Select all that apply.</div><div class="opt sel"><span>Doing the syringe math</span><span class="ck"></span></div><div class="opt sel"><span>Remembering the time</span><span class="ck"></span></div><div class="opt "><span>Knowing what's left in the vial</span><span class="ck"></span></div><div class="opt "><span>Keeping lab results together</span><span class="ck"></span></div><div class="spacer"></div><div class="btn p">Continue</div></div></div></div><div class="shot"><h4>Summary, before the account</h4><p class="why">The benefits follow what was picked. Neutral words, no promise of results.</p><div class="pair"><div class="ph light"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div><div class="tt">Your journal is ready</div><div class="sub">Built around what you picked.</div><div class="sum"><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 2l4 4M17 7l3-3M19 9L9 19l-4 1 1-4L16 6zM12 10l2 2M9 13l2 2"/></svg></span><span><b>Syringe math</b>Units and mL from what you enter. Your numbers; the app never suggests a dose.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg></span><span><b>Reminders on time</b>Every dose at the time you choose.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 2v6L4 18a2 2 0 002 3h12a2 2 0 002-3L15 8V2M8 2h8M7 14h10"/></svg></span><span><b>Lab tests in one place</b>Your results kept together, to take to your health professional.</span></div></div><div class="spacer"></div><div class="btn p">Create account</div><div class="btn g">Already have an account · Sign in</div></div><div class="ph dark"><div class="top"><span>‹</span><div class="dash"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div></div><div class="tt">Your journal is ready</div><div class="sub">Built around what you picked.</div><div class="sum"><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M18 2l4 4M17 7l3-3M19 9L9 19l-4 1 1-4L16 6zM12 10l2 2M9 13l2 2"/></svg></span><span><b>Syringe math</b>Units and mL from what you enter. Your numbers; the app never suggests a dose.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg></span><span><b>Reminders on time</b>Every dose at the time you choose.</span></div><div class="it"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 2v6L4 18a2 2 0 002 3h12a2 2 0 002-3L15 8V2M8 2h8M7 14h10"/></svg></span><span><b>Lab tests in one place</b>Your results kept together, to take to your health professional.</span></div></div><div class="spacer"></div><div class="btn p">Create account</div><div class="btn g">Already have an account · Sign in</div></div></div></div><div class="shot"><h4>Offer, after the account (eligible)</h4><p class="why">3 months on top, annual with trial beside it, monthly and lifetime under "See all plans". The renewal notice sits above the button, as the stores require.</p><div class="pair"><div class="ph light"><div class="tt">Start with 3 months at half price</div><div class="sub">Premium: dose-in-body curve, lab charts, PDF, unlimited protocols.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Entry offer</span><div class="h"><span>3 months</span><span class="mono">$7.49</span></div><div class="d">Then $14.99 every 3 months</div></div>
+    <div class="plan"><div class="h"><span>Annual</span><span class="mono">$39.99</span></div><div class="d">7 days free, then $39.99 a year</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">See all plans (monthly, lifetime)</div>
+    <div class="fine" style="text-align:center">I have a referral code ›</div>
     <div class="spacer"></div>
-    <div class="fine">${eligible?t.o_fine:t.n_fine}</div>
-    <div class="btn p">${eligible?t.o_btn:t.n_btn}</div>
-    <div class="btn g">${t.o_free}</div>
-    ${code?'':`<div class="fine" style="text-align:center">${t.o_free_d}</div>`}
-    <div class="links">${t.links.map(x=>`<u>${x}</u>`).join('')}</div>`;
-  };
-  return [[t.s1,s1],[t.s2,s2],[t.s3,s3],[t.s4,offer(true,false)],[t.s5,offer(false,false)],[t.s6,offer(true,true)]];
-}
-function render(L) {
-  document.documentElement.lang = L === 'pt' ? 'pt-BR' : 'en';
-  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T[L][el.dataset.t]; });
-  document.getElementById('flowA').innerHTML = steps(L, false);
-  document.getElementById('flowB').innerHTML = steps(L, true);
-  document.getElementById('grid').innerHTML = screens(L).map(([[h,w],body]) =>
-    `<div class="shot"><h4>${h}</h4><p class="why">${w}</p><div class="pair"><div class="ph light">${body}</div><div class="ph dark">${body}</div></div></div>`).join('');
-  document.getElementById('rules').innerHTML = T[L].rules.map(r=>`<li>${r}</li>`).join('');
-  document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === L)));
-}
-document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => render(b.dataset.lang)));
-render('pt');
-</script>
+    <div class="fine">After the first 3 months the subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.</div>
+    <div class="btn p">Start for $7.49</div>
+    <div class="btn g">Continue with the free plan</div>
+    <div class="fine" style="text-align:center">Free: 1 protocol, calculator, dose log, vials and reminders.</div>
+    <div class="links"><u>Terms</u><u>Privacy</u><u>Restore purchases</u></div></div><div class="ph dark"><div class="tt">Start with 3 months at half price</div><div class="sub">Premium: dose-in-body curve, lab charts, PDF, unlimited protocols.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Entry offer</span><div class="h"><span>3 months</span><span class="mono">$7.49</span></div><div class="d">Then $14.99 every 3 months</div></div>
+    <div class="plan"><div class="h"><span>Annual</span><span class="mono">$39.99</span></div><div class="d">7 days free, then $39.99 a year</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">See all plans (monthly, lifetime)</div>
+    <div class="fine" style="text-align:center">I have a referral code ›</div>
+    <div class="spacer"></div>
+    <div class="fine">After the first 3 months the subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.</div>
+    <div class="btn p">Start for $7.49</div>
+    <div class="btn g">Continue with the free plan</div>
+    <div class="fine" style="text-align:center">Free: 1 protocol, calculator, dose log, vials and reminders.</div>
+    <div class="links"><u>Terms</u><u>Privacy</u><u>Restore purchases</u></div></div></div></div><div class="shot"><h4>Offer, not eligible (used an offer before)</h4><p class="why">The store says no: the half price disappears and the full price shows. Nothing is promised without the store.</p><div class="pair"><div class="ph light"><div class="tt">Get Premium</div><div class="sub">The entry offer is once per store account.</div>
+    <div class="plan sel" style="margin-top:8px"><div class="h"><span>3 months</span><span class="mono">$14.99</span></div><div class="d">Every 3 months</div></div>
+    <div class="plan"><div class="h"><span>Annual</span><span class="mono">$39.99</span></div><div class="d">7 days free, then $39.99 a year</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">See all plans (monthly, lifetime)</div>
+    <div class="fine" style="text-align:center">I have a referral code ›</div>
+    <div class="spacer"></div>
+    <div class="fine">The subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.</div>
+    <div class="btn p">Subscribe for $14.99</div>
+    <div class="btn g">Continue with the free plan</div>
+    <div class="fine" style="text-align:center">Free: 1 protocol, calculator, dose log, vials and reminders.</div>
+    <div class="links"><u>Terms</u><u>Privacy</u><u>Restore purchases</u></div></div><div class="ph dark"><div class="tt">Get Premium</div><div class="sub">The entry offer is once per store account.</div>
+    <div class="plan sel" style="margin-top:8px"><div class="h"><span>3 months</span><span class="mono">$14.99</span></div><div class="d">Every 3 months</div></div>
+    <div class="plan"><div class="h"><span>Annual</span><span class="mono">$39.99</span></div><div class="d">7 days free, then $39.99 a year</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">See all plans (monthly, lifetime)</div>
+    <div class="fine" style="text-align:center">I have a referral code ›</div>
+    <div class="spacer"></div>
+    <div class="fine">The subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.</div>
+    <div class="btn p">Subscribe for $14.99</div>
+    <div class="btn g">Continue with the free plan</div>
+    <div class="fine" style="text-align:center">Free: 1 protocol, calculator, dose log, vials and reminders.</div>
+    <div class="links"><u>Terms</u><u>Privacy</u><u>Restore purchases</u></div></div></div></div><div class="shot"><h4>Referral code accepted</h4><p class="why">The code is valid and says what it gives: 1 extra month after the first payment. The offer stays the same.</p><div class="pair"><div class="ph light"><div class="tt">Start with 3 months at half price</div><div class="sub">Premium: dose-in-body curve, lab charts, PDF, unlimited protocols.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Entry offer</span><div class="h"><span>3 months</span><span class="mono">$7.49</span></div><div class="d">Then $14.99 every 3 months</div></div>
+    <div class="plan"><div class="h"><span>Annual</span><span class="mono">$39.99</span></div><div class="d">7 days free, then $39.99 a year</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">See all plans (monthly, lifetime)</div>
+    <div class="field"><span class="mono">CARLOS</span><span class="ok">Code accepted</span></div><div class="fine">Code CARLOS: 1 extra month of Premium after the first payment.</div>
+    <div class="spacer"></div>
+    <div class="fine">After the first 3 months the subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.</div>
+    <div class="btn p">Start for $7.49</div>
+    <div class="btn g">Continue with the free plan</div>
+    
+    <div class="links"><u>Terms</u><u>Privacy</u><u>Restore purchases</u></div></div><div class="ph dark"><div class="tt">Start with 3 months at half price</div><div class="sub">Premium: dose-in-body curve, lab charts, PDF, unlimited protocols.</div>
+    <div class="plan sel" style="margin-top:8px"><span class="tag">Entry offer</span><div class="h"><span>3 months</span><span class="mono">$7.49</span></div><div class="d">Then $14.99 every 3 months</div></div>
+    <div class="plan"><div class="h"><span>Annual</span><span class="mono">$39.99</span></div><div class="d">7 days free, then $39.99 a year</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">See all plans (monthly, lifetime)</div>
+    <div class="field"><span class="mono">CARLOS</span><span class="ok">Code accepted</span></div><div class="fine">Code CARLOS: 1 extra month of Premium after the first payment.</div>
+    <div class="spacer"></div>
+    <div class="fine">After the first 3 months the subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.</div>
+    <div class="btn p">Start for $7.49</div>
+    <div class="btn g">Continue with the free plan</div>
+    
+    <div class="links"><u>Terms</u><u>Privacy</u><u>Restore purchases</u></div></div></div></div></div>
+
+  <h2>3. Rules this screen follows (already decided)</h2>
+  <ul class="note"><li>Price, offer and trial show only when the store confirms them; the app never writes a price. The renewal notice uses the value the store returns for that plan (the 3-month plan renews every 3 months, not monthly).</li><li>Same price in both stores; on Android the text says "Google Play" instead of "App Store".</li><li>Someone already Premium never sees the offer: after the account they go straight into the app.</li><li>"Continue with the free plan" is always visible. The offer never reopens on its own; on a Premium feature the animated preview and "Unlock with Premium" stay (rule of Oct 31).</li><li>Free plan with 1 protocol only for new accounts; anyone with more keeps what they have.</li><li>No permission prompt on the first screen; notifications only at the Reminders step, as today.</li><li>Six languages, formal Portuguese. No substance names, no dose advice.</li></ul>
+</div>
+
+</section>
