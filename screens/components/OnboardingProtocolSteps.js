@@ -116,7 +116,7 @@ function CompoundStep({ s, c, p, setP, tracking, t, kb }) {
   const chosen = compoundChosen(p);
   const list = compoundChoices({ query: q, t });
   const typed = q.trim();
-  const exact = list.find((e) => e.label.toLowerCase() === typed.toLowerCase());
+  const exact = list.find((e) => [e.label, e.name].some((l) => l && l.toLowerCase() === typed.toLowerCase()));
   const done = () => { setQ(''); setChanging(false); };
   return (
     <View style={s.gap10}>

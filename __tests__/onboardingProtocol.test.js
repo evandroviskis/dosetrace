@@ -127,6 +127,22 @@ test('OB-14: the whole catalog whatever she marked in What you are using (founde
   assert.match(read('screens/components/OnboardingProtocolSteps.js'), /case 'compound': return t\('ob_cmp_title_any'\)/);
 });
 
+test('OB-14: no two rows read the same; a name that is both injectable and oral (Melatonina) shows its form on each row (S25, 2026-11-20)', () => {
+  const { translations } = require('../i18n/translations.js');
+  for (const lang of Object.keys(translations)) {
+    const tl = (k) => translations[lang][k] || translations.en[k] || k;
+    const labels = D.compoundChoices({ query: '', t: tl }).map((e) => e.label);
+    const dup = labels.filter((l, i) => labels.indexOf(l) !== i);
+    assert.deepEqual(dup, [], `${lang}: every row has its own name`);
+  }
+  const tl = (k) => translations.pt[k] || k;
+  const mel = D.compoundChoices({ query: 'melaton', t: tl });
+  assert.deepEqual(mel.map((e) => e.label).sort(), ['Melatonina · Liofilizado', 'Melatonina · Oral']);
+  const oral = mel.find((e) => e.forms.oral);
+  assert.equal(D.pickCompound({}, oral).name, 'Melatonina', 'the protocol keeps the plain name');
+  assert.equal(D.compoundChoices({ query: 'tirzep', t: tl })[0].label, 'Tirzepatida', 'a name in one place keeps no suffix');
+});
+
 test('OB-14: a typed name is kept exactly as written; the app never suggests one', () => {
   const p = D.typedCompound({}, '  Meu composto X ', ['peptides']);
   assert.equal(p.name, 'Meu composto X');
