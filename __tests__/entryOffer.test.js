@@ -296,12 +296,19 @@ test('EO-16: the English copy reads naturally with the same model', () => {
 
 // ── the Free / Premium sheet and the benefit rows ──────────────────────────────────────────
 
-test('EO-17: "Free and Premium" is a 10-row table in the approved order; checks are drawn, the free side shows the free amounts', () => {
+test('EO-17: "Free and Premium" (picture A, founder 2026-11-20): In both plans first, then What changes with Premium; each row has its icon; checks are drawn, the free side shows the free amounts', () => {
   const rows = E.freePremiumRows(pt, { freeProtocols: 1 }); // a new account (OB-28)
   assert.equal(rows.length, 10);
-  assert.deepEqual(rows.map((r) => r.label), ['Cálculo da seringa', 'Protocolos', 'Lembretes', 'Doses no frasco', 'Exames e vacinas', 'Leituras com IA', 'Comida com IA', 'Dose no corpo', 'Relatório em PDF', 'Seus números reais']);
-  assert.deepEqual(rows.map((r) => r.free), [true, '1', true, true, true, '3 por mês', '7 dias', false, false, false]);
-  assert.deepEqual(rows.map((r) => r.premium), [true, 'sem limites', true, true, true, 'incluídas', 'todo dia', true, true, true]);
+  assert.deepEqual(rows.map((r) => r.group), ['both', 'both', 'both', 'both', 'diff', 'diff', 'diff', 'diff', 'diff', 'diff']);
+  assert.deepEqual(rows.map((r) => r.label), ['Cálculo da seringa', 'Lembretes', 'Doses no frasco', 'Exames e vacinas', 'Protocolos', 'Leituras com IA', 'Comida com IA', 'Dose no corpo', 'Relatório em PDF', 'Seus números reais']);
+  assert.deepEqual(rows.map((r) => r.free), [true, true, true, true, '1', '3 por mês', '7 dias', false, false, false]);
+  assert.deepEqual(rows.map((r) => r.premium), [true, true, true, true, 'sem limites', 'incluídas', 'todo dia', true, true, true]);
+  const icons = require('fs').readFileSync(require('path').join(__dirname, '..', 'components', 'featureIconsData.js'), 'utf8');
+  for (const r of rows) assert.ok(r.icon && icons.includes(r.icon), r.label + ': ' + r.icon);
+  for (const r of rows.filter((x) => x.group === 'both')) assert.ok(r.free === true && r.premium === true, r.label);
+  assert.equal(pt('eo_cmp_sub'), 'O que muda quando você assina.');
+  assert.equal(pt('eo_cmp_both'), 'Nos dois planos');
+  assert.equal(pt('eo_cmp_changes'), 'O que muda com o Premium');
 });
 
 test('EO-18: the four benefit rows with their value on the right (S-24: no number, never "unlimited" for AI reads)', () => {

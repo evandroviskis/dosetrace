@@ -124,8 +124,9 @@ test('OB-28: the paywall, its preview, the entry offer, the FAQ and the app sear
   const row = (rows) => rows[1];
   assert.equal(row(P.comparisonRows(pt, { freeFoodDays: 7, freeProtocols: 1 })).label, '1 protocolo');
   assert.equal(row(P.comparisonRows(pt, { freeFoodDays: 7, freeProtocols: 3 })).label, 'Até 3 protocolos');
-  assert.equal(E.freePremiumRows(pt, { freeProtocols: 1 })[1].free, '1');
-  assert.equal(E.freePremiumRows(pt, { freeProtocols: 3 })[1].free, '3', 'OB-26: an existing account in the 15-day builder sees its 3');
+  const proto = (n) => E.freePremiumRows(pt, { freeProtocols: n }).find((r) => r.label === 'Protocolos').free;
+  assert.equal(proto(1), '1');
+  assert.equal(proto(3), '3', 'OB-26: an existing account in the 15-day builder sees its 3');
   const PAY = read('screens', 'PaywallScreen.js');
   assert.match(PAY, /comparisonRows\(t, \{ freeFoodDays: FREE_DAYS, freeProtocols \}\)/);
   assert.match(PAY, /useFreeProtocolLimit\(\)/);

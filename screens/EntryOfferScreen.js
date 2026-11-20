@@ -135,6 +135,23 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
     [packages, eligibility, language, t, selected],
   );
 
+  // The offer button inside "Grátis e Premium": the store's purchase sheet opens only once that
+  // sheet has closed (iOS cannot present it over a closing page sheet: __tests__/modalStacking).
+  const buyAfterCompare = useRef(false);
+  function buyFromCompare() {
+    buyAfterCompare.current = true;
+    setShowFree(false);
+  }
+  function afterCompareClosed() {
+    if (!buyAfterCompare.current) return;
+    buyAfterCompare.current = false;
+    doPurchase();
+  }
+  useEffect(() => {
+    // Android has no Modal onDismiss: the sheet is gone as soon as it is hidden.
+    if (!showFree && Platform.OS === 'android') afterCompareClosed();
+  }, [showFree]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function doPurchase() {
     if (busyRef.current) return;
     if (model.sample) {
@@ -428,7 +445,16 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
         {kb.spacer}
       </ScrollView>
 
-      <FreePremiumSheet visible={showFree} onClose={() => setShowFree(false)} freeProtocols={freeProtocols} />
+      <FreePremiumSheet
+        visible={showFree}
+        onClose={() => setShowFree(false)}
+        freeProtocols={freeProtocols}
+        cta={model.cta}
+        renewal={model.renewal}
+        busy={busy || loading}
+        onCta={buyFromCompare}
+        onDismiss={afterCompareClosed}
+      />
       <DTSheet config={sheet} onClose={() => setSheet(null)} />
       {terms.kind === 'inApp' && (
         <LegalModal
@@ -444,42 +470,65 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
 }
 
 /**
- * "Grátis e Premium": the 10-row table (lib/entryOffer freePremiumRows), sized to fit one screen.
- * Drawn checks, a dash for "not included", the free amounts as text.
+ * "Grátis e Premium" (picture A, founder 2026-11-20, docs/design/oferta-gratis-premium.html): the
+ * rows both plans have, then what changes with Premium; the Premium column sits on a data band with
+ * its values in the data colour; the offer button (the plan chosen on the offer) above Voltar.
  */
-// freeProtocols: the account's free protocol count (lib/freePlan, OB-28).
-export function FreePremiumSheet({ visible, onClose, freeProtocols }) {
+// freeProtocols: the account's free protocol count (lib/freePlan, OB-28). cta / renewal / onCta: the
+// offer's own button text, renewal line and purchase (null when the store has no price yet).
+export function FreePremiumSheet({ visible, onClose, onDismiss, freeProtocols, cta, renewal, onCta, busy }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const cell = (v) => (v === true
-    ? <CheckMark size={18} color={colors.ink} />
+  const rows = freePremiumRows(t, { freeProtocols });
+  const cell = (v, premium) => (v === true
+    ? <CheckMark size={18} color={premium ? colors.data : colors.ink} />
     : v === false
       ? <Text style={s.cmpNo}>—</Text>
-      : <Text style={s.cmpAmount}>{v}</Text>);
+      : <Text style={[s.cmpAmount, premium && s.cmpPremiumText]}>{v}</Text>);
+  const row = (r) => (
+    <View key={r.label} style={s.cmpRow}>
+      <View style={[s.cmpLabelCol, s.cmpLabelWrap]}>
+        <FeatureIcon name={r.icon} size={18} color={colors.ink2} />
+        <Text style={s.cmpLabel}>{r.label}</Text>
+      </View>
+      <View style={s.cmpFree}>{cell(r.free, false)}</View>
+      <View style={s.cmpCell}>{cell(r.premium, true)}</View>
+    </View>
+  );
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose} onDismiss={onDismiss}>
       <SafeAreaView style={s.sheetWrap} edges={['top', 'bottom', 'left', 'right']}>
-        <View style={s.sheetBody}>
-          <Text style={s.sheetTitle} accessibilityRole="header">{t('eo_cmp_title')}</Text>
-          <View style={s.list}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={s.flex} contentContainerStyle={s.sheetBody} showsVerticalScrollIndicator={false}>
+          <View style={s.sheetHead}>
+            <Text style={s.sheetTitle} accessibilityRole="header">{t('eo_cmp_title')}</Text>
+            <Text style={s.sheetSub}>{t('eo_cmp_sub')}</Text>
+          </View>
+          <View style={s.cmpList}>
+            <View style={s.cmpBand} pointerEvents="none" />
             <View style={s.cmpRow}>
               <View style={s.cmpLabelCol} />
-              <Text style={[s.cmpHead, s.cmpCell]}>{t('eo_cmp_free')}</Text>
+              <Text style={[s.cmpHead, s.cmpFree]}>{t('eo_cmp_free')}</Text>
               <Text style={[s.cmpHead, s.cmpCell, s.cmpHeadPremium]}>{t('paywall_premium')}</Text>
             </View>
-            {freePremiumRows(t, { freeProtocols }).map((r) => (
-              <View key={r.label} style={[s.cmpRow, s.rowSep]}>
-                <Text style={[s.cmpLabel, s.cmpLabelCol]}>{r.label}</Text>
-                <View style={s.cmpCell}>{cell(r.free)}</View>
-                <View style={s.cmpCell}>{cell(r.premium)}</View>
-              </View>
-            ))}
+            <Text style={s.cmpGroup}>{t('eo_cmp_both')}</Text>
+            {rows.filter((r) => r.group === 'both').map(row)}
+            <View style={s.cmpSep} />
+            <Text style={s.cmpGroup}>{t('eo_cmp_changes')}</Text>
+            {rows.filter((r) => r.group === 'diff').map(row)}
           </View>
+        </ScrollView>
+        <View style={s.sheetFoot}>
+          {cta ? (
+            <TouchableOpacity style={[s.cta, busy && s.busy]} onPress={onCta} disabled={busy} activeOpacity={0.85} accessibilityRole="button">
+              <Text style={s.ctaText}>{cta}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {cta && renewal ? <Text style={s.sheetFine}>{renewal}</Text> : null}
+          <TouchableOpacity style={s.sheetBack} onPress={onClose} accessibilityRole="button">
+            <Text style={s.sheetBackText}>{t('back')}</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={s.sheetBack} onPress={onClose} accessibilityRole="button">
-          <Text style={s.sheetBackText}>{t('back')}</Text>
-        </TouchableOpacity>
       </SafeAreaView>
     </Modal>
   );
@@ -585,16 +634,27 @@ const makeStyles = (c) => StyleSheet.create({
   legalRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 24 },
 
   sheetWrap: { flex: 1, backgroundColor: c.ground, paddingHorizontal: 16 },
-  sheetBody: { flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', gap: 12, paddingTop: 16 },
-  sheetTitle: { fontSize: 28, lineHeight: 34, fontWeight: '700', color: c.ink, paddingHorizontal: 4 },
-  cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 42, paddingVertical: 6 },
+  sheetBody: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', gap: 12, paddingTop: 16, paddingBottom: 8 },
+  sheetHead: { gap: 4, paddingHorizontal: 4 },
+  sheetTitle: { fontSize: 28, lineHeight: 34, fontWeight: '700', color: c.ink },
+  sheetSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+  cmpList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 12, paddingVertical: 6 },
+  cmpBand: { position: 'absolute', top: 6, bottom: 6, right: 8, width: 92, borderRadius: 16, backgroundColor: c.dataBand },
+  cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 40, paddingVertical: 4 },
   cmpLabelCol: { flex: 1 },
+  cmpLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cmpFree: { width: 72, alignItems: 'center', textAlign: 'center' },
   cmpCell: { width: 84, alignItems: 'center', textAlign: 'center' },
   cmpHead: { fontSize: 13, lineHeight: 16, fontWeight: '600', color: c.ink2 },
-  cmpHeadPremium: { color: c.data, fontWeight: '700' },
-  cmpLabel: { fontSize: 15, lineHeight: 20, color: c.ink },
+  cmpHeadPremium: { color: c.data, fontWeight: '700', fontSize: 14 },
+  cmpGroup: { fontSize: 13, lineHeight: 18, color: c.ink3, paddingTop: 8, paddingBottom: 2 },
+  cmpSep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginTop: 6, marginRight: 100 },
+  cmpLabel: { flexShrink: 1, fontSize: 15, lineHeight: 20, color: c.ink },
   cmpNo: { fontSize: 15, fontWeight: '600', color: c.ink3 },
-  cmpAmount: { fontSize: 13, lineHeight: 16, color: c.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
-  sheetBack: { minHeight: 50, borderRadius: 25, borderWidth: 1.5, borderColor: c.line, alignItems: 'center', justifyContent: 'center', marginVertical: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
+  cmpAmount: { fontSize: 13, lineHeight: 16, color: c.ink2, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  cmpPremiumText: { color: c.data, fontWeight: '700' },
+  sheetFoot: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', gap: 4, paddingTop: 8 },
+  sheetFine: { fontSize: 12, lineHeight: 16, color: c.ink3, textAlign: 'center', paddingHorizontal: 8 },
+  sheetBack: { minHeight: 50, borderRadius: 25, borderWidth: 1.5, borderColor: c.line, alignItems: 'center', justifyContent: 'center', marginTop: 8, marginBottom: 12, width: '100%' },
   sheetBackText: { fontSize: 17, fontWeight: '600', color: c.ink },
 });

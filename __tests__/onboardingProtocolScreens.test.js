@@ -46,7 +46,7 @@ test('OB-11 / OB-13: goals and "what you use" are the same components in onboard
 test('OB-16 / OB-19: no syringe and no units before the account; the builder (account exists) shows the syringe math', () => {
   const vial = STEPS.slice(STEPS.indexOf('function VialStep('), STEPS.indexOf('// ── Frequency and time'));
   assert.doesNotMatch(vial, /SyringeScale|computeDraw|drawUnits|ob_ready_units/, 'the vial screen has no syringe');
-  assert.match(STEPS, /\{mode === 'builder' \? <SyringeMath [^>]*\/> : <PreparingCard [^>]*\/>\}/);
+  assert.match(STEPS, /\{protocol\.form === 'oral' \? null : mode === 'builder' \? <SyringeMath [^>]*\/> : <PreparingCard [^>]*\/>\}/);
   assert.match(STEPS, /<SyringeScale units=\{0\}/, 'the preparing card shows an empty syringe');
   for (const l of LANGS) {
     assert.ok(T[l].ob_ready_prep_title && T[l].ob_ready_prep_body, l);

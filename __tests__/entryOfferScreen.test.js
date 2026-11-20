@@ -126,6 +126,18 @@ test('EO-S12: the Free and Premium sheet is a separate, exported component with 
   assert.match(SRC, /import Modal from '\.\.\/components\/PresenceModal'/, 'the app Modal (reports itself to the update notice)');
 });
 
+test('EO-S12b: picture A (founder 2026-11-20): subtitle, two groups, the Premium column on a data band, Premium values in the data colour, and the offer button above Voltar', () => {
+  assert.match(SRC, /t\('eo_cmp_sub'\)/);
+  assert.match(SRC, /t\('eo_cmp_both'\)/);
+  assert.match(SRC, /t\('eo_cmp_changes'\)/);
+  assert.match(SRC, /cmpBand: \{[^}]*backgroundColor: c\.dataBand/);
+  assert.match(SRC, /cmpPremiumText: \{[^}]*color: c\.data/);
+  assert.match(SRC, /<FreePremiumSheet[\s\S]{0,200}?cta=\{model\.cta\}[\s\S]{0,200}?onCta=\{buyFromCompare\}\s+onDismiss=\{afterCompareClosed\}/);
+  assert.match(SRC, /function buyFromCompare\(\) \{\s+buyAfterCompare\.current = true;\s+setShowFree\(false\);/);
+  assert.match(SRC, /if \(!showFree && Platform\.OS === 'android'\) afterCompareClosed\(\)/);
+  assert.match(SRC, /\{cta \? \(\s*<TouchableOpacity style=\{\[s\.cta/);
+});
+
 test('EO-S13: the referral code row: dashed coupon, field + Apply, applied state + Remove; stored locally, its own key', () => {
   assert.match(SRC, /borderStyle: 'dashed'/);
   assert.match(SRC, /t\('eo_ref_row'\)/);
