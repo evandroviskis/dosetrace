@@ -73,7 +73,7 @@ import { isClockTime } from '../lib/assistantTime';
 import { renderText } from '../lib/assistantText';
 import ProtocolAssistant from './components/ProtocolAssistant';
 import PurposeTiles from '../components/PurposeTiles';
-import { purposeOrder } from '../lib/protocolPurpose';
+import { purposeOrder, purposeProductKey, goalsAfterProductChange } from '../lib/protocolPurpose';
 import FitExplainer from './components/FitExplainer';
 import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
 import { supplyState, bottleState } from '../lib/supplyLow';
@@ -1163,6 +1163,7 @@ export default function ProtocolsScreen() {
   // No time is picked for the person: each dose starts empty (founder 2026-11-04, MF-1).
   const [reminderTimes, setReminderTimes] = useState(['']);
   const [goals, setGoals] = useState([]);
+  const goalsForRef = useRef(null); // the product the goals were chosen for (item 15)
   const [notes, setNotes] = useState('');
   const [note, setNote] = useState('');
   const [composition, setComposition] = useState(''); // blend "what's in the vial" label
@@ -1697,7 +1698,9 @@ export default function ProtocolsScreen() {
     setConcentration(f.concentration); setConcentrationUnit(f.concentrationUnit);
     setIntervalDays(f.intervalDays); setCustomIntervalOpen(f.customIntervalOpen); setCustomIntervalText(f.customIntervalText);
     setDosesPerDay(f.dosesPerDay); setStartDate(f.startDate); setReminderTimes(f.reminderTimes);
-    setGoals(f.goals); setNotes(f.notes); setNote(f.note); setComposition(f.composition);
+    setGoals(f.goals);
+    goalsForRef.current = purposeProductKey({ type: f.type, compoundId: f.compoundId, name: f.name });
+    setNotes(f.notes); setNote(f.note); setComposition(f.composition);
     setServingStrength(f.servingStrength); setServingStrengthUnit(f.servingStrengthUnit); setServingUnits(f.servingUnits);
     setContainerUnits(f.containerUnits); setDivisible(f.divisible);
     setVialValidDays(f.vialValidDays); setVialMl(f.vialMl); setVialExpMonth(f.vialExpMonth); setVialExpYear(f.vialExpYear);
@@ -1769,7 +1772,17 @@ export default function ProtocolsScreen() {
   function purposeFor({ type: ty, compoundId: cid, name: nm, times }) {
     return purposeOrder({ type: ty, compoundId: cid, name: nm, protocols: [...protocols, ...endedProtocols], excludeId: editingId, times, label: t, language });
   }
-  const toggleGoal = (gKey) => setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey]);
+  const toggleGoal = (gKey) => {
+    goalsForRef.current = purposeProductKey({ type, compoundId, name });
+    setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey]);
+  };
+  // Council 2026-11-20 (item 15): the goals belong to the product they were chosen for — another
+  // product chosen clears them (Sleep for Melatonina never carries over to Vitamina C).
+  useEffect(() => {
+    const key = purposeProductKey({ type, compoundId, name });
+    const kept = goalsAfterProductChange(goals, goalsForRef.current, key);
+    if (kept === null) { setGoals([]); goalsForRef.current = null; }
+  }, [type, compoundId, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Edit: the form starts as the stored row (lib/protocolForm formFromProtocol, the same
   // mapping as before) and Save writes only what the user changes (founder decision 2,

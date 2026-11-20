@@ -1,7 +1,7 @@
 'use strict';
 // Two follow-ups to the purpose question (coordinator 2026-11-20):
 //  PQ-17 — onboarding writes only the profile goals that are usual for that product (the curated
-//          table, or the type's list when the product has no entry); none → no goal, no "Para" row;
+//          table); a product with no entry gets no goal from the profile, and no "Para" row;
 //  PQ-18 — the assistant's "is it one … or a total per day/week/month?" says "one dose" for an
 //          oral product (the same term as its own "One dose" chip); injectables keep "one injection".
 const test = require('node:test');
@@ -75,4 +75,19 @@ test('PQ-18: oral product → "one dose" (the term of its own "One dose" chip); 
   }
   assert.equal(T.pt.ap_q_period_oral, 'Os {dose} {unit} são para uma dose, ou o total por dia, por semana ou por mês?');
   assert.match(read('lib', 'protocolAssistant.js'), /key: d\.type === 'oral' \? 'ap_q_period_fit_oral' : 'ap_q_period_fit'/);
+});
+
+test('council 2026-11-20 (item 15): another product clears the goals chosen for the previous one (Sleep for Melatonina never carries to Vitamina C); the same product, or a name still being typed, keeps them', () => {
+  const mel = P.purposeProductKey({ type: 'oral', compoundId: 'oral_melatonin', name: 'Melatonina' });
+  const vitc = P.purposeProductKey({ type: 'oral', compoundId: 'oral_vit_c', name: 'Vitamina C' });
+  assert.equal(P.purposeProductKey({ type: 'oral', compoundId: null, name: '  ' }), null, 'nothing chosen yet');
+  assert.equal(P.purposeProductKey({ type: 'oral', compoundId: null, name: 'Minha Fórmula' }), 'oral:minha fórmula');
+  assert.equal(P.goalsAfterProductChange(['wt_sleep_quality'], mel, vitc), null, 'cleared');
+  assert.deepEqual(P.goalsAfterProductChange(['wt_sleep_quality'], mel, mel), ['wt_sleep_quality']);
+  assert.deepEqual(P.goalsAfterProductChange(['wt_sleep_quality'], mel, null), ['wt_sleep_quality'], 'typing a new name: not chosen yet');
+  assert.deepEqual(P.goalsAfterProductChange(['wt_sleep_quality'], null, vitc), ['wt_sleep_quality'], 'goals with no product known (an old protocol) stay');
+  const SRC = read('screens', 'ProtocolsScreen.js');
+  assert.match(SRC, /const goalsForRef = useRef\(null\);/);
+  assert.match(SRC, /const kept = goalsAfterProductChange\(goals, goalsForRef\.current, key\);/);
+  assert.match(SRC, /goalsForRef\.current = purposeProductKey\(\{ type: f\.type, compoundId: f\.compoundId, name: f\.name \}\);/);
 });
