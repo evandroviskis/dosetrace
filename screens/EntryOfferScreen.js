@@ -282,7 +282,7 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
 
       <ScrollView {...kb.scrollProps} style={s.flex} showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
           <View style={s.head}>
-            <Text style={s.title} accessibilityRole="header">{t('eo_title')}</Text>
+            <Text style={s.title} accessibilityRole="header">{t(protocolName ? 'eo_title' : 'paywall_title')}</Text>
             <Text style={s.titleSub}>{t('eo_title_sub')}</Text>
           </View>
 

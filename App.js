@@ -35,6 +35,7 @@ import { markCurveNoticeSince } from './lib/curveNoticeRuntime';
 import { runSignOut } from './lib/settingsSignOut';
 import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
 import { singleRun } from './lib/singleRun';
+import { introOfferOpen } from './lib/offerEligibility';
 import { createBusyGuard } from './lib/busyGuard';
 import { signOutIntended, exportMyData } from './lib/accountActions';
 import { createRequiredExport } from './lib/requiredExport';
@@ -851,7 +852,14 @@ export default function App() {
   };
   const onObDiscard = async () => { setObAsk(null); await discardOnboardingDraft().catch(() => {}); };
   // The draft stays on the phone; after Premium the next sign-in / open asks again (keep is then allowed).
-  const onObPremium = () => { setObAsk(null); goPending({ screen: 'Paywall', params: { source: 'onboarding_limit' } }); };
+  // Founder 2026-11-20: the entry offer when the store still gives her the intro price, else the paywall.
+  const onObPremium = async () => {
+    const a = obAsk; setObAsk(null);
+    const offer = await introOfferOpen().catch(() => false);
+    goPending(offer
+      ? { screen: 'EntryOffer', params: { freeProtocols: a && a.user ? freeProtocolLimit(a.user) : undefined } }
+      : { screen: 'Paywall', params: { source: 'onboarding_limit' } });
+  };
   // A-135 council (2): the last tab tapped on the opening; applied once, when the real navigator is
   // ready (a notification tap waiting to be routed wins; signed out / a profile to complete drops it).
   const bootTabRef = useRef(null);

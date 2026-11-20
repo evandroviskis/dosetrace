@@ -21,6 +21,7 @@ import { getCachedUser, supabase } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { getOfferings, checkTrialEligibility } from '../lib/purchases';
 import { anyTrial } from '../lib/paywallPlans';
+import { introOfferOpen } from '../lib/offerEligibility';
 // OB-28: the free plan's protocol count (1 for an account made after the rule, 3 for every account before).
 import { freeProtocolLimit, atFreeProtocolLimit, fillFreeProtocols } from '../lib/freePlan';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
@@ -2560,6 +2561,7 @@ export default function ProtocolsScreen() {
   // DV-126 (AD-49, DL-82): the trial is claimed only when the store offers it to this person (the paywall's rule);
   // the answer is waited for at most 2.5 s, then the sheet opens without the trial.
   async function promptUpgrade() {
+    const offerAsk = introOfferOpen(); // asked alongside the trial answer, not after it
     let trial = false;
     try {
       const ask = (async () => {
@@ -2570,12 +2572,17 @@ export default function ProtocolsScreen() {
       })();
       trial = !!(await Promise.race([ask, new Promise((r) => setTimeout(() => r(false), 2500))]));
     } catch { trial = false; }
+    // Founder 2026-11-20: a free person the store still gives the intro price to goes to the entry
+    // offer (her moment of highest intent); otherwise the paywall, as before.
+    const offer = await offerAsk;
+    if (offer) trial = false; // the offer has no trial (the trial left the stores with it)
+    const limit = freeProtocolLimit(await getCachedUser().catch(() => null));
     setScreenSheet({
       title: t('protocols_limit_title'),
-      body: fillFreeProtocols(t(trial ? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'), t, freeProtocolLimit(await getCachedUser().catch(() => null)), language),
+      body: fillFreeProtocols(t(trial ? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'), t, limit, language),
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
-        { label: t(trial ? 'protocols_limit_upgrade' : 'protocols_limit_upgrade_notrial'), kind: 'primary', onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
+        { label: t(trial ? 'protocols_limit_upgrade' : 'protocols_limit_upgrade_notrial'), kind: 'primary', onPress: () => (offer ? navigation.navigate('EntryOffer', { freeProtocols: limit }) : navigation.navigate('Paywall', { source: 'protocol_limit' })) },
       ],
     });
   }
