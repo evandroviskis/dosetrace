@@ -143,6 +143,9 @@ import ReminderCheckScreen from './screens/ReminderCheckScreen';
 import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import EntryOfferScreen from './screens/EntryOfferScreen';
+import { applyOnboardingDraft, keepOnboardingDraft, discardOnboardingDraft, builderShouldShow, markBuilderShown, saveBuilderProtocol, FREE_PROTOCOL_LIMIT as OB_FREE_LIMIT } from './lib/onboardingApp';
+import { flushPendingAttribution } from './lib/referralSync';
 import AgeConfirmScreen from './screens/AgeConfirmScreen';
 import { needsAdultConfirmation } from './lib/adultGate';
 import { usePendingGate, useGateToast, withPendingAnswer, startPendingGateFlush, flushPendingGate } from './lib/pendingGateStore';
@@ -291,6 +294,37 @@ function MainStackLayout({ state, navigation, descriptors, children }) {
   );
 }
 
+// OB-9: from the entry offer (or the builder) to her first choice; a tab is under the stack already
+// (navigate pops back to it), another screen replaces the offer.
+function goLanding(navigation, landing) {
+  if (landing && landing.screen === 'MainTabs') navigation.navigate('MainTabs', landing.params);
+  else if (landing && landing.screen) navigation.replace(landing.screen, landing.params);
+  else if (navigation.canGoBack()) navigation.goBack();
+  else navigation.navigate('MainTabs');
+}
+
+// OB-26: the builder route — the onboarding screen in builder mode. Saving writes the protocol through
+// the one save (lib/onboardingApp saveBuilderProtocol) and opens the entry offer; "Agora não" closes.
+function ProtocolBuilderRoute({ navigation, route }) {
+  const { language } = useLanguage();
+  const p = (route && route.params) || {};
+  const user = { id: p.userId, user_metadata: { tracking_types: Array.isArray(p.tracking) ? p.tracking : [] } };
+  const busy = useRef(false);
+  const done = async (protocol) => {
+    if (!protocol) { goLanding(navigation, null); return; }
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const r = await saveBuilderProtocol({ id: p.userId }, protocol, language);
+      navigation.replace('EntryOffer', { protocolName: r.protocolName, protocolSummary: r.protocolSummary, landing: r.landing });
+    } catch {
+      busy.current = false;
+      goLanding(navigation, null); // nothing half-written: the one save runs in one transaction
+    }
+  };
+  return <OnboardingFlowScreen session={{ user }} mode="builder" onBuilderDone={done} />;
+}
+
 function MainStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} layout={(props) => <MainStackLayout {...props} />}>
@@ -302,6 +336,14 @@ function MainStack() {
       <Stack.Screen name="TeamMessages" component={TeamMessagesScreen} />
       <Stack.Screen name="ReminderCheck" component={ReminderCheckScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} />
+      {/* The entry offer right after the account (docs/design/onboarding-offer.html); its end opens
+          her first choice of "Como o DoseTrace pode ajudar você?" (OB-9, route.params.landing). */}
+      <Stack.Screen name="EntryOffer" options={{ gestureEnabled: false }}>
+        {(props) => <EntryOfferScreen {...props} onFinish={() => goLanding(props.navigation, props.route.params && props.route.params.landing)} />}
+      </Stack.Screen>
+      {/* OB-26: an account 15+ days old that never created a protocol builds it with the onboarding's
+          own protocol screens (mode builder), once, then the entry offer. */}
+      <Stack.Screen name="ProtocolBuilder" component={ProtocolBuilderRoute} options={{ gestureEnabled: false }} />
       {/* App search "Buscar no DoseTrace" (docs/specs/app-search.md, B2): opened by the magnifier of
           the five tab roots; a place replaces it, a text opens over it. The stack's own transition, as
           every screen opened from a tab (sim 2026-11-04: the fade stayed see-through when opened from
@@ -318,7 +360,7 @@ function MainStack() {
 
 // Rendered inside ThemeProvider so it can theme the status bar + navigation
 // chrome (fixes white flashes during transitions in dark mode).
-function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onVerdictRetry, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose, accountHeld, accountAsk, onAccountSave, onAccountDiscard, onAccountRetry, onAccountAskClose }) {
+function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDone, switchAsk, onSwitchContinue, onSwitchCancel, onSwitchClose, justConfirmed, onConfirmedShown, linkFailed, onLinkFailedShown, seenOnboarding, onFinishOnboarding, onBackToOnboarding, authEntry, device, deviceHeld, onDeviceSheetClose, onVerdictContinue, onVerdictRetry, onUseHere, onAskSignOut, onNoticeSeen, switchSignOut, onSwitchSignOutClose, accountHeld, accountAsk, onAccountSave, onAccountDiscard, onAccountRetry, onAccountAskClose, obAsk, onObKeep, onObDiscard, onObPremium, onObClose }) {
   const { colors, isDark } = useTheme();
   // A-194: the Fold's taskbar area under the tab bar shows the window background (Android).
   useEffect(() => { setWindowBackground(colors.ground); }, [colors.ground]);
@@ -333,6 +375,13 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
 
   // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed
   // up. Locked: the person picks one of the two (lib/accountGuard).
+  // OB-23 / OP-2: an existing account signed in with a protocol built in the onboarding — keep or
+  // discard (never a silent duplicate); at the free limit, Premium or discard (never above it).
+  const obSheet = obAsk ? (obAsk.kind === 'limit'
+    ? { title: t('ob_limit_title'), body: t('ob_limit_body').replace('{n}', String(obAsk.n)).replace('{name}', obAsk.name), locked: true,
+      buttons: [{ label: t('ob_limit_premium'), kind: 'primary', onPress: onObPremium }, { label: t('ob_keep_discard'), kind: 'secondary', onPress: onObDiscard }] }
+    : { title: t('ob_keep_title'), body: t('ob_keep_body').replace('{name}', obAsk.name), locked: true,
+      buttons: [{ label: t('ob_keep_yes'), kind: 'primary', onPress: onObKeep }, { label: t('ob_keep_discard'), kind: 'secondary', onPress: onObDiscard }] }) : null;
   const accountSheet = accountAsk
     ? accountAskSheet(t, { previous: accountAsk.previous, error: !!accountAsk.error, unreadable: !!accountAsk.unreadable, onSave: onAccountSave, onDiscard: onAccountDiscard, onRetry: onAccountRetry, onSignOut: onAccountSave })
     : null;
@@ -487,6 +536,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
       <DTSheet config={deviceSheet || linkSheet} onClose={deviceSheet ? closeDeviceSheet : closeLinkSheet} />
       {/* DV-242: the cross-account sheet; A-119's device sheets come before it (one locked sheet at a time). */}
       <DTSheet config={deviceSheet ? null : accountSheet} onClose={() => onAccountAskClose && onAccountAskClose()} />
+      <DTSheet config={deviceSheet || accountSheet ? null : obSheet} onClose={() => onObClose && onObClose()} />
       <UpdateInviteSheet config={deviceSheet || linkSheet ? null : upd.invite} onUpdate={upd.onUpdate} onLater={upd.onLater} />
       <UpdateReadyBar visible={upd.ready} onRestart={upd.onRestart} />
     </NavigationContainer>
@@ -709,6 +759,7 @@ export default function App() {
     // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
     // A-119 round 3: not while a takeover's rebuild is queued (step.migrate).
     if (step.migrate) await runRealityMigration().catch(() => {});
+    await afterSignInOnboarding(s.user).catch(() => {}); // OB-22 / OB-26: after the import
     // Schedule reminders AFTER the import so they reflect the user's data. AD-88 (DV-054): never a
     // permission request here (the sync listener asks once when this account's protocols arrive).
     syncAllNotifications()
@@ -756,6 +807,38 @@ export default function App() {
     pendingNavRef.current = null;
     nav.navigate('Main', { screen: target.screen, params: target.params, pop: true });
   }, []);
+  // docs/specs/onboarding-protocol.md OB-9 / OB-22 / OB-23 / OB-26 — after the sign-in's import (never
+  // inside onAuthStateChange): the protocol built in the onboarding goes into the account through the
+  // manual form's one save (a new account at once, then the entry offer; an existing account is asked,
+  // OP-2), the app opens on her first choice; otherwise an account 15+ days old that never created a
+  // protocol gets the builder once (the mark on the account). The referral code reaches the server too.
+  const [obAsk, setObAsk] = useState(null); // { kind: 'ask' | 'limit', name, n, draft, user }
+  const goPending = (target) => { if (!target) return; pendingNavRef.current = target; flushPendingNav(); };
+  const afterSignInOnboarding = async (user) => {
+    flushPendingAttribution().catch(() => {});
+    let r = null;
+    try { r = await applyOnboardingDraft(user); } catch { r = null; }
+    if (r && (r.action === 'ask' || r.action === 'limit')) {
+      setObAsk({ kind: r.action, name: r.draft.protocol.name, n: OB_FREE_LIMIT, draft: r.draft, user });
+      return;
+    }
+    if (r && r.target) { goPending(r.target); return; }
+    if (r && r.action === 'inserted') return;
+    try {
+      if (await builderShouldShow(user)) {
+        await markBuilderShown();
+        goPending({ screen: 'ProtocolBuilder', params: { userId: user.id, tracking: (user.user_metadata || {}).tracking_types || [] } });
+      }
+    } catch { /* never blocks the app */ }
+  };
+  const onObKeep = async () => {
+    const a = obAsk; setObAsk(null);
+    if (!a) return;
+    try { const r = await keepOnboardingDraft(a.user, a.draft); goPending(r.target); } catch { /* kept on the phone: asked again next time */ }
+  };
+  const onObDiscard = async () => { setObAsk(null); await discardOnboardingDraft().catch(() => {}); };
+  // The draft stays on the phone; after Premium the next sign-in / open asks again (keep is then allowed).
+  const onObPremium = () => { setObAsk(null); goPending({ screen: 'Paywall', params: { source: 'onboarding_limit' } }); };
   // A-135 council (2): the last tab tapped on the opening; applied once, when the real navigator is
   // ready (a notification tap waiting to be routed wins; signed out / a profile to complete drops it).
   const bootTabRef = useRef(null);
@@ -1041,6 +1124,8 @@ export default function App() {
             // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
             // A-119 round 3: never while a takeover's rebuild is queued (step.migrate).
             if (step.migrate) await runRealityMigration().catch(() => {});
+            // OB-22 / OB-26: a draft left by an app kill before its sign-in finished, the builder once.
+            await afterSignInOnboarding(session.user).catch(() => {});
 
             // Schedule reminders AFTER the initial import — otherwise fresh
             // installs sync notifications against an empty local DB.
@@ -1127,6 +1212,8 @@ export default function App() {
         // A-119 round 3: not while the takeover's rebuild is queued — its pull and its writes would
         // land in the old copy before the rebuild judges it (lib/signInDevice migrate).
         if (step.migrate) await runRealityMigration().catch(() => {});
+        // OB-22 / OB-23 / OB-26: the onboarding's protocol into the account (deferred, after the import).
+        await afterSignInOnboarding(session.user).catch(() => {});
 
         // Schedule reminders AFTER the import so they reflect the user's data
         // AD-88 (DV-054): never a permission request at sign-in (the sync listener asks once when
@@ -1336,6 +1423,11 @@ export default function App() {
               onAccountDiscard={onAccountDiscard}
               onAccountRetry={onAccountRetry}
               onAccountAskClose={() => setAccountAsk(null)}
+              obAsk={obAsk}
+              onObKeep={onObKeep}
+              onObDiscard={onObDiscard}
+              onObPremium={onObPremium}
+              onObClose={() => setObAsk(null)}
             />
             )}
           </ThemeProvider>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { goalOptions } from '../lib/profileGoals';
+import GoalTiles from '../components/GoalTiles';
 import LegalModal from '../components/LegalModal';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1866,38 +1866,9 @@ export default function SettingsScreen({ navigation }) {
             <View style={s.editField}>
               <Text style={s.editLabel}>{t('profile_goal')}</Text>
               <Text style={s.editHint}>{t('profile_goal_multi_hint')}</Text>
-              <View style={s.editRow}>
-                {goalOptions(t).map(g => {
-                  const selected = primaryGoals.includes(g.key);
-                  return (
-                    <TouchableOpacity
-                      key={g.key}
-                      style={[s.editPill, selected && s.editPillOn]}
-                      onPress={() => {
-                        setPrimaryGoals(prev =>
-                          prev.includes(g.key)
-                            ? prev.filter(k => k !== g.key)
-                            : [...prev, g.key]
-                        );
-                      }}
-                    >
-                      <Text style={[s.editPillText, selected && s.editPillTextOn]}>{g.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-                {/* Legacy goal keys not in the current 18 (e.g. an old "athletic")
-                    still render selected so the user can see and keep/remove them —
-                    never a silent, invisible selection. */}
-                {primaryGoals.filter(k => !goalOptions(t).some(g => g.key === k)).map(k => (
-                  <TouchableOpacity
-                    key={k}
-                    style={[s.editPill, s.editPillOn]}
-                    onPress={() => setPrimaryGoals(prev => prev.filter(x => x !== k))}
-                  >
-                    <Text style={[s.editPillText, s.editPillTextOn]}>{t('profile_goal_' + k) || k}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {/* OB-11 (DV-113): the onboarding's goals component — categories, equal tiles, "Ver todos".
+                  A legacy key outside the 18 (an old "athletic") still shows selected inside it. */}
+              <GoalTiles value={primaryGoals} onToggle={(key) => setPrimaryGoals((prev) => toggleKey(prev, key))} t={t} />
             </View>
 
             <View style={s.editField}>

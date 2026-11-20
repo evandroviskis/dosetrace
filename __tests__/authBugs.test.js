@@ -28,9 +28,9 @@ test('PA-62 bug: Back from Create account reopens the last onboarding step with 
   assert.match(onb, /formFrom\(/);
   assert.match(onb, /entryStep\(/, 'and opens at the step the user left (Never miss a dose)');
   // the rule itself
-  const { entryStep, formFrom, STEPS } = require('../lib/onboardingSteps');
+  const { entryStep, formFrom } = require('../lib/onboardingSteps');
   const stash = { display_name: 'Sam', primary_goal: 'fitness', tracking_types: ['peptides'], gender: 'male', country: 'Brazil', birth_year: 1990, birth_month: 4, activity_level: 'moderate', has_provider: 'no', consent_accepted: true };
-  assert.equal(STEPS[entryStep(stash, { consentPassed: true })], 'reminders');
+  assert.equal(entryStep(stash, { consentPassed: true }), 'reminders');
   const f = formFrom(stash);
   assert.equal(f.name, 'Sam');
   assert.equal(f.birthMonth, 3, '1-based in storage, 0-based in the form');

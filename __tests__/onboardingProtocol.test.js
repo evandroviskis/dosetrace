@@ -369,3 +369,13 @@ test('OB-26: accounts 15+ days old that never created a protocol (ended, deleted
   assert.equal(D.builderEligible({ user: user(30), nowMs: now, everCount: 0, synced: false }), false, 'only after this account\'s data is on the phone (a new phone is not "no protocol")');
   assert.deepEqual(D.builderShownPatch('2026-11-20T12:00:00Z'), { protocol_builder_shown_at: '2026-11-20T12:00:00Z' }, 'one key: Supabase merges user_metadata, nothing else is rewritten');
 });
+
+test('a step that leaves the list (Como vem after another compound) moves on to the next shown step, never back to the start', () => {
+  const steps = O.activeSteps({ signedIn: false, protocol: { name: 'X', form: 'recon', forms: { recon: 'lyo_x' } } });
+  assert.ok(!steps.includes('form'));
+  assert.equal(O.stepNear(steps, 'form'), 'vial');
+  assert.equal(O.stepNear(steps, 'compound'), 'compound');
+  assert.equal(O.stepNear(['about', 'finish'], null), 'about');
+  assert.equal(O.stepNear(['about', 'finish'], 'goal'), 'about', 'signed-in steps hydrating');
+  assert.equal(O.stepNear(O.activeSteps({ signedIn: false, protocol: {}, skipped: true }), 'vial'), 'about', 'Montar depois: on to About you');
+});

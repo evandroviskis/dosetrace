@@ -21,7 +21,8 @@ test('EO-S1: a React Navigation screen: route.params { protocolName, protocolSum
   assert.match(SRC, /protocolSummary/);
   for (const o of ['purchased', 'free', 'closed']) assert.match(SRC, new RegExp(`finish\\('${o}'\\)`), o);
   assert.match(SRC, /if \(onFinish\) \{ onFinish\(outcome\); return; \}[\s\S]{0,120}navigation\.canGoBack\?\.\(\)[\s\S]{0,60}navigation\.goBack\(\)/, 'without onFinish it goes back when it can');
-  assert.doesNotMatch(read('App.js'), /EntryOfferScreen/, 'the coordinator registers it, not this change');
+  // Registered by the onboarding change (docs/specs/onboarding-protocol.md OB-9): its end opens her first choice.
+  assert.match(read('App.js'), /<EntryOfferScreen \{\.\.\.props\} onFinish=\{\(\) => goLanding\(/);
 });
 
 test('EO-S2: every price from the store through offerModel; nothing written in the screen', () => {
