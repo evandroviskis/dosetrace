@@ -27,7 +27,7 @@ import RowChevron from './RowChevron';
 import { clamp01, eOutQuad, eInOutCubic } from './motion';
 import { kf, eBack, useFxClock, demoDec, LiveText } from './previewFx';
 import {
-  FEATURE_KINDS as KINDS, SYRINGE_EXAMPLE, syringeUnits, BODY_EXAMPLE, halfLifeSteps, accumulation,
+  featureKicker, FEATURE_KINDS as KINDS, SYRINGE_EXAMPLE, syringeUnits, BODY_EXAMPLE, halfLifeSteps, accumulation,
   LAB_EXAMPLE, LAB_MONTHS, PROTOCOL_EXAMPLE, REMINDER_EXAMPLE,
 } from '../lib/obFeatures';
 
@@ -368,9 +368,12 @@ export default function OnboardingFeature({ kind, width }) {
   const w = Math.max(240, Number(width) || 342);
   const inner = w - 32; // inside a card (16 each side)
   const { Fx } = screen;
+  const kick = featureKicker(t, kind);
   return (
     <View style={s.wrap}>
       <View style={s.head}>
+        {kick.intro ? <Text style={s.intro}>{kick.intro}</Text> : null}
+        <Text style={s.kicker}>{kick.kicker}</Text>
         <Text style={s.title} accessibilityRole="header">{t(screen.titleKey)}</Text>
         <Text style={s.sub}>{t(screen.subKey)}</Text>
       </View>
@@ -382,6 +385,8 @@ export default function OnboardingFeature({ kind, width }) {
 const makeStyles = (c) => StyleSheet.create({
   wrap: { gap: 16 },
   head: { gap: 8 },
+  intro: { fontSize: 17, lineHeight: 22, color: c.ink, fontWeight: '600', marginBottom: 6 },
+  kicker: { fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', color: c.data },
   // the onboarding step head (screens/OnboardingFlowScreen.js makeStyles title / sub)
   title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: c.ink, letterSpacing: -0.6 },
   sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },

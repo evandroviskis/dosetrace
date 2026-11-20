@@ -3219,6 +3219,8 @@ export const translations = {
     protocols_dose_hint: "How much you inject each time — not your weekly total.",
     protocols_small_draw: "This dose is {u} units — small marks are harder to read accurately.",
     // OB-2..OB-7 onboarding feature screens (docs/specs/onboarding-protocol.md; picture docs/design/onboarding-protocolo.html section 2)
+    obf_kicker: 'What to expect from DoseTrace · {n} of {total}',
+    obf_intro: 'Five quick screens show what the app does for you.',
     obf_syr_title: "How much to draw into the syringe, no math needed",
     obf_syr_sub: "You enter the vial and the dose; DoseTrace does the math.",
     obf_syr_l_compound: "Compound",
@@ -6570,6 +6572,8 @@ export const translations = {
     protocols_dose_hint: "Lo que te inyectas cada vez, no tu total semanal.",
     protocols_small_draw: "Esta dosis es de {u} unidades: las marcas pequeñas son más difíciles de leer con precisión.",
     // OB-2..OB-7 onboarding feature screens (docs/specs/onboarding-protocol.md; picture docs/design/onboarding-protocolo.html section 2)
+    obf_kicker: 'Qué esperar de DoseTrace · {n} de {total}',
+    obf_intro: 'Cinco pantallas rápidas te muestran lo que la app hace por ti.',
     obf_syr_title: "Cuánto cargar en la jeringa, sin hacer cuentas",
     obf_syr_sub: "Tú indicas el vial y la dosis; DoseTrace hace la cuenta.",
     obf_syr_l_compound: "Compuesto",
@@ -9921,6 +9925,8 @@ export const translations = {
     protocols_dose_hint: "Quanto você aplica de cada vez — não o total da semana.",
     protocols_small_draw: "Esta dose é de {u} unidades — marcas pequenas são mais difíceis de ler com precisão.",
     // OB-2..OB-7 onboarding feature screens (docs/specs/onboarding-protocol.md; picture docs/design/onboarding-protocolo.html section 2)
+    obf_kicker: 'O que esperar do DoseTrace · {n} de {total}',
+    obf_intro: 'Em cinco telas rápidas, veja o que o app faz por você.',
     obf_syr_title: "Quanto puxar na seringa, sem fazer conta",
     obf_syr_sub: "Você informa o frasco e a dose; o DoseTrace faz a conta.",
     obf_syr_l_compound: "Composto",
@@ -13271,6 +13277,8 @@ export const translations = {
     protocols_dose_hint: "Ce que vous injectez à chaque fois, pas votre total de la semaine.",
     protocols_small_draw: "Cette dose fait {u} unités — les petites graduations sont plus difficiles à lire avec précision.",
     // OB-2..OB-7 onboarding feature screens (docs/specs/onboarding-protocol.md; picture docs/design/onboarding-protocolo.html section 2)
+    obf_kicker: 'Ce que DoseTrace vous apporte · {n} sur {total}',
+    obf_intro: 'Cinq écrans rapides vous montrent ce que l\'app fait pour vous.',
     obf_syr_title: "Combien prélever dans la seringue, sans calcul",
     obf_syr_sub: "Vous indiquez le flacon et la dose ; DoseTrace fait le calcul.",
     obf_syr_l_compound: "Composé",
@@ -16621,6 +16629,8 @@ export const translations = {
     protocols_dose_hint: "Was du jedes Mal injizierst – nicht deine Wochenmenge.",
     protocols_small_draw: 'Diese Dosis entspricht {u} Einheiten – kleine Markierungen lassen sich schwerer genau ablesen.',
     // OB-2..OB-7 onboarding feature screens (docs/specs/onboarding-protocol.md; picture docs/design/onboarding-protocolo.html section 2)
+    obf_kicker: 'Was dich bei DoseTrace erwartet · {n} von {total}',
+    obf_intro: 'Fünf kurze Bildschirme zeigen dir, was die App für dich tut.',
     obf_syr_title: "Wie viel du in die Spritze aufziehst, ohne zu rechnen",
     obf_syr_sub: "Du gibst Fläschchen und Dosis ein, DoseTrace rechnet.",
     obf_syr_l_compound: "Substanz",
@@ -19972,6 +19982,8 @@ export const translations = {
     protocols_dose_hint: "Quanto inietti ogni volta, non il totale della settimana.",
     protocols_small_draw: "Questa dose è di {u} unità: le tacche piccole sono più difficili da leggere con precisione.",
     // OB-2..OB-7 onboarding feature screens (docs/specs/onboarding-protocol.md; picture docs/design/onboarding-protocolo.html section 2)
+    obf_kicker: 'Cosa aspettarti da DoseTrace · {n} di {total}',
+    obf_intro: 'Cinque schermate rapide ti mostrano cosa fa l\'app per te.',
     obf_syr_title: "Quanto prelevare con la siringa, senza fare calcoli",
     obf_syr_sub: "Tu inserisci il flacone e la dose; DoseTrace fa il calcolo.",
     obf_syr_l_compound: "Composto",
