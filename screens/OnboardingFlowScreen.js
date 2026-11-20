@@ -275,6 +275,13 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
   }
   function back() {
     if (showSetup) { setShowSetup(false); return; }
+    // Back from About you after "Montar depois": the protocol screens come back, with what was typed.
+    if (cur === 'about' && skipped && !signedIn) {
+      const again = stepsFor({ signedIn: false, protocol, skipped: false }).filter((x) => PROTOCOL_STEPS.includes(x));
+      setSkipped(false);
+      setCur(again.find((x) => x !== 'ready' && !canGo(x, form)) || 'ready'); // the first one still to answer
+      return;
+    }
     const p = prevStep(steps, cur);
     if (p) setCur(p); // Back keeps every answer (OB-20)
   }

@@ -123,12 +123,9 @@ function CompoundStep({ s, c, p, setP, tracking, t, kb }) {
           placeholder={t('ob_cmp_search')}
           placeholderTextColor={c.ink3}
           value={q}
-          onChangeText={(v) => {
-            setQ(v);
-            // A typed name is kept as written; choosing a row replaces it (the app never suggests).
-            if (v.trim()) setP((cur) => (cur && !cur.typed && cur.name && cur.name.toLowerCase() === v.trim().toLowerCase() ? cur : typedCompound(cur, v, tracking)));
-            else setP((cur) => (cur && cur.typed ? typedCompound(cur, '', tracking) : cur));
-          }}
+          // Typing only searches; she picks a row, or "Usar “…”" keeps her own name exactly as written
+          // (the app never picks or suggests one for her).
+          onChangeText={setQ}
           autoCapitalize="words"
           autoCorrect={false}
         />
