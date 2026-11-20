@@ -1,0 +1,138 @@
+<title>Grátis e Premium</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one row per theme, three phones side by side (today | A | B); the page itself follows the viewer's theme. */
+:root{
+  --page:#F1F2EF;--pfg:#15171A;--pmut:#5B6066;--pline:#D5D8D2;
+  /* app tokens, light (lib/theme.js) */
+  --g:#DDE0DB;--r:#FFFFFF;--w:#EEF0EC;--ln:#C3C7C0;--tick:#71766F;
+  --ink:#111315;--ink2:#454A4F;--ink3:#53585D;--data:#2350D8;--onData:#FFFFFF;
+  --band:rgba(35,80,216,0.10);--bandLine:rgba(35,80,216,0.35);--act:#111315;--onAct:#FFFFFF;
+  --sans:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;color-scheme:dark}
+.dk{--g:#121416;--r:#282B30;--w:#1D2024;--ln:#3C4147;--tick:#747A7F;
+  --ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--data:#8AA8FF;--onData:#0F1114;
+  --band:rgba(138,168,255,0.12);--bandLine:rgba(138,168,255,0.40);--act:#EEEFEB;--onAct:#121416}
+body{background:var(--page);color:var(--pfg);font-family:var(--sans);margin:0;
+  padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:24px;margin:0 0 8px;text-wrap:balance}
+p.lead{color:var(--pmut);max-width:68ch;margin:0 0 8px;line-height:1.5;font-size:15px}
+h2{font-size:14px;font-weight:600;color:var(--pmut);margin:32px 0 12px}
+.row{display:flex;gap:20px;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cap{font-size:13px;color:var(--pmut);max-width:300px;line-height:1.4}
+.cap b{color:var(--pfg);font-weight:600}
+
+.ph{width:300px;max-width:100%;height:640px;background:var(--g);border-radius:30px;border:1px solid var(--pline);
+  box-sizing:border-box;padding:22px 16px 16px;overflow:hidden;color:var(--ink);display:flex;flex-direction:column;font-family:var(--sans)}
+.ttl{font-size:24px;font-weight:700;letter-spacing:-.01em;line-height:1.15;margin:4px 4px 4px}
+.sub{font-size:13px;color:var(--ink2);margin:0 4px 12px;line-height:1.4}
+.grow{flex:1;min-height:0}
+.btn{height:44px;border-radius:22px;background:var(--act);color:var(--onAct);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px}
+.btn2{height:40px;border-radius:20px;border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:var(--ink);margin-top:8px}
+.fine{font-size:10.5px;color:var(--ink3);text-align:center;margin-top:8px;line-height:1.35}
+
+/* today */
+.t-card{background:var(--r);border-radius:16px;padding:4px 12px}
+.t-row{display:flex;align-items:center;min-height:31px;border-top:1px solid var(--ln);font-size:12.5px}
+.t-row:first-child{border-top:0}
+.t-row .l{flex:1}.t-row .c{width:64px;text-align:center;font-size:11.5px}
+.t-head .c{font-weight:600;color:var(--ink2)}.t-head .c.p{color:var(--data);font-weight:700}
+
+/* A */
+.a-card{background:var(--r);border-radius:16px;padding:6px 0 6px;position:relative}
+.a-band{position:absolute;top:4px;bottom:4px;right:8px;width:78px;background:var(--band);border:1px solid var(--bandLine);border-radius:12px}
+.a-row{display:flex;align-items:center;min-height:30px;padding:0 8px 0 12px;position:relative;font-size:12.5px;gap:8px}
+.a-row .ic{width:16px;height:16px;flex:none;color:var(--ink2)}
+.a-row .l{flex:1;min-width:0}
+.a-row .c{width:56px;text-align:center;font-size:11.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.a-row .p{width:78px;text-align:center;font-size:11.5px;font-weight:700;color:var(--data)}
+.a-head{min-height:34px}
+.a-head .c{font-weight:600;font-size:12px}.a-head .p{font-size:12.5px}
+.a-grp{font-size:11px;color:var(--ink3);padding:8px 12px 2px;position:relative}
+.a-sep{height:1px;background:var(--ln);margin:4px 96px 4px 12px;position:relative}
+.no{color:var(--ink3);font-weight:600}
+
+/* B */
+.b-both{background:var(--w);border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.b-both .h{font-size:11.5px;color:var(--ink2);margin-bottom:6px;font-weight:600}
+.b-chips{display:flex;flex-wrap:wrap;gap:6px}
+.b-chip{display:flex;align-items:center;gap:5px;font-size:11px;background:var(--r);border-radius:10px;padding:4px 8px;color:var(--ink)}
+.b-list{background:var(--r);border-radius:16px;padding:2px 0}
+.b-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--ln)}
+.b-row:first-child{border-top:0}
+.b-row .ic{width:18px;height:18px;flex:none;color:var(--data)}
+.b-row .l{flex:1;min-width:0;font-size:12.5px;font-weight:600;line-height:1.2}
+.b-row .v{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none}
+.b-row .v .f{font-size:10.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.b-row .v .p{font-size:12px;font-weight:700;color:var(--data)}
+.ck{display:inline-block;width:9px;height:5px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg) translateY(-1px)}
+
+.note{max-width:70ch;color:var(--pmut);font-size:14px;line-height:1.55;margin-top:28px}
+.note li{margin-bottom:6px}
+</style>
+
+<h1>Grátis e Premium: a tela que abre em "O que o plano grátis inclui?"</h1>
+<p class="lead">Hoje a tela é uma tabela de dez linhas iguais, sem destaque, e só tem "Voltar". As duas propostas usam as mesmas informações e as mesmas palavras do app, deixam claro o que muda com o Premium e terminam com o botão da oferta escolhida.</p>
+
+<div id="out"></div>
+
+<div class="note"><ul>
+<li><b>A</b> mantém a tabela, mas separa "Nos dois planos" de "O que muda com o Premium" e destaca a coluna do Premium com uma faixa azul. Quem compara linha a linha vê a diferença na hora.</li>
+<li><b>B</b> mostra só o que muda: cada linha diz o valor do grátis e o do Premium. O que é igual nos dois planos fica num bloco pequeno no alto.</li>
+<li>Nas duas, o botão de cima é o mesmo da oferta ("Começar por R$ 19,90", ou o preço do plano marcado) e "Voltar" continua embaixo. A linha pequena repete a renovação, como pede a loja.</li>
+<li>Cores só dos tokens do app, nos dois temas. Os preços vêm da loja.</li>
+</ul></div>
+
+<script>
+const I={
+  syr:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M11 2l3 3M12.5 3.5L6 10l-2 .5.5-2L11 2M4 12l-2 2M7.5 5.5l1 1M9 4l1 1"/></svg>',
+  lay:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M8 2l6 3-6 3-6-3 6-3zM2 8l6 3 6-3M2 11l6 3 6-3"/></svg>',
+  bell:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 11V7a4 4 0 018 0v4l1 1H3l1-1zM6.5 13.5a1.5 1.5 0 003 0"/></svg>',
+  vial:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6 2h4M6.5 2v3.5L4 13a1 1 0 001 1.3h6A1 1 0 0012 13L9.5 5.5V2M5 10h6"/></svg>',
+  lab:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 4V3h2M11 3h2v1M13 12v1h-2M5 13H3v-1"/><path d="M8 5.5c1.2 1.4 2 2.5 2 3.4a2 2 0 01-4 0c0-.9.8-2 2-3.4z"/></svg>',
+  food:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 2v5a1.5 1.5 0 003 0V2M5.5 2v12M11.5 2c-1.5 1-2 3-2 5h2v7"/></svg>',
+  curve:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2v12h12"/><path d="M4 11l2.5-5 2.5 3.5 2-4 2 3.5"/></svg>',
+  pdf:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M3 12v2h10v-2"/></svg>',
+  scale:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v12M5 14h6M3 5h10M3 5l-1.5 4a1.5 1.5 0 003 0L3 5zM13 5l-1.5 4a1.5 1.5 0 003 0L13 5z"/></svg>'
+};
+const CK='<span class="ck"></span>';
+const both=[['syr','Cálculo da seringa'],['bell','Lembretes'],['vial','Doses no frasco'],['lab','Exames e vacinas']];
+const diff=[['lay','Protocolos','1','sem limites'],['lab','Leituras com IA','3 por mês','incluídas'],['food','Comida com IA','7 dias','todo dia'],['curve','Dose no corpo',null,CK],['pdf','Relatório em PDF',null,CK],['scale','Seus números reais',null,CK]];
+const foot=`<div class="btn">Começar por R$ 19,90</div><div class="btn2">Voltar</div><div class="fine">R$ 19,90 pelos 3 primeiros meses; depois, R$ 39,90 a cada 3 meses.</div>`;
+
+function today(){
+  const rows=[['Cálculo da seringa',CK,CK],['Protocolos','1','sem limites'],['Lembretes',CK,CK],['Doses no frasco',CK,CK],['Exames e vacinas',CK,CK],['Leituras com IA','3 por mês','incluídas'],['Comida com IA','7 dias','todo dia'],['Dose no corpo','<span class="no">—</span>',CK],['Relatório em PDF','<span class="no">—</span>',CK],['Seus números reais','<span class="no">—</span>',CK]];
+  return `<div class="ttl">Grátis e Premium</div><div class="t-card"><div class="t-row t-head"><span class="l"></span><span class="c">Grátis</span><span class="c p">Premium</span></div>`+
+    rows.map(r=>`<div class="t-row"><span class="l">${r[0]}</span><span class="c">${r[1]}</span><span class="c">${r[2]}</span></div>`).join('')+
+    `</div><div class="grow"></div><div class="btn2">Voltar</div>`;
+}
+function optA(){
+  const r=(ic,l,f,p)=>`<div class="a-row"><span class="ic">${I[ic]}</span><span class="l">${l}</span><span class="c">${f}</span><span class="p">${p}</span></div>`;
+  return `<div class="ttl">Grátis e Premium</div><div class="sub">O que muda quando você assina.</div>
+  <div class="a-card"><div class="a-band"></div>
+    <div class="a-row a-head"><span class="ic"></span><span class="l"></span><span class="c">Grátis</span><span class="p">Premium</span></div>
+    <div class="a-grp">Nos dois planos</div>`+
+    both.map(b=>r(b[0],b[1],CK,CK)).join('')+
+    `<div class="a-sep"></div><div class="a-grp">O que muda com o Premium</div>`+
+    diff.map(d=>r(d[0],d[1],d[2]===null?'<span class="no">—</span>':d[2],d[3])).join('')+
+  `</div><div class="grow"></div>${foot}`;
+}
+function optB(){
+  return `<div class="ttl">O que muda com o Premium</div>
+  <div class="b-both"><div class="h">Nos dois planos</div><div class="b-chips">`+
+    both.map(b=>`<span class="b-chip">${CK} ${b[1]}</span>`).join('')+`</div></div>
+  <div class="b-list">`+
+    diff.map(d=>`<div class="b-row"><span class="ic">${I[d[0]]}</span><span class="l">${d[1]}</span><span class="v"><span class="f">Grátis: ${d[2]===null?'não inclui':d[2]}</span><span class="p">${d[3]===CK?'incluído':d[3]}</span></span></div>`).join('')+
+  `</div><div class="grow"></div>${foot}`;
+}
+const sets=[[today,'<b>Hoje</b>: dez linhas iguais e só "Voltar"'],[optA,'<b>A</b>: a tabela, com o que muda separado e a coluna do Premium em destaque'],[optB,'<b>B</b>: só o que muda, com o valor do grátis e o do Premium em cada linha']];
+let h='';
+for(const [cls,label] of [['','Tema claro'],['dk','Tema escuro']]){
+  h+=`<h2>${label}</h2><div class="row ${cls}">`+sets.map(([f,c])=>`<div class="col"><div class="cap">${c}</div><div class="ph">${f()}</div></div>`).join('')+`</div>`;
+}
+document.getElementById('out').innerHTML=h;
+</script>
