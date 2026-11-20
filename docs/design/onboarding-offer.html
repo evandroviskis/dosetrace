@@ -1,0 +1,272 @@
+<title>Abertura e oferta</title>
+<style>
+  :root { --page:#EEF0EC; --fg:#111315; --fg2:#454A4F; --line:#C9CDC6; --chip:#FFFFFF; --pick:#2350D8; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page:#0E1012; --fg:#EEEFEB; --fg2:#B5B9B4; --line:#30343A; --chip:#1D2024; --pick:#8AA8FF; color-scheme: dark; } }
+  :root[data-theme="dark"] { --page:#0E1012; --fg:#EEEFEB; --fg2:#B5B9B4; --line:#30343A; --chip:#1D2024; --pick:#8AA8FF; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background: var(--page); color: var(--fg); font-family: -apple-system, "Inter", "Segoe UI", Arial, sans-serif; }
+  .wrap { padding-block: 24px 48px; padding-inline: 16px; max-width: 1240px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 6px; text-wrap: balance; }
+  h2 { font-size: 17px; margin: 30px 0 6px; text-wrap: balance; }
+  .lead { font-size: 14px; line-height: 1.5; color: var(--fg2); max-width: 86ch; margin: 0 0 14px; }
+  .bar { display:flex; gap:8px; flex-wrap: wrap; margin: 6px 0 18px; }
+  .bar button { font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); color: var(--fg); cursor: pointer; }
+  .bar button[aria-pressed="true"] { border-color: var(--pick); outline: 2px solid var(--pick); outline-offset: -1px; font-weight: 600; }
+  .flows { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+  .flow { background: var(--chip); border: 1px solid var(--line); border-radius: 16px; padding: 14px; min-width: 0; }
+  .flow h3 { margin: 0 0 4px; font-size: 15px; }
+  .flow p { margin: 0 0 10px; font-size: 13px; color: var(--fg2); line-height: 1.45; }
+  .steps { display:flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .st { font-size: 12px; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--line); }
+  .st.new { border-color: var(--pick); color: var(--pick); font-weight: 600; }
+  .st.gone { text-decoration: line-through; opacity: .55; }
+  .st.acc { background: var(--fg); color: var(--page); border-color: var(--fg); }
+  .arrow { color: var(--fg2); font-size: 12px; }
+  .grid { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
+  .shot h4 { margin: 0 0 3px; font-size: 14px; }
+  .shot .why { font-size: 12.5px; color: var(--fg2); line-height: 1.45; margin: 0 0 8px; min-height: 36px; }
+  .pair { display:flex; gap: 8px; }
+  .ph { flex:1; min-width:0; border-radius: 22px; padding: 14px 11px 12px; height: 520px; display:flex; flex-direction: column; gap: 8px; overflow: hidden; position: relative; }
+  .light { --g:#DDE0DB; --r:#FFFFFF; --w:#EEF0EC; --i:#111315; --i2:#454A4F; --i3:#53585D; --l:#C3C7C0; --act:#111315; --onact:#FFFFFF; --acc:#2350D8; }
+  .dark  { --g:#121416; --r:#282B30; --w:#1D2024; --i:#EEEFEB; --i2:#B5B9B4; --i3:#9A9F9A; --l:#3C4147; --act:#EEEFEB; --onact:#121416; --acc:#8AA8FF; }
+  .ph { background: var(--g); color: var(--i); }
+  .top { display:flex; align-items:center; gap: 6px; font-size: 10px; color: var(--i2); }
+  .dash { flex:1; display:flex; gap: 3px; }
+  .dash i { flex:1; height: 3px; border-radius: 2px; background: var(--l); }
+  .dash i.on { background: var(--i); }
+  .tt { font-size: 18px; font-weight: 700; line-height: 1.2; margin: 4px 1px 0; }
+  .sub { font-size: 10.5px; color: var(--i2); line-height: 1.4; margin: 0 1px; }
+  .opt { background: var(--r); border-radius: 13px; padding: 9px 10px; font-size: 11.5px; display:flex; justify-content: space-between; align-items: center; gap: 6px; border: 1.5px solid transparent; }
+  .opt.sel { border-color: var(--i); }
+  .opt .ck { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--l); flex: none; }
+  .opt.sel .ck { background: var(--i); border-color: var(--i); }
+  .lbl { font-size: 9.5px; color: var(--i2); text-transform: uppercase; letter-spacing: .06em; margin: 4px 2px 0; }
+  .seg { display:flex; background: var(--w); border-radius: 11px; padding: 3px; gap: 3px; }
+  .seg span { flex:1; text-align:center; font-size: 11px; padding: 6px 0; border-radius: 8px; }
+  .seg span.on { background: var(--r); font-weight: 600; }
+  .spacer { flex: 1; }
+  .btn { min-height: 34px; border-radius: 18px; display:flex; align-items:center; justify-content:center; font-size: 12px; font-weight: 600; padding: 0 10px; text-align: center; }
+  .btn.p { background: var(--act); color: var(--onact); }
+  .btn.g { background: transparent; color: var(--i); font-weight: 500; }
+  .sum { background: var(--r); border-radius: 14px; padding: 10px; display:flex; flex-direction: column; gap: 8px; }
+  .sum .it { display:flex; gap: 8px; font-size: 11px; line-height: 1.35; }
+  .sum .it b { display:block; font-size: 11.5px; }
+  .sum .it .ic { width: 22px; height: 22px; border-radius: 7px; background: var(--w); flex: none; display:flex; align-items:center; justify-content:center; }
+  .sum .it .ic svg { width: 13px; height: 13px; stroke: var(--i); fill: none; stroke-width: 1.6; }
+  .plan { background: var(--r); border-radius: 13px; padding: 9px 10px; display:flex; flex-direction: column; gap: 2px; border: 1.5px solid transparent; position: relative; }
+  .plan.sel { border-color: var(--i); }
+  .plan .h { display:flex; justify-content: space-between; font-size: 12px; font-weight: 600; }
+  .plan .d { font-size: 10px; color: var(--i2); line-height: 1.35; }
+  .plan .tag { position:absolute; top: -8px; left: 10px; font-size: 8.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; background: var(--acc); color: var(--g); padding: 2px 7px; border-radius: 6px; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .fine { font-size: 9px; color: var(--i2); line-height: 1.4; margin: 0 2px; }
+  .links { display:flex; justify-content: center; gap: 10px; font-size: 9px; color: var(--i2); }
+  .links u { text-decoration: underline; }
+  .field { background: var(--r); border-radius: 11px; padding: 8px 10px; font-size: 11px; display:flex; justify-content: space-between; align-items: center; }
+  .field .ok { font-size: 10px; color: var(--i); font-weight: 600; }
+  .note { font-size: 12.5px; color: var(--fg2); line-height: 1.5; max-width: 86ch; }
+  .note li { margin-bottom: 5px; }
+  .pick { display:inline-block; font-size: 11px; font-weight: 700; color: var(--pick); border: 1px solid var(--pick); border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: 2px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 680px) { .grid, .flows { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <h1 data-t="h1"></h1>
+  <p class="lead" data-t="lead"></p>
+  <div class="bar" role="group" aria-label="Idioma">
+    <button type="button" data-lang="pt" aria-pressed="true">Português (Brasil, R$)</button>
+    <button type="button" data-lang="en" aria-pressed="false">English (US, US$)</button>
+  </div>
+
+  <h2 data-t="h_order"></h2>
+  <p class="lead" data-t="order_lead"></p>
+  <div class="flows">
+    <div class="flow">
+      <h3><span data-t="fa_t"></span><span class="pick" data-t="rec"></span></h3>
+      <p data-t="fa_d"></p>
+      <div class="steps" id="flowA"></div>
+    </div>
+    <div class="flow">
+      <h3 data-t="fb_t"></h3>
+      <p data-t="fb_d"></p>
+      <div class="steps" id="flowB"></div>
+    </div>
+  </div>
+
+  <h2 data-t="h_new"></h2>
+  <p class="lead" data-t="new_lead"></p>
+  <div class="grid" id="grid"></div>
+
+  <h2 data-t="h_rules"></h2>
+  <ul class="note" id="rules"></ul>
+</div>
+
+<script>
+const ICON = {
+  syr: '<svg viewBox="0 0 24 24"><path d="M18 2l4 4M17 7l3-3M19 9L9 19l-4 1 1-4L16 6zM12 10l2 2M9 13l2 2"/></svg>',
+  bell: '<svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg>',
+  lab: '<svg viewBox="0 0 24 24"><path d="M9 2v6L4 18a2 2 0 002 3h12a2 2 0 002-3L15 8V2M8 2h8M7 14h10"/></svg>'
+};
+const T = {
+ pt: {
+  h1: 'Abertura nova e oferta de entrada',
+  lead: 'Desenho para aprovação, antes de qualquer código ou produto na loja. Segue as respostas de hoje: oferta de 3 meses para todo mundo, teste de 7 dias só no anual, plano grátis com 1 protocolo nas contas novas, código de indicação com 1 mês extra. Os valores na tela vêm da loja na hora; os números abaixo são os combinados.',
+  h_order: '1. Onde as perguntas novas entram na abertura de hoje',
+  order_lead: 'A abertura de hoje tem 8 passos antes de criar a conta. A Nina pede 3 perguntas, um resumo e a oferta. A pergunta "o que você acompanha" já existe; entram duas novas. A compra só pode vir depois da conta (a assinatura fica presa a ela).',
+  fa_t: 'A — encaixar sem tirar nada', rec: 'recomendo',
+  fa_d: '"Quantas rotinas" entra na mesma tela de "o que você acompanha"; "o que mais atrapalha" é uma tela nova; o resumo fecha antes da conta; a oferta vem logo depois da conta. 9 telas antes da conta (hoje 8) e a oferta depois.',
+  fb_t: 'B — mais curta',
+  fb_d: '"O que mais atrapalha" toma o lugar de "Seus objetivos". 8 telas, como hoje. Mas "objetivos" é um campo obrigatório guardado para uso futuro (decisão de 23/10): ele deixaria de ser perguntado.',
+  steps: ['Abertura','Recursos','Objetivos','O que acompanha','+ quantas rotinas','O que mais atrapalha','Sobre você','Rotina','Termos','Lembretes','Resumo','Criar conta','Oferta'],
+  h_new: '2. As telas novas, no claro e no escuro',
+  new_lead: 'Mesmo visual da abertura de hoje (Graduated): fundo verde-cinza, cartões brancos, um único botão escuro por tela.',
+  s1: ['Quantas rotinas (na tela "o que você acompanha")','Um toque. Só ajuda o resumo; não muda nenhuma conta do app.'],
+  s2: ['O que mais atrapalha (tela nova)','Um toque, pode marcar mais de uma. Escolhe os 3 ganhos do resumo.'],
+  s3: ['Resumo, antes de criar a conta','Os ganhos seguem o que a pessoa marcou. Linguagem neutra, sem promessa de resultado.'],
+  s4: ['Oferta, depois da conta (com direito à oferta)','3 meses em destaque, anual com teste ao lado, mensal e vitalício em "Ver todos os planos". O aviso da renovação fica acima do botão, como a loja exige.'],
+  s5: ['Oferta sem direito (já usou uma oferta antes)','A loja diz que a pessoa não tem direito: some a metade do preço, aparece o preço cheio. Nada é prometido sem a loja confirmar.'],
+  s6: ['Código de indicação aceito','O código vale e diz o que dá: 1 mês extra depois do primeiro pagamento. A oferta continua a mesma.'],
+  progress: 'Voltar',
+  q1t: 'O que você acompanha?', q1s: 'Marque tudo o que se aplica.',
+  q1o: ['Doses e protocolos','Exames','Frascos','Comida e peso'],
+  q1n: 'Quantas rotinas, hoje?', q1seg: ['1','2–3','4 ou mais'],
+  q2t: 'O que mais atrapalha hoje?', q2s: 'Marque tudo o que se aplica.',
+  q2o: ['Fazer a conta da seringa','Lembrar o horário','Saber quanto resta no frasco','Guardar os resultados dos exames'],
+  cont: 'Continuar',
+  r_t: 'Seu diário está pronto', r_s: 'Feito para o que você marcou.',
+  r1: ['Conta da seringa','Unidades e mL a partir do que você informar. A conta é sua; o app não indica dose.'],
+  r2: ['Lembretes no horário','Cada dose no horário que você escolher.'],
+  r3: ['Exames em um só lugar','Seus resultados guardados, para levar ao seu profissional de saúde.'],
+  r_btn: 'Criar conta', r_have: 'Já tenho conta · Entrar',
+  o_t: 'Comece com 3 meses pela metade', o_s: 'Premium: curva da dose no corpo, gráficos de exames, PDF, protocolos sem limite.',
+  o_tag: 'Oferta de entrada',
+  o3: ['3 meses','R$ 19,90','Depois, R$ 39,90 a cada 3 meses'],
+  oa: ['Anual','R$ 149,90','7 dias grátis, depois R$ 149,90 por ano'],
+  oall: 'Ver todos os planos (mensal, vitalício)',
+  o_fine: 'Depois dos 3 primeiros meses, a assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.',
+  o_btn: 'Começar por R$ 19,90',
+  o_code: 'Tenho um código de indicação',
+  o_free: 'Continuar no plano grátis',
+  o_free_d: 'Grátis: 1 protocolo, calculadora, registro de doses, frascos e lembretes.',
+  links: ['Termos','Privacidade','Restaurar compras'],
+  n_t: 'Assine o Premium', n_s: 'A oferta de entrada vale uma vez por conta da loja.',
+  n3: ['3 meses','R$ 39,90','A cada 3 meses'],
+  n_fine: 'A assinatura renova sozinha por R$ 39,90 a cada 3 meses, cobrada pela App Store. Cancele quando quiser nos ajustes da loja.',
+  n_btn: 'Assinar por R$ 39,90',
+  c_field: 'CARLOS', c_ok: 'Código aceito',
+  c_line: 'Código CARLOS: 1 mês extra de Premium depois do primeiro pagamento.',
+  h_rules: '3. Regras que esta tela segue (já decididas)',
+  rules: [
+   'Preço, oferta e teste aparecem só quando a loja confirma; o app nunca escreve preço. O aviso de renovação usa o valor que a loja devolver para aquele plano (o plano de 3 meses renova a cada 3 meses, não por mês).',
+   'Mesmo preço nas duas lojas; no Android o texto diz "Google Play" no lugar de "App Store".',
+   'Quem já é Premium não vê a oferta: depois da conta vai direto para o app.',
+   '"Continuar no plano grátis" é sempre visível. A oferta não volta a abrir sozinha; num recurso Premium continua a explicação animada e o "Desbloquear com Premium" (regra de 31/10).',
+   'Plano grátis com 1 protocolo só nas contas novas; quem já tem mais continua com o que tem.',
+   'Nenhum pedido de permissão na primeira tela; notificação só no passo Lembretes, como hoje.',
+   'Seis idiomas, português formal. Sem nome de substância, sem conselho de dose.'
+  ]
+ },
+ en: {
+  h1: 'New opening and entry offer',
+  lead: 'Picture for approval, before any code or store product. It follows today\'s answers: the 3-month offer for everyone, the 7-day trial on the annual plan only, free plan with 1 protocol for new accounts, a referral code worth 1 extra month. Prices on screen come from the store at runtime; the numbers below are the agreed ones.',
+  h_order: '1. Where the new questions go in today\'s opening',
+  order_lead: 'Today\'s opening has 8 steps before the account. Nina asks for 3 questions, a summary and the offer. "What do you track" already exists; two are new. The purchase can only come after the account (the subscription is tied to it).',
+  fa_t: 'A — fit in, remove nothing', rec: 'recommended',
+  fa_d: '"How many routines" joins the "what do you track" screen; "what gets in the way" is a new screen; the summary closes before the account; the offer comes right after the account. 9 screens before the account (8 today), then the offer.',
+  fb_t: 'B — shorter',
+  fb_d: '"What gets in the way" replaces "Your goals". 8 screens, as today. But "goals" is a required field kept for later use (decision of Oct 23): it would no longer be asked.',
+  steps: ['Welcome','Features','Goals','What you track','+ how many routines','What gets in the way','About you','Routine','Terms','Reminders','Summary','Create account','Offer'],
+  h_new: '2. The new screens, light and dark',
+  new_lead: 'Same look as today\'s opening (Graduated): grey-green ground, white cards, one dark button per screen.',
+  s1: ['How many routines (on "what do you track")','One tap. It only shapes the summary; it changes no number in the app.'],
+  s2: ['What gets in the way (new screen)','One tap, several allowed. It picks the 3 benefits of the summary.'],
+  s3: ['Summary, before the account','The benefits follow what was picked. Neutral words, no promise of results.'],
+  s4: ['Offer, after the account (eligible)','3 months on top, annual with trial beside it, monthly and lifetime under "See all plans". The renewal notice sits above the button, as the stores require.'],
+  s5: ['Offer, not eligible (used an offer before)','The store says no: the half price disappears and the full price shows. Nothing is promised without the store.'],
+  s6: ['Referral code accepted','The code is valid and says what it gives: 1 extra month after the first payment. The offer stays the same.'],
+  progress: 'Back',
+  q1t: 'What do you track?', q1s: 'Select all that apply.',
+  q1o: ['Doses and protocols','Lab tests','Vials','Food and weight'],
+  q1n: 'How many routines today?', q1seg: ['1','2–3','4 or more'],
+  q2t: 'What gets in the way today?', q2s: 'Select all that apply.',
+  q2o: ['Doing the syringe math','Remembering the time','Knowing what\'s left in the vial','Keeping lab results together'],
+  cont: 'Continue',
+  r_t: 'Your journal is ready', r_s: 'Built around what you picked.',
+  r1: ['Syringe math','Units and mL from what you enter. Your numbers; the app never suggests a dose.'],
+  r2: ['Reminders on time','Every dose at the time you choose.'],
+  r3: ['Lab tests in one place','Your results kept together, to take to your health professional.'],
+  r_btn: 'Create account', r_have: 'Already have an account · Sign in',
+  o_t: 'Start with 3 months at half price', o_s: 'Premium: dose-in-body curve, lab charts, PDF, unlimited protocols.',
+  o_tag: 'Entry offer',
+  o3: ['3 months','$7.49','Then $14.99 every 3 months'],
+  oa: ['Annual','$39.99','7 days free, then $39.99 a year'],
+  oall: 'See all plans (monthly, lifetime)',
+  o_fine: 'After the first 3 months the subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.',
+  o_btn: 'Start for $7.49',
+  o_code: 'I have a referral code',
+  o_free: 'Continue with the free plan',
+  o_free_d: 'Free: 1 protocol, calculator, dose log, vials and reminders.',
+  links: ['Terms','Privacy','Restore purchases'],
+  n_t: 'Get Premium', n_s: 'The entry offer is once per store account.',
+  n3: ['3 months','$14.99','Every 3 months'],
+  n_fine: 'The subscription renews automatically at $14.99 every 3 months, charged by the App Store. Cancel anytime in the store settings.',
+  n_btn: 'Subscribe for $14.99',
+  c_field: 'CARLOS', c_ok: 'Code accepted',
+  c_line: 'Code CARLOS: 1 extra month of Premium after the first payment.',
+  h_rules: '3. Rules this screen follows (already decided)',
+  rules: [
+   'Price, offer and trial show only when the store confirms them; the app never writes a price. The renewal notice uses the value the store returns for that plan (the 3-month plan renews every 3 months, not monthly).',
+   'Same price in both stores; on Android the text says "Google Play" instead of "App Store".',
+   'Someone already Premium never sees the offer: after the account they go straight into the app.',
+   '"Continue with the free plan" is always visible. The offer never reopens on its own; on a Premium feature the animated preview and "Unlock with Premium" stay (rule of Oct 31).',
+   'Free plan with 1 protocol only for new accounts; anyone with more keeps what they have.',
+   'No permission prompt on the first screen; notifications only at the Reminders step, as today.',
+   'Six languages, formal Portuguese. No substance names, no dose advice.'
+  ]
+ }
+};
+
+function steps(L, b) {
+  const s = T[L].steps;
+  const parts = b
+    ? [[s[0]],[s[1]],[s[2],'gone'],[s[3]],[s[4],'new'],[s[5],'new'],[s[6]],[s[7]],[s[8]],[s[9]],[s[10],'new'],[s[11],'acc'],[s[12],'new']]
+    : [[s[0]],[s[1]],[s[2]],[s[3]],[s[4],'new'],[s[5],'new'],[s[6]],[s[7]],[s[8]],[s[9]],[s[10],'new'],[s[11],'acc'],[s[12],'new']];
+  return parts.map(([n,c],i)=>`<span class="st ${c||''}">${n}</span>${i<parts.length-1?'<span class="arrow">›</span>':''}`).join('');
+}
+function top(n, of) { return `<div class="top"><span>‹</span><div class="dash">${Array.from({length:of},(_,i)=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div></div>`; }
+function opts(list, sel) { return list.map((o,i)=>`<div class="opt ${sel.includes(i)?'sel':''}"><span>${o}</span><span class="ck"></span></div>`).join(''); }
+function screens(L) {
+  const t = T[L];
+  const s1 = `${top(3,9)}<div class="tt">${t.q1t}</div><div class="sub">${t.q1s}</div>${opts(t.q1o,[0,2])}<div class="lbl">${t.q1n}</div><div class="seg">${t.q1seg.map((x,i)=>`<span class="${i===1?'on':''}">${x}</span>`).join('')}</div><div class="spacer"></div><div class="btn p">${t.cont}</div>`;
+  const s2 = `${top(4,9)}<div class="tt">${t.q2t}</div><div class="sub">${t.q2s}</div>${opts(t.q2o,[0,1])}<div class="spacer"></div><div class="btn p">${t.cont}</div>`;
+  const s3 = `${top(8,9)}<div class="tt">${t.r_t}</div><div class="sub">${t.r_s}</div><div class="sum">${[[ICON.syr,t.r1],[ICON.bell,t.r2],[ICON.lab,t.r3]].map(([ic,[a,b]])=>`<div class="it"><span class="ic">${ic}</span><span><b>${a}</b>${b}</span></div>`).join('')}</div><div class="spacer"></div><div class="btn p">${t.r_btn}</div><div class="btn g">${t.r_have}</div>`;
+  const offer = (eligible, code) => {
+    const p3 = eligible ? t.o3 : t.n3;
+    return `<div class="tt">${eligible?t.o_t:t.n_t}</div><div class="sub">${eligible?t.o_s:t.n_s}</div>
+    <div class="plan sel" style="margin-top:8px">${eligible?`<span class="tag">${t.o_tag}</span>`:''}<div class="h"><span>${p3[0]}</span><span class="mono">${p3[1]}</span></div><div class="d">${p3[2]}</div></div>
+    <div class="plan"><div class="h"><span>${t.oa[0]}</span><span class="mono">${t.oa[1]}</span></div><div class="d">${t.oa[2]}</div></div>
+    <div class="fine" style="text-align:center;text-decoration:underline">${t.oall}</div>
+    ${code?`<div class="field"><span class="mono">${t.c_field}</span><span class="ok">${t.c_ok}</span></div><div class="fine">${t.c_line}</div>`:`<div class="fine" style="text-align:center">${t.o_code} ›</div>`}
+    <div class="spacer"></div>
+    <div class="fine">${eligible?t.o_fine:t.n_fine}</div>
+    <div class="btn p">${eligible?t.o_btn:t.n_btn}</div>
+    <div class="btn g">${t.o_free}</div>
+    ${code?'':`<div class="fine" style="text-align:center">${t.o_free_d}</div>`}
+    <div class="links">${t.links.map(x=>`<u>${x}</u>`).join('')}</div>`;
+  };
+  return [[t.s1,s1],[t.s2,s2],[t.s3,s3],[t.s4,offer(true,false)],[t.s5,offer(false,false)],[t.s6,offer(true,true)]];
+}
+function render(L) {
+  document.documentElement.lang = L === 'pt' ? 'pt-BR' : 'en';
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T[L][el.dataset.t]; });
+  document.getElementById('flowA').innerHTML = steps(L, false);
+  document.getElementById('flowB').innerHTML = steps(L, true);
+  document.getElementById('grid').innerHTML = screens(L).map(([[h,w],body]) =>
+    `<div class="shot"><h4>${h}</h4><p class="why">${w}</p><div class="pair"><div class="ph light">${body}</div><div class="ph dark">${body}</div></div></div>`).join('');
+  document.getElementById('rules').innerHTML = T[L].rules.map(r=>`<li>${r}</li>`).join('');
+  document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === L)));
+}
+document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => render(b.dataset.lang)));
+render('pt');
+</script>
