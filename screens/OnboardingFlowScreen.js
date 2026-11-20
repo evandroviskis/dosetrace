@@ -37,7 +37,7 @@ import { reminderLine } from '../lib/onboardingDraft';
 import OnboardingIntro from '../components/OnboardingIntro';
 import OnboardingProtocolSteps, { stepTitle, weekdayPhrase } from './components/OnboardingProtocolSteps';
 import { purposeFromProfile } from '../lib/protocolPurpose';
-import { compoundIdFor } from '../lib/onboardingDraft';
+import { compoundIdFor, freezeStart } from '../lib/onboardingDraft';
 import GoalTiles from '../components/GoalTiles';
 import FeatureIcon from '../components/FeatureIcon';
 import CompoundPills, { compoundPillStyles } from '../components/CompoundPills';
@@ -276,6 +276,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
     // (lib/pendingProfile): from here on they may go into the account they create.
     if (cur === 'consent') markStashFresh();
     const over = {};
+    if (cur === 'start') { const frozen = freezeStart(protocol, new Date()); setProtocol(frozen); over.protocol = frozen; }
     if (cur === 'ready') {
       // PQ-14: the protocol keeps the goals from her profile that map to it ("Para: …" on this screen).
       const withPurpose = { ...(protocol || {}), purpose: purposeFromProfile(builder ? meta.primary_goal : d.goals, protocol && protocol.form, compoundIdFor(protocol)) };

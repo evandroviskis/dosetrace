@@ -464,3 +464,15 @@ test('OB-16 (council 2026-11-20, item 13): IU next to mg / mcg, as the manual fo
   const d3 = D.draftToForm({ name: 'Vitamina D3', base: 'vit_d3', forms: { oral: 'oral_vit_d3' }, form: 'oral', dose: '5000', doseUnit: 'IU', freq: 'daily', time: '09:00', startMode: 'today' }, { now: NOW, language: 'pt' });
   assert.equal(d3.form.servingStrengthUnit, 'IU');
 });
+
+test('OB-18 (council 2026-11-20, item 14): the start date is frozen when she leaves the start step; the save after the account uses it, never the sign-in day', () => {
+  const p = { name: 'Tirzepatida', base: 'tirzepatide', forms: { recon: 'lyo_tirzepatide' }, form: 'recon', amount: '10', unit: 'mg', water: '2', dose: '2,5', doseUnit: 'mg', freq: 'daily', time: '08:00', startMode: 'today' };
+  const frozen = D.freezeStart(p, NOW);
+  assert.equal(frozen.startOn, iso(2026, 11, 20));
+  const twoDaysLater = new Date(2026, 10, 22, 10, 0, 0);
+  assert.equal(D.draftToForm(frozen, { now: twoDaysLater }).startDate, iso(2026, 11, 20), 'her answered day, not the sign-in day');
+  assert.equal(D.draftToForm(p, { now: twoDaysLater }).startDate, iso(2026, 11, 22), 'an old draft without it keeps the old rule');
+  assert.equal(D.draftToForm({ ...frozen, startOn: 'garbage' }, { now: twoDaysLater }).startDate, iso(2026, 11, 22));
+  const FLOW = read('screens/OnboardingFlowScreen.js');
+  assert.match(FLOW, /if \(cur === 'start'\) \{ const frozen = freezeStart\(protocol, new Date\(\)\); setProtocol\(frozen\); over\.protocol = frozen; \}/);
+});
