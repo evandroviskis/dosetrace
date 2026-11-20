@@ -32,6 +32,7 @@ import { requestForcedInvite } from './lib/updateRuntime';
 import { markCurveNoticeSince } from './lib/curveNoticeRuntime';
 import { runSignOut } from './lib/settingsSignOut';
 import { signInDeviceStep, startupDeviceStep } from './lib/signInDevice';
+import { singleRun } from './lib/singleRun';
 import { createBusyGuard } from './lib/busyGuard';
 import { signOutIntended, exportMyData } from './lib/accountActions';
 import { createRequiredExport } from './lib/requiredExport';
@@ -761,7 +762,9 @@ export default function App() {
     // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
     // A-119 round 3: not while a takeover's rebuild is queued (step.migrate).
     if (step.migrate) await runRealityMigration().catch(() => {});
-    await afterSignInOnboarding(s.user).catch(() => {}); // OB-22 / OB-26: after the import
+    // Council 2026-11-20: not while a takeover's rebuild is queued (the draft would land in the old
+    // copy); it stays on the phone for the next start.
+    if (step.migrate) await afterSignInOnboarding(s.user).catch(() => {}); // OB-22 / OB-26: after the import
     // Schedule reminders AFTER the import so they reflect the user's data. AD-88 (DV-054): never a
     // permission request here (the sync listener asks once when this account's protocols arrive).
     syncAllNotifications()
@@ -816,7 +819,11 @@ export default function App() {
   // protocol gets the builder once (the mark on the account). The referral code reaches the server too.
   const [obAsk, setObAsk] = useState(null); // { kind: 'ask' | 'limit', name, n, draft, user }
   const goPending = (target) => { if (!target) return; pendingNavRef.current = target; flushPendingNav(); };
-  const afterSignInOnboarding = async (user) => {
+  // One run at a time (lib/singleRun): the cold start and SIGNED_IN (or a confirmation link) can
+  // overlap; the second call joins the first, so the draft is never inserted twice. The body is read
+  // through a ref so the run always uses this render's state setters and navigation.
+  const obRunImpl = useRef(null);
+  obRunImpl.current = async (user) => {
     flushPendingAttribution().catch(() => {});
     let r = null;
     try { r = await applyOnboardingDraft(user); } catch { r = null; }
@@ -833,6 +840,7 @@ export default function App() {
       }
     } catch { /* never blocks the app */ }
   };
+  const afterSignInOnboarding = useMemo(() => singleRun((user) => obRunImpl.current(user)), []);
   const onObKeep = async () => {
     const a = obAsk; setObAsk(null);
     if (!a) return;
@@ -1127,7 +1135,7 @@ export default function App() {
             // A-119 round 3: never while a takeover's rebuild is queued (step.migrate).
             if (step.migrate) await runRealityMigration().catch(() => {});
             // OB-22 / OB-26: a draft left by an app kill before its sign-in finished, the builder once.
-            await afterSignInOnboarding(session.user).catch(() => {});
+            if (step.migrate) await afterSignInOnboarding(session.user).catch(() => {});
 
             // Schedule reminders AFTER the initial import — otherwise fresh
             // installs sync notifications against an empty local DB.
@@ -1215,7 +1223,7 @@ export default function App() {
         // land in the old copy before the rebuild judges it (lib/signInDevice migrate).
         if (step.migrate) await runRealityMigration().catch(() => {});
         // OB-22 / OB-23 / OB-26: the onboarding's protocol into the account (deferred, after the import).
-        await afterSignInOnboarding(session.user).catch(() => {});
+        if (step.migrate) await afterSignInOnboarding(session.user).catch(() => {});
 
         // Schedule reminders AFTER the import so they reflect the user's data
         // AD-88 (DV-054): never a permission request at sign-in (the sync listener asks once when
