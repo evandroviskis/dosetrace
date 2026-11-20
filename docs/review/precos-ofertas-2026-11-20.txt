@@ -52,5 +52,27 @@ PENDENTE
 - Apple: captura de tela da revisão do "quarterly"; enviar o produto junto com a versão nova do app.
 - RevenueCat: falta cadastrar o produto "quarterly" (Apple: quarterly; Google: quarterly:p3m) e colocar no pacote da
   oferta. Não há chave de API do RevenueCat no projeto, então fica para o fundador (ou para um próximo passo com a chave).
-- Achado: no Google Play os nomes de mensal, anual e vitalício ainda dizem "DoseTrace Pro ..." (só em inglês); na Apple
-  já é "Premium". Não mexi porque estava fora deste pedido.
+- Achado: no Google Play os nomes de mensal, anual e vitalício ainda diziam "DoseTrace Pro ..." (só em inglês).
+  CORRIGIDO no mesmo dia (ver abaixo).
+
+5. GOOGLE PLAY — NOMES PRO -> PREMIUM (decisão de 2026-09-30), iguais aos da Apple
+- Mensal, anual e vitalício só têm o idioma en-US no Play; foi o único trocado:
+  monthly "DoseTrace Pro Monthly" -> "DoseTrace Premium Monthly"
+  yearly "DoseTrace Pro Yearly" -> "DoseTrace Premium Yearly"
+  lifetime "DoseTrace Pro Lifetime" -> "DoseTrace Premium Lifetime"; descrição "One-time purchase. Unlock all DoseTrace
+  Pro features forever — no subscription." -> "Unlock all premium features forever. One-time purchase." (texto da Apple)
+- quarterly: os 6 nomes já eram iguais aos da Apple (en-US, pt-BR, es-ES, fr-FR, de-DE, it-IT); nada a mudar.
+- Relido no Play: nomes novos gravados; preços e planos base idênticos ao estado anterior (comparação completa).
+- Os outros idiomas (pt/es/fr/de/it) não existem nos 3 produtos antigos do Play, então não foram criados; o Play
+  mostra o nome em inglês nesses idiomas.
+
+6. GOOGLE PLAY — NOMES E DESCRIÇÕES EM 5 IDIOMAS (copiados da Apple, palavra por palavra)
+- monthly, yearly e lifetime ganharam pt-BR, es-ES, fr-FR, de-DE e it-IT com o nome e a descrição exatos da Apple
+  (ex.: pt-BR "DoseTrace Premium Mensal", "DoseTrace Premium Anual", "DoseTrace Premium Vitalício").
+  O en-US ficou como estava (mensal e anual sem descrição no Play).
+- Relido no Play: 6 idiomas em cada produto; preços e planos base idênticos ao estado anterior.
+- Atenção para o dia da atualização: as descrições de mensal e anual (Apple e agora Play) dizem "Teste grátis" /
+  "Free trial". Quando o teste de 7 dias sair, trocar esse texto nas duas lojas.
+
+7. APPLE — ORDEM DOS NÍVEIS NO GRUPO
+- Relido: yearly nível 1, quarterly nível 2, monthly nível 3 (antes: monthly 2, quarterly 3).
