@@ -265,7 +265,10 @@ test('the Portuguese copy is the approved picture, word for word; English as app
   assert.equal(f(pt.obi_body_you_take, { n: 100 }), 'você aplica 100');
   assert.equal(pt.obi_body_leg_today, 'Dose de hoje');
   assert.equal(f(pt.obi_body_leg_ago, { n: 7 }), 'Dose de 7 dias atrás');
-  assert.equal(f(pt.obi_body_foot, { name: 'Composto 1', days: 7 }), 'Cada dose nova soma com o que ainda resta das anteriores. Exemplo: Composto 1, meia-vida de 7 dias.');
+  assert.equal(f(pt.obi_body_foot, { name: 'Composto 1', days: 7 }), 'Cada dose nova soma com o que ainda resta das anteriores. Exemplo estimado: Composto 1, meia-vida de 7 dias.', 'council 2026-11-20: the totals are an estimate, never a measurement');
+  const { translations: TR } = require('../i18n/translations.js');
+  const est = { en: /Estimated example:/, es: /Ejemplo estimado:/, pt: /Exemplo estimado:/, fr: /Exemple estimé :/, de: /Geschätztes Beispiel:/, it: /Esempio stimato:/ };
+  for (const [lang, re] of Object.entries(est)) assert.match(TR[lang].obi_body_foot, re, lang);
   assert.equal(pt.obi_rem_title, 'Um aviso na hora de cada dose');
   assert.equal(`DoseTrace · ${pt.obi_rem_now}`, 'DoseTrace · agora');
   assert.equal(f(pt.obi_rem_msg, { name: pt.obi_ex_supplement }), 'Hora da dose: Suplemento A');
