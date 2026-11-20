@@ -228,6 +228,21 @@ test('OB-18: when she starts — today / already started / another day; the star
   assert.equal(O.canContinue('start', { protocol: { ...daily, startMode: 'today' }, now: NOW }), true);
 });
 
+test('OB-18 (council 2026-11-20): already started, weekly, never begins before the day she gave; her weekday still ahead means no past dose', () => {
+  const sat = { freq: 'weekly', weekday: 6, time: '08:00', form: 'recon', startMode: 'started', startedOn: iso(2026, 11, 18) }; // Wed 18/11, she uses Saturdays
+  assert.equal(D.startDateFor(sat, NOW), iso(2026, 11, 21), 'the first Saturday from her start, not 14/11');
+  assert.equal(D.pastCount(sat, NOW), 0);
+  assert.ok(D.startDateFor(sat, NOW) >= sat.startedOn);
+  const fri = { ...sat, weekday: 5 }; // her day is today
+  assert.equal(D.startDateFor(fri, NOW), iso(2026, 11, 20));
+  assert.equal(D.pastCount(fri, NOW), 0);
+});
+
+test('OB-16 (council 2026-11-20): typing the dose never turns Ainda nao sei esses numeros off; only the vial fields do', () => {
+  const src = read('screens/components/OnboardingProtocolSteps.js');
+  assert.match(src, /name="dose"[\s\S]{0,400}?onChange=\{\(v\) => patch\(\{ dose: v \}\)\}/);
+});
+
 test('OB-18: already started asks the app\'s past-doses question with its count, and needs an answer', () => {
   const p = { freq: 'weekly', weekday: 1, time: '08:00', startMode: 'started', startedOn: iso(2026, 10, 26), form: 'recon' };
   assert.equal(D.pastCount(p, NOW), 4, 'Mondays 26/10, 2/11, 9/11, 16/11');
@@ -274,7 +289,7 @@ test('OB-22: the draft becomes the form the manual form saves (vial, dose, sched
   assert.equal(unknown.skipVial, true, '"Ainda não sei esses números": the protocol without the vial');
   assert.equal(unknown.form.amount, '');
   assert.equal(unknown.form.water, '');
-  assert.equal(unknown.form.dose, '');
+  assert.equal(unknown.form.dose, p.dose, 'council 2026-11-20: not knowing the vial keeps the dose she typed (the curve needs it)');
   const rtu = D.draftToForm({ ...p, form: 'rtu', amount: '10', ml: '4', water: undefined }, { now: NOW, language: 'pt' });
   assert.equal(rtu.form.compoundId, 'rtu_tirzepatide');
   assert.equal(rtu.form.concentration, '2,5', '10 mg in 4 mL = 2,5 mg/mL, written in her language');

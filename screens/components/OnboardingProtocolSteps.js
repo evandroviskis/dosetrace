@@ -236,7 +236,7 @@ function VialStep({ s, c, p, patch, t, language, kb }) {
           value={p.ml} onChange={(v) => patch({ ml: v, vialUnknown: false })} unit="mL" />
       ) : null}
       <NumberField s={s} c={c} kb={kb} name="dose" t={t} label={t('ob_vial_dose')} hint={t(p.form === 'oral' ? 'ob_vial_dose_hint_oral' : 'ob_vial_dose_hint')}
-        value={p.dose} onChange={(v) => patch({ dose: v, vialUnknown: false })} unit={p.doseUnit || 'mg'} units={['mg', 'mcg']} onUnit={(u) => patch({ doseUnit: u })} />
+        value={p.dose} onChange={(v) => patch({ dose: v })} unit={p.doseUnit || 'mg'} units={['mg', 'mcg']} onUnit={(u) => patch({ doseUnit: u })} />
       <TouchableOpacity style={[s.linkBtn, p.vialUnknown && s.linkOn]} onPress={() => patch({ vialUnknown: !p.vialUnknown })} accessibilityRole="checkbox" accessibilityState={{ checked: !!p.vialUnknown }}>
         <View style={s.inline}>
           {p.vialUnknown ? <CheckMark size={18} color={c.ink} /> : null}
