@@ -251,3 +251,39 @@ test('CR-COM1e: terms versions and transitions — new version validated; pause/
     assert.equal((await P({ action: 'add_post', posted_on: '2026-12-02', platform: 'instagram', note: 'reel' })).code, 200);
   } finally { envOff(); }
 });
+
+test('CR-W1 (live 2026-11-20): a write the database refuses is never answered "saved" (review, status, tax form, audit, invite); the portal stamps its last use before answering', async () => {
+  env();
+  try {
+    const db = R.makeDb();
+    const j = await createCreator(db, { display_name: 'Ana Ribeiro', platforms: ['instagram'], is_test: true });
+    const id = db.creators[0].id;
+    const O = F.ORIGIN;
+    // invite: the profile is stored but the creator row refuses the status change → not "ok"
+    const failCreators = { fail: (n, m) => n === 'creators' && m === 'PATCH' };
+    const s1 = await R.run(pub, db, { method: 'POST', headers: O, body: { op: 'invite_submit', token: tokenOf(j.links.invite), profile: BR_PROFILE } }, failCreators);
+    assert.equal(s1.code, 503, 'invite answered ' + s1.code);
+    const s2 = await R.run(pub, db, { method: 'POST', headers: O, body: { op: 'invite_submit', token: tokenOf(j.links.invite), profile: BR_PROFILE } });
+    assert.equal(s2.code, 200); assert.equal(db.creators[0].status, 'submitted');
+    const P = (body, opts) => R.run(adm, db, { method: 'POST', headers: ADMIN, body: Object.assign({ id }, body) }, opts);
+    // review: each of its three writes failing → 503, and nothing reads as approved by the caller
+    for (const f of [(n, m) => n === 'creator_profiles' && m === 'PATCH', (n, m) => n === 'creators' && m === 'PATCH', (n, m) => n === 'creator_audit' && m === 'POST']) {
+      const r = await P({ action: 'review', decision: 'approve' }, { fail: f });
+      assert.equal(r.code, 503, 'review answered ' + r.code + ' with a failed write');
+      assert.ok(!(r.json && r.json.ok));
+    }
+    const ok = await P({ action: 'review', decision: 'approve' });
+    assert.equal(ok.code, 200); assert.equal(db.creators[0].status, 'active');
+    assert.equal((await P({ action: 'set_status', status: 'paused' }, failCreators)).code, 503, 'status');
+    assert.equal(db.creators[0].status, 'active');
+    assert.equal((await P({ action: 'tax_form', date: '2026-11-20' }, { fail: (n, m) => n === 'creator_profiles' && m === 'PATCH' })).code, 503, 'tax form');
+    // portal: last use is written before the answer (Vercel freezes the function once it has answered)
+    const portal = await R.run(pub, db, { method: 'POST', headers: O, body: { op: 'portal', token: tokenOf(j.links.portal) } }, { delay: (n, m) => (n === 'creator_links' && m === 'PATCH' ? 30 : 0) });
+    assert.equal(portal.code, 200);
+    const pl = db.creator_links.find((l) => l.kind === 'portal' && !l.revoked_at);
+    assert.ok(pl.last_used_at, 'portal last use not stamped before the answer');
+    // a failed stamp does not hide the portal from the creator
+    const p2 = await R.run(pub, db, { method: 'POST', headers: O, body: { op: 'portal', token: tokenOf(j.links.portal) } }, { fail: (n, m) => n === 'creator_links' && m === 'PATCH' });
+    assert.equal(p2.code, 200);
+  } finally { envOff(); }
+});

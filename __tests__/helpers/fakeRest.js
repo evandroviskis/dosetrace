@@ -66,6 +66,16 @@ function rpc(db, name, a) {
 // A data(url, body, init) for F.installFetch / F.withAuth.
 function handlerFor(db, opts) {
   const o = opts || {};
+  const answer = answerFor(db, o);
+  // o.delay(name, method) → ms: answers (and applies the write) only after that wait, like a slow database; a
+  // handler that does not await the write has already ended its response when the row changes.
+  return (url, body, init) => {
+    const ms = o.delay && (() => { const m = new URL(url).pathname.match(/\/rest\/v1\/(?:rpc\/)?([a-z_]+)$/); return m ? o.delay(m[1], String((init && init.method) || 'GET').toUpperCase()) : 0; })();
+    if (ms) return new Promise((resolve) => setTimeout(() => resolve(answer(url, body, init)), ms));
+    return answer(url, body, init);
+  };
+}
+function answerFor(db, o) {
   return (url, body, init) => {
     const u = new URL(url);
     const m = u.pathname.match(/^\/rest\/v1\/(rpc\/)?([a-z_]+)$/);

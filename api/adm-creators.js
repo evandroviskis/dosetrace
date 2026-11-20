@@ -29,9 +29,16 @@ async function readBody(req) {
 const bad = (field) => ({ error: 'invalid', field });
 const W = { 'Content-Type': 'application/json', Prefer: 'return=representation' };
 
+// A write the database refuses must never be answered as saved (live 2026-11-20, CR-W1): it throws, and the
+// handler answers 503 { error: 'store' }.
+async function must(sb, path, init) {
+  const r = await D.rest(sb, path, init);
+  if (!r.ok) { const e = new Error('store'); e.store = true; throw e; }
+  return r;
+}
 async function audit(sb, actor, action, creatorId, detail) {
   const d = detail ? JSON.parse(JSON.stringify(detail).replace(/@/g, '(at)')) : null;
-  await D.rest(sb, 'creator_audit', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ actor, action, creator_id: creatorId || null, detail: d }) });
+  await must(sb, 'creator_audit', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ actor, action, creator_id: creatorId || null, detail: d }) });
 }
 async function creatorRow(sb, id) {
   const r = await D.rest(sb, `creators?select=id,code,slug,display_name,country,platforms,status,is_test,created_at,approved_at,ended_at&id=eq.${encodeURIComponent(id)}`);
@@ -91,11 +98,11 @@ async function actReview(sb, who, b, now) {
   const last = p.ok && Array.isArray(p.j) && p.j[0];
   if (!last) return [409, { error: 'no_profile' }];
   const review = b.decision === 'approve' ? 'approved' : b.decision === 'changes' ? 'changes_requested' : 'rejected';
-  await D.rest(sb, `creator_profiles?id=eq.${last.id}`, { method: 'PATCH', headers: W, body: JSON.stringify({ review, review_note: note, reviewed_at: new Date(now).toISOString() }) });
+  await must(sb, `creator_profiles?id=eq.${last.id}`, { method: 'PATCH', headers: W, body: JSON.stringify({ review, review_note: note, reviewed_at: new Date(now).toISOString() }) });
   const patch = { updated_at: new Date(now).toISOString() };
   if (b.decision === 'approve' && c.status !== 'active') { patch.status = 'active'; patch.approved_at = c.approved_at || new Date(now).toISOString(); }
   if (b.decision === 'reject' && c.status !== 'active') patch.status = 'rejected';
-  await D.rest(sb, `creators?id=eq.${c.id}`, { method: 'PATCH', headers: W, body: JSON.stringify(patch) });
+  await must(sb, `creators?id=eq.${c.id}`, { method: 'PATCH', headers: W, body: JSON.stringify(patch) });
   await audit(sb, who.id, 'review_' + b.decision, c.id, null);
   return [200, { ok: true }];
 }
@@ -107,7 +114,7 @@ async function actStatus(sb, who, b, now) {
   if ((NEXT[c.status] || []).indexOf(to) < 0) return [409, { error: 'transition' }];
   const patch = { status: to, updated_at: new Date(now).toISOString() };
   if (to === 'ended') patch.ended_at = new Date(now).toISOString();
-  await D.rest(sb, `creators?id=eq.${c.id}`, { method: 'PATCH', headers: W, body: JSON.stringify(patch) });
+  await must(sb, `creators?id=eq.${c.id}`, { method: 'PATCH', headers: W, body: JSON.stringify(patch) });
   await audit(sb, who.id, 'status_' + to, c.id, null);
   return [200, { ok: true }];
 }
@@ -191,7 +198,7 @@ async function actTaxForm(sb, who, b) {
   if (!DATE_RE.test(String(b.date || ''))) return [400, bad('date')];
   const p = await D.rest(sb, `creator_profiles?select=id&creator_id=eq.${c.id}&order=submitted_at.desc&limit=1`);
   const last = p.ok && Array.isArray(p.j) && p.j[0]; if (!last) return [404, { error: 'no_profile' }];
-  await D.rest(sb, `creator_profiles?id=eq.${last.id}`, { method: 'PATCH', headers: W, body: JSON.stringify({ tax_form_received_on: b.date }) });
+  await must(sb, `creator_profiles?id=eq.${last.id}`, { method: 'PATCH', headers: W, body: JSON.stringify({ tax_form_received_on: b.date }) });
   await audit(sb, who.id, 'tax_form', c.id, { on: b.date });
   return [200, { ok: true }];
 }
@@ -256,6 +263,7 @@ async function handler(req, res, opts) {
     const [status, body] = await fn(sb, auth.user, b, now);
     return json(res, status, body);
   } catch (e) {
+    if (e && e.store) return json(res, 503, { error: 'store' });
     if (e && e.table) return json(res, 503, { error: 'not_configured', table: e.table });
     return json(res, 503, { error: 'unavailable' });
   }

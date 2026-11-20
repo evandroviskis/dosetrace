@@ -70,7 +70,8 @@ async function opInviteSubmit(sb, b, res) {
   if (!ins.ok) return json(res, 503, { error: 'store' });
   const patch = { country: v.country, updated_at: new Date().toISOString() };
   if (x.creator.status === 'invited') patch.status = 'submitted';
-  await D.rest(sb, `creators?id=eq.${x.creator.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
+  const up = await D.rest(sb, `creators?id=eq.${x.creator.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(patch) });
+  if (!up.ok) return json(res, 503, { error: 'store' });
   await D.rest(sb, `creator_links?id=eq.${x.link.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ last_used_at: new Date().toISOString() }) });
   return json(res, 200, { ok: true, masked: v.masked });
 }
@@ -83,7 +84,9 @@ async function opPortal(sb, b, res) {
   const built = D.build(data, now);
   const st = built.creators.find((s) => s.id === x.creator.id);
   if (!st) return json(res, 401, DENY);
-  D.rest(sb, `creator_links?id=eq.${x.link.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ last_used_at: new Date(now).toISOString() }) }).catch(() => {});
+  // Awaited: Vercel freezes the function once it has answered, so a write left running is lost (live 2026-11-20).
+  // A failed stamp does not hide the portal.
+  try { await D.rest(sb, `creator_links?id=eq.${x.link.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify({ last_used_at: new Date(now).toISOString() }) }); } catch (e) { /* stamp only */ }
   const view = D.portalView(st, built.program);
   view.months_list = built.months;
   view.codes = (st.platforms || []).map((pl) => ({ platform: pl, code: C.platformCode(st.code, pl), link: C.goLink(st.code, pl) }));
