@@ -1341,7 +1341,7 @@ export default function ProtocolsScreen() {
     const sp = route.params?.search;
     if (!sp || !sp.target) return;
     const p = sp.protocolId != null ? protocols.find((x) => String(x.id) === String(sp.protocolId)) || null : null;
-    const needsProtocol = ['protocol', 'calc', 'vial', 'newVial', 'editVial', 'schedule'].includes(sp.target);
+    const needsProtocol = ['protocol', 'calc', 'vial', 'newVial', 'editVial', 'schedule', 'pastDoses'].includes(sp.target);
     if (needsProtocol && !p && fetchGen === 0) return; // the list is not read yet
     navigation.setParams({ search: undefined });
     if (needsProtocol && !p) return; // gone meanwhile (ended or deleted): nothing opens
@@ -1354,6 +1354,7 @@ export default function ProtocolsScreen() {
       case 'vial': openProtocolById(p.id); setLand({ key: sp.target === 'calc' && p.type === 'oral' ? 'serving' : sp.target, n: sp.n }); break;
       case 'newVial': openProtocolById(p.id); if (p.type !== 'oral') openNewVialWindow(p); break;
       case 'editVial': openProtocolById(p.id); openEditVial(p.id); break;
+      case 'pastDoses': openProtocolById(p.id); setTimeout(() => askPastStart(getProtocolById(p.id) || p, currentVialOf(p.id)), 400); break;
       case 'schedule': openProtocolById(p.id); openEdit(p, 4); break;
       case 'ended':
       case 'deleted': if (!book) { setOpenId(null); setShowList(true); } setLand({ key: 'archive', n: sp.n }); break;
@@ -2375,64 +2376,7 @@ export default function ProtocolsScreen() {
       // Sim: the curve estimates that time (A-30) and the vial starts with the doses scheduled since it was
       // mixed already used. Não: the curve starts today (history_from) and "Editar frasco" opens for the
       // doses already used. Nothing is ever written to the Dose log (declared history is not a logged dose).
-      const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
-      const hq = historyQuestion(protocolData, Date.now());
-      const newVial = newVialId != null ? getVialById(newVialId) : null;
-      const ask = protocolData ? pastStartAsk({ protocol: protocolData, vial: newVial, nowMs: Date.now(), curveAsk: !!hq }) : null;
-      // A-112 SP-5: no setup opening here any more — Today opens "Make sure your reminders arrive"
-      // once per phone (lib/reminderSetup), and onboarding offers it first.
-      if (ask) {
-        const doseText = `${decimalText(protocolData.dose, language)}\u00A0${unitText(protocolData.dose_unit, language)}`;
-        // Council 2026-10-27: the date carries its year when it is another year; one dose reads "Sim".
-        const title = t(pluralKey('protocols_past_title', ask.n, language))
-          .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonthAuto')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
-        // Founder 2026-10-27 ("3 b"): with more than one dose a third answer, "Quase todas" — the texts name it.
-        const many = ask.n > 1;
-        const bk = (k) => t(`${k}${many ? '_many' : ''}`);
-        let body = bk('protocols_past_body');
-        if (ask.vialUnknown) body = bk('protocols_past_body_vial_unknown');
-        else if (ask.vialUsed > 0) body = bk('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total));
-        else if (ask.unitsUsed > 0) {
-          const sv = computeServings({
-            targetDose: protocolData.dose, doseUnit: protocolData.dose_unit, servingStrength: protocolData.serving_strength,
-            servingStrengthUnit: protocolData.serving_strength_unit, servingUnits: protocolData.serving_units, form: protocolData.notes,
-          });
-          const word = sv && sv.unitKey ? `\u00A0${t(servingPluralKey(sv.unitKey, ask.unitsUsed, language, { glyph: false }))}` : '';
-          body = bk('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
-        }
-        const supplyChanged = () => {
-          notifyDataChanged('protocol');
-          requestSync();
-          afterProtocolChange({ saved: getProtocolById(newId) }).catch(() => {}); // the vial alerts follow the new count
-          fetchProtocols();
-        };
-        // Shown once the add sheet is gone (screenSheet waits for it). Council 2026-10-27: it must be answered —
-        // a backdrop tap or Android back would leave the curve as "Sim" and the vial as "Não".
-        // The three answers (lib/pastDoses pastStartWrites): history_from, the vial, the bottle, then one window.
-        const answer = (kind) => () => {
-          const w = pastStartWrites(kind, ask, { hasVial: !!newVial, recon: protocolData.type === 'recon', today: todayStr });
-          if (w.historyFrom) {
-            try { updateProtocol(newId, { history_from: w.historyFrom }); } catch { /* best-effort */ }
-            notifyDataChanged('protocol');
-            requestSync();
-          }
-          if (w.vialUpdate) { try { updateVial(newVial.id, w.vialUpdate); } catch { /* best-effort */ } }
-          if (w.unitsTaken != null) { try { updateProtocol(newId, { units_taken: w.unitsTaken }); } catch { /* best-effort */ } }
-          if (w.vialUpdate || w.unitsTaken != null) supplyChanged();
-          if (w.openNewVialWindow) setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
-          else if (w.openEditVial) setTimeout(() => openEditVialRef.current(newId), 400);
-        };
-        const noBtn = { label: t('protocols_past_no'), kind: 'secondary', onPress: answer('no') };
-        const yesBtn = { label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'), kind: 'primary', onPress: answer('yes') };
-        // "Quase todas" (founder "3 b"): only with more than one dose.
-        const almostBtn = { label: t('protocols_past_almost'), kind: 'secondary', onPress: answer('almost') };
-        setScreenSheet({
-          title,
-          body,
-          locked: true,
-          buttons: many ? [yesBtn, almostBtn, noBtn] : [noBtn, yesBtn],
-        });
-      }
+      if (protocolData) askPastStart(protocolData, newVialId != null ? getVialById(newVialId) : null);
     }
     requestSync();
     // Refresh every mounted screen right away (Today, etc.) — don't wait for the
@@ -2558,6 +2502,76 @@ export default function ProtocolsScreen() {
   // account, 3 for one made before the rule); premium unlocks unlimited. The gate
   // uses a FRESH DB count (not the possibly-stale `protocols` state) so a rapid
   // second Add right after a save can't slip an extra protocol through.
+  // Founder 2026-10-27: the ONE past-doses question for a protocol that started before it was in the
+  // app (lib/pastDoses). The manual form asks it after a save; the onboarding's protocol lands here
+  // when its answered start has become past by the time the account exists (council 2026-11-20).
+  // The protocol's current vial (the latest active one), for the question opened from a search target.
+  const currentVialOf = (pid) => {
+    const vs = (() => { try { return getVialsForProtocol(pid) || []; } catch { return []; } })();
+    return vs.filter((v) => v.active).slice(-1)[0] || vs.slice(-1)[0] || null;
+  };
+  function askPastStart(protocolData, newVial) {
+    if (!protocolData) return;
+    const newId = protocolData.id;
+    const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
+    const hq = historyQuestion(protocolData, Date.now());
+    const ask = protocolData ? pastStartAsk({ protocol: protocolData, vial: newVial, nowMs: Date.now(), curveAsk: !!hq }) : null;
+    // A-112 SP-5: no setup opening here any more — Today opens "Make sure your reminders arrive"
+    // once per phone (lib/reminderSetup), and onboarding offers it first.
+    if (ask) {
+      const doseText = `${decimalText(protocolData.dose, language)}\u00A0${unitText(protocolData.dose_unit, language)}`;
+      // Council 2026-10-27: the date carries its year when it is another year; one dose reads "Sim".
+      const title = t(pluralKey('protocols_past_title', ask.n, language))
+        .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonthAuto')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
+      // Founder 2026-10-27 ("3 b"): with more than one dose a third answer, "Quase todas" — the texts name it.
+      const many = ask.n > 1;
+      const bk = (k) => t(`${k}${many ? '_many' : ''}`);
+      let body = bk('protocols_past_body');
+      if (ask.vialUnknown) body = bk('protocols_past_body_vial_unknown');
+      else if (ask.vialUsed > 0) body = bk('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total));
+      else if (ask.unitsUsed > 0) {
+        const sv = computeServings({
+          targetDose: protocolData.dose, doseUnit: protocolData.dose_unit, servingStrength: protocolData.serving_strength,
+          servingStrengthUnit: protocolData.serving_strength_unit, servingUnits: protocolData.serving_units, form: protocolData.notes,
+        });
+        const word = sv && sv.unitKey ? `\u00A0${t(servingPluralKey(sv.unitKey, ask.unitsUsed, language, { glyph: false }))}` : '';
+        body = bk('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
+      }
+      const supplyChanged = () => {
+        notifyDataChanged('protocol');
+        requestSync();
+        afterProtocolChange({ saved: getProtocolById(newId) }).catch(() => {}); // the vial alerts follow the new count
+        fetchProtocols();
+      };
+      // Shown once the add sheet is gone (screenSheet waits for it). Council 2026-10-27: it must be answered —
+      // a backdrop tap or Android back would leave the curve as "Sim" and the vial as "Não".
+      // The three answers (lib/pastDoses pastStartWrites): history_from, the vial, the bottle, then one window.
+      const answer = (kind) => () => {
+        const w = pastStartWrites(kind, ask, { hasVial: !!newVial, recon: protocolData.type === 'recon', today: todayStr });
+        if (w.historyFrom) {
+          try { updateProtocol(newId, { history_from: w.historyFrom }); } catch { /* best-effort */ }
+          notifyDataChanged('protocol');
+          requestSync();
+        }
+        if (w.vialUpdate) { try { updateVial(newVial.id, w.vialUpdate); } catch { /* best-effort */ } }
+        if (w.unitsTaken != null) { try { updateProtocol(newId, { units_taken: w.unitsTaken }); } catch { /* best-effort */ } }
+        if (w.vialUpdate || w.unitsTaken != null) supplyChanged();
+        if (w.openNewVialWindow) setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
+        else if (w.openEditVial) setTimeout(() => openEditVialRef.current(newId), 400);
+      };
+      const noBtn = { label: t('protocols_past_no'), kind: 'secondary', onPress: answer('no') };
+      const yesBtn = { label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'), kind: 'primary', onPress: answer('yes') };
+      // "Quase todas" (founder "3 b"): only with more than one dose.
+      const almostBtn = { label: t('protocols_past_almost'), kind: 'secondary', onPress: answer('almost') };
+      setScreenSheet({
+        title,
+        body,
+        locked: true,
+        buttons: many ? [yesBtn, almostBtn, noBtn] : [noBtn, yesBtn],
+      });
+    }
+  }
+
   // DV-126 (AD-49, DL-82): the trial is claimed only when the store offers it to this person (the paywall's rule);
   // the answer is waited for at most 2.5 s, then the sheet opens without the trial.
   async function promptUpgrade() {

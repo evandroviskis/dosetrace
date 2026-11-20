@@ -31,7 +31,7 @@ test('L-06: a past start date asks the history question; only "No" writes, and o
   assert.equal(src.split('historyQuestion(').length - 1, 2, 'the add flow and the edit that moves the start earlier');
   const i = src.indexOf('const hq = historyQuestion(protocolData, Date.now());');
   assert.ok(i > 0);
-  const block = src.slice(i, src.indexOf('requestSync();\n    // Refresh every mounted screen', i));
+  const block = src.slice(i, src.indexOf('// DV-126 (AD-49, DL-82)', i)); // askPastStart
   // Council 2026-10-27: "Sim" on an oral bottle also moves units_taken (the supply, never a dose row).
   assert.equal(block.split('updateProtocol(').length - 1, 2, 'Não: history_from; Sim: the bottle units');
   assert.match(block, /updateProtocol\(newId, \{ units_taken: w\.unitsTaken \}\)/);

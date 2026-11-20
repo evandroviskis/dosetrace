@@ -47,7 +47,7 @@ test('PQ-4: the old "Objetivo de bem-estar" pills row under the schedule is gone
   const step4 = FORM.slice(FORM.indexOf('{step === 4 && ('), FORM.indexOf("{step === 5 && type === 'recon'"));
   assert.doesNotMatch(step4, /goals/);
   // One tile list in the app: the pure lib.
-  assert.match(FORM, /import \{ purposeOrder \} from '\.\.\/lib\/protocolPurpose';/);
+  assert.match(FORM, /import \{ purposeOrder, purposeProductKey, goalsAfterProductChange \} from '\.\.\/lib\/protocolPurpose';/);
 });
 
 test('PQ-5 / PQ-11: the form orders by her protocols, ended ones too, never the one being edited; Edit keeps the saved goals', () => {

@@ -171,6 +171,7 @@ function formSave(now, form = {}) {
     rtuVialFields: () => null, getProtocolById: (id) => ({ id }), afterProtocolChange: async () => {},
     Analytics: { protocolCreated() {} }, historyQuestion: () => null, setScreenSheet() {},
     getVialById: () => null, pastStartAsk: () => null, // founder 2026-10-27: the past-start question (lib/pastDoses)
+    askPastStart() {}, // the same question, now one function (the form and the onboarding, council 2026-11-20)
     updateProtocol() {}, notifyDataChanged() {}, requestSync() {}, fetchProtocols() {}, pluralKey: (k) => k,
     friendlyError: (e) => `ERR:${e && e.message}`,
   });

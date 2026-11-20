@@ -128,15 +128,34 @@ test('council 2026-11-20 (item 12): more past doses than the vial holds gets the
     deps.past = { ...deps.past, pastStartAsk: () => ({ n: 30 }), pastStartWrites: () => ({ [flag]: true }) };
     const r = await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, deps);
     assert.equal(r.action, 'inserted');
-    assert.equal(r.vialFollowUp, target, flag);
-    assert.deepEqual(A.landingTarget({ kind: 'today' }, { protocolId: r.newId, vialFollowUp: r.vialFollowUp }),
+    assert.equal(r.followUp, target, flag);
+    assert.deepEqual(A.landingTarget({ kind: 'today' }, { protocolId: r.newId, followUp: r.followUp }),
       { screen: 'MainTabs', params: { screen: 'Protocols', params: { search: { target, protocolId: r.newId } } } }, 'the follow-up wins over the first choice');
   }
   const { deps } = await setup();
   const plain = await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, deps);
-  assert.equal(plain.vialFollowUp, null);
+  assert.equal(plain.followUp, null);
   const fs = require('node:fs');
   const OA = fs.readFileSync(require('node:path').join(__dirname, '..', 'lib', 'onboardingApp.js'), 'utf8');
-  assert.match(OA, /landingTarget\(landing, \{ protocolId: result\.newId, vialFollowUp: result\.vialFollowUp \}\)/);
-  assert.match(OA, /landingTarget\(\{ kind: 'protocol' \}, \{ protocolId: r\.newId, vialFollowUp: r\.vialFollowUp \}\)/);
+  assert.match(OA, /landingTarget\(landing, \{ protocolId: result\.newId, followUp: result\.followUp \}\)/);
+  assert.match(OA, /landingTarget\(\{ kind: 'protocol' \}, \{ protocolId: r\.newId, followUp: r\.followUp \}\)/);
+});
+
+test('council 2026-11-20 (item 20): a start she answered days before the account (Começo hoje / Outro dia) that is now past asks the app\'s past-doses question on the protocol; never assumed', async () => {
+  const frozenThen = { ...PROTOCOL, startMode: 'today', startOn: '2026-11-17' }; // answered on the 17th, account on the 20th
+  const { deps } = await setup({ draftPatch: { protocol: frozenThen } });
+  const r = await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, deps);
+  assert.equal(r.action, 'inserted');
+  assert.equal(r.followUp, 'pastDoses');
+  assert.deepEqual(A.landingTarget({ kind: 'today' }, { protocolId: r.newId, followUp: r.followUp }),
+    { screen: 'MainTabs', params: { screen: 'Protocols', params: { search: { target: 'pastDoses', protocolId: r.newId } } } });
+  const today = await setup({ draftPatch: { protocol: { ...PROTOCOL, startMode: 'today', startOn: '2026-11-20' } } });
+  assert.equal((await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, today.deps)).followUp, null, 'still today: nothing to ask');
+  const started = await setup({ draftPatch: { protocol: { ...PROTOCOL, startMode: 'started', startedOn: '2026-11-10', startOn: '2026-11-10', pastAnswer: 'no' } } });
+  assert.notEqual((await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, started.deps)).followUp, 'pastDoses', 'already started: she answered it in the onboarding');
+  const PS = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'screens', 'ProtocolsScreen.js'), 'utf8');
+  assert.match(PS, /case 'pastDoses': openProtocolById\(p\.id\); setTimeout\(\(\) => askPastStart\(getProtocolById\(p\.id\) \|\| p, currentVialOf\(p\.id\)\), 400\); break;/);
+  assert.match(PS, /function askPastStart\(protocolData, newVial\) \{/);
+  assert.match(PS, /if \(protocolData\) askPastStart\(protocolData, newVialId != null \? getVialById\(newVialId\) : null\);/, 'the manual form uses the same question');
+  assert.match(PS, /\['protocol', 'calc', 'vial', 'newVial', 'editVial', 'schedule', 'pastDoses'\]\.includes\(sp\.target\)/);
 });
