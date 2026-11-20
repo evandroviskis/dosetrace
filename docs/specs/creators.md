@@ -2,7 +2,7 @@
 
 Escrita em 2026-11-13 pela sessão do painel, a partir de `Second Brain/dosetrace/admin-panel/HANDOFF-afiliados.md`
 (pedido do Evandro na sessão Dosetrace Ads, 2026-11-13) e das notas 021, 022 e 023.
-Estado: **RASCUNHO PARA APROVAÇÃO.** Nada desta spec foi construído. Desenhos: `docs/design/adm-criadores.html`.
+Estado: **APROVADA pelo Evandro em 2026-11-20** ("Pode construir a spec e os desenhos"). Construída com teste antes (commits af94c945 e fd6baeff, local). **Migração não aplicada, nada publicado**, aguardando o "go". Desenhos: `docs/design/adm-criadores.html`.
 Parte do app: `docs/specs/creators-app-side.md` (vai para a sessão do app, que passa pelo dt-council).
 
 Registro consultado antes de propor (`scripts/checar-decisoes.sh afiliado influenciador criador referral webhook A-179`):
@@ -185,3 +185,42 @@ MMP, SDK ou pixel no app (regra do conselho, nota 022); rastrear por código de 
 - **P4** iPhone: passar por uma página curta com o código antes da App Store (recomendado: no iPhone o código é a única atribuição) ou ir direto para a loja?
 - **P5** Exceção à regra "sem vista de teste": só a tela do criador de teste mostra os próprios dados de teste/sandbox, com a faixa TESTE, e nunca entram em total ou ranking. Aceita?
 Não são perguntas de agora (marketing/finanças, contador, advogado): a estratégia de comissão, o benefício ao público e o serviço de pagamento definitivo.
+
+
+## Decisões de 2026-11-20 (respostas P1–P5; detalhe em `Second Brain/dosetrace/admin-panel/02-decisoes.md`)
+- P1 spec e desenhos aprovados; correções depois de ele ver funcionando.
+- P2 webhook do RevenueCat ligado (fecha a pendência de 02/11).
+- P3 portal por link privado, sem senha; o link fica guardado **cifrado** para o Evandro ver e copiar de novo quando quiser. "Novo link" desliga o anterior.
+- P4 a Apple não passa o código pela loja → no iPhone sempre aparece a página com o código e o botão da App Store. No Android, direto para a Play (o referrer leva o código).
+- P5 a tela do criador de teste mostra os dados de teste com a faixa TESTE. **Regra geral nova:** contas de teste ficam fora só dos números de usuários reais; para testar, pode criar e mostrar onde precisar, identificado.
+- Fato do registro aplicado (arquivo `../../65-oferta-entrada-e-indicacao.md`, 2026-11-19): o modelo padrão de cada criador novo é **35 % da receita líquida por 12 meses, só assinatura paga confirmada**. Continua configurável por criador. O benefício ao público ("1 mês extra de Premium depois do primeiro pagamento") é da sessão do app; o painel só guarda o texto.
+
+## Desvios para o Evandro aceitar (construído diferente do texto acima)
+| # | O quê | Por quê |
+|---|---|---|
+| DV-1 | Webhook como função da Vercel (`api/rc-webhook.js`), não edge function do Supabase | Mesmos testes e mesmo deploy das outras funções do painel. Para o RevenueCat é só uma URL. |
+| DV-2 | "Instalações Android" por criador não aparece como número; a página diz "Android: ver Play Console" | O servidor só vê a conta quando o app manda o código (AP5). A instalação sem cadastro fica só no Play Console, por `utm_campaign`. Nada é estimado. |
+| DV-3 | O extrato congela quando o mês é **marcado como pago**, não num "fechar o mês" separado | Um botão a menos. Até o pagamento, um reembolso tardio ainda reduz o valor, o que está certo. Depois de pago, o valor fica gravado. |
+| DV-4 | O "Precisa de você" dos criadores aparece na aba Criadores, ainda não no Resumo | Mantém o Resumo como está. Entra no Resumo se o Evandro quiser. |
+| DV-5 | O convite vale 14 dias; o link do portal não vence | P3 pede que o portal continue valendo. O convite leva dados de pagamento, por isso vence (dá para gerar outro). |
+
+## Estado da lista de aceite (2026-11-20)
+| # | Estado | Evidência |
+|---|---|---|
+| CR-D1 | feito | "Pode construir a spec e os desenhos" (2026-11-20) |
+| CR-1 | testes ok; falta S25 | `__tests__/creatorsApi.test.js` CR-1 |
+| CR-2 | testes ok; falta S25 e curl ao vivo | CR-2, CR-2a/b/c/d |
+| CR-3 | testes ok; render dos 3 países nos dois temas; falta S25 | CR-3a/b, CR-3/4/5; renders do convite |
+| CR-4 | testes ok; falta consulta MCP ao vivo | CR-4a, CR-3/4/5 |
+| CR-5 | testes ok; falta S25 | CR-3/4/5 |
+| CR-LED1 | testes ok; falta o evento de teste do RevenueCat ao vivo | CR-LED1, CR-LED1a |
+| CR-LED2 | testes ok | CR-LED2a, CR-E2E (memória) |
+| CR-LED3 | **aberto**: fórmula e sinal do reembolso a conferir com o primeiro evento sandbox real | CR-LED3a cobre a fórmula escrita |
+| CR-COM1 | testes ok | CR-COM1a/b/c/d/e |
+| CR-COM2 | testes ok; falta S25 | CR-COM2, CR-E2E |
+| CR-UI1 | render dois temas, desktop e 390 px; falta S25 | renders da aba e da tela do criador |
+| CR-UI2 | testes ok; render dois temas; falta S25 | CR-UI2a, CR-E2E |
+| CR-E2E | só em memória; **ao vivo depende** de migração + deploy + webhook + build do app (AP4/AP5/AP7) | CR-E2E (memória) |
+| CR-REC | aberto (depois do E2E ao vivo) | — |
+| CR-OFF | aberto (estado final) | — |
+| CR-APP | enviado à sessão do app em 2026-11-20 | mensagem |
