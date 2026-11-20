@@ -450,3 +450,17 @@ test('OB-14: Seu primeiro protocolo, Qual composto voce quer usar, and the chose
   assert.match(steps, /onPress=\{\(\) => setChanging\(true\)\}/, 'Trocar brings the search and the list back');
   assert.match(read('screens/OnboardingFlowScreen.js'), /cur === 'compound' && <Text style=\{s\.kicker\}>\{t\('ob_cmp_kicker'\)\}<\/Text>/);
 });
+
+test('OB-16 (council 2026-11-20, item 13): IU next to mg / mcg, as the manual form offers; the draft carries IU through', () => {
+  const src = read('screens/components/OnboardingProtocolSteps.js');
+  assert.match(src, /name="amount"[\s\S]{0,400}?units=\{\['mg', 'mcg', 'IU'\]\}/);
+  assert.match(src, /name="dose"[\s\S]{0,500}?units=\{p\.form === 'oral' \? \['mg', 'mcg', 'IU', 'g'\] : \['mg', 'mcg', 'IU'\]\}/);
+  const base = { name: 'HGH', base: 'hgh', forms: { recon: 'lyo_hgh' }, form: 'recon', amount: '10', unit: 'IU', water: '1', dose: '2', doseUnit: 'IU', freq: 'daily', time: '08:00', startMode: 'today' };
+  const r = D.draftToForm(base, { now: NOW, language: 'pt' });
+  assert.equal(r.form.unit, 'IU');
+  assert.equal(r.form.doseUnit, 'IU');
+  const rtu = D.draftToForm({ ...base, form: 'rtu', amount: '30', ml: '3', unit: 'IU' }, { now: NOW, language: 'pt' });
+  assert.equal(rtu.form.concentrationUnit, 'IU');
+  const d3 = D.draftToForm({ name: 'Vitamina D3', base: 'vit_d3', forms: { oral: 'oral_vit_d3' }, form: 'oral', dose: '5000', doseUnit: 'IU', freq: 'daily', time: '09:00', startMode: 'today' }, { now: NOW, language: 'pt' });
+  assert.equal(d3.form.servingStrengthUnit, 'IU');
+});

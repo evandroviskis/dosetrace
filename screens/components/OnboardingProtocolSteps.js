@@ -18,7 +18,7 @@ import SyringeScale from './SyringeScale';
 import { DTPickerSheet, DTWheel, SystemPicker, AndroidDateDialog } from './ProtocolParts';
 import { tileStyles } from '../../components/CompoundPills';
 import { formatTime, pickerButtons, pickerIs24Hour } from '../../lib/timeFormat';
-import { formatDate, MONTHS_SHORT, WEEKDAYS_SHORT } from '../../lib/localeFormat';
+import { formatDate, MONTHS_SHORT, WEEKDAYS_SHORT, unitText } from '../../lib/localeFormat';
 import { dateColumns, dateAfter, timeColumns, timeAfter, wheelMotion, WHEEL_IDLE } from '../../lib/wheelPick';
 import { wheelStartTime, timeDoneDisabled, timeDoneValue } from '../../lib/protocolForm';
 import { computeDraw } from '../../lib/doseMath';
@@ -192,7 +192,7 @@ function SmallVial({ c, label, filled }) {
   );
 }
 
-function NumberField({ s, c, label, hint, value, onChange, unit, units, onUnit, kb, name, t }) {
+function NumberField({ s, c, label, hint, value, onChange, unit, units, onUnit, kb, name, t, language }) {
   return (
     <View style={s.gap8}>
       <Text style={s.fieldLabel}>{label}</Text>
@@ -208,8 +208,8 @@ function NumberField({ s, c, label, hint, value, onChange, unit, units, onUnit, 
           accessibilityLabel={label}
         />
         {units ? (
-          <SegmentedBar compact items={units.map((u) => ({ key: u, label: u }))} value={unit} onChange={onUnit} accessibilityLabel={label} style={s.unitBar} />
-        ) : <Text style={s.unitText}>{unit}</Text>}
+          <SegmentedBar compact items={units.map((u) => ({ key: u, label: unitText(u, language) }))} value={unit} onChange={onUnit} accessibilityLabel={label} style={s.unitBar} />
+        ) : <Text style={s.unitText}>{unitText(unit, language)}</Text>}
       </View>
       {hint ? <Text style={s.hint}>{hint}</Text> : null}
     </View>
@@ -224,19 +224,19 @@ function VialStep({ s, c, p, patch, t, language, kb }) {
     <View style={s.gap16}>
       {p.form !== 'oral' ? <SmallVial c={c} label={pic.label} filled={pic.filled} /> : null}
       {fields.includes('amount') ? (
-        <NumberField s={s} c={c} kb={kb} name="amount" t={t} label={t('ob_vial_amount').replace('{compound}', name)} hint={t('ob_vial_amount_hint')}
-          value={p.amount} onChange={(v) => patch({ amount: v, vialUnknown: false })} unit={p.unit || 'mg'} units={['mg', 'mcg']} onUnit={(u) => patch({ unit: u })} />
+        <NumberField s={s} c={c} kb={kb} language={language} name="amount" t={t} label={t('ob_vial_amount').replace('{compound}', name)} hint={t('ob_vial_amount_hint')}
+          value={p.amount} onChange={(v) => patch({ amount: v, vialUnknown: false })} unit={p.unit || 'mg'} units={['mg', 'mcg', 'IU']} onUnit={(u) => patch({ unit: u })} />
       ) : null}
       {fields.includes('water') ? (
-        <NumberField s={s} c={c} kb={kb} name="water" t={t} label={t('ob_vial_water')} hint={t('ob_vial_water_hint')}
+        <NumberField s={s} c={c} kb={kb} language={language} name="water" t={t} label={t('ob_vial_water')} hint={t('ob_vial_water_hint')}
           value={p.water} onChange={(v) => patch({ water: v, vialUnknown: false })} unit="mL" />
       ) : null}
       {fields.includes('ml') ? (
-        <NumberField s={s} c={c} kb={kb} name="ml" t={t} label={t('ob_vial_ml')} hint={t('ob_vial_amount_hint')}
+        <NumberField s={s} c={c} kb={kb} language={language} name="ml" t={t} label={t('ob_vial_ml')} hint={t('ob_vial_amount_hint')}
           value={p.ml} onChange={(v) => patch({ ml: v, vialUnknown: false })} unit="mL" />
       ) : null}
-      <NumberField s={s} c={c} kb={kb} name="dose" t={t} label={t('ob_vial_dose')} hint={t(p.form === 'oral' ? 'ob_vial_dose_hint_oral' : 'ob_vial_dose_hint')}
-        value={p.dose} onChange={(v) => patch({ dose: v })} unit={p.doseUnit || 'mg'} units={['mg', 'mcg']} onUnit={(u) => patch({ doseUnit: u })} />
+      <NumberField s={s} c={c} kb={kb} language={language} name="dose" t={t} label={t('ob_vial_dose')} hint={t(p.form === 'oral' ? 'ob_vial_dose_hint_oral' : 'ob_vial_dose_hint')}
+        value={p.dose} onChange={(v) => patch({ dose: v })} unit={p.doseUnit || 'mg'} units={p.form === 'oral' ? ['mg', 'mcg', 'IU', 'g'] : ['mg', 'mcg', 'IU']} onUnit={(u) => patch({ doseUnit: u })} />
       <TouchableOpacity style={[s.linkBtn, p.vialUnknown && s.linkOn]} onPress={() => patch({ vialUnknown: !p.vialUnknown })} accessibilityRole="checkbox" accessibilityState={{ checked: !!p.vialUnknown }}>
         <View style={s.inline}>
           {p.vialUnknown ? <CheckMark size={18} color={c.ink} /> : null}
