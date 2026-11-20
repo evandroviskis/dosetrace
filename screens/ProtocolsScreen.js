@@ -52,6 +52,7 @@ import {
 import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
 import { pastStartAsk, pastStartWrites, editStartAsk, editStartWrites } from '../lib/pastDoses';
+import { insertNewProtocol } from '../lib/protocolSave';
 import { tsMs, vialToReopen } from '../lib/deleteDose';
 import { startAfterEnd, isEnded } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -74,7 +75,7 @@ import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker
 import { supplyState, bottleState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, servingText, supplyDaysLeft } from '../lib/oralMath';
-import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
+import { matchesQuery, blendComposition, BLEND_IDS, LYOPHILIZED_KEYS, RTU_KEYS, ORAL_KEYS } from '../lib/compounds';
 import { frequencyLabelFor, protocolFrequencyText, courseState, endDateRange } from '../lib/schedule';
 import { startNewVial, showsNewVialButton } from '../lib/newVial';
 import { applyVialEdit, showsEditVialButton, editMixDate, mixDateError } from '../lib/vialEdit';
@@ -129,12 +130,6 @@ const SORT_OPTIONS = [
   { key: 'type', label: 'protocols_sort_type' },
 ];
 const SORT_STORAGE_KEY = 'dosetrace_protocols_sort';
-
-const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_eloralintide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_fsh','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_pentadeca_arginate','lyo_peptide_t','lyo_pinealon','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip','lyo_glow','lyo_klow','lyo_wolverine'];
-
-const RTU_KEYS = ['rtu_boldenone_undecylenate','rtu_cyanocobalamin','rtu_drostanolone_enanthate','rtu_drostanolone_propionate','rtu_dulaglutide','rtu_estradiol_cypionate','rtu_estradiol_valerate','rtu_hydroxocobalamin','rtu_insulin_aspart','rtu_insulin_degludec','rtu_insulin_glargine','rtu_insulin_lispro','rtu_l_carnitine','rtu_lipo_c','rtu_liraglutide','rtu_methenolone_enanthate','rtu_methylcobalamin','rtu_mic_blend','rtu_nandrolone_decanoate','rtu_nandrolone_phenylpropionate','rtu_progesterone','rtu_pyridoxine','rtu_semaglutide','rtu_stanozolol','rtu_sustanon_250','rtu_testosterone_cypionate','rtu_testosterone_enanthate','rtu_testosterone_propionate','rtu_testosterone_suspension','rtu_testosterone_undecanoate','rtu_tirzepatide','rtu_trenbolone_acetate','rtu_trenbolone_enanthate','rtu_trenbolone_hexahydrobenzylcarbonate'];
-
-const ORAL_KEYS = ['oral_alpha_gpc','oral_ala','oral_ashwagandha','oral_astragalus','oral_bacopa','oral_berberine','oral_beta_alanine','oral_citrulline','oral_coq10','oral_creatine','oral_curcumin','oral_gaba','oral_grape_seed','oral_krill_oil','oral_carnitine','oral_glutamine','oral_theanine','oral_tyrosine','oral_lions_mane','oral_maca','oral_mag_bisglycinate','oral_mag_threonate','oral_melatonin','oral_milk_thistle','oral_nac','oral_nmn','oral_nr','oral_omega3','oral_probiotics','oral_red_yeast','oral_resveratrol','oral_rhodiola','oral_saw_palmetto','oral_taurine','oral_tudca','oral_vit_b','oral_vit_c','oral_vit_d3','oral_vit_k2','oral_zinc'];
 
 const WELLNESS_KEYS_INJECTABLE = ['wt_anabolic','wt_antioxidant','wt_appetite','wt_athletic','wt_body_comp','wt_circadian','wt_cognitive','wt_hormonal_wellness','wt_energy','wt_metabolic_wellness','wt_gut','wt_hormone_balance','wt_recovery_support','wt_joint','wt_libido','wt_longevity','wt_metabolic','wt_cellular_energy','wt_mood','wt_muscle','wt_endurance','wt_rest','wt_sexual','wt_skin','wt_sleep_opt','wt_strength','wt_stress','wt_tissue','wt_vitality','wt_weight'];
 
@@ -2349,24 +2344,12 @@ export default function ProtocolsScreen() {
       }
       // RTU has no dilution: the vial's total compound (concentration × bottle volume) is
       // stored in `amount` (lib/protocolForm protocolPayload) so the card shows "X mg vial".
-      const newId = insertProtocol({ user_id: user.id, ...protocolPayload(currentForm(), frequencyLabel, language), start_date: safeStart });
-
-      let newVialId = null;
-      if (type === 'recon' && !skipVial) {
-        newVialId = insertVial({
-          user_id: user.id, protocol_id: newId,
-          mixed_on: mix.date,
-          water_ml: parseDecimal(water, language) || null,
-          // Vial capacity is derived (vial amount ÷ dose), not asked.
-          total_doses: dosesPerVial({ amount, unit, dose, doseUnit, language }),
-          doses_taken: 0,
-        });
-      }
-
-      // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
-      // expiry from the box (month/year → last day of that month).
-      const rtuVial = rtuVialFields(currentForm(), language);
-      if (rtuVial) newVialId = insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
+      // OB-22: the one save of a new protocol (lib/protocolSave), shared with the protocol the
+      // onboarding built before the account — the protocol, then its first vial.
+      const { newId, newVialId } = insertNewProtocol({
+        form: { ...currentForm(), type, amount, unit, water, dose, doseUnit },
+        userId: user.id, language, frequencyLabel, startDate: safeStart, skipVial, mixedOn: mix ? mix.date : null,
+      }, { insertProtocol, insertVial, protocolPayload, parseDecimal, dosesPerVial, rtuVialFields });
       setSaving(false);
       const protocolData = getProtocolById(newId);
       if (protocolData) afterProtocolChange({ saved: protocolData }).catch(() => {});
