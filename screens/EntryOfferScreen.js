@@ -490,7 +490,7 @@ export function FreePremiumSheet({ visible, onClose, onDismiss, freeProtocols, c
     <View key={r.label} style={s.cmpRow}>
       <View style={[s.cmpLabelCol, s.cmpLabelWrap]}>
         <FeatureIcon name={r.icon} size={18} color={colors.ink2} />
-        <Text style={s.cmpLabel}>{r.label}</Text>
+        <Text style={s.cmpLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{r.label}</Text>
       </View>
       <View style={s.cmpFree}>{cell(r.free, false)}</View>
       <View style={s.cmpCell}>{cell(r.premium, true)}</View>
@@ -639,17 +639,17 @@ const makeStyles = (c) => StyleSheet.create({
   sheetTitle: { fontSize: 28, lineHeight: 34, fontWeight: '700', color: c.ink },
   sheetSub: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   cmpList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 12, paddingVertical: 6 },
-  cmpBand: { position: 'absolute', top: 6, bottom: 6, right: 8, width: 92, borderRadius: 16, backgroundColor: c.dataBand },
-  cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 40, paddingVertical: 4 },
+  cmpBand: { position: 'absolute', top: 6, bottom: 6, right: 7, width: 88, borderRadius: 16, backgroundColor: c.dataBand },
+  cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingVertical: 2 },
   cmpLabelCol: { flex: 1 },
-  cmpLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cmpFree: { width: 72, alignItems: 'center', textAlign: 'center' },
-  cmpCell: { width: 84, alignItems: 'center', textAlign: 'center' },
+  cmpLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cmpFree: { width: 62, alignItems: 'center', textAlign: 'center' },
+  cmpCell: { width: 82, alignItems: 'center', textAlign: 'center' },
   cmpHead: { fontSize: 13, lineHeight: 16, fontWeight: '600', color: c.ink2 },
   cmpHeadPremium: { color: c.data, fontWeight: '700', fontSize: 14 },
-  cmpGroup: { fontSize: 13, lineHeight: 18, color: c.ink3, paddingTop: 8, paddingBottom: 2 },
-  cmpSep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginTop: 6, marginRight: 100 },
-  cmpLabel: { flexShrink: 1, fontSize: 15, lineHeight: 20, color: c.ink },
+  cmpGroup: { fontSize: 13, lineHeight: 18, color: c.ink3, paddingTop: 6, paddingBottom: 0 },
+  cmpSep: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginTop: 4, marginRight: 96 },
+  cmpLabel: { flexShrink: 1, fontSize: 14, lineHeight: 18, color: c.ink },
   cmpNo: { fontSize: 15, fontWeight: '600', color: c.ink3 },
   cmpAmount: { fontSize: 13, lineHeight: 16, color: c.ink2, textAlign: 'center', fontVariant: ['tabular-nums'] },
   cmpPremiumText: { color: c.data, fontWeight: '700' },

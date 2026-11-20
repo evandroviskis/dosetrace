@@ -305,6 +305,7 @@ test('EO-17: "Free and Premium" (picture A, founder 2026-11-20): In both plans f
   assert.deepEqual(rows.map((r) => r.premium), [true, true, true, true, 'sem limites', 'incluídas', 'todo dia', true, true, true]);
   const icons = require('fs').readFileSync(require('path').join(__dirname, '..', 'components', 'featureIconsData.js'), 'utf8');
   for (const r of rows) assert.ok(r.icon && icons.includes(r.icon), r.label + ': ' + r.icon);
+  assert.equal(new Set(rows.map((r) => r.icon)).size, rows.length, 'each row its own icon (S25: labs and AI reads had the same)');
   for (const r of rows.filter((x) => x.group === 'both')) assert.ok(r.free === true && r.premium === true, r.label);
   assert.equal(pt('eo_cmp_sub'), 'O que muda quando você assina.');
   assert.equal(pt('eo_cmp_both'), 'Nos dois planos');
