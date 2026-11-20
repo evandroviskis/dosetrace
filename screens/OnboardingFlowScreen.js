@@ -47,6 +47,8 @@ import { markSetupSeen } from '../lib/reminderSetup';
 import { askAndRemember } from '../lib/notifBlocked';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CheckMark from '../components/CheckMark';
+import { Analytics } from '../lib/analytics';
+import { onboardingFunnel } from '../lib/onboardingFunnelStore';
 import useKeyboardLift from '../components/useKeyboardLift';
 import SegmentedBar from '../components/SegmentedBar';
 import LegalModal from '../components/LegalModal';
@@ -134,6 +136,13 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
   const [skipped, setSkipped] = useState(false);
   const [ready, setReady] = useState(signedIn);
   const [cur, setCur] = useState(builder ? 'compound' : signedIn ? null : 'splash');
+  // Council 2026-11-20: where people stop (step names only). Before the account the steps wait on the
+  // phone (lib/onboardingFunnel) and go as one event after the sign-in; signed in, each step is logged.
+  useEffect(() => {
+    if (!cur) return;
+    if (signedIn) Analytics.viewed('ob_' + cur);
+    else onboardingFunnel.note(cur);
+  }, [cur, signedIn]);
 
   // Pre-account: reopen with what was already entered, at the step the user left
   // (PA-62 — Back from Create account used to restart empty).

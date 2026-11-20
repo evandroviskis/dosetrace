@@ -41,6 +41,7 @@ import {
 import {
   SYRINGE_EXAMPLE, syringeUnits, syringeMl, BODY_EXAMPLE, bodyColumns, LAB_EXAMPLE, LAB_MONTHS, REMINDER_EXAMPLE,
 } from '../lib/obFeatures';
+import { onboardingFunnel } from '../lib/onboardingFunnelStore';
 
 const ARect = Animated.createAnimatedComponent(Rect);
 const APath = Animated.createAnimatedComponent(Path);
@@ -455,9 +456,9 @@ export default function OnboardingIntro({ onDone }) {
   useAnimatedReaction(() => sceneIndexAt(clock.get()), (i, prev) => { if (i !== prev) scheduleOnRN(setScene, i); });
   useAnimatedReaction(() => clock.get() >= START_AT, (on, prev) => { if (on !== prev) scheduleOnRN(setStartOn, on); });
 
-  function skip() { cancelAnimation(clock); clock.set(skipTime()); }
+  function skip() { onboardingFunnel.intro('skipped'); cancelAnimation(clock); clock.set(skipTime()); }
   function tapNext() { clock.set(reducedNext(clock.get())); }
-  function start() { if (startOn && onDone) onDone(); }
+  function start() { if (startOn && onDone) { onboardingFunnel.intro('finished'); onDone(); } }
 
   const startSt = useAnimatedStyle(() => {
     const p = EASE(clamp01((clock.get() - START_AT) / IN_DUR));

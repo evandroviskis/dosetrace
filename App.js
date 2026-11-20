@@ -16,6 +16,8 @@ import { guardSignedIn, resolveAccountAsk, discardAndContinue, accountAskSheet, 
 import { errorSheet } from './lib/errorSheet';
 import { clearAIConsent } from './lib/aiConsent';
 import { clearAnalyticsQueue } from './lib/analytics';
+import { logEvent } from './lib/analytics'; // the onboarding funnel after the sign-in
+import { onboardingFunnel } from './lib/onboardingFunnelStore';
 import { clearTeamMessages } from './lib/teamMessages';
 import { clearExportFile } from './lib/exportFile';
 import { clearAccountKeys } from './lib/accountKeys';
@@ -825,6 +827,7 @@ export default function App() {
   const obRunImpl = useRef(null);
   obRunImpl.current = async (user) => {
     flushPendingAttribution().catch(() => {});
+    onboardingFunnel.flush(logEvent).catch(() => {}); // the onboarding steps seen before the account (one event)
     let r = null;
     try { r = await applyOnboardingDraft(user); } catch { r = null; }
     if (r && (r.action === 'ask' || r.action === 'limit')) {
