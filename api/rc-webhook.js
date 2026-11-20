@@ -13,7 +13,7 @@
 const C = require('./_creators.js');
 
 function header(req, name) { const v = (req.headers || {})[name]; return Array.isArray(v) ? v[0] : (v == null ? '' : String(v)); }
-function json(res, status, o) { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(o)); }
+function json(res, status, o) { res.statusCode = status; if (typeof res.status === 'function') res.status(status); res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(o)); }
 
 async function readBody(req) {
   if (req.body != null) return typeof req.body === 'string' ? safeParse(req.body) : req.body;

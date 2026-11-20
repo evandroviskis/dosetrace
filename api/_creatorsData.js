@@ -117,7 +117,8 @@ function build(data, now, opts) {
     const terms = data.terms.filter((t) => t.creator_id === c.id).sort((a, b) => (a.valid_from < b.valid_from ? -1 : 1));
     const userEvents = new Map(); for (const [uid, x] of mine) userEvents.set(uid, x.evs);
     const posts = data.posts.filter((p) => p.creator_id === c.id);
-    const allMonths = C.monthsBetween(ym(c.created_at) < months[0] ? ym(c.created_at) : months[0], months[months.length - 1]);
+    const startYm = ym(c.approved_at && c.approved_at < c.created_at ? c.approved_at : c.created_at) || months[0];
+    const allMonths = C.monthsBetween(startYm < months[months.length - 1] ? startYm : months[months.length - 1], months[months.length - 1]); // statement starts the month the creator was created
     const lines = C.commissionLines(userEvents, terms, { months: allMonths, posts, startedAt: c.approved_at || c.created_at, endedAt: c.ended_at });
     const paidSets = {};
     for (const l of lines) {

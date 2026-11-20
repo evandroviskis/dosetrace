@@ -46,7 +46,7 @@ async function goRpc(slug, platform, device) {
 
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 function send(res, status, headers, body) {
-  res.statusCode = status;
+  res.statusCode = status; if (typeof res.status === 'function') res.status(status);
   const h = Object.assign({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex', 'X-Content-Type-Options': 'nosniff' }, headers);
   for (const k of Object.keys(h)) res.setHeader(k, h[k]);
   res.end(body || '');

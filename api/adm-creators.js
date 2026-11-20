@@ -21,7 +21,7 @@ const INVITE_DAYS = 14;
 const UUID_RE = C.UUID_RE;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-function json(res, status, o) { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(o)); }
+function json(res, status, o) { res.statusCode = status; if (typeof res.status === 'function') res.status(status); res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(JSON.stringify(o)); }
 async function readBody(req) {
   if (req.body != null) { if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (e) { return null; } } return req.body; }
   return new Promise((resolve) => { let s = ''; req.on('data', (c) => { s += c; }); req.on('end', () => { try { resolve(JSON.parse(s)); } catch (e) { resolve(null); } }); req.on('error', () => resolve(null)); });

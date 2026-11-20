@@ -212,6 +212,7 @@ test('CR-COM1d: statement — open, holdback until end + 30 days, below the mini
   assert.equal(later[3].status, 'holdback'); assert.equal(later[3].release_on, '2026-12-30');
   assert.deepEqual(C.statement(lines, months, {}, [], Date.parse('2026-12-20T00:00:00Z'), false).map((r) => r.status), ['no_terms', 'no_terms', 'no_terms', 'no_terms']);
   assert.equal(C.statement(lines, months, {}, [], Date.parse('2026-12-20T00:00:00Z'), true)[0].revenue_cents, 6120, 'revenue always shown');
+  assert.equal(C.statement([], ['2026-09'], {}, [], Date.parse('2026-12-20T00:00:00Z'), true)[0].status, 'zero', 'nothing earned: nothing to pay, not "below the minimum"');
 });
 
 test('CR-UI2a: the portal shows counts under 5 as "<5"; zero and larger counts stay', () => {

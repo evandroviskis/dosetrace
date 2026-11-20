@@ -349,6 +349,7 @@ function statement(lines, months, settings, payouts, now, hasTerms) {
     const balance = carry + com;
     if (ym >= curYm) row.status = 'open';
     else if (now < releaseMs) row.status = 'holdback';
+    else if (balance === 0) { row.status = 'zero'; out.push(row); continue; }
     else if (balance < min) { row.status = 'below_min'; carry = balance; out.push(row); continue; }
     else { row.status = 'due'; row.payable_cents = balance; carry = 0; out.push(row); continue; }
     row.payable_cents = balance; // shown as "a pagar quando liberar"; carry resolves when the month becomes due

@@ -18,7 +18,7 @@ const D = require('./_creatorsData.js');
 
 const ORIGIN = 'https://dosetrace.io';
 function header(req, name) { const v = (req.headers || {})[name]; return Array.isArray(v) ? v[0] : (v == null ? '' : String(v)); }
-function json(res, status, o) { res.statusCode = status; res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Robots-Tag', 'noindex'); res.end(JSON.stringify(o)); }
+function json(res, status, o) { res.statusCode = status; if (typeof res.status === 'function') res.status(status); res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Robots-Tag', 'noindex'); res.end(JSON.stringify(o)); }
 async function readBody(req) {
   if (req.body != null) { if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch (e) { return null; } } return req.body; }
   return new Promise((resolve) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 64 * 1024) s = ''; }); req.on('end', () => { try { resolve(JSON.parse(s)); } catch (e) { resolve(null); } }); req.on('error', () => resolve(null)); });
