@@ -36,3 +36,14 @@ test('singleRun: a throw ends the run, the next call runs', async () => {
   await assert.rejects(run());
   assert.equal(await run(), 2);
 });
+
+test('OB-26 / OB-28 (council 2026-11-20): the builder saves and shows the free count of the real session user (with created_at), never a bare id', () => {
+  const OA = fs.readFileSync(path.join(__dirname, '..', 'lib', 'onboardingApp.js'), 'utf8');
+  assert.match(OA, /export async function saveBuilderProtocol\(user, protocol, language\) \{\s+const account = \(await getCachedUser\(\)\.catch\(\(\) => null\)\) \|\| user;/);
+  assert.match(OA, /freeProtocols: freeProtocolLimit\(account\)/);
+  assert.match(OA, /deps\(store, language, account\)/);
+  const { freeProtocolLimit, NEW_FREE_PLAN_FROM } = require('../lib/freePlan');
+  const after = new Date(Date.parse(NEW_FREE_PLAN_FROM) + 86400000).toISOString();
+  assert.equal(freeProtocolLimit({ id: 'u', created_at: after }), 1, 'a new-rule account reaching the builder sees 1');
+  assert.equal(freeProtocolLimit({ id: 'u' }), 3, 'a bare id is the old 3: why the session user is needed');
+});
