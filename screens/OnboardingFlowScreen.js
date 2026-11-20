@@ -36,6 +36,8 @@ import {
 import { reminderLine } from '../lib/onboardingDraft';
 import OnboardingIntro from '../components/OnboardingIntro';
 import OnboardingProtocolSteps, { stepTitle, weekdayPhrase } from './components/OnboardingProtocolSteps';
+import { purposeFromProfile } from '../lib/protocolPurpose';
+import { compoundIdFor } from '../lib/onboardingDraft';
 import GoalTiles from '../components/GoalTiles';
 import FeatureIcon from '../components/FeatureIcon';
 import CompoundPills, { compoundPillStyles } from '../components/CompoundPills';
@@ -262,10 +264,17 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
     // Passing "Before we begin" is what makes these answers this person's for this run
     // (lib/pendingProfile): from here on they may go into the account they create.
     if (cur === 'consent') markStashFresh();
-    if (builder && cur === 'ready') { onBuilderDone && onBuilderDone(protocol); return; }
+    const over = {};
+    if (cur === 'ready') {
+      // PQ-14: the protocol keeps the goals from her profile that map to it ("Para: …" on this screen).
+      const withPurpose = { ...(protocol || {}), purpose: purposeFromProfile(builder ? meta.primary_goal : d.goals, protocol && protocol.form, compoundIdFor(protocol)) };
+      if (builder) { onBuilderDone && onBuilderDone(withPurpose); return; }
+      setProtocol(withPurpose);
+      over.protocol = withPurpose;
+    }
     // The protocol steps are back in when she builds after a "Montar depois" (OB-20).
     if (PROTOCOL_STEPS.includes(cur) && skipped) setSkipped(false);
-    await persist();
+    await persist(over);
     const n = nextStep(steps, cur);
     if (n) setCur(n);
     else finish();
@@ -459,7 +468,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
                 {cur === 'compound' && <Text style={s.kicker}>{t('ob_cmp_kicker')}</Text>}
                 <Text style={s.title}>{stepTitle(cur, protocol, { t, tracking: d.tracking })}</Text>
               </View>
-              <OnboardingProtocolSteps step={cur} p={protocol} setP={setProtocol} tracking={builder ? meta.tracking_types : d.tracking} t={t} language={language} timeFormat={timeFormat} mode={mode} kb={kb} />
+              <OnboardingProtocolSteps step={cur} p={protocol} setP={setProtocol} tracking={builder ? meta.tracking_types : d.tracking} t={t} language={language} timeFormat={timeFormat} mode={mode} kb={kb} profileGoals={builder ? meta.primary_goal : d.goals} />
             </>
           )}
 

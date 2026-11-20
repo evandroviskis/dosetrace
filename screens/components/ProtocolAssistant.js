@@ -15,6 +15,7 @@ import { useTheme } from '../../lib/theme';
 import { MONO } from '../../lib/fonts';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import FeatureIcon from '../../components/FeatureIcon';
+import PurposeTiles from '../../components/PurposeTiles';
 import { DTPickerSheet, DTWheel, DTActionSheet } from './ProtocolParts';
 import { dateColumns, dateAfter } from '../../lib/wheelPick';
 import { MONTHS_SHORT, formatDate, unitText } from '../../lib/localeFormat';
@@ -30,7 +31,8 @@ import { createSession } from '../../lib/assistantSession';
 // scanLabel(fromCamera) → Promise<{ vial } | { error: { title, body } } | null> (the vial-scan path).
 // askConsent() → Promise<boolean>: the AI consent, checked before EVERY send to the AI (council
 // regulatory review 1.3.1: it can be withdrawn while the window is open); false → nothing is sent.
-export default function ProtocolAssistant({ door, form, ctx, catalog, t, language, onFinish, scanLabel, registerClose, askConsent }) {
+// purposeFor({ type, compoundId, name, times }) → the goal keys in tile order (the form's own, PQ-13).
+export default function ProtocolAssistant({ door, form, ctx, catalog, t, language, onFinish, scanLabel, registerClose, askConsent, purposeFor }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => makeStyles(c), [c]);
   // A-134: the app's lines write IU as the language does (UI / IE); display only, never the draft.
@@ -47,6 +49,11 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
   const scrollRef = useRef(null);
   const finished = useRef(false);
   const asking = useRef(false); // the consent sheet is up: a second tap sends nothing
+  // PQ-13: the goals picked here (starting from the form's) go back with the protocol.
+  const [goals, setGoals] = useState(() => (Array.isArray(form && form.goals) ? form.goals : []));
+  const goalsRef = useRef(goals);
+  goalsRef.current = goals;
+  const withGoals = (r) => (r && r.form ? { ...r, form: { ...r.form, goals: goalsRef.current } } : r);
 
   // Before every send to the AI: the consent as it is NOW (fails closed without a check).
   async function consentNow() {
@@ -83,7 +90,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
   useEffect(() => {
     if (!conv || !conv.ended || finished.current) return;
     finished.current = true;
-    onFinish(conv.outcome.kind, A.formFromConversation(conv, baseForm));
+    onFinish(conv.outcome.kind, withGoals(A.formFromConversation(conv, baseForm)));
   }, [conv]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -98,7 +105,7 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
     if (finished.current) return;
     finished.current = true;
     // Closing keeps every answer: the form gets what was said (AP-0, AP-16).
-    onFinish('handback', conv ? A.formFromConversation(conv, baseForm) : null);
+    onFinish('handback', conv ? withGoals(A.formFromConversation(conv, baseForm)) : null);
   }
 
   function tap(o) {
@@ -150,6 +157,13 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
 
   const opts = conv && !conv.ended && phase !== 'blocked' ? A.options(conv) : [];
   const input = conv && !conv.ended ? A.inputFor(conv) : { text: false, photo: false };
+  // PQ-13: before the summary / review card, once there is a product — the form's tiles, same order.
+  const purposeAt = (() => {
+    if (!conv || conv.ended || !purposeFor || !conv.draft || !conv.draft.name || !['confirm', 'review'].includes(conv.step)) return null;
+    for (let i = conv.messages.length - 1; i >= 0; i--) { const k = conv.messages[i].kind; if (k === 'summary' || k === 'review') return conv.messages[i].id; }
+    return null;
+  })();
+  const toggleGoal = (key) => setGoals((cur) => (cur.includes(key) ? cur.filter((g) => g !== key) : [...cur, key]));
   const lastApp = conv ? (() => { for (let i = conv.messages.length - 1; i >= 0; i--) if (conv.messages[i].from === 'app') return conv.messages[i].id; return null; })() : null;
 
   const Chip = ({ o }) => (
@@ -211,6 +225,18 @@ export default function ProtocolAssistant({ door, form, ctx, catalog, t, languag
           )}
           {conv && conv.messages.map((m) => (
             <View key={m.id}>
+              {m.id === purposeAt && (
+                <View style={s.purpose}>
+                  <PurposeTiles
+                    key={conv.draft.type + ':' + (conv.draft.compoundId || conv.draft.name)}
+                    name={conv.draft.name}
+                    ordered={purposeFor({ type: conv.draft.type, compoundId: conv.draft.compoundId || null, name: conv.draft.name, times: conv.draft.times })}
+                    value={goals}
+                    onToggle={toggleGoal}
+                    t={t}
+                  />
+                </View>
+              )}
               {renderMsg(m)}
               {m.id === lastApp && opts.length > 0 && (
                 <View style={s.chips}>{opts.map((o) => <Chip key={o.id} o={o} />)}</View>
@@ -316,6 +342,7 @@ const makeStyles = (c) => StyleSheet.create({
   pillPrimary: { backgroundColor: c.act, borderColor: c.act },
   pillText: { fontSize: 15, fontWeight: '600', color: c.ink },
   pillTextPrimary: { color: c.onAct },
+  purpose: { alignSelf: 'stretch', marginVertical: 8 },
   review: { alignSelf: 'stretch', backgroundColor: c.raised, borderRadius: 18, padding: 14, gap: 8, marginVertical: 5 },
   reviewTitle: { fontSize: 13, fontWeight: '600', color: c.ink2 },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 7 },

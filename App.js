@@ -310,7 +310,7 @@ function goLanding(navigation, landing) {
 function ProtocolBuilderRoute({ navigation, route }) {
   const { language } = useLanguage();
   const p = (route && route.params) || {};
-  const user = { id: p.userId, user_metadata: { tracking_types: Array.isArray(p.tracking) ? p.tracking : [] } };
+  const user = { id: p.userId, user_metadata: { tracking_types: Array.isArray(p.tracking) ? p.tracking : [], primary_goal: p.goals || '' } };
   const busy = useRef(false);
   const done = async (protocol) => {
     if (!protocol) { goLanding(navigation, null); return; }
@@ -829,7 +829,7 @@ export default function App() {
     try {
       if (await builderShouldShow(user)) {
         await markBuilderShown();
-        goPending({ screen: 'ProtocolBuilder', params: { userId: user.id, tracking: (user.user_metadata || {}).tracking_types || [] } });
+        goPending({ screen: 'ProtocolBuilder', params: { userId: user.id, tracking: (user.user_metadata || {}).tracking_types || [], goals: (user.user_metadata || {}).primary_goal || '' } });
       }
     } catch { /* never blocks the app */ }
   };
