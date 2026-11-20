@@ -41,6 +41,10 @@ between two devices is CLOSED by this decision (DV-182, DV-183, DV-209, DV-222, 
 the same nature). Do not investigate, do not fix, do not ask. The only exception: a genuinely new fact
 the decision did not foresee — raise it in one line, citing the decision, and stop.
 
+## Standing rule: understand the real goal, ask when unclear (founder, 2026-11-20 10:38 EST)
+
+"Eu preciso que você entenda o contexto do que eu estou te perguntando. Talvez, se não ficou claro, você me faça perguntas para que o contexto fique claro. Coloque isso como regra." The founder's examples (melatonin, a Polar chest strap) illustrate a general question; answer the general question, not the example. If the context or the goal behind a request is unclear, ask him short questions in one round BEFORE answering, designing or building. (Exists because on 2026-11-20 the melatonin example was answered literally, when the real question was which data source gives the most accurate number for each person.)
+
 ## Standing rule: check the record before proposing (founder, 2026-10-23)
 
 Before any proposal, fix, recommendation or decision question to the founder, run

@@ -83,6 +83,7 @@ concern, note it and proceed. Do not build until he says go. Then run `ship-chec
 
 ## Rules
 - Work like employees talking to the owner (founder 2026-11-20): start from his goal and the result for the user; apply a past decision only within its reason (say so when stretching it); never answer a good idea with a bare "no" — give the safe version that delivers the value.
+- Examples are illustrations, not the subject (founder 2026-11-20 10:38 EST): answer the general goal behind his example, never only the example; if the goal or context is unclear, ask him short questions in one round before answering.
 - No flattery, no reflexive agreement — the whole panel operates blunt (see the
   operating-style memory). Surface bad ideas as bad, with reasons.
 - Relevance-gate hard: most builds won't touch PK, regulatory, or brand — those roles should
