@@ -121,6 +121,7 @@ export const translations = {
     ob_keep_discard: "Discard",
     ob_limit_title: "Your free plan is full",
     ob_limit_body: "This account already has {n} active protocols, the free plan’s limit. To keep {name}, upgrade to Premium or discard it.",
+    ob_limit_body_one: "This account already has {n} active protocol, the free plan’s limit. To keep {name}, upgrade to Premium or discard it.",
     ob_limit_premium: "See Premium",
     ob_builder_failed: "Your protocol could not be saved. Try again.",
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -284,7 +285,7 @@ export const translations = {
     pw_per_month: '{n} / month',
     pw_scans_row: 'AI scans (labs, vaccines, vials)',
     pw_prev_protos_title: 'Every protocol you run',
-    pw_prev_protos_body: 'The free plan holds 3 protocols. Premium holds as many as you run, each with its own schedule, reminders, and calculator.',
+    pw_prev_protos_body: 'The free plan holds {free_protocols}. Premium holds as many as you run, each with its own schedule, reminders, and calculator.',
     pw_prev_pdf_title: 'A clean PDF for your doctor',
     pw_prev_pdf_body: 'Pick the lab results and vaccines you need and export a formatted PDF — CSV stays free.',
     auth_agree_terms_privacy: 'I agree to the {terms} and {privacy}',
@@ -1448,7 +1449,7 @@ export const translations = {
           {
             id: 'start_free',
             q: "Is DoseTrace free?",
-            a: 'Yes. The core features are free forever, including cloud backup. The free plan includes up to 3 active protocols, 3 scans a month (labs, vaccine cards, and vials combined) and 7 days of the AI food log. Premium adds unlimited protocols, more scans, the AI food log every day, the Dose in the body curve, reality-check results, and PDF export.'
+            a: 'Yes. The core features are free forever, including cloud backup. The free plan includes {free_protocols}, 3 scans a month (labs, vaccine cards, and vials combined) and 7 days of the AI food log. Premium adds unlimited protocols, more scans, the AI food log every day, the Dose in the body curve, reality-check results, and PDF export.'
           },
           {
             id: 'start_first_protocol',
@@ -2250,7 +2251,8 @@ export const translations = {
     paywall_premium: 'Premium',
     paywall_free_feat_1: 'Full reconstitution calculator',
     paywall_free_feat_2: 'Syringe guide',
-    paywall_free_feat_3: 'Up to 3 protocols',
+    paywall_free_feat_3: 'Up to {n} protocols',
+    paywall_free_feat_3_one: '{n} protocol',
     paywall_free_feat_4: 'Injection log & vial tracker',
     paywall_free_feat_5: 'Reminders',
     paywall_free_feat_6: 'Oral supplement tracking',
@@ -2771,9 +2773,11 @@ export const translations = {
     protocols_archive: "Archive",
     curve_estimated_before: 'Before {date}: estimated from your start date',
     protocols_limit_title: 'Protocol limit reached',
-    protocols_limit_msg: "The free plan includes up to 3 active protocols. Go Premium for unlimited — and try it free for 7 days.",
+    protocols_limit_msg: "The free plan includes {free_protocols}. Go Premium for unlimited — and try it free for 7 days.",
+    free_protocols_phrase: "up to {n} active protocols",
+    free_protocols_phrase_one: "{n} active protocol",
     protocols_limit_upgrade: "Start free trial",
-    protocols_limit_msg_notrial: "The free plan includes up to 3 active protocols. Go Premium for unlimited protocols.",
+    protocols_limit_msg_notrial: "The free plan includes {free_protocols}. Go Premium for unlimited protocols.",
     protocols_limit_upgrade_notrial: "See Premium",
     auth_missing_fields: 'Please enter your email and password.',
     auth_invalid_email: 'Please enter a valid email address.',
@@ -3463,6 +3467,7 @@ export const translations = {
     ob_keep_discard: "Descartar",
     ob_limit_title: "Tu plan gratuito está completo",
     ob_limit_body: "Esta cuenta ya tiene {n} protocolos activos, el límite del plan gratuito. Para guardar {name}, pásate a Premium o descártalo.",
+    ob_limit_body_one: "Esta cuenta ya tiene {n} protocolo activo, el límite del plan gratuito. Para guardar {name}, pásate a Premium o descártalo.",
     ob_limit_premium: "Ver Premium",
     ob_builder_failed: "No se pudo guardar tu protocolo. Inténtalo de nuevo.",
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -3625,7 +3630,7 @@ export const translations = {
     pw_per_month: '{n} / mes',
     pw_scans_row: 'Escaneos con IA (análisis, vacunas, viales)',
     pw_prev_protos_title: 'Todos los protocolos que sigues',
-    pw_prev_protos_body: 'El plan gratuito admite 3 protocolos. Premium admite todos los que sigas, cada uno con su calendario, sus recordatorios y su calculadora.',
+    pw_prev_protos_body: 'El plan gratuito admite {free_protocols}. Premium admite todos los que sigas, cada uno con su calendario, sus recordatorios y su calculadora.',
     pw_prev_pdf_title: 'Un PDF claro para tu médico',
     pw_prev_pdf_body: 'Elige los resultados de análisis y las vacunas que necesites y exporta un PDF con formato. El CSV sigue siendo gratis.',
     auth_agree_terms_privacy: 'Acepto los {terms} y la {privacy}',
@@ -4788,7 +4793,7 @@ export const translations = {
           {
             id: 'start_free',
             q: "¿Es DoseTrace gratis?",
-            a: "Sí. Las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. El plan gratuito incluye hasta 3 protocolos activos, 3 escaneos al mes (análisis, cartillas de vacunas y viales juntos) y 7 días del registro con IA. Premium añade protocolos ilimitados, más escaneos, el registro con IA todos los días, la curva Dosis en el cuerpo, los resultados de tus cifras reales y la exportación a PDF."
+            a: "Sí. Las funciones principales son gratis para siempre, incluida la copia de seguridad en la nube. El plan gratuito incluye {free_protocols}, 3 escaneos al mes (análisis, cartillas de vacunas y viales juntos) y 7 días del registro con IA. Premium añade protocolos ilimitados, más escaneos, el registro con IA todos los días, la curva Dosis en el cuerpo, los resultados de tus cifras reales y la exportación a PDF."
           },
           {
             id: 'start_first_protocol',
@@ -5590,7 +5595,8 @@ export const translations = {
     paywall_premium: 'Premium',
     paywall_free_feat_1: 'Calculadora de reconstitución completa',
     paywall_free_feat_2: 'Guía de jeringa',
-    paywall_free_feat_3: 'Hasta 3 protocolos',
+    paywall_free_feat_3: 'Hasta {n} protocolos',
+    paywall_free_feat_3_one: '{n} protocolo',
     paywall_free_feat_4: 'Registro de inyecciones y control de viales',
     paywall_free_feat_5: 'Recordatorios',
     paywall_free_feat_6: 'Seguimiento de suplementos orales',
@@ -6111,9 +6117,11 @@ export const translations = {
     protocols_archive: "Archivo",
     curve_estimated_before: 'Antes del {date}: estimado desde tu fecha de inicio',
     protocols_limit_title: 'Límite de protocolos alcanzado',
-    protocols_limit_msg: "El plan gratuito incluye hasta 3 protocolos activos. Hazte Premium para tener protocolos ilimitados y pruébalo gratis 7 días.",
+    protocols_limit_msg: "El plan gratuito incluye {free_protocols}. Hazte Premium para tener protocolos ilimitados y pruébalo gratis 7 días.",
+    free_protocols_phrase: "hasta {n} protocolos activos",
+    free_protocols_phrase_one: "{n} protocolo activo",
     protocols_limit_upgrade: "Iniciar prueba gratis",
-    protocols_limit_msg_notrial: "El plan gratuito incluye hasta 3 protocolos activos. Hazte Premium para tener protocolos ilimitados.",
+    protocols_limit_msg_notrial: "El plan gratuito incluye {free_protocols}. Hazte Premium para tener protocolos ilimitados.",
     protocols_limit_upgrade_notrial: "Ver Premium",
     auth_missing_fields: 'Introduce tu correo y contraseña.',
     auth_invalid_email: 'Introduce una dirección de correo válida.',
@@ -6803,6 +6811,7 @@ export const translations = {
     ob_keep_discard: "Descartar",
     ob_limit_title: "O seu plano grátis está completo",
     ob_limit_body: "Esta conta já tem {n} protocolos ativos, o limite do plano grátis. Para guardar {name}, assine o Premium ou descarte este protocolo.",
+    ob_limit_body_one: "Esta conta já tem {n} protocolo ativo, o limite do plano grátis. Para guardar {name}, assine o Premium ou descarte este protocolo.",
     ob_limit_premium: "Ver o Premium",
     ob_builder_failed: "Não foi possível salvar o seu protocolo. Tente novamente.",
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -6965,7 +6974,7 @@ export const translations = {
     pw_per_month: '{n} / mês',
     pw_scans_row: 'Leituras com IA (exames, vacinas, frascos)',
     pw_prev_protos_title: 'Todos os protocolos que você segue',
-    pw_prev_protos_body: 'O plano grátis comporta 3 protocolos. O Premium comporta quantos você seguir, cada um com sua agenda, seus lembretes e sua calculadora.',
+    pw_prev_protos_body: 'O plano grátis comporta {free_protocols}. O Premium comporta quantos você seguir, cada um com sua agenda, seus lembretes e sua calculadora.',
     pw_prev_pdf_title: 'Um PDF organizado para o seu médico',
     pw_prev_pdf_body: 'Escolha os resultados de exames e as vacinas de que precisa e exporte um PDF formatado — o CSV continua grátis.',
     auth_agree_terms_privacy: 'Concordo com os {terms} e a {privacy}',
@@ -8128,7 +8137,7 @@ export const translations = {
           {
             id: 'start_free',
             q: "O DoseTrace é gratuito?",
-            a: "Sim. Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O plano gratuito inclui até 3 protocolos ativos, 3 leituras por mês (somando exames, carteiras de vacinação e frascos) e 7 dias do registro de comida com IA. O Premium acrescenta protocolos ilimitados, mais leituras, o registro de comida com IA todos os dias, a curva Dose no corpo, os resultados dos seus números reais e a exportação em PDF."
+            a: "Sim. Os recursos principais são gratuitos para sempre, incluindo o backup na nuvem. O plano gratuito inclui {free_protocols}, 3 leituras por mês (somando exames, carteiras de vacinação e frascos) e 7 dias do registro de comida com IA. O Premium acrescenta protocolos ilimitados, mais leituras, o registro de comida com IA todos os dias, a curva Dose no corpo, os resultados dos seus números reais e a exportação em PDF."
           },
           {
             id: 'start_first_protocol',
@@ -8930,7 +8939,8 @@ export const translations = {
     paywall_premium: 'Premium',
     paywall_free_feat_1: 'Calculadora de reconstituição completa',
     paywall_free_feat_2: 'Guia de seringa',
-    paywall_free_feat_3: 'Até 3 protocolos',
+    paywall_free_feat_3: 'Até {n} protocolos',
+    paywall_free_feat_3_one: '{n} protocolo',
     paywall_free_feat_4: 'Registro de injeções e controle de frascos',
     paywall_free_feat_5: 'Lembretes',
     paywall_free_feat_6: 'Acompanhamento de suplementos orais',
@@ -9451,9 +9461,11 @@ export const translations = {
     protocols_archive: "Arquivo",
     curve_estimated_before: 'Antes de {date}: estimado a partir da data de início',
     protocols_limit_title: 'Limite de protocolos atingido',
-    protocols_limit_msg: "O plano gratuito inclui até 3 protocolos ativos. Assine o Premium para protocolos ilimitados e experimente grátis por 7 dias.",
+    protocols_limit_msg: "O plano gratuito inclui {free_protocols}. Assine o Premium para protocolos ilimitados e experimente grátis por 7 dias.",
+    free_protocols_phrase: "até {n} protocolos ativos",
+    free_protocols_phrase_one: "{n} protocolo ativo",
     protocols_limit_upgrade: 'Começar teste grátis',
-    protocols_limit_msg_notrial: "O plano gratuito inclui até 3 protocolos ativos. Assine o Premium para protocolos ilimitados.",
+    protocols_limit_msg_notrial: "O plano gratuito inclui {free_protocols}. Assine o Premium para protocolos ilimitados.",
     protocols_limit_upgrade_notrial: "Ver o Premium",
     auth_missing_fields: 'Digite seu e-mail e senha.',
     auth_invalid_email: 'Digite um e-mail válido.',
@@ -10142,6 +10154,7 @@ export const translations = {
     ob_keep_discard: "Supprimer",
     ob_limit_title: "Votre offre gratuite est complète",
     ob_limit_body: "Ce compte a déjà {n} protocoles actifs, la limite de l’offre gratuite. Pour garder {name}, passez à Premium ou supprimez-le.",
+    ob_limit_body_one: "Ce compte a déjà {n} protocole actif, la limite de l’offre gratuite. Pour garder {name}, passez à Premium ou supprimez-le.",
     ob_limit_premium: "Voir Premium",
     ob_builder_failed: "Votre protocole n’a pas pu être enregistré. Réessayez.",
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -10304,7 +10317,7 @@ export const translations = {
     pw_per_month: '{n} / mois',
     pw_scans_row: 'Scans IA (analyses, vaccins, flacons)',
     pw_prev_protos_title: 'Tous les protocoles que vous suivez',
-    pw_prev_protos_body: 'L’offre gratuite contient 3 protocoles. Premium en contient autant que vous en suivez, chacun avec son calendrier, ses rappels et son calculateur.',
+    pw_prev_protos_body: 'L’offre gratuite contient {free_protocols}. Premium en contient autant que vous en suivez, chacun avec son calendrier, ses rappels et son calculateur.',
     pw_prev_pdf_title: 'Un PDF clair pour votre médecin',
     pw_prev_pdf_body: 'Choisissez les résultats d’analyses et les vaccins dont vous avez besoin et exportez un PDF mis en forme — le CSV reste gratuit.',
     auth_agree_terms_privacy: 'J’accepte les {terms} et la {privacy}',
@@ -11467,7 +11480,7 @@ export const translations = {
           {
             id: 'start_free',
             q: "DoseTrace est-il gratuit ?",
-            a: 'Oui. Les fonctionnalités principales sont gratuites pour toujours, y compris la sauvegarde cloud. L’offre gratuite comprend jusqu’à 3 protocoles actifs, 3 scans par mois (analyses, carnets de vaccination et flacons confondus) et 7 jours de journal IA. Premium ajoute les protocoles illimités, plus de scans, le journal IA tous les jours, la courbe « Dose dans le corps », les résultats de vos vrais chiffres et l’export PDF.'
+            a: 'Oui. Les fonctionnalités principales sont gratuites pour toujours, y compris la sauvegarde cloud. L’offre gratuite comprend {free_protocols}, 3 scans par mois (analyses, carnets de vaccination et flacons confondus) et 7 jours de journal IA. Premium ajoute les protocoles illimités, plus de scans, le journal IA tous les jours, la courbe « Dose dans le corps », les résultats de vos vrais chiffres et l’export PDF.'
           },
           {
             id: 'start_first_protocol',
@@ -12269,7 +12282,8 @@ export const translations = {
     paywall_premium: 'Premium',
     paywall_free_feat_1: 'Calculateur de reconstitution complet',
     paywall_free_feat_2: 'Guide de seringue',
-    paywall_free_feat_3: 'Jusqu\'à 3 protocoles',
+    paywall_free_feat_3: 'Jusqu\'à {n} protocoles',
+    paywall_free_feat_3_one: '{n} protocole',
     paywall_free_feat_4: "Journal d'injections et suivi des flacons",
     paywall_free_feat_5: 'Rappels',
     paywall_free_feat_6: 'Suivi des compléments alimentaires',
@@ -12790,9 +12804,11 @@ export const translations = {
     protocols_archive: "Archives",
     curve_estimated_before: 'Avant le {date} : estimation à partir de votre date de début',
     protocols_limit_title: 'Limite de protocoles atteinte',
-    protocols_limit_msg: 'L’offre gratuite inclut jusqu’à 3 protocoles actifs. Passez à Premium pour un nombre illimité — avec 7 jours d’essai gratuit.',
+    protocols_limit_msg: "L’offre gratuite inclut {free_protocols}. Passez à Premium pour un nombre illimité — avec 7 jours d’essai gratuit.",
+    free_protocols_phrase: "jusqu’à {n} protocoles actifs",
+    free_protocols_phrase_one: "{n} protocole actif",
     protocols_limit_upgrade: "Essai gratuit",
-    protocols_limit_msg_notrial: "L’offre gratuite comprend jusqu’à 3 protocoles actifs. Passez à Premium pour des protocoles illimités.",
+    protocols_limit_msg_notrial: "L’offre gratuite comprend {free_protocols}. Passez à Premium pour des protocoles illimités.",
     protocols_limit_upgrade_notrial: "Voir Premium",
     auth_missing_fields: 'Veuillez saisir votre e-mail et votre mot de passe.',
     auth_invalid_email: 'Veuillez saisir une adresse e-mail valide.',
@@ -13481,6 +13497,7 @@ export const translations = {
     ob_keep_discard: "Verwerfen",
     ob_limit_title: "Dein kostenloser Plan ist voll",
     ob_limit_body: "Dieses Konto hat schon {n} aktive Protokolle, das Limit des kostenlosen Plans. Um {name} zu behalten, wechsle zu Premium oder verwirf es.",
+    ob_limit_body_one: "Dieses Konto hat schon {n} aktives Protokoll, das Limit des kostenlosen Plans. Um {name} zu behalten, wechsle zu Premium oder verwirf es.",
     ob_limit_premium: "Premium ansehen",
     ob_builder_failed: "Dein Protokoll konnte nicht gespeichert werden. Versuche es erneut.",
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -13643,7 +13660,7 @@ export const translations = {
     pw_per_month: '{n} / Monat',
     pw_scans_row: 'KI-Scans (Labor, Impfungen, Fläschchen)',
     pw_prev_protos_title: 'Jedes Protokoll, das du verfolgst',
-    pw_prev_protos_body: 'Im kostenlosen Plan sind 3 Protokolle möglich, mit Premium so viele, wie du verfolgst – jedes mit eigenem Zeitplan, eigenen Erinnerungen und eigenem Rechner.',
+    pw_prev_protos_body: 'Der kostenlose Plan umfasst {free_protocols}, mit Premium so viele, wie du verfolgst – jedes mit eigenem Zeitplan, eigenen Erinnerungen und eigenem Rechner.',
     pw_prev_pdf_title: 'Ein übersichtliches PDF für deine Ärztin oder deinen Arzt',
     pw_prev_pdf_body: 'Wähle die Laborwerte und Impfungen aus, die du brauchst, und exportiere ein formatiertes PDF – CSV bleibt kostenlos.',
     auth_agree_terms_privacy: 'Ich stimme den {terms} und der {privacy} zu',
@@ -14806,7 +14823,7 @@ export const translations = {
           {
             id: 'start_free',
             q: "Ist DoseTrace kostenlos?",
-            a: "Ja. Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Der kostenlose Plan enthält bis zu 3 aktive Protokolle, 3 Scans pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen) und 7 Tage KI-Essensprotokoll. Premium bietet unbegrenzte Protokolle, mehr Scans, das KI-Essensprotokoll jeden Tag, die Kurve „Dosis im Körper“, die Ergebnisse deiner echten Zahlen und den PDF-Export."
+            a: "Ja. Die Kernfunktionen sind für immer kostenlos – einschließlich Cloud-Sicherung. Der kostenlose Plan enthält {free_protocols}, 3 Scans pro Monat (Laborberichte, Impfpässe und Fläschchen zusammen) und 7 Tage KI-Essensprotokoll. Premium bietet unbegrenzte Protokolle, mehr Scans, das KI-Essensprotokoll jeden Tag, die Kurve „Dosis im Körper“, die Ergebnisse deiner echten Zahlen und den PDF-Export."
           },
           {
             id: 'start_first_protocol',
@@ -15608,7 +15625,8 @@ export const translations = {
     paywall_premium: 'Premium',
     paywall_free_feat_1: 'Rekonstitutionsrechner',
     paywall_free_feat_2: 'Spritzenhilfe',
-    paywall_free_feat_3: 'Bis zu 3 Protokolle',
+    paywall_free_feat_3: 'Bis zu {n} Protokolle',
+    paywall_free_feat_3_one: '{n} Protokoll',
     paywall_free_feat_4: 'Injektionsprotokoll und Fläschchen-Übersicht',
     paywall_free_feat_5: 'Erinnerungen',
     paywall_free_feat_6: 'Nahrungsergänzungsmittel erfassen',
@@ -16129,9 +16147,11 @@ export const translations = {
     protocols_archive: "Archiv",
     curve_estimated_before: 'Vor dem {date}: geschätzt ab deinem Startdatum',
     protocols_limit_title: 'Protokoll-Limit erreicht',
-    protocols_limit_msg: "Der kostenlose Plan umfasst bis zu 3 aktive Protokolle. Hol dir Premium für unbegrenzte Protokolle – 7 Tage kostenlos testen.",
+    protocols_limit_msg: "Der kostenlose Plan umfasst {free_protocols}. Hol dir Premium für unbegrenzte Protokolle – 7 Tage kostenlos testen.",
+    free_protocols_phrase: "bis zu {n} aktive Protokolle",
+    free_protocols_phrase_one: "{n} aktives Protokoll",
     protocols_limit_upgrade: "Kostenlos testen",
-    protocols_limit_msg_notrial: "Der kostenlose Plan umfasst bis zu 3 aktive Protokolle. Mit Premium sind es unbegrenzt viele.",
+    protocols_limit_msg_notrial: "Der kostenlose Plan umfasst {free_protocols}. Mit Premium sind es unbegrenzt viele.",
     protocols_limit_upgrade_notrial: "Premium ansehen",
     auth_missing_fields: 'Bitte E-Mail und Passwort eingeben.',
     auth_invalid_email: 'Bitte eine gültige E-Mail-Adresse eingeben.',
@@ -16821,6 +16841,7 @@ export const translations = {
     ob_keep_discard: "Scarta",
     ob_limit_title: "Il tuo piano gratuito è al completo",
     ob_limit_body: "Questo account ha già {n} protocolli attivi, il limite del piano gratuito. Per tenere {name}, passa a Premium o scartalo.",
+    ob_limit_body_one: "Questo account ha già {n} protocollo attivo, il limite del piano gratuito. Per tenere {name}, passa a Premium o scartalo.",
     ob_limit_premium: "Vedi Premium",
     ob_builder_failed: "Non è stato possibile salvare il tuo protocollo. Riprova.",
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -16983,7 +17004,7 @@ export const translations = {
     pw_per_month: '{n} / mese',
     pw_scans_row: 'Scansioni IA (analisi, vaccini, flaconi)',
     pw_prev_protos_title: 'Tutti i protocolli che segui',
-    pw_prev_protos_body: 'Il piano gratuito contiene 3 protocolli. Premium ne contiene quanti ne segui, ognuno con il suo calendario, i suoi promemoria e il suo calcolatore.',
+    pw_prev_protos_body: 'Il piano gratuito contiene {free_protocols}. Premium ne contiene quanti ne segui, ognuno con il suo calendario, i suoi promemoria e il suo calcolatore.',
     pw_prev_pdf_title: 'Un PDF ordinato per il tuo medico',
     pw_prev_pdf_body: 'Scegli i risultati delle analisi e i vaccini che ti servono ed esporta un PDF formattato: il CSV resta gratuito.',
     auth_agree_terms_privacy: 'Accetto i {terms} e l’{privacy}',
@@ -18146,7 +18167,7 @@ export const translations = {
           {
             id: 'start_free',
             q: "DoseTrace è gratuito?",
-            a: "Sì. Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Il piano gratuito include fino a 3 protocolli attivi, 3 scansioni al mese (analisi, libretti vaccinali e flaconi insieme) e 7 giorni di diario IA. Premium aggiunge protocolli illimitati, più scansioni, il diario IA ogni giorno, la curva Dose nel corpo, i risultati dei tuoi numeri reali e l’esportazione PDF."
+            a: "Sì. Le funzioni principali sono gratuite per sempre, incluso il backup cloud. Il piano gratuito include {free_protocols}, 3 scansioni al mese (analisi, libretti vaccinali e flaconi insieme) e 7 giorni di diario IA. Premium aggiunge protocolli illimitati, più scansioni, il diario IA ogni giorno, la curva Dose nel corpo, i risultati dei tuoi numeri reali e l’esportazione PDF."
           },
           {
             id: 'start_first_protocol',
@@ -18948,7 +18969,8 @@ export const translations = {
     paywall_premium: 'Premium',
     paywall_free_feat_1: 'Calcolatore di ricostituzione completo',
     paywall_free_feat_2: 'Guida alla siringa',
-    paywall_free_feat_3: 'Fino a 3 protocolli',
+    paywall_free_feat_3: 'Fino a {n} protocolli',
+    paywall_free_feat_3_one: '{n} protocollo',
     paywall_free_feat_4: 'Registro iniezioni e monitoraggio flaconi',
     paywall_free_feat_5: 'Promemoria',
     paywall_free_feat_6: 'Monitoraggio integratori orali',
@@ -19469,9 +19491,11 @@ export const translations = {
     protocols_archive: "Archivio",
     curve_estimated_before: 'Prima del {date}: stimato dalla data di inizio',
     protocols_limit_title: 'Limite di protocolli raggiunto',
-    protocols_limit_msg: "Il piano gratuito include fino a 3 protocolli attivi. Passa a Premium per protocolli illimitati e provalo gratis per 7 giorni.",
+    protocols_limit_msg: "Il piano gratuito include {free_protocols}. Passa a Premium per protocolli illimitati e provalo gratis per 7 giorni.",
+    free_protocols_phrase: "fino a {n} protocolli attivi",
+    free_protocols_phrase_one: "{n} protocollo attivo",
     protocols_limit_upgrade: "Prova gratis",
-    protocols_limit_msg_notrial: "Il piano gratuito include fino a 3 protocolli attivi. Passa a Premium per protocolli illimitati.",
+    protocols_limit_msg_notrial: "Il piano gratuito include {free_protocols}. Passa a Premium per protocolli illimitati.",
     protocols_limit_upgrade_notrial: "Scopri Premium",
     auth_missing_fields: 'Inserisci email e password.',
     auth_invalid_email: 'Inserisci un indirizzo email valido.',

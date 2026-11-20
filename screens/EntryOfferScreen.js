@@ -25,6 +25,7 @@ import {
 import { getEntitlement } from '../lib/entitlement';
 import { purchaseOutcome, restoreOutcome, outcomeSheet } from '../lib/paywallPlans';
 import { offerModel, benefitRows, freePremiumRows, offerProductIds } from '../lib/entryOffer';
+import useFreeProtocolLimit from '../lib/useFreeProtocolLimit'; // OB-28: the account's free protocol count
 import { applyReferralCode, removeReferralCode, loadReferralCode, syncReferralAttributes, flushPendingAttribution } from '../lib/referralSync';
 import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
 import { Analytics } from '../lib/analytics';
@@ -54,6 +55,9 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { protocolName, protocolSummary } = route?.params || {};
+  // OB-28: the free side of the table states this account's count (1 new / 3 for an OB-26 account).
+  const knownFree = useFreeProtocolLimit();
+  const freeProtocols = route?.params?.freeProtocols ?? knownFree;
   const mounted = useRef(true);
   const busyRef = useRef(false); // one store action at a time
   useEffect(() => () => { mounted.current = false; }, []);
@@ -424,7 +428,7 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
         {kb.spacer}
       </ScrollView>
 
-      <FreePremiumSheet visible={showFree} onClose={() => setShowFree(false)} />
+      <FreePremiumSheet visible={showFree} onClose={() => setShowFree(false)} freeProtocols={freeProtocols} />
       <DTSheet config={sheet} onClose={() => setSheet(null)} />
       {terms.kind === 'inApp' && (
         <LegalModal
@@ -443,7 +447,8 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
  * "Grátis e Premium": the 10-row table (lib/entryOffer freePremiumRows), sized to fit one screen.
  * Drawn checks, a dash for "not included", the free amounts as text.
  */
-export function FreePremiumSheet({ visible, onClose }) {
+// freeProtocols: the account's free protocol count (lib/freePlan, OB-28).
+export function FreePremiumSheet({ visible, onClose, freeProtocols }) {
   const { t } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
@@ -463,7 +468,7 @@ export function FreePremiumSheet({ visible, onClose }) {
               <Text style={[s.cmpHead, s.cmpCell]}>{t('eo_cmp_free')}</Text>
               <Text style={[s.cmpHead, s.cmpCell, s.cmpHeadPremium]}>{t('paywall_premium')}</Text>
             </View>
-            {freePremiumRows(t).map((r) => (
+            {freePremiumRows(t, { freeProtocols }).map((r) => (
               <View key={r.label} style={[s.cmpRow, s.rowSep]}>
                 <Text style={[s.cmpLabel, s.cmpLabelCol]}>{r.label}</Text>
                 <View style={s.cmpCell}>{cell(r.free)}</View>

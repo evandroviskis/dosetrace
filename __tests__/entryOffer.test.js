@@ -297,7 +297,7 @@ test('EO-16: the English copy reads naturally with the same model', () => {
 // ── the Free / Premium sheet and the benefit rows ──────────────────────────────────────────
 
 test('EO-17: "Free and Premium" is a 10-row table in the approved order; checks are drawn, the free side shows the free amounts', () => {
-  const rows = E.freePremiumRows(pt);
+  const rows = E.freePremiumRows(pt, { freeProtocols: 1 }); // a new account (OB-28)
   assert.equal(rows.length, 10);
   assert.deepEqual(rows.map((r) => r.label), ['Cálculo da seringa', 'Protocolos', 'Lembretes', 'Doses no frasco', 'Exames e vacinas', 'Leituras com IA', 'Comida com IA', 'Dose no corpo', 'Relatório em PDF', 'Seus números reais']);
   assert.deepEqual(rows.map((r) => r.free), [true, '1', true, true, true, '3 por mês', '7 dias', false, false, false]);

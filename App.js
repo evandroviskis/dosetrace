@@ -144,7 +144,9 @@ import BodyScreen from './screens/BodyScreen';
 import JourneyScreen from './screens/JourneyScreen';
 import PaywallScreen from './screens/PaywallScreen';
 import EntryOfferScreen from './screens/EntryOfferScreen';
-import { applyOnboardingDraft, keepOnboardingDraft, discardOnboardingDraft, builderShouldShow, markBuilderShown, saveBuilderProtocol, FREE_PROTOCOL_LIMIT as OB_FREE_LIMIT } from './lib/onboardingApp';
+import { applyOnboardingDraft, keepOnboardingDraft, discardOnboardingDraft, builderShouldShow, markBuilderShown, saveBuilderProtocol } from './lib/onboardingApp';
+import { freeProtocolLimit } from './lib/freePlan'; // OB-28: 1 for a new account, 3 for one made before the rule
+import { pluralKey } from './lib/plural';
 import { flushPendingAttribution } from './lib/referralSync';
 import AgeConfirmScreen from './screens/AgeConfirmScreen';
 import { needsAdultConfirmation } from './lib/adultGate';
@@ -316,7 +318,7 @@ function ProtocolBuilderRoute({ navigation, route }) {
     busy.current = true;
     try {
       const r = await saveBuilderProtocol({ id: p.userId }, protocol, language);
-      navigation.replace('EntryOffer', { protocolName: r.protocolName, protocolSummary: r.protocolSummary, landing: r.landing });
+      navigation.replace('EntryOffer', { protocolName: r.protocolName, protocolSummary: r.protocolSummary, landing: r.landing, freeProtocols: r.freeProtocols });
     } catch {
       busy.current = false;
       goLanding(navigation, null); // nothing half-written: the one save runs in one transaction
@@ -378,7 +380,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // OB-23 / OP-2: an existing account signed in with a protocol built in the onboarding — keep or
   // discard (never a silent duplicate); at the free limit, Premium or discard (never above it).
   const obSheet = obAsk ? (obAsk.kind === 'limit'
-    ? { title: t('ob_limit_title'), body: t('ob_limit_body').replace('{n}', String(obAsk.n)).replace('{name}', obAsk.name), locked: true,
+    ? { title: t('ob_limit_title'), body: t(pluralKey('ob_limit_body', obAsk.n, language)).replace('{n}', String(obAsk.n)).replace('{name}', obAsk.name), locked: true,
       buttons: [{ label: t('ob_limit_premium'), kind: 'primary', onPress: onObPremium }, { label: t('ob_keep_discard'), kind: 'secondary', onPress: onObDiscard }] }
     : { title: t('ob_keep_title'), body: t('ob_keep_body').replace('{name}', obAsk.name), locked: true,
       buttons: [{ label: t('ob_keep_yes'), kind: 'primary', onPress: onObKeep }, { label: t('ob_keep_discard'), kind: 'secondary', onPress: onObDiscard }] }) : null;
@@ -819,7 +821,7 @@ export default function App() {
     let r = null;
     try { r = await applyOnboardingDraft(user); } catch { r = null; }
     if (r && (r.action === 'ask' || r.action === 'limit')) {
-      setObAsk({ kind: r.action, name: r.draft.protocol.name, n: OB_FREE_LIMIT, draft: r.draft, user });
+      setObAsk({ kind: r.action, name: r.draft.protocol.name, n: freeProtocolLimit(user), draft: r.draft, user });
       return;
     }
     if (r && r.target) { goPending(r.target); return; }

@@ -161,7 +161,8 @@ function formSave(now, form = {}) {
     setWizSheet: (s) => calls.sheets.push(s), wizError: (body) => calls.sheets.push({ title: 'error', body }),
     showMissingName() {}, showCheckValues() {},
     getCachedUser: async () => ({ id: 'user-A' }),
-    getActiveProtocols: () => [], FREE_PROTOCOL_LIMIT: 3, hasPremium: async () => true,
+    getActiveProtocols: () => [], hasPremium: async () => true,
+    freeProtocolLimit: require('../lib/freePlan').freeProtocolLimit, atFreeProtocolLimit: require('../lib/freePlan').atFreeProtocolLimit, // OB-28
     promptUpgrade() {}, closeWizard: () => { calls.closed++; },
     currentForm: () => ({}), protocolPayload: () => ({ name: 'Tirzepatide', type: f.type }), frequencyLabel: () => 'weekly',
     insertProtocol: (row) => { calls.protocols.push(row); return 42; },

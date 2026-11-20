@@ -21,6 +21,8 @@ import { getCachedUser, supabase } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { getOfferings, checkTrialEligibility } from '../lib/purchases';
 import { anyTrial } from '../lib/paywallPlans';
+// OB-28: the free plan's protocol count (1 for an account made after the rule, 3 for every account before).
+import { freeProtocolLimit, atFreeProtocolLimit, fillFreeProtocols } from '../lib/freePlan';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
@@ -135,9 +137,6 @@ const WELLNESS_KEYS_INJECTABLE = ['wt_anabolic','wt_antioxidant','wt_appetite','
 
 const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','wt_neuro_wellness','wt_cognitive_vit','wt_electrolyte','wt_digestive_wellness','wt_blood_sugar_wellness','wt_liver_wellness','wt_stress_adaptation','wt_immune','wt_joint_health','wt_mental','wt_cellular_opt','wt_kidney_wellness','wt_sleep_quality','wt_stress_mgmt'];
 
-// Free tier: max active protocols before Premium is required. If you change
-// this, update the copy in protocols_limit_msg + paywall_free_feat_3.
-const FREE_PROTOCOL_LIMIT = 3;
 // The editor's keyboard wrapper (build 54): fills the page sheet; on Android its bottom padding
 // is the keyboard's overlap while the keyboard is up.
 const EDITOR_FLEX = { flex: 1 };
@@ -2336,7 +2335,7 @@ export default function ProtocolsScreen() {
       // DB count, so the extra protocol is never created — the block happens
       // before insert, not after.
       const activeCount = (getActiveProtocols(user.id) || []).length;
-      if (activeCount >= FREE_PROTOCOL_LIMIT && !(await hasPremium())) {
+      if (atFreeProtocolLimit({ activeCount, limit: freeProtocolLimit(user), premium: false }) && !(await hasPremium())) {
         setSaving(false);
         closeWizard();
         promptUpgrade();
@@ -2539,7 +2538,8 @@ export default function ProtocolsScreen() {
   }
 
 
-  // Free tier: up to FREE_PROTOCOL_LIMIT (3) active protocols; premium unlocks unlimited. The gate
+  // Free tier: up to the account's free limit of active protocols (lib/freePlan, OB-28: 1 for a new
+  // account, 3 for one made before the rule); premium unlocks unlimited. The gate
   // uses a FRESH DB count (not the possibly-stale `protocols` state) so a rapid
   // second Add right after a save can't slip an extra protocol through.
   // DV-126 (AD-49, DL-82): the trial is claimed only when the store offers it to this person (the paywall's rule);
@@ -2557,7 +2557,7 @@ export default function ProtocolsScreen() {
     } catch { trial = false; }
     setScreenSheet({
       title: t('protocols_limit_title'),
-      body: t(trial ? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'),
+      body: fillFreeProtocols(t(trial ? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'), t, freeProtocolLimit(await getCachedUser().catch(() => null)), language),
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
         { label: t(trial ? 'protocols_limit_upgrade' : 'protocols_limit_upgrade_notrial'), kind: 'primary', onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
@@ -2568,7 +2568,8 @@ export default function ProtocolsScreen() {
   async function isOverFreeLimit() {
     const user = await getCachedUser();
     const count = user ? (getActiveProtocols(user.id) || []).length : protocols.length;
-    return count >= FREE_PROTOCOL_LIMIT && !(await hasPremium());
+    if (!atFreeProtocolLimit({ activeCount: count, limit: freeProtocolLimit(user), premium: false })) return false;
+    return !(await hasPremium());
   }
 
   async function openAdd() {

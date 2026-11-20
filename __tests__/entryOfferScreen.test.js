@@ -121,7 +121,7 @@ test('EO-S11: the 12 month ticks fill with the data colour, the struck price is 
 
 test('EO-S12: the Free and Premium sheet is a separate, exported component with the 10 rows', () => {
   assert.match(SRC, /export function FreePremiumSheet\(/);
-  assert.match(SRC, /freePremiumRows\(t\)/);
+  assert.match(SRC, /freePremiumRows\(t, \{ freeProtocols \}\)/); // OB-28: the account's free count
   assert.match(SRC, /t\('eo_cmp_title'\)/);
   assert.match(SRC, /import Modal from '\.\.\/components\/PresenceModal'/, 'the app Modal (reports itself to the update notice)');
 });
