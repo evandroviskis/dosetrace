@@ -88,7 +88,7 @@ test('OB-9: the app opens on her FIRST choice; without a protocol the protocol c
 });
 
 // ── OB-10 / OB-11: goals by category ──
-test('OB-10: 4 categories in alphabetical order, goals alphabetical, 12 visible, all 18 behind "Ver todos"', () => {
+test('OB-10: 4 categories and their goals by popularity (founder 2026-11-20: Qualidade do sono was hidden by the alphabetical 12), all 18 shown at once', () => {
   const tr = (k) => ({
     goal_cat_body: 'Corpo', goal_cat_hormones: 'Hormônios e energia', goal_cat_recovery: 'Recuperação', goal_cat_health: 'Saúde e longevidade',
     profile_goal_body: 'Composição corporal', profile_goal_fitness: 'Fitness', profile_goal_strength: 'Força e potência', profile_goal_fat_loss: 'Perda de gordura', profile_goal_endurance: 'Resistência',
@@ -96,24 +96,19 @@ test('OB-10: 4 categories in alphabetical order, goals alphabetical, 12 visible,
     profile_goal_skin: 'Pele e colágeno', profile_goal_recovery: 'Recuperação e cicatrização', profile_goal_joint: 'Saúde articular e óssea',
     profile_goal_wellness: 'Bem-estar', profile_goal_immune: 'Função imunológica', profile_goal_longevity: 'Longevidade', profile_goal_cardio: 'Saúde cardiovascular',
   })[k] || k;
-  const v = G.goalSections(tr, { expanded: false, selected: [] });
-  assert.deepEqual(v.sections.map((s) => s.label), ['Corpo', 'Hormônios e energia', 'Recuperação', 'Saúde e longevidade']);
-  assert.deepEqual(v.sections[0].items.map((i) => i.label), ['Composição corporal', 'Fitness', 'Força e potência', 'Perda de gordura']);
-  assert.deepEqual(v.sections[3].items.map((i) => i.label), ['Bem-estar', 'Função imunológica']);
-  assert.equal(v.sections.reduce((n, s) => n + s.items.length, 0), 12);
+  const v = G.goalSections(tr, { selected: [] });
+  // the order of the base on 2026-11-20 (accounts' primary_goal counts), most chosen first
+  assert.deepEqual(v.sections.map((s) => s.label), ['Corpo', 'Hormônios e energia', 'Saúde e longevidade', 'Recuperação']);
+  assert.deepEqual(v.sections[0].items.map((i) => i.label), ['Composição corporal', 'Perda de gordura', 'Força e potência', 'Resistência', 'Fitness']);
+  assert.deepEqual(v.sections[1].items.map((i) => i.label).slice(0, 3), ['Energia e vitalidade', 'Qualidade do sono', 'Saúde sexual']);
+  assert.equal(v.sections.reduce((n, s) => n + s.items.length, 0), 18);
   assert.equal(v.total, 18);
-  assert.equal(v.hidden, 6);
-  const all = G.goalSections(tr, { expanded: true, selected: [] });
-  assert.equal(all.sections.reduce((n, s) => n + s.items.length, 0), 18);
-  assert.equal(all.hidden, 0);
+  assert.equal(v.hidden, 0);
   // The same stored keys as before (PROFILE_GOALS), each in exactly one category.
   const keys = G.GOAL_CATEGORIES.flatMap((c) => c.goals).sort();
   assert.deepEqual(keys, ['body_composition', 'cardiovascular', 'endurance', 'energy', 'fat_loss', 'fitness', 'hormonal_balance', 'immune', 'joint_bone', 'longevity', 'mood', 'recovery', 'sexual_health', 'skin_collagen', 'sleep', 'strength', 'stress', 'wellness']);
-  // A chosen goal that would be hidden opens the full list (never an invisible choice).
-  assert.equal(G.goalSections(tr, { expanded: false, selected: ['longevity'] }).hidden, 0);
 });
 
-// ── OB-14 / OB-15 ──
 test('OB-14: the catalog filtered by the category she picked (aliases too), one row per compound, alphabetical', () => {
   const tr = (k) => ({ lyo_tirzepatide: 'Tirzepatida', rtu_tirzepatide: 'Tirzepatida', lyo_semaglutide: 'Semaglutida', rtu_semaglutide: 'Semaglutida' })[k] || k;
   const glp = D.compoundChoices({ tracking: ['glp1'], query: '', t: tr });
