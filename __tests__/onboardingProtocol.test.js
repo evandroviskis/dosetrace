@@ -16,7 +16,7 @@ const iso = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStar
 // ── OB-1 / OB-12 / OP-1: the order ──
 test('OB-1: the pre-account order, Terms before the first health-data question, About + Routine merged (OP-1), the old single features screen gone', () => {
   assert.deepEqual(O.STEPS, [
-    'splash', 'feat_syringe', 'feat_body', 'feat_reminders', 'feat_protocols', 'feat_labs',
+    'splash', 'intro',
     'help', 'goal', 'consent', 'tracking',
     'compound', 'form', 'vial', 'frequency', 'start', 'ready',
     'about', 'reminders',
@@ -24,7 +24,7 @@ test('OB-1: the pre-account order, Terms before the first health-data question, 
   assert.ok(!O.STEPS.includes('features'), 'the old "Feito para o seu protocolo" screen is removed');
   assert.ok(!O.STEPS.includes('routine'), 'OP-1: Routine is part of About you');
   assert.ok(O.STEPS.indexOf('consent') < O.STEPS.indexOf('tracking'), 'OB-12');
-  assert.deepEqual(O.FEATURE_STEPS.map(O.featureKind), ['syringe', 'body', 'reminders', 'protocols', 'labs']);
+  assert.ok(!O.STEPS.some((x) => /^feat_/.test(x)), 'OB-27: one intro video, not five feature screens');
 });
 
 test('OB-15 / OB-20: "How it comes" only when the compound exists in both forms; "Montar depois" drops the protocol steps', () => {
@@ -37,7 +37,7 @@ test('OB-15 / OB-20: "How it comes" only when the compound exists in both forms;
   for (const s of O.PROTOCOL_STEPS) assert.ok(!skipped.includes(s), `${s} dropped after Montar depois`);
   assert.deepEqual(skipped.slice(-2), ['about', 'reminders'], 'the onboarding goes on');
   assert.equal(O.skipTarget('compound'), 'about');
-  assert.equal(O.skipTarget('feat_body'), 'help', 'OB-7: Pular on a feature screen goes to How DoseTrace can help');
+  assert.equal(O.skipTarget('intro'), null, 'OB-27: the video\'s Pular goes to its own end frame');
 });
 
 test('OB-26: the builder for an existing account is the same protocol screens, then nothing else', () => {

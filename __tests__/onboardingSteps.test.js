@@ -35,7 +35,7 @@ test('PA-35: the birth year: 1900 … this year − 18; outside it the adults no
 
 test('PA-31…PA-37: Continue stays dim until each step is answered', () => {
   const full = { goals: ['fitness'], tracking: ['oral'], name: 'Sam', gender: 'female', country: 'Italy', birthMonth: 0, birthYear: 1990, activity: 'light', provider: 'yes', terms: { med: 1, est: 1, ai: 1, priv: 1 } };
-  for (const s of ['splash', 'feat_syringe', 'goal', 'tracking', 'about', 'consent', 'reminders', 'finish']) assert.equal(O.canContinue(s, full), true, s);
+  for (const s of ['splash', 'intro', 'goal', 'tracking', 'about', 'consent', 'reminders', 'finish']) assert.equal(O.canContinue(s, full), true, s);
   assert.equal(O.canContinue('goal', { ...full, goals: [] }), false);
   assert.equal(O.canContinue('tracking', { ...full, tracking: [] }), false);
   assert.equal(O.canContinue('about', { ...full, name: '   ' }), false);

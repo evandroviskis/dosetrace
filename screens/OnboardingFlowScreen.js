@@ -4,7 +4,6 @@ import {
   StyleSheet, BackHandler, Linking, Platform,
 } from 'react-native';
 import Modal from '../components/PresenceModal';
-import { useWindowSize } from '../lib/windowSize';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,
 } from 'react-native-reanimated';
@@ -30,12 +29,12 @@ import { answerGate } from '../lib/pendingGateStore';
 import { PROFILE_ACTIVITY } from '../lib/activityLevels';
 import { activityParts } from '../lib/progressFormat';
 import {
-  STEPS, FEATURE_STEPS, PROTOCOL_STEPS, HELP_OPTIONS, featureKind, toggleHelp, nextStep, prevStep, skipTarget,
+  STEPS, PROTOCOL_STEPS, HELP_OPTIONS, toggleHelp, nextStep, prevStep, skipTarget,
   birthYearState, activeSteps as stepsFor, canContinue as canGo, formFrom, stashPatch,
   accountPatch, refreshForm, entryStep, stepNear,
 } from '../lib/onboardingSteps';
 import { reminderLine } from '../lib/onboardingDraft';
-import OnboardingFeature from '../components/OnboardingFeatures';
+import OnboardingIntro from '../components/OnboardingIntro';
 import OnboardingProtocolSteps, { stepTitle, weekdayPhrase } from './components/OnboardingProtocolSteps';
 import GoalTiles from '../components/GoalTiles';
 import FeatureIcon from '../components/FeatureIcon';
@@ -89,7 +88,7 @@ function Chevron({ dir, color }) {
  * lib/onboardingSteps.js and lib/onboardingDraft.js; this screen renders them.
  *
  * THREE MODES (one screen):
- *  • Pre-account (no `session`): the app's five feature screens, "Como o DoseTrace pode ajudar
+ *  • Pre-account (no `session`): the intro video (OB-27), "Como o DoseTrace pode ajudar
  *    você?", the goals, the Terms, what she uses, her first protocol (kept on the phone as a draft,
  *    lib/onboardingDraftStore — never in the database before the account), About you with the
  *    routine (OP-1) and the reminders. Everything typed is kept as she goes and the flow reopens
@@ -112,8 +111,6 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
   const { t, language, setLanguage, LANGUAGES, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const { width: winW } = useWindowSize();
-  const heroW = Math.min(420, winW - 32); // 16 pt screen gutter each side
   const thisYear = new Date().getFullYear();
 
   const builder = mode === 'builder';
@@ -285,8 +282,8 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
     const p = prevStep(steps, cur);
     if (p) setCur(p); // Back keeps every answer (OB-20)
   }
-  // OB-7: "Pular" on a feature screen → How DoseTrace can help. OB-20: "Montar depois" → the
-  // protocol is not built and the onboarding goes on (the draft keeps what was typed, unused).
+  // OB-20: "Montar depois" → the protocol is not built and the onboarding goes on (the draft keeps
+  // what was typed, unused). The intro video's "Pular" is its own (components/OnboardingIntro).
   async function skip() {
     const target = skipTarget(cur);
     if (!target) return;
@@ -354,7 +351,6 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
 
   if (!ready || !cur) return <SafeAreaView style={s.root} />; // reading the stash (a few ms)
 
-  const isFeature = FEATURE_STEPS.includes(cur);
   const isProtocolStep = PROTOCOL_STEPS.includes(cur);
   const builtProtocol = protocol && protocol.name && !skipped ? protocol : null;
   const remindersSub = builtProtocol && builtProtocol.time
@@ -363,7 +359,8 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
 
   return (
     <SafeAreaView style={s.root}>
-      {(step > 0 || signedIn) && (
+      {/* OB-27: the intro video is full screen with its own story bars, Pular and Começar. */}
+      {(step > 0 || signedIn) && cur !== 'intro' && (
         <View style={s.topBar}>
           <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} disabled={step === 0} style={[s.backBtn, step === 0 && s.hidden]} accessibilityRole="button" accessibilityLabel={t('back')}>
             <Chevron dir="left" color={colors.ink} />
@@ -380,10 +377,6 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
             <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.signOutBtn} accessibilityRole="button">
               <Text style={s.signOutLink}>{t('settings_signout')}</Text>
             </TouchableOpacity>
-          ) : isFeature ? (
-            <TouchableOpacity onPress={skip} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.signOutBtn} accessibilityRole="button">
-              <Text style={s.signOutLink}>{t('ob_skip')}</Text>
-            </TouchableOpacity>
           ) : (
             <View style={{ width: 24 }} />
           )}
@@ -393,7 +386,9 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
       <Animated.View style={[{ flex: 1 }, stepStyle]}>
         {/* RS-8: Android, after "Turn on notifications" — the conversation for the phone items only;
             its last chip ("Continuar" / "Configurar depois") and "Agora não" go on exactly as before. */}
-        {cur === 'reminders' && showSetup ? (
+        {cur === 'intro' ? (
+          <OnboardingIntro onDone={next} />
+        ) : cur === 'reminders' && showSetup ? (
           <ReminderConversation mode="onboarding" onContinue={() => toAuth('create')} />
         ) : (
         <ScrollView {...kb.scrollProps} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
@@ -414,9 +409,6 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
               </View>
             </View>
           )}
-
-          {/* OB-2..OB-7: one screen per feature, animated examples (components/OnboardingFeatures). */}
-          {isFeature && <OnboardingFeature key={cur} kind={featureKind(cur)} width={heroW} />}
 
           {cur === 'help' && (
             <>
@@ -633,6 +625,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
         )}
       </Animated.View>
 
+      {cur !== 'intro' && (
       <View style={[s.footer, cur === 'reminders' && showSetup && s.footerNone]}>
         {cur === 'splash' && (
           <>
@@ -677,6 +670,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
           </TouchableOpacity>
         )}
       </View>
+      )}
 
       {/* Language picker (Graduated bottom sheet, prototype.html langSheet()) */}
       <Modal visible={showLang} animationType="fade" transparent onRequestClose={() => setShowLang(false)}>

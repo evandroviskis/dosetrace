@@ -14,7 +14,8 @@ const { translations: T } = require('../i18n/translations.js');
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 
 test('OB-1: the screen renders every step of the signed order and the old features list is gone', () => {
-  assert.match(ONB, /\{isFeature && <OnboardingFeature key=\{cur\} kind=\{featureKind\(cur\)\} width=\{heroW\} \/>\}/);
+  assert.match(ONB, /cur === 'intro' \? \(\s*<OnboardingIntro onDone=\{next\} \/>/, 'OB-27: the intro video');
+  assert.doesNotMatch(ONB, /OnboardingFeature\b/, 'the five feature screens are gone');
   for (const s of ["cur === 'help'", "cur === 'goal'", "cur === 'consent'", "cur === 'tracking'", 'isProtocolStep', "cur === 'about'", "cur === 'reminders'"]) assert.ok(ONB.includes(s), s);
   assert.doesNotMatch(ONB, /ob_features_title|ob_feat1_t|AccumulationHero/, 'the single "Feito para o seu protocolo" screen is removed');
   assert.doesNotMatch(ONB, /cur === 'routine'/, 'OP-1: no separate routine screen');
@@ -23,8 +24,8 @@ test('OB-1: the screen renders every step of the signed order and the old featur
   assert.match(ONB, /const p = prevStep\(steps, cur\);/);
 });
 
-test('OB-7 / OB-20: "Pular" on the feature screens, "Montar depois" on every protocol screen, Back keeps the answers', () => {
-  assert.match(ONB, /isFeature \? \([\s\S]{0,200}onPress=\{skip\}[\s\S]{0,200}t\('ob_skip'\)/);
+test('OB-27 / OB-20: "Pular" is the video\'s own, "Montar depois" on every protocol screen, Back keeps the answers', () => {
+  assert.doesNotMatch(ONB, /t\('ob_skip'\)/, 'the flow has no Pular of its own any more (components/OnboardingIntro has it)');
   assert.match(ONB, /\{isProtocolStep && !builder && \([\s\S]{0,160}onPress=\{skip\}[\s\S]{0,160}t\('ob_build_later'\)/);
   assert.match(ONB, /setSkipped\(true\);\n\s+await persist\(\{ skipped: true \}\);/);
   const back = ONB.slice(ONB.indexOf('function back() {'), ONB.indexOf('function back() {') + 260);
