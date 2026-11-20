@@ -14,7 +14,7 @@
   - all six languages, natural copy;
   - Portuguese copy is formal.
 - open (founder): OP-1 merge "Sobre você" and "Rotina" into one screen; OP-2 an existing account that signs in after building a protocol: ask whether to keep or discard it.
-- checklist-signed: (pending)
+- checklist-signed: founder 2026-11-20 ("Ok, então aqui está aprovado o que a gente estava fazendo aqui agora"). OP-1 and OP-2 follow the recommendations shown to him (merge About you + Routine; ask keep or discard), unless he says otherwise.
 - committed-to: next delivery after sign-off. This is JS only, so it ships as an EAS Update. It is checked first on the Fold with a local APK.
 
 ## Acceptance checklist
