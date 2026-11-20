@@ -32,8 +32,11 @@ test('PQ-6: melatonin → sleep and circadian first; vitamin C → immune and an
   assert.deepEqual(mel.slice(0, 2), ['wt_sleep_quality', 'wt_circadian']);
   assert.ok(mel.includes('wt_circadian'), 'the circadian key joins the capsule list for melatonin');
   assert.equal(mel.length, 18);
+  // Council 2026-11-20 (regulatory): injectable melatonin, glutathione and NAD+ have no approved
+  // injectable use, so they are not in the table: their tiles are in the normal order.
   const lyoMel = order({ type: 'recon', compoundId: 'lyo_melatonin', name: 'Melatonin' });
-  assert.deepEqual(lyoMel.slice(0, 2), ['wt_sleep_opt', 'wt_circadian']);
+  assert.deepEqual(lyoMel, alpha(P.purposeKeysFor('recon')));
+  for (const id of ['lyo_melatonin', 'lyo_glutathione', 'lyo_nad_plus']) assert.equal(P.TYPICAL_PURPOSE[id], undefined, id);
   const c = order({ type: 'oral', compoundId: 'oral_vit_c', name: 'Vitamina C' });
   assert.deepEqual(c.slice(0, 2), ['wt_immune', 'wt_antioxidant_def']);
   assert.ok(c.indexOf('wt_sleep_quality') > 1, 'vitamin C never pulls sleep up');
@@ -145,7 +148,7 @@ test('PQ-12: storage is the same comma-separated goal string, parsed and written
 test('PQ-14: profile goals → protocol goals by type (small table, wellness keys of that type only)', () => {
   // Mapped through the product's curated table (PQ-17): the same profile goal reads in the product's own key.
   assert.deepEqual(P.purposeFromProfile(['sleep'], 'oral', 'oral_melatonin'), ['wt_sleep_quality']);
-  assert.deepEqual(P.purposeFromProfile(['sleep'], 'recon', 'lyo_melatonin'), ['wt_sleep_opt']);
+  assert.deepEqual(P.purposeFromProfile(['sleep'], 'recon', 'lyo_melatonin'), [], 'no table entry for injectable melatonin (council 2026-11-20)');
   assert.deepEqual(P.purposeFromProfile(['fat_loss', 'strength', 'sleep'], 'rtu', 'rtu_semaglutide'), ['wt_weight']);
   assert.deepEqual(P.purposeFromProfile(['fat_loss', 'immune'], 'oral', 'oral_zinc'), ['wt_immune'], 'a goal with no key in that list is left out');
   assert.deepEqual(P.purposeFromProfile(['wellness'], 'recon', 'lyo_glutathione'), [], 'no loose mapping');
