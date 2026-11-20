@@ -43,7 +43,7 @@ the decision did not foresee — raise it in one line, citing the decision, and 
 
 ## Standing rule: understand the real goal, ask when unclear (founder, 2026-11-20 10:38 EST)
 
-"Eu preciso que você entenda o contexto do que eu estou te perguntando. Talvez, se não ficou claro, você me faça perguntas para que o contexto fique claro. Coloque isso como regra." The founder's examples (melatonin, a Polar chest strap) illustrate a general question; answer the general question, not the example. If the context or the goal behind a request is unclear, ask him short questions in one round BEFORE answering, designing or building. (Exists because on 2026-11-20 the melatonin example was answered literally, when the real question was which data source gives the most accurate number for each person.)
+"Eu preciso que você entenda o contexto do que eu estou te perguntando. Talvez, se não ficou claro, você me faça perguntas para que o contexto fique claro. Coloque isso como regra." And (10:45): "entender o que eu quero e não o que eu estou falando. Construir o que eu preciso e não o que eu estou pedindo." The founder's examples (melatonin, a Polar chest strap) illustrate a general question; answer the general question, not the example. If the context or the goal behind a request is unclear, ask him short questions in one round BEFORE answering, designing or building. (Exists because on 2026-11-20 the melatonin example was answered literally, when the real question was which data source gives the most accurate number for each person.)
 
 ## Standing rule: check the record before proposing (founder, 2026-10-23)
 
