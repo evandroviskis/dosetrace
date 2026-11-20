@@ -104,7 +104,9 @@ test('OB-10: 4 categories and their goals by popularity (founder 2026-11-20: Qua
   assert.deepEqual(v.sections[1].items.map((i) => i.label).slice(0, 3), ['Energia e vitalidade', 'Qualidade do sono', 'Saúde sexual']);
   assert.equal(v.sections.reduce((n, s) => n + s.items.length, 0), 18);
   assert.equal(v.total, 18);
-  assert.equal(v.hidden, 0);
+  assert.equal(v.hidden, undefined, 'all 18 shown at once (founder 2026-11-20 09:56): no hidden count');
+  const GT = read('components/GoalTiles.js');
+  assert.doesNotMatch(GT, /ob_goal_see_all|v\.hidden|setExpanded|useState/, 'no dead Ver todos branch in GoalTiles');
   // The same stored keys as before (PROFILE_GOALS), each in exactly one category.
   const keys = G.GOAL_CATEGORIES.flatMap((c) => c.goals).sort();
   assert.deepEqual(keys, ['body_composition', 'cardiovascular', 'endurance', 'energy', 'fat_loss', 'fitness', 'hormonal_balance', 'immune', 'joint_bone', 'longevity', 'mood', 'recovery', 'sexual_health', 'skin_collagen', 'sleep', 'strength', 'stress', 'wellness']);

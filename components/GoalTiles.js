@@ -1,9 +1,10 @@
 // The goals by category (docs/specs/onboarding-protocol.md OB-10 / OB-11, picture
 // docs/design/onboarding-protocolo.html section 8): the 4 categories with their icon and name, the
-// goals as equal tiles 2 per row, alphabetical, 12 visible and "Ver todos os objetivos (18)". ONE
+// goals as equal tiles 2 per row, all 18 at once, ordered by how often accounts chose them (founder
+// 2026-11-20 09:56). ONE
 // component for onboarding and Ajustes › Editar perfil (DV-113). The rules are lib/goalCategories.
 // value: the selected goal keys (primary_goal, same keys as before); onToggle(key).
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../lib/theme';
 import FeatureIcon from './FeatureIcon';
@@ -14,9 +15,8 @@ import { goalSections, legacyGoals } from '../lib/goalCategories';
 export default function GoalTiles({ value, onToggle, t }) {
   const { colors } = useTheme();
   const s = useMemo(() => StyleSheet.create({ ...tileStyles(colors), ...styles(colors) }), [colors]);
-  const [expanded, setExpanded] = useState(false);
   const list = Array.isArray(value) ? value : [];
-  const v = goalSections(t, { expanded, selected: list });
+  const v = goalSections(t);
   const legacy = legacyGoals(list);
   const tile = (key, label, on) => (
     <TouchableOpacity key={key} style={[s.tile, on && s.tileOn]} onPress={() => onToggle(key)} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
@@ -37,11 +37,6 @@ export default function GoalTiles({ value, onToggle, t }) {
       ))}
       {/* A stored key outside the 18 (an old "athletic") stays visible, selected, so it can be removed. */}
       {legacy.length ? <View style={s.tileGrid}>{legacy.map((k) => tile(k, t('profile_goal_' + k) || k, true))}</View> : null}
-      {v.hidden > 0 ? (
-        <TouchableOpacity style={s.more} onPress={() => setExpanded(true)} accessibilityRole="button">
-          <Text style={s.moreText}>{t('ob_goal_see_all').replace('{n}', String(v.total))}</Text>
-        </TouchableOpacity>
-      ) : null}
     </View>
   );
 }
@@ -52,7 +47,5 @@ function styles(c) {
     section: { gap: 10 },
     head: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2 },
     headText: { fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 0.6, color: c.ink2 },
-    more: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 2 },
-    moreText: { fontSize: 15, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
   };
 }
