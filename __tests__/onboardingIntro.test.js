@@ -166,10 +166,13 @@ test('OB-4: each dose age has its own data tone, in both themes, with readable v
 });
 
 // ── OB-5: reminders ──
-test('OB-5: the notification for Compound 1 at 08:00, Taken, logged at 08:02, then Supplement A and Snooze', () => {
+test('OB-5: the notification for Compound 1 at 08:00, Mark complete, logged at 08:02, then Supplement A and In 1 hour, with the same button words as the real reminder', () => {
   assert.deepEqual(F.REMINDER_EXAMPLE, { first: '08:00', logged: '08:02' });
   const s = src();
-  for (const k of ['obi_rem_title', 'obi_rem_now', 'obi_rem_msg', 'obi_rem_taken', 'obi_rem_snooze', 'obi_rem_done', 'obi_ex_compound1', 'obi_ex_supplement']) assert.match(s, new RegExp(`'${k}'`), k);
+  for (const k of ['obi_rem_title', 'obi_rem_now', 'obi_rem_msg', 'obi_rem_done', 'obi_ex_compound1', 'obi_ex_supplement', 'notif_action_complete', 'notif_action_snooze_hour']) assert.match(s, new RegExp(`'${k}'`), k);
+  assert.doesNotMatch(s, /obi_rem_taken|obi_rem_snooze/, 'no video-only button words (Mark complete decision 2026-10-02)');
+  assert.match(read('lib/notifications.js'), /buttonTitle: t\('notif_action_complete'\)/);
+  assert.match(read('lib/notifications.js'), /buttonTitle: t\('notif_action_snooze_hour'\)/);
   assert.match(s, /formatTime\(/, 'times in the person\'s format');
 });
 
@@ -229,8 +232,8 @@ test('OB-27: the flow shows the video full screen on the intro step and Start go
 const KEYS = [
   'obi_open', 'obi_example', 'obi_syr_title', 'obi_syr_l_compound', 'obi_syr_l_vial', 'obi_syr_l_diluent', 'obi_syr_l_dose',
   'obi_ex_compound1', 'obi_syr_calc', 'obi_syr_draw', 'obi_body_title', 'obi_body_sub', 'obi_body_day', 'obi_body_you_take',
-  'obi_body_leg_today', 'obi_body_leg_ago', 'obi_body_foot', 'obi_rem_title', 'obi_rem_now', 'obi_rem_msg', 'obi_rem_taken',
-  'obi_rem_snooze', 'obi_rem_done', 'obi_ex_supplement', 'obi_lab_title', 'obi_lab_glucose', 'obi_lab_ldl', 'obi_lab_vitd',
+  'obi_body_leg_today', 'obi_body_leg_ago', 'obi_body_foot', 'obi_rem_title', 'obi_rem_now', 'obi_rem_msg',
+  'obi_rem_done', 'obi_ex_supplement', 'obi_lab_title', 'obi_lab_glucose', 'obi_lab_ldl', 'obi_lab_vitd',
   'obi_lab_foot', 'obi_end', 'obi_start', 'obi_tap_next', 'obi_a11y_video',
 ];
 test('every intro copy key exists in the 6 languages, with the same placeholders, and every obi_ key is used', () => {
@@ -266,7 +269,7 @@ test('the Portuguese copy is the approved picture, word for word; English as app
   assert.equal(pt.obi_rem_title, 'Um aviso na hora de cada dose');
   assert.equal(`DoseTrace · ${pt.obi_rem_now}`, 'DoseTrace · agora');
   assert.equal(f(pt.obi_rem_msg, { name: pt.obi_ex_supplement }), 'Hora da dose: Suplemento A');
-  assert.deepEqual([pt.obi_rem_taken, pt.obi_rem_snooze], ['Tomei', 'Adiar']);
+  assert.deepEqual([pt.notif_action_complete, pt.notif_action_snooze_hour], ['Marcar como concluída', 'Em 1 hora']);
   assert.equal(f(pt.obi_rem_done, { time: '08:02' }), 'Dose registrada às 08:02');
   assert.equal(pt.obi_lab_title, 'Seus exames, ao longo do tempo');
   assert.deepEqual([pt.obi_lab_glucose, pt.obi_lab_ldl, pt.obi_lab_vitd], ['Glicose', 'Colesterol LDL', 'Vitamina D']);
@@ -283,7 +286,7 @@ test('the Portuguese copy is the approved picture, word for word; English as app
   assert.equal(en.obi_body_leg_today, 'Dose today');
   assert.equal(f(en.obi_body_leg_ago, { n: 14 }), 'Dose from 14 days ago');
   assert.equal(en.obi_rem_title, 'A reminder at every dose time');
-  assert.deepEqual([en.obi_rem_taken, en.obi_rem_snooze], ['Taken', 'Snooze']);
+  assert.deepEqual([en.notif_action_complete, en.notif_action_snooze_hour], ['Mark complete', 'In 1 hour']);
   assert.equal(f(en.obi_rem_done, { time: '08:02' }), 'Dose logged at 08:02');
   assert.equal(en.obi_lab_title, 'Your labs, over time');
   assert.equal(en.obi_end, 'Everything you take. One line.');

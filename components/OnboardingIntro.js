@@ -280,7 +280,7 @@ function Press({ clock, at, dur, s, label }) {
   const st = useAnimatedStyle(() => ({ opacity: clamp01((clock.get() - at) / dur) }));
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.btnOn, st]}>
-      <Tx style={s.btnTextOn} numberOfLines={1}>{label}</Tx>
+      <Tx style={s.btnTextOn} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{label}</Tx>
     </Animated.View>
   );
 }
@@ -289,9 +289,10 @@ function Notification({ clock, slide, press, which, s, head, msg, t }) {
     const p = EASE(clamp01((clock.get() - slide[0]) / slide[1]));
     return { opacity: clock.get() < slide[0] ? 0 : p, transform: [{ translateY: -50 * (1 - p) }] };
   });
-  const btn = (key, on) => (
-    <View style={s.btn}>
-      <Tx style={s.btnText} numberOfLines={1}>{t(key)}</Tx>
+  // The same words as the real reminder buttons (lib/notifications), never video-only words.
+  const btn = (key, on, flex) => (
+    <View style={[s.btn, { flex }]}>
+      <Tx style={s.btnText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t(key)}</Tx>
       {on ? <Press clock={clock} at={press[0]} dur={press[1]} s={s} label={t(key)} /> : null}
     </View>
   );
@@ -303,8 +304,8 @@ function Notification({ clock, slide, press, which, s, head, msg, t }) {
       </View>
       <Tx style={s.notifMsg} numberOfLines={2}>{msg}</Tx>
       <View style={s.btnRow}>
-        {btn('obi_rem_taken', which === 'taken')}
-        {btn('obi_rem_snooze', which === 'snooze')}
+        {btn('notif_action_complete', which === 'taken', 1.7)}
+        {btn('notif_action_snooze_hour', which === 'snooze', 1)}
       </View>
     </Animated.View>
   );
@@ -400,7 +401,7 @@ function sceneLabel(i, { t, language, timeFormat }) {
   }
   if (key === 'reminders') {
     const ex = REMINDER_EXAMPLE;
-    return [t('obi_rem_title'), fill(t('obi_rem_msg'), { name: t('obi_ex_compound1') }), t('obi_rem_taken'), fill(t('obi_rem_done'), { time: formatTime(ex.logged, language, timeFormat) }), fill(t('obi_rem_msg'), { name: t('obi_ex_supplement') }), t('obi_rem_snooze')].join('. ');
+    return [t('obi_rem_title'), fill(t('obi_rem_msg'), { name: t('obi_ex_compound1') }), t('notif_action_complete'), fill(t('obi_rem_done'), { time: formatTime(ex.logged, language, timeFormat) }), fill(t('obi_rem_msg'), { name: t('obi_ex_supplement') }), t('notif_action_snooze_hour')].join('. ');
   }
   if (key === 'labs') {
     const months = MONTHS_SHORT[language] || MONTHS_SHORT.en;
@@ -555,10 +556,10 @@ const makeStyles = (c) => StyleSheet.create({
   notifApp: { flex: 1, fontSize: 11, lineHeight: 14, color: c.ink2 },
   notifMsg: { fontSize: 13, lineHeight: 17, fontWeight: '700', color: c.ink },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 2 },
-  btn: { flex: 1, height: 26, borderRadius: 8, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', paddingHorizontal: 4 },
-  btnText: { fontSize: 13, fontWeight: '700', color: c.ink },
+  btn: { height: 26, borderRadius: 8, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', paddingHorizontal: 4 },
+  btnText: { fontSize: 12, fontWeight: '700', color: c.ink },
   btnOn: { borderRadius: 8, backgroundColor: c.data, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  btnTextOn: { fontSize: 13, fontWeight: '700', color: c.onData },
+  btnTextOn: { fontSize: 12, fontWeight: '700', color: c.onData },
   chip: { alignSelf: 'center', marginTop: 12, marginBottom: 18, minHeight: 30, borderRadius: 15, paddingHorizontal: 14, backgroundColor: c.raised, justifyContent: 'center' },
   chipText: { fontSize: 12, lineHeight: 16, fontWeight: '700', color: c.ok },
   // labs
