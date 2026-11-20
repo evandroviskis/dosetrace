@@ -3198,6 +3198,10 @@ export const translations = {
     eo_sample_label: "Sample prices (development mode only)",
     eo_sample_buy_title: "Sample prices",
     eo_sample_buy_body: "These prices are only a development-mode example. Buying works once the 3-month plan exists in the store.",
+    eo_ref_unknown: "We couldn't find this code. Check that it is typed correctly.",
+    eo_ref_ended: "This code is no longer valid.",
+    eo_ref_offline: "The code could not be checked right now. Check your connection and try again.",
+    eo_ref_benefit_default: "1 extra month of Premium after your first payment.",
   },
 
   'es': {
@@ -6388,6 +6392,10 @@ export const translations = {
     eo_sample_label: "Precios de ejemplo (solo en modo de desarrollo)",
     eo_sample_buy_title: "Precios de ejemplo",
     eo_sample_buy_body: "Estos precios son solo un ejemplo del modo de desarrollo. La compra funciona cuando el plan de 3 meses exista en la tienda.",
+    eo_ref_unknown: "No encontramos este código. Revisa que esté bien escrito.",
+    eo_ref_ended: "Este código ya no es válido.",
+    eo_ref_offline: "No se pudo comprobar el código ahora. Revisa tu conexión e inténtalo de nuevo.",
+    eo_ref_benefit_default: "1 mes extra de Premium después del primer pago.",
   },
 
   'pt': {
@@ -9578,6 +9586,10 @@ export const translations = {
     eo_sample_label: "Preços de exemplo (só no modo de desenvolvimento)",
     eo_sample_buy_title: "Preços de exemplo",
     eo_sample_buy_body: "Estes preços são apenas um exemplo do modo de desenvolvimento. A compra funciona quando o plano de 3 meses existir na loja.",
+    eo_ref_unknown: "Este código não existe. Confira se ele foi digitado corretamente.",
+    eo_ref_ended: "Este código não é mais válido.",
+    eo_ref_offline: "Não foi possível conferir o código agora. Verifique sua conexão e tente novamente.",
+    eo_ref_benefit_default: "1 mês extra de Premium depois do primeiro pagamento.",
   },
   'fr': {
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -12767,6 +12779,10 @@ export const translations = {
     eo_sample_label: "Prix d’exemple (mode développement uniquement)",
     eo_sample_buy_title: "Prix d’exemple",
     eo_sample_buy_body: "Ces prix ne sont qu’un exemple du mode développement. L’achat fonctionne dès que l’offre de 3 mois existe dans la boutique.",
+    eo_ref_unknown: "Ce code est introuvable. Vérifiez qu’il est bien saisi.",
+    eo_ref_ended: "Ce code n’est plus valable.",
+    eo_ref_offline: "Impossible de vérifier le code pour le moment. Vérifiez votre connexion et réessayez.",
+    eo_ref_benefit_default: "1 mois de Premium offert après votre premier paiement.",
   },
   'de': {
     // A-127 in-app update notice (docs/specs/update-notice.md; picture docs/design/a127-update-notice.html)
@@ -15956,6 +15972,10 @@ export const translations = {
     eo_sample_label: "Beispielpreise (nur im Entwicklungsmodus)",
     eo_sample_buy_title: "Beispielpreise",
     eo_sample_buy_body: "Diese Preise sind nur ein Beispiel im Entwicklungsmodus. Der Kauf funktioniert, sobald das 3-Monats-Abo im Store existiert.",
+    eo_ref_unknown: "Diesen Code gibt es nicht. Prüfe, ob er richtig geschrieben ist.",
+    eo_ref_ended: "Dieser Code ist nicht mehr gültig.",
+    eo_ref_offline: "Der Code konnte gerade nicht geprüft werden. Prüfe deine Verbindung und versuche es noch einmal.",
+    eo_ref_benefit_default: "1 Gratismonat Premium nach deiner ersten Zahlung.",
   },
 
   'it': {
@@ -19146,5 +19166,9 @@ export const translations = {
     eo_sample_label: "Prezzi di esempio (solo in modalità sviluppo)",
     eo_sample_buy_title: "Prezzi di esempio",
     eo_sample_buy_body: "Questi prezzi sono solo un esempio della modalità sviluppo. L’acquisto funziona quando il piano da 3 mesi esiste nello store.",
+    eo_ref_unknown: "Questo codice non esiste. Controlla di averlo scritto bene.",
+    eo_ref_ended: "Questo codice non è più valido.",
+    eo_ref_offline: "Non è stato possibile controllare il codice ora. Controlla la connessione e riprova.",
+    eo_ref_benefit_default: "1 mese di Premium in più dopo il primo pagamento.",
   },
 };

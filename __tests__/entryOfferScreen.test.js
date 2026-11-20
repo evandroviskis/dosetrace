@@ -49,7 +49,9 @@ test('EO-S4: the purchase sends the referral attributes first, then buys through
   assert.match(SRC, /restoreOutcome\(result, premiumNow\)/);
   assert.match(SRC, /<DTSheet config=\{sheet\}/);
   assert.doesNotMatch(SRC, /\bAlert\b/);
-  assert.doesNotMatch(SRC, /fetch\(|dosetrace\.io\/api/, 'no server call (the creators server is not live)');
+  assert.doesNotMatch(SRC, /\bfetch\(|dosetrace\.io/, 'the screen never calls the server itself: lib/referralSync does');
+  assert.ok(buy.indexOf('flushPendingAttribution(') > 0 && buy.indexOf('flushPendingAttribution(') < buy.indexOf('purchasePackage('), 'the server record is tried before the purchase too');
+  assert.match(buy, /await syncReferralAttributes\(\)/, 'the purchase waits for the RevenueCat attributes');
 });
 
 test('EO-S5: Restore, close, all plans, Terms (EULA / in-app) and Privacy are there (Apple 3.1.2)', () => {
@@ -69,8 +71,18 @@ test('EO-S6: no free trial and no renewal-reminder promise on this screen', () =
   for (const k of eoKeys) for (const v of valuesOf(k)) assert.doesNotMatch(v, /free trial|prueba gratis|teste grátis|essai gratuit|Testphase|prova gratuita|avisa|warns you|reminds you/i, `${k}: ${v}`);
 });
 
-test('EO-S7: the extra referral month is not promised (nothing grants it yet)', () => {
-  for (const k of eoKeys) for (const v of valuesOf(k)) assert.doesNotMatch(v, /extra|mês a mais|mês grátis|mes extra|mois offert|Gratismonat|mese in più/i, `${k}: ${v}`);
+// Coordinator 2026-11-20 (creators server live): the extra month may be promised ONLY in the applied
+// state of a code the server said is valid — the server's benefit_text, else eo_ref_benefit_default.
+test('EO-S7: the extra referral month appears only in the applied state of a server-valid code', () => {
+  const PROMISE = /extra|mês a mais|mês grátis|mes extra|mois .*offert|Gratismonat|mese .*in più/i;
+  for (const k of eoKeys) if (k !== 'eo_ref_benefit_default') for (const v of valuesOf(k)) assert.doesNotMatch(v, PROMISE, `${k}: ${v}`);
+  const def = valuesOf('eo_ref_benefit_default');
+  assert.equal(def.length, 6);
+  assert.equal(def[2], '1 mês extra de Premium depois do primeiro pagamento.');
+  for (const v of def) assert.match(v, PROMISE);
+  assert.equal(SRC.split("t('eo_ref_benefit_default')").length - 1, 1, 'used once');
+  assert.match(SRC, /\{refCode \? \([\s\S]{0,700}refBenefit \|\| t\('eo_ref_benefit_default'\)/, 'inside the applied branch, after the server benefit_text');
+  assert.doesNotMatch(SRC, /setRefCode\((?!r\.code\)|rec\.code\)|null\))/, 'refCode only comes from a server-valid apply or the stored valid code');
 });
 
 test('EO-S8: S-24 — the AI reads never say unlimited and carry no number on the Premium side (6 languages)', () => {
@@ -122,6 +134,22 @@ test('EO-S13: the referral code row: dashed coupon, field + Apply, applied state
   assert.match(SRC, /t\('eo_ref_remove'\)/);
   assert.match(SRC, /applyReferralCode\(/);
   assert.match(SRC, /removeReferralCode\(/);
-  assert.match(SRC, /loadReferralCode\(AsyncStorage\)/);
-  assert.match(SRC, /setAttributes: setCreatorAttributes/);
+  assert.match(SRC, /loadReferralCode\(\)/);
+  assert.match(SRC, /from '\.\.\/lib\/referralSync'/, 'the app-bound versions (AsyncStorage, RevenueCat, token, fetch)');
+  for (const [reason, key] of [['shape', 'eo_ref_invalid'], ['unknown', 'eo_ref_unknown'], ['ended', 'eo_ref_ended'], ['offline', 'eo_ref_offline']]) {
+    assert.match(SRC, new RegExp(`${reason}: '${key}'`), reason);
+    assert.equal(valuesOf(key).length, 6, key);
+  }
+  for (const v of valuesOf('eo_ref_offline')) assert.doesNotMatch(v, /aplicad|applied|appliqué|eingelöst|applicat/i, 'offline never says applied');
+  assert.match(SRC, /eo_ref_label/);
+  assert.equal((SRC.match(/t\('eo_ref_label'\)/g) || []).length >= 1, true);
+});
+
+test('EO-S14: lib/referralSync binds the rules to the app and exports flushPendingAttribution for App.js', () => {
+  const sync = read('lib', 'referralSync.js');
+  assert.match(sync, /export function flushPendingAttribution\(\{ getAccessToken = sessionAccessToken, fetch = netFetch \} = \{\}\)/);
+  assert.match(sync, /storage: AsyncStorage, setAttributes: setCreatorAttributes, getAccessToken, fetch/);
+  assert.match(sync, /data\.session\.access_token/, 'the signed-in user Supabase token');
+  assert.match(sync, /globalThis\.fetch\(url, opts\)/, 'the global fetch, read at call time');
+  assert.match(read('lib', 'referralCode.js'), /CREATOR_API = 'https:\/\/dosetrace\.io\/api\/creator'/);
 });

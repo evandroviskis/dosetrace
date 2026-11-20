@@ -12,7 +12,6 @@ import {
   BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
@@ -22,12 +21,11 @@ import {
   purchasePackage,
   restorePurchases,
   checkTrialEligibility,
-  setCreatorAttributes,
 } from '../lib/purchases';
 import { getEntitlement } from '../lib/entitlement';
 import { purchaseOutcome, restoreOutcome, outcomeSheet } from '../lib/paywallPlans';
 import { offerModel, benefitRows, freePremiumRows, offerProductIds } from '../lib/entryOffer';
-import { applyReferralCode, removeReferralCode, loadReferralCode, syncReferralAttributes } from '../lib/referralCode';
+import { applyReferralCode, removeReferralCode, loadReferralCode, syncReferralAttributes, flushPendingAttribution } from '../lib/referralSync';
 import { PRIVACY_URL, termsTarget } from '../lib/legalLinks';
 import { Analytics } from '../lib/analytics';
 import FeatureIcon from '../components/FeatureIcon';
@@ -37,6 +35,9 @@ import LegalModal from '../components/LegalModal';
 import Modal from '../components/PresenceModal';
 import useKeyboardLift from '../components/useKeyboardLift';
 import { DTSheet } from './components/ProtocolParts';
+
+// The message for each way Aplicar can fail (lib/referralCode applyReferralCode reasons).
+const REF_ERROR = { shape: 'eo_ref_invalid', unknown: 'eo_ref_unknown', ended: 'eo_ref_ended', offline: 'eo_ref_offline', save: 'eo_ref_save_failed' };
 
 /**
  * The entry offer, right after account creation (docs/design/onboarding-offer.html, PT version 3
@@ -69,7 +70,9 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
   const [refOpen, setRefOpen] = useState(false);
   const [refText, setRefText] = useState('');
   const [refCode, setRefCode] = useState(null);
+  const [refBenefit, setRefBenefit] = useState(null); // the server benefit_text of the applied code
   const [refError, setRefError] = useState(null);
+  const [refChecking, setRefChecking] = useState(false);
   const busy = purchasing || restoring;
   const kb = useKeyboardLift(); // the referral field stays above the keyboard (A-152)
   const terms = termsTarget(Platform.OS);
@@ -120,7 +123,7 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
   useEffect(() => {
     Analytics.viewed('entry_offer');
     load();
-    loadReferralCode(AsyncStorage).then((rec) => { if (rec && mounted.current) setRefCode(rec.code); });
+    loadReferralCode().then((rec) => { if (rec && mounted.current) { setRefCode(rec.code); setRefBenefit(rec.benefitText || null); } });
   }, []);
 
   const model = useMemo(
@@ -143,7 +146,9 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
     let premiumNow = false;
     try {
       // creators AP4: the code must be on the RevenueCat customer before the purchase.
-      await syncReferralAttributes({ storage: AsyncStorage, setAttributes: setCreatorAttributes });
+      // The server record too (creators AP5), without holding the purchase on the network.
+      flushPendingAttribution();
+      await syncReferralAttributes();
       result = await purchasePackage(pkg);
       if (result && result.success) premiumNow = !!(await getEntitlement().catch(() => ({ premium: false }))).premium;
     } finally {
@@ -175,16 +180,29 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
     showOutcome(outcome === 'failed' ? 'restore_failed' : outcome, () => finish('purchased'));
   }
 
+  // Aplicar asks the server (lib/referralCode checkReferralCode). Only a code it says is valid is
+  // applied; unknown / ended / could not check keep what she typed so she can fix it or try again.
   async function applyCode() {
-    const r = await applyReferralCode(refText, { storage: AsyncStorage, setAttributes: setCreatorAttributes });
+    if (refChecking || !refText.trim()) return;
+    setRefChecking(true);
+    setRefError(null);
+    const r = await applyReferralCode(refText);
     if (!mounted.current) return;
-    if (r.ok) { setRefCode(r.code); setRefText(''); setRefError(null); setRefOpen(false); return; }
-    setRefError(t(r.reason === 'shape' ? 'eo_ref_invalid' : 'eo_ref_save_failed'));
+    setRefChecking(false);
+    if (r.ok) {
+      setRefCode(r.code);
+      setRefBenefit(r.benefitText || null);
+      setRefText('');
+      setRefOpen(false);
+      flushPendingAttribution(); // RevenueCat + the server record (AP4, AP5); pending if offline
+      return;
+    }
+    setRefError(t(REF_ERROR[r.reason] || 'eo_ref_save_failed'));
   }
 
   async function removeCode() {
-    await removeReferralCode({ storage: AsyncStorage, setAttributes: setCreatorAttributes });
-    if (mounted.current) setRefCode(null);
+    await removeReferralCode();
+    if (mounted.current) { setRefCode(null); setRefBenefit(null); }
   }
 
   const hero = model.hero;
@@ -326,7 +344,11 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
           {refCode ? (
             <View style={s.coupon}>
               <CheckMark size={16} color={colors.ok} />
-              <Text style={s.couponText}>{t('eo_ref_applied').replace('{code}', refCode)}</Text>
+              <View style={s.couponBody}>
+                <Text style={s.couponTitle}>{t('eo_ref_applied').replace('{code}', refCode)}</Text>
+                {/* Only here: a code the server said is valid. Its own benefit_text, else the app's line. */}
+                <Text style={s.couponSub}>{refBenefit || t('eo_ref_benefit_default')}</Text>
+              </View>
               <TouchableOpacity style={s.linkBtn} onPress={removeCode} disabled={busy} accessibilityRole="button">
                 <Text style={s.link}>{t('eo_ref_remove')}</Text>
               </TouchableOpacity>
@@ -350,8 +372,8 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
                   placeholderTextColor={colors.ink3}
                   autoFocus
                 />
-                <TouchableOpacity style={[s.applyBtn, !refText.trim() && s.busy]} onPress={applyCode} disabled={!refText.trim()} accessibilityRole="button">
-                  <Text style={s.applyText}>{t('eo_ref_apply')}</Text>
+                <TouchableOpacity style={[s.applyBtn, (!refText.trim() || refChecking) && s.busy]} onPress={applyCode} disabled={!refText.trim() || refChecking} accessibilityRole="button">
+                  {refChecking ? <ActivityIndicator size="small" color={colors.ink2} /> : <Text style={s.applyText}>{t('eo_ref_apply')}</Text>}
                 </TouchableOpacity>
               </View>
               {refError ? <Text style={s.fieldError}>{refError}</Text> : null}
@@ -536,6 +558,9 @@ const makeStyles = (c) => StyleSheet.create({
   coupon: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.tick, backgroundColor: c.raised },
   couponOpen: { flexDirection: 'column', alignItems: 'stretch', gap: 8, paddingVertical: 12 },
   couponText: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink },
+  couponBody: { flex: 1, gap: 2 },
+  couponTitle: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink },
+  couponSub: { fontSize: 13, lineHeight: 18, color: c.ink2 },
   fieldLabel: { fontSize: 13, fontWeight: '500', color: c.ink2 },
   fieldRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   field: { flex: 1, minHeight: 50, borderRadius: 14, backgroundColor: c.well, paddingHorizontal: 14, fontSize: 17, color: c.ink, letterSpacing: 0.5 },
