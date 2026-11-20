@@ -25,7 +25,7 @@ import { computeDraw } from '../../lib/doseMath';
 import { pluralKey } from '../../lib/plural';
 import { localISO } from '../../lib/localDate';
 import {
-  compoundChoices, listTitleKey, pickCompound, typedCompound, vialFields, vialPicture, FREQUENCIES, CUSTOM_INTERVALS,
+  compoundChoices, pickCompound, typedCompound, vialFields, vialPicture, FREQUENCIES, CUSTOM_INTERVALS,
   pastCount, pastAnswers, summaryRows, draftToForm, startDateFor,
 } from '../../lib/onboardingDraft';
 
@@ -42,7 +42,7 @@ export function weekdayPhrase(t) {
 export function stepTitle(step, p, { t, tracking }) {
   const name = (p && p.name) || '';
   switch (step) {
-    case 'compound': return t(listTitleKey(tracking));
+    case 'compound': return t('ob_cmp_title_any');
     case 'form': return t('ob_form_title').replace('{compound}', name);
     case 'vial': return t('ob_vial_title');
     case 'frequency': return t('ob_freq_title');
@@ -109,7 +109,7 @@ export default function OnboardingProtocolSteps({ step, p, setP, tracking, t, la
 // ── Which compound (OB-14) ──
 function CompoundStep({ s, c, p, setP, tracking, t, kb }) {
   const [q, setQ] = useState(p.typed ? p.name || '' : '');
-  const list = compoundChoices({ tracking, query: q, t });
+  const list = compoundChoices({ query: q, t });
   const typed = q.trim();
   const exact = list.find((e) => e.label.toLowerCase() === typed.toLowerCase());
   return (

@@ -8,6 +8,7 @@ const O = require('../lib/onboardingSteps');
 const D = require('../lib/onboardingDraft');
 const S = require('../lib/protocolSave');
 const G = require('../lib/goalCategories');
+const read = (f) => require('fs').readFileSync(require('path').join(__dirname, '..', f), 'utf8');
 
 const t = (k) => k;
 const NOW = new Date(2026, 10, 20, 10, 0, 0); // Fri 20 Nov 2026, 10:00 local
@@ -109,20 +110,21 @@ test('OB-10: 4 categories and their goals by popularity (founder 2026-11-20: Qua
   assert.deepEqual(keys, ['body_composition', 'cardiovascular', 'endurance', 'energy', 'fat_loss', 'fitness', 'hormonal_balance', 'immune', 'joint_bone', 'longevity', 'mood', 'recovery', 'sexual_health', 'skin_collagen', 'sleep', 'strength', 'stress', 'wellness']);
 });
 
-test('OB-14: the catalog filtered by the category she picked (aliases too), one row per compound, alphabetical', () => {
+test('OB-14: the whole catalog whatever she marked in What you are using (founder 2026-11-20: a peptide may be a GLP-1 or a GIP), one row per compound, alphabetical', () => {
   const tr = (k) => ({ lyo_tirzepatide: 'Tirzepatida', rtu_tirzepatide: 'Tirzepatida', lyo_semaglutide: 'Semaglutida', rtu_semaglutide: 'Semaglutida' })[k] || k;
-  const glp = D.compoundChoices({ tracking: ['glp1'], query: '', t: tr });
-  const labels = glp.map((e) => e.label);
+  const all = D.compoundChoices({ query: '', t: tr });
+  for (const tracking of [['peptides'], ['hormones'], ['oral'], ['glp1'], ['peptides', 'hormones'], []]) {
+    assert.deepEqual(D.compoundChoices({ tracking, query: '', t: tr }).map((e) => e.base), all.map((e) => e.base), String(tracking));
+  }
+  const labels = all.map((e) => e.label);
   assert.ok(labels.includes('Tirzepatida') && labels.includes('Semaglutida'));
   assert.equal(labels.filter((l) => l === 'Tirzepatida').length, 1, 'both forms are one row');
-  assert.ok(!glp.some((e) => e.forms.recon === 'lyo_bpc_157'), 'no peptide in the GLP-1 list');
   assert.deepEqual(labels, labels.slice().sort((a, b) => a.localeCompare(b)));
-  assert.deepEqual(D.compoundChoices({ tracking: ['glp1'], query: 'mounjaro', t: tr }).map((e) => e.label), ['Tirzepatida'], 'aliases');
-  assert.ok(D.compoundChoices({ tracking: ['oral'], query: '', t }).every((e) => e.forms.oral));
-  assert.ok(D.compoundChoices({ tracking: ['peptides'], query: 'bpc', t }).some((e) => e.forms.recon === 'lyo_bpc_157'));
-  assert.ok(D.compoundChoices({ tracking: ['hormones'], query: 'test c', t }).some((e) => e.forms.rtu === 'rtu_testosterone_cypionate'));
-  assert.equal(D.listTitleKey(['glp1']), 'ob_cmp_title_glp1');
-  assert.equal(D.listTitleKey(['glp1', 'oral']), 'ob_cmp_title_any');
+  assert.deepEqual(D.compoundChoices({ tracking: ['peptides'], query: 'mounjaro', t: tr }).map((e) => e.label), ['Tirzepatida'], 'aliases; a GLP-1 found with only Peptides marked');
+  assert.ok(D.compoundChoices({ tracking: ['oral'], query: 'bpc', t }).some((e) => e.forms.recon === 'lyo_bpc_157'));
+  assert.ok(D.compoundChoices({ tracking: ['glp1'], query: 'test c', t }).some((e) => e.forms.rtu === 'rtu_testosterone_cypionate'));
+  assert.equal(D.listTitleKey, undefined, 'one title for every choice');
+  assert.match(read('screens/components/OnboardingProtocolSteps.js'), /case 'compound': return t\('ob_cmp_title_any'\)/);
 });
 
 test('OB-14: a typed name is kept exactly as written; the app never suggests one', () => {
