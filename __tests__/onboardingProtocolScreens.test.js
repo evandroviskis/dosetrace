@@ -20,7 +20,7 @@ test('OB-1: the screen renders every step of the signed order and the old featur
   assert.doesNotMatch(ONB, /ob_features_title|ob_feat1_t|AccumulationHero/, 'the single "Feito para o seu protocolo" screen is removed');
   assert.doesNotMatch(ONB, /cur === 'routine'/, 'OP-1: no separate routine screen');
   // Navigation is by step name (lib/onboardingSteps nextStep / prevStep).
-  assert.match(ONB, /const n = nextStep\(steps, cur\);/);
+  assert.match(ONB, /let n = nextStep\(steps, cur\);/);
   assert.match(ONB, /const p = prevStep\(steps, cur\);/);
 });
 

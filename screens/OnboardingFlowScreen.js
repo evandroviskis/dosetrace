@@ -31,7 +31,7 @@ import { activityParts } from '../lib/progressFormat';
 import {
   STEPS, PROTOCOL_STEPS, HELP_OPTIONS, toggleHelp, nextStep, prevStep, skipTarget,
   birthYearState, activeSteps as stepsFor, canContinue as canGo, formFrom, stashPatch,
-  accountPatch, refreshForm, entryStep, stepNear,
+  accountPatch, refreshForm, entryStep, resumeAfterConsent, stepNear,
 } from '../lib/onboardingSteps';
 import { reminderLine } from '../lib/onboardingDraft';
 import OnboardingIntro from '../components/OnboardingIntro';
@@ -136,6 +136,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
   const [skipped, setSkipped] = useState(false);
   const [ready, setReady] = useState(signedIn);
   const [cur, setCur] = useState(builder ? 'compound' : signedIn ? null : 'splash');
+  const resumeTo = useRef(null); // the step to reopen once the consent is confirmed again (entryStep)
   // Council 2026-11-20: where people stop (step names only). Before the account the steps wait on the
   // phone (lib/onboardingFunnel) and go as one event after the sign-in; signed in, each step is logged.
   useEffect(() => {
@@ -155,7 +156,8 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
       // were ticked in this run (Gate B).
       setD(formFrom(stash, { trustConsent: isStashFresh() }));
       if (draft) { setHelp(Array.isArray(draft.help) ? draft.help : []); setProtocol(draft.protocol || null); setSkipped(!!draft.skipped); }
-      setCur(entryStep(stash, { consentPassed: isStashFresh() }));
+      resumeTo.current = resumeAfterConsent(stash, draft && draft.lastStep);
+      setCur(entryStep(stash, { consentPassed: isStashFresh(), lastStep: draft && draft.lastStep }));
       setReady(true);
     }).catch(() => { if (active) setReady(true); });
     return () => { active = false; };
@@ -283,8 +285,12 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
     }
     // The protocol steps are back in when she builds after a "Montar depois" (OB-20).
     if (PROTOCOL_STEPS.includes(cur) && skipped) setSkipped(false);
+    let n = nextStep(steps, cur);
+    // A kill earlier in this flow reopened it on the consent: after it, back to where she was.
+    if (cur === 'consent' && resumeTo.current && steps.includes(resumeTo.current)) n = resumeTo.current;
+    resumeTo.current = null;
+    if (n) over.lastStep = n;
     await persist(over);
-    const n = nextStep(steps, cur);
     if (n) setCur(n);
     else finish();
   }

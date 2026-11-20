@@ -169,3 +169,22 @@ test('PA-37: Edit profile keeps an old value it rewrites (legacyActivity) and re
   assert.match(onb, /PROFILE_ACTIVITY\.map/);
   assert.doesNotMatch(onb, /profile_activity_(sedentary|moderate|active|very_active)/);
 });
+
+test('council 2026-11-20 (UX): an app kill in the protocol steps reopens on that step, not on the welcome screen and the video', () => {
+  const half = { primary_goal: 'fat_loss', tracking_types: ['oral'], consent_accepted: true }; // About you not reached yet
+  for (const step of ['compound', 'form', 'vial', 'frequency', 'start', 'ready', 'about', 'reminders']) {
+    assert.equal(O.entryStep(half, { consentPassed: true, lastStep: step }), step, step + ' (same run)');
+    assert.equal(O.entryStep(half, { lastStep: step }), 'consent', step + ': after a restart the consent is confirmed again (Gate B), then the flow goes on there');
+    assert.equal(O.resumeAfterConsent(half, step), step);
+  }
+  assert.equal(O.entryStep(half, { lastStep: 'help' }), 'splash', 'only the protocol steps and after resume');
+  assert.equal(O.entryStep({ ...half, consent_accepted: false }, { lastStep: 'vial' }), 'splash', 'no consent yet: from the start');
+  assert.equal(O.resumeAfterConsent({ ...half, consent_accepted: false }, 'vial'), null);
+  assert.equal(O.resumeAfterConsent(half, 'nope'), null);
+  const fs = require('node:fs');
+  const FLOW = fs.readFileSync(require('node:path').join(__dirname, '..', 'screens', 'OnboardingFlowScreen.js'), 'utf8');
+  assert.match(FLOW, /entryStep\(stash, \{ consentPassed: isStashFresh\(\), lastStep: draft && draft\.lastStep \}\)/);
+  assert.match(FLOW, /resumeTo\.current = resumeAfterConsent\(stash, draft && draft\.lastStep\);/);
+  assert.match(FLOW, /if \(cur === 'consent' && resumeTo\.current && steps\.includes\(resumeTo\.current\)\)/);
+  assert.match(FLOW, /over\.lastStep = n;/);
+});
