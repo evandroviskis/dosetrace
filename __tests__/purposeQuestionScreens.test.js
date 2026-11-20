@@ -98,10 +98,10 @@ test('PQ-14: onboarding "Protocolo pronto" shows "Para: …" from her profile go
   assert.deepEqual(r.form.goals, ['wt_sleep_quality']);
   assert.deepEqual(D.draftToForm(p, { now: new Date(2026, 10, 20, 12), language: 'pt' }).form.goals, []);
   // The screens: the summary maps her goals; the flow stores them on the draft at "Protocolo pronto".
-  assert.match(STEPS, /purposeFromProfile\(profileGoals, protocol\.form\)/);
+  assert.match(STEPS, /purposeFromProfile\(profileGoals, protocol\.form, compoundIdFor\(protocol\)\)/);
   assert.match(STEPS, /summaryRows\(protocol, \{ t, language, timeFormat, now, weekdayName: wd, dateText: \(iso\) => formatDate\(iso, language, 'dayMonthYear'\), purpose \}\)/);
   assert.match(ONB, /profileGoals=\{builder \? meta\.primary_goal : d\.goals\}/);
-  assert.match(ONB, /if \(cur === 'ready'\) \{[\s\S]{0,400}purposeFromProfile\(builder \? meta\.primary_goal : d\.goals, protocol && protocol\.form\)/);
+  assert.match(ONB, /if \(cur === 'ready'\) \{[\s\S]{0,400}purposeFromProfile\(builder \? meta\.primary_goal : d\.goals, protocol && protocol\.form, compoundIdFor\(protocol\)\)/);
   // The builder (an account that never made a protocol) gets her saved goals too.
   assert.match(APP, /params: \{ userId: user\.id, tracking: \(user\.user_metadata \|\| \{\}\)\.tracking_types \|\| \[\], goals: \(user\.user_metadata \|\| \{\}\)\.primary_goal \|\| '' \}/);
   assert.match(APP, /user_metadata: \{ tracking_types: Array\.isArray\(p\.tracking\) \? p\.tracking : \[\], primary_goal: p\.goals \|\| '' \}/);

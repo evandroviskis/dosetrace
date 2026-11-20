@@ -26,7 +26,7 @@ import { pluralKey } from '../../lib/plural';
 import { localISO } from '../../lib/localDate';
 import {
   compoundChoices, listTitleKey, pickCompound, typedCompound, vialFields, vialPicture, FREQUENCIES, CUSTOM_INTERVALS,
-  pastCount, pastAnswers, summaryRows, draftToForm, startDateFor,
+  pastCount, pastAnswers, summaryRows, draftToForm, startDateFor, compoundIdFor,
 } from '../../lib/onboardingDraft';
 import { purposeFromProfile } from '../../lib/protocolPurpose';
 
@@ -90,7 +90,7 @@ export default function OnboardingProtocolSteps({ step, p, setP, tracking, t, la
   if (step === 'start') return <StartStep s={s} c={c} p={protocol} patch={patch} t={t} language={language} />;
   if (step === 'ready') {
     const now = new Date();
-    const purpose = purposeFromProfile(profileGoals, protocol.form);
+    const purpose = purposeFromProfile(profileGoals, protocol.form, compoundIdFor(protocol));
     const rows = summaryRows(protocol, { t, language, timeFormat, now, weekdayName: wd, dateText: (iso) => formatDate(iso, language, 'dayMonthYear'), purpose });
     return (
       <View style={s.readyWrap}>
