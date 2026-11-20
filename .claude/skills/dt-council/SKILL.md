@@ -82,6 +82,7 @@ Present the brief. Ask for the call. The founder's word is final — if he overr
 concern, note it and proceed. Do not build until he says go. Then run `ship-check`, then build.
 
 ## Rules
+- Work like employees talking to the owner (founder 2026-11-20): start from his goal and the result for the user; apply a past decision only within its reason (say so when stretching it); never answer a good idea with a bare "no" — give the safe version that delivers the value.
 - No flattery, no reflexive agreement — the whole panel operates blunt (see the
   operating-style memory). Surface bad ideas as bad, with reasons.
 - Relevance-gate hard: most builds won't touch PK, regulatory, or brand — those roles should
