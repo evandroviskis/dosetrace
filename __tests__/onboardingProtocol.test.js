@@ -476,3 +476,19 @@ test('OB-18 (council 2026-11-20, item 14): the start date is frozen when she lea
   const FLOW = read('screens/OnboardingFlowScreen.js');
   assert.match(FLOW, /if \(cur === 'start'\) \{ const frozen = freezeStart\(protocol, new Date\(\)\); setProtocol\(frozen\); over\.protocol = frozen; \}/);
 });
+
+test('council 2026-11-20 (item 16): no gendered article or possessive before {compound} in the pt onboarding ("a BPC-157" reads wrong); the other languages use a neutral form', () => {
+  const { translations: TR } = require('../i18n/translations.js');
+  for (const [k, v] of Object.entries(TR.pt)) {
+    if (!/^ob/.test(k) || !v.includes('{compound}')) continue;
+    assert.doesNotMatch(v, /(?:^|\s)(?:a|o|as|os|da|do|na|no|sua|seu)\s+\{compound\}/i, k + ': ' + v);
+  }
+  assert.equal(TR.pt.ob_start_title, 'Quando você começa a usar {compound}?');
+  assert.equal(TR.pt.ob_rem_daily, 'Todo dia às {time}, para {compound}.');
+  for (const lang of ['es', 'fr', 'it', 'de']) {
+    for (const [k, v] of Object.entries(TR[lang])) {
+      if (!/^ob/.test(k) || !v.includes('{compound}')) continue;
+      assert.doesNotMatch(v, /(?:^|\s)(?:el|la|le|il|lo|der|die|das)\s+\{compound\}/i, `${lang} ${k}: ${v}`);
+    }
+  }
+});

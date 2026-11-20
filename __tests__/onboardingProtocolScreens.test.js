@@ -105,7 +105,7 @@ test('OB-24: the reminders screen names her dose; the permission is asked only t
   assert.match(ONB, /async function enableNotifications\(\) \{\n\s+await askAndRemember\(Notifications, AsyncStorage\);/);
   assert.doesNotMatch(STEPS, /Notifications|askAndRemember|requestPermissions/);
   assert.equal(T.pt.ob_wd_long_1, 'Toda segunda-feira');
-  assert.equal(T.pt.ob_rem_weekly, '{day} às {time}, para a {compound}.');
+  assert.equal(T.pt.ob_rem_weekly, '{day} às {time}, para {compound}.');
 });
 
 test('OB-25: the new screens use theme tokens only and no emoji', () => {
