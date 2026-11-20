@@ -86,8 +86,11 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
     if (navigation && navigation.canGoBack?.()) navigation.goBack();
   }, [onFinish, navigation]);
 
-  // While the store works, the screen stays: no swipe back, no Android back.
-  useEffect(() => { navigation?.setOptions?.({ gestureEnabled: !busy }); }, [busy]);
+  // The offer is left only through its own buttons (X, Continuar no plano grátis, a purchase), so the
+  // landing after it (OB-9) always runs: never a swipe back, and the tab bar under it stays locked
+  // (lib/mainBar reads gestureEnabled false). Council 2026-11-20 (UX): on mount !busy was true and
+  // unlocked both.
+  useEffect(() => { navigation?.setOptions?.({ gestureEnabled: false }); }, []);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (busyRef.current) return true;

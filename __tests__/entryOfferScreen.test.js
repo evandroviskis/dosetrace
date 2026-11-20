@@ -138,6 +138,14 @@ test('EO-S12b: picture A (founder 2026-11-20): subtitle, two groups, the Premium
   assert.match(SRC, /\{cta \? \(\s*<TouchableOpacity style=\{\[s\.cta/);
 });
 
+test('EO-S1b (council 2026-11-20, UX): the offer is never swiped away and its tab bar stays locked: gestureEnabled false always, so lib/mainBar reads it as locked', () => {
+  assert.match(SRC, /navigation\?\.setOptions\?\.\(\{ gestureEnabled: false \}\)/);
+  assert.doesNotMatch(SRC, /gestureEnabled: !busy/);
+  const APP = require('fs').readFileSync(require('path').join(__dirname, '..', 'App.js'), 'utf8');
+  assert.match(APP, /name="EntryOffer" options=\{\{ gestureEnabled: false \}\}/);
+  assert.match(APP, /name="ProtocolBuilder" component=\{ProtocolBuilderRoute\} options=\{\{ gestureEnabled: false \}\}/);
+});
+
 test('EO-S13: the referral code row: dashed coupon, field + Apply, applied state + Remove; stored locally, its own key', () => {
   assert.match(SRC, /borderStyle: 'dashed'/);
   assert.match(SRC, /t\('eo_ref_row'\)/);
