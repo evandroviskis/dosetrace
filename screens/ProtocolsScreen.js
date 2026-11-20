@@ -70,6 +70,8 @@ import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
 import { isClockTime } from '../lib/assistantTime';
 import { renderText } from '../lib/assistantText';
 import ProtocolAssistant from './components/ProtocolAssistant';
+import PurposeTiles from '../components/PurposeTiles';
+import { purposeOrder } from '../lib/protocolPurpose';
 import FitExplainer from './components/FitExplainer';
 import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
 import { supplyState, bottleState } from '../lib/supplyLow';
@@ -130,10 +132,6 @@ const SORT_OPTIONS = [
   { key: 'type', label: 'protocols_sort_type' },
 ];
 const SORT_STORAGE_KEY = 'dosetrace_protocols_sort';
-
-const WELLNESS_KEYS_INJECTABLE = ['wt_anabolic','wt_antioxidant','wt_appetite','wt_athletic','wt_body_comp','wt_circadian','wt_cognitive','wt_hormonal_wellness','wt_energy','wt_metabolic_wellness','wt_gut','wt_hormone_balance','wt_recovery_support','wt_joint','wt_libido','wt_longevity','wt_metabolic','wt_cellular_energy','wt_mood','wt_muscle','wt_endurance','wt_rest','wt_sexual','wt_skin','wt_sleep_opt','wt_strength','wt_stress','wt_tissue','wt_vitality','wt_weight'];
-
-const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','wt_neuro_wellness','wt_cognitive_vit','wt_electrolyte','wt_digestive_wellness','wt_blood_sugar_wellness','wt_liver_wellness','wt_stress_adaptation','wt_immune','wt_joint_health','wt_mental','wt_cellular_opt','wt_kidney_wellness','wt_sleep_quality','wt_stress_mgmt'];
 
 // Free tier: max active protocols before Premium is required. If you change
 // this, update the copy in protocols_limit_msg + paywall_free_feat_3.
@@ -1766,9 +1764,13 @@ export default function ProtocolsScreen() {
     Analytics.compoundSearched(custom, type);
   }
 
-  function getWellnessKeys() {
-    return type === 'oral' ? WELLNESS_KEYS_ORAL : WELLNESS_KEYS_INJECTABLE;
+  // PQ-5..PQ-8 (docs/specs/purpose-question.md): the goal tiles in tap-saving order — her own past
+  // choices for this product (ended protocols too), the product's usual goals, then A-Z; a night
+  // dose lifts the sleep goal. The protocol being edited is not its own history.
+  function purposeFor({ type: ty, compoundId: cid, name: nm, times }) {
+    return purposeOrder({ type: ty, compoundId: cid, name: nm, protocols: [...protocols, ...endedProtocols], excludeId: editingId, times, label: t, language });
   }
+  const toggleGoal = (gKey) => setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey]);
 
   // Edit: the form starts as the stored row (lib/protocolForm formFromProtocol, the same
   // mapping as before) and Save writes only what the user changes (founder decision 2,
@@ -3260,6 +3262,7 @@ export default function ProtocolsScreen() {
               language={language}
               scanLabel={extractVialLabel}
               askConsent={assistantConsent}
+              purposeFor={purposeFor}
               onFinish={finishAssistant}
             />
           ) : (
@@ -3406,6 +3409,11 @@ export default function ProtocolsScreen() {
                   <Text style={[s.footAttn, s.flush]}>{t('protocols_custom_hint')}</Text>
                 ) : null}
                 <Text style={[s.footC3, s.flush]}>{t('protocols_spelling_note')}</Text>
+
+                {/* PQ-1: "Para que você usa {produto}?" right after the product, once one is chosen. */}
+                {name ? (
+                  <PurposeTiles key={type + ':' + (compoundId || name)} name={name} ordered={purposeFor({ type, compoundId, name, times: reminderTimes })} value={goals} onToggle={toggleGoal} t={t} />
+                ) : null}
               </>
             )}
 
@@ -3865,15 +3873,6 @@ export default function ProtocolsScreen() {
                       onChange={onAndroidTime}
                     />
                   )}
-                </Fld>
-
-                {/* Wellness goals */}
-                <Fld s={s} label={t('protocols_wellness_goal')}>
-                  <View style={s.pills}>
-                    {getWellnessKeys().map((gKey) => (
-                      <Pill key={gKey} s={s} label={t(gKey)} on={goals.includes(gKey)} onPress={() => setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey])} />
-                    ))}
-                  </View>
                 </Fld>
 
                 {/* Blend composition — "what's in the vial". Blends only. A journal

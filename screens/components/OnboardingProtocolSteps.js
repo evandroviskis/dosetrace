@@ -28,6 +28,7 @@ import {
   compoundChoices, listTitleKey, pickCompound, typedCompound, vialFields, vialPicture, FREQUENCIES, CUSTOM_INTERVALS,
   pastCount, pastAnswers, summaryRows, draftToForm, startDateFor,
 } from '../../lib/onboardingDraft';
+import { purposeFromProfile } from '../../lib/protocolPurpose';
 
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Monday first (the picture's S T Q Q S S D)
 const todayKey = () => { const d = new Date(); return localISO(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12)); };
@@ -52,7 +53,8 @@ export function stepTitle(step, p, { t, tracking }) {
   }
 }
 
-export default function OnboardingProtocolSteps({ step, p, setP, tracking, t, language, timeFormat, mode, kb }) {
+// profileGoals: her goals (the onboarding answer, or the account's primary_goal in the builder), PQ-14.
+export default function OnboardingProtocolSteps({ step, p, setP, tracking, t, language, timeFormat, mode, kb, profileGoals }) {
   const { colors: c } = useTheme();
   const s = useMemo(() => StyleSheet.create({ ...tileStyles(c), ...makeStyles(c) }), [c]);
   const protocol = p || {};
@@ -88,7 +90,8 @@ export default function OnboardingProtocolSteps({ step, p, setP, tracking, t, la
   if (step === 'start') return <StartStep s={s} c={c} p={protocol} patch={patch} t={t} language={language} />;
   if (step === 'ready') {
     const now = new Date();
-    const rows = summaryRows(protocol, { t, language, timeFormat, now, weekdayName: wd, dateText: (iso) => formatDate(iso, language, 'dayMonthYear') });
+    const purpose = purposeFromProfile(profileGoals, protocol.form);
+    const rows = summaryRows(protocol, { t, language, timeFormat, now, weekdayName: wd, dateText: (iso) => formatDate(iso, language, 'dayMonthYear'), purpose });
     return (
       <View style={s.readyWrap}>
         <View style={s.card}>

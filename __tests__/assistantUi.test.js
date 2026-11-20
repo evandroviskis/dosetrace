@@ -44,7 +44,9 @@ test('AP-15: the shared AI consent is asked first; declining leaves the form', (
 });
 
 test('AP-16 / AP-0: closing, an error or "Continue in the form" go back to the form with every answer kept', () => {
-  assert.match(ASSIST, /onFinish\('handback', conv \? A\.formFromConversation\(conv, baseForm\) : null\)/);
+  // PQ-13: the goals picked in the assistant ride along (withGoals); every other answer as before.
+  assert.match(ASSIST, /onFinish\('handback', conv \? withGoals\(A\.formFromConversation\(conv, baseForm\)\) : null\)/);
+  assert.match(ASSIST, /const withGoals = \(r\) => \(r && r\.form \? \{ \.\.\.r, form: \{ \.\.\.r\.form, goals: goalsRef\.current \} \} : r\);/);
   // the weekly limit (reached at the first answer to the AI) blocks; other failures are a notice
   assert.match(ASSIST, /if \(n\.key === 'ap_err_quota' \|\| n\.key === 'ap_err_quota_nodate'\) \{ setBlocked\(n\); setPhase\('blocked'\); return; \}/);
   assert.match(ASSIST, /\{t\('ap_opt_form'\)\}/);
