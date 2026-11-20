@@ -45,7 +45,7 @@ export function stepTitle(step, p, { t, tracking }) {
   switch (step) {
     case 'compound': return t('ob_cmp_title_any');
     case 'form': return t('ob_form_title').replace('{compound}', name);
-    case 'vial': return t('ob_vial_title');
+    case 'vial': return t(p && p.form === 'oral' ? 'ob_vial_title_oral' : 'ob_vial_title');
     case 'frequency': return t('ob_freq_title');
     case 'start': return t('ob_start_title').replace('{compound}', name);
     case 'ready': return t('ob_proto_ready_title');
@@ -102,7 +102,7 @@ export default function OnboardingProtocolSteps({ step, p, setP, tracking, t, la
             </View>
           ))}
         </View>
-        {mode === 'builder' ? <SyringeMath s={s} p={protocol} t={t} language={language} /> : <PreparingCard s={s} c={c} t={t} />}
+        {protocol.form === 'oral' ? null : mode === 'builder' ? <SyringeMath s={s} p={protocol} t={t} language={language} /> : <PreparingCard s={s} c={c} t={t} />}
       </View>
     );
   }
@@ -235,7 +235,7 @@ function VialStep({ s, c, p, patch, t, language, kb }) {
         <NumberField s={s} c={c} kb={kb} name="ml" t={t} label={t('ob_vial_ml')} hint={t('ob_vial_amount_hint')}
           value={p.ml} onChange={(v) => patch({ ml: v, vialUnknown: false })} unit="mL" />
       ) : null}
-      <NumberField s={s} c={c} kb={kb} name="dose" t={t} label={t('ob_vial_dose')} hint={t('ob_vial_dose_hint')}
+      <NumberField s={s} c={c} kb={kb} name="dose" t={t} label={t('ob_vial_dose')} hint={t(p.form === 'oral' ? 'ob_vial_dose_hint_oral' : 'ob_vial_dose_hint')}
         value={p.dose} onChange={(v) => patch({ dose: v, vialUnknown: false })} unit={p.doseUnit || 'mg'} units={['mg', 'mcg']} onUnit={(u) => patch({ doseUnit: u })} />
       <TouchableOpacity style={[s.linkBtn, p.vialUnknown && s.linkOn]} onPress={() => patch({ vialUnknown: !p.vialUnknown })} accessibilityRole="checkbox" accessibilityState={{ checked: !!p.vialUnknown }}>
         <View style={s.inline}>

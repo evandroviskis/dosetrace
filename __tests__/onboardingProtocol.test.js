@@ -143,6 +143,24 @@ test('OB-14: no two rows read the same; a name that is both injectable and oral 
   assert.equal(D.compoundChoices({ query: 'tirzep', t: tl })[0].label, 'Tirzepatida', 'a name in one place keeps no suffix');
 });
 
+test('OB-16: an oral has no vial and is not applied: the step reads "A sua dose" and "A dose de cada vez que você toma" (S25, 2026-11-20), six languages', () => {
+  const { translations } = require('../i18n/translations.js');
+  for (const lang of Object.keys(translations)) {
+    const tr = translations[lang];
+    assert.ok(tr.ob_vial_title_oral && tr.ob_vial_dose_hint_oral, lang);
+  }
+  assert.equal(translations.pt.ob_vial_title_oral, 'A sua dose');
+  assert.equal(translations.pt.ob_vial_dose_hint_oral, 'A dose de cada vez que você toma.');
+  const src = read('screens/components/OnboardingProtocolSteps.js');
+  assert.match(src, /case 'vial': return t\(p && p\.form === 'oral' \? 'ob_vial_title_oral' : 'ob_vial_title'\)/);
+  assert.match(src, /hint=\{t\(p\.form === 'oral' \? 'ob_vial_dose_hint_oral' : 'ob_vial_dose_hint'\)\}/);
+});
+
+test('OB-19: an oral protocol has no syringe, so Protocolo pronto shows no syringe card (S25, 2026-11-20)', () => {
+  const src = read('screens/components/OnboardingProtocolSteps.js');
+  assert.match(src, /\{protocol\.form === 'oral' \? null : mode === 'builder' \? <SyringeMath/);
+});
+
 test('OB-14: a typed name is kept exactly as written; the app never suggests one', () => {
   const p = D.typedCompound({}, '  Meu composto X ', ['peptides']);
   assert.equal(p.name, 'Meu composto X');
