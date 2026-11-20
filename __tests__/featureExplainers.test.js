@@ -30,7 +30,7 @@ test('part 18: the eight explainers in the prototype order, with the approved co
   assert.deepEqual(EXPLAINERS.map((x) => x.key), KEYS);
   const en = translations.en;
   const want = {
-    recon: ['Never guess the draw', 'Enter your vial, the water you add, and your dose. DoseTrace works out how many units to draw on your syringe, so the math is done for you.'],
+    recon: ['Never guess the draw', 'Enter your vial, the diluent you add and your dose. DoseTrace works out how many units to draw on your syringe, so the math is done for you.'],
     vial: ['Know when a vial runs low', 'Every dose you log comes off the vial. DoseTrace shows the doses and days left and warns you before you run out.'],
     remind: ['A reminder at the right time', 'Get a reminder when a dose is due and mark it complete right from the notification.'],
     sites: ['Rotate your injection sites', 'Log where you injected and see your own rotation at a glance, with the spot you have not used the longest.'],

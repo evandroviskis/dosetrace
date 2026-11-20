@@ -3956,7 +3956,7 @@ export default function ProtocolsScreen() {
                         onChangeText={(val) => { if (val === '' || /^\d+$/.test(val)) setVialValidDays(val); }}
                       />
                     </Fld>
-                    <InfoBox s={s} text={t('protocols_bac_info')} />
+                    {diluentChoice === 'bacteriostatic_water' ? <InfoBox s={s} text={t('protocols_bac_info')} /> : null}
                     <TouchableOpacity style={s.linkBtn} onPress={() => setSkipVial(true)} accessibilityRole="button">
                       <Text style={s.linkText}>{t('protocols_skip_vial')}</Text>
                     </TouchableOpacity>

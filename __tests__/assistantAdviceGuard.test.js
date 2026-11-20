@@ -61,11 +61,11 @@ test('AP-22: no string gives a water amount or tells the user to change their do
   for (const lang of Object.keys(ADVICE)) {
     for (const [k, v] of Object.entries(TR[lang])) {
       if (!scanned(k)) continue;
-      // a number + ml of water ("add 2 ml of water") never appears; only the user's own {water}
-      assert.doesNotMatch(String(v), /\d+([.,]\d+)?\s*ml\s*(of|de|d'|di|an)?\s*(water|água|agua|eau|wasser|acqua)/i, `${lang}.${k}`);
+      // a number + ml of diluent ("add 2 ml of water") never appears; only the user's own {water} (diluent wording, founder 2026-11-20)
+      assert.doesNotMatch(String(v), /\d+([.,]\d+)?\s*ml\s*(of|de|d'|di|an)?\s*(water|água|agua|eau|wasser|acqua|diluent|diluente|diluyente|diluant|lösungsmittel)/i, `${lang}.${k}`);
     }
   }
-  assert.match(TR.en.ap_not_mixed, /can't give a water amount/);
+  assert.match(TR.en.ap_not_mixed, /can't give a diluent amount/);
   assert.match(TR.en.ap_deflect, /healthcare provider/);
 });
 
