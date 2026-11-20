@@ -121,3 +121,22 @@ test('OB-9: the landing target for each first choice', () => {
   assert.deepEqual(A.landingTarget({ kind: 'curve' }), { screen: 'SerumCurve' });
   assert.equal(A.landingTarget(null), null);
 });
+
+test('council 2026-11-20 (item 12): more past doses than the vial holds gets the manual form\'s vial follow-up (Editar frasco / Novo frasco), landing on Protocols', async () => {
+  for (const [flag, target] of [['openEditVial', 'editVial'], ['openNewVialWindow', 'newVial']]) {
+    const { deps } = await setup({ draftPatch: { protocol: { ...PROTOCOL, startMode: 'started', startedOn: '2026-10-20', pastAnswer: 'yes' } } });
+    deps.past = { ...deps.past, pastStartAsk: () => ({ n: 30 }), pastStartWrites: () => ({ [flag]: true }) };
+    const r = await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, deps);
+    assert.equal(r.action, 'inserted');
+    assert.equal(r.vialFollowUp, target, flag);
+    assert.deepEqual(A.landingTarget({ kind: 'today' }, { protocolId: r.newId, vialFollowUp: r.vialFollowUp }),
+      { screen: 'MainTabs', params: { screen: 'Protocols', params: { search: { target, protocolId: r.newId } } } }, 'the follow-up wins over the first choice');
+  }
+  const { deps } = await setup();
+  const plain = await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, deps);
+  assert.equal(plain.vialFollowUp, null);
+  const fs = require('node:fs');
+  const OA = fs.readFileSync(require('node:path').join(__dirname, '..', 'lib', 'onboardingApp.js'), 'utf8');
+  assert.match(OA, /landingTarget\(landing, \{ protocolId: result\.newId, vialFollowUp: result\.vialFollowUp \}\)/);
+  assert.match(OA, /landingTarget\(\{ kind: 'protocol' \}, \{ protocolId: r\.newId, vialFollowUp: r\.vialFollowUp \}\)/);
+});
