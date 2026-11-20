@@ -3360,7 +3360,6 @@ export const translations = {
     eo_ref_unknown: "We couldn't find this code. Check that it is typed correctly.",
     eo_ref_ended: "This code is no longer valid.",
     eo_ref_offline: "The code could not be checked right now. Check your connection and try again.",
-    eo_ref_benefit_default: "1 extra month of Premium after your first payment.",
   },
 
   'es': {
@@ -6713,7 +6712,6 @@ export const translations = {
     eo_ref_unknown: "No encontramos este código. Revisa que esté bien escrito.",
     eo_ref_ended: "Este código ya no es válido.",
     eo_ref_offline: "No se pudo comprobar el código ahora. Revisa tu conexión e inténtalo de nuevo.",
-    eo_ref_benefit_default: "1 mes extra de Premium después del primer pago.",
   },
 
   'pt': {
@@ -10066,7 +10064,6 @@ export const translations = {
     eo_ref_unknown: "Este código não existe. Confira se ele foi digitado corretamente.",
     eo_ref_ended: "Este código não é mais válido.",
     eo_ref_offline: "Não foi possível conferir o código agora. Verifique sua conexão e tente novamente.",
-    eo_ref_benefit_default: "1 mês extra de Premium depois do primeiro pagamento.",
   },
   'fr': {
     // OB-26 builder: shown once, with Agora não
@@ -13418,7 +13415,6 @@ export const translations = {
     eo_ref_unknown: "Ce code est introuvable. Vérifiez qu’il est bien saisi.",
     eo_ref_ended: "Ce code n’est plus valable.",
     eo_ref_offline: "Impossible de vérifier le code pour le moment. Vérifiez votre connexion et réessayez.",
-    eo_ref_benefit_default: "1 mois de Premium offert après votre premier paiement.",
   },
   'de': {
     // OB-26 builder: shown once, with Agora não
@@ -16770,7 +16766,6 @@ export const translations = {
     eo_ref_unknown: "Diesen Code gibt es nicht. Prüfe, ob er richtig geschrieben ist.",
     eo_ref_ended: "Dieser Code ist nicht mehr gültig.",
     eo_ref_offline: "Der Code konnte gerade nicht geprüft werden. Prüfe deine Verbindung und versuche es noch einmal.",
-    eo_ref_benefit_default: "1 Gratismonat Premium nach deiner ersten Zahlung.",
   },
 
   'it': {
@@ -20123,6 +20118,5 @@ export const translations = {
     eo_ref_unknown: "Questo codice non esiste. Controlla di averlo scritto bene.",
     eo_ref_ended: "Questo codice non è più valido.",
     eo_ref_offline: "Non è stato possibile controllare il codice ora. Controlla la connessione e riprova.",
-    eo_ref_benefit_default: "1 mese di Premium in più dopo il primo pagamento.",
   },
 };

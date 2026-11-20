@@ -72,17 +72,15 @@ test('EO-S6: no free trial and no renewal-reminder promise on this screen', () =
   for (const k of eoKeys) for (const v of valuesOf(k)) assert.doesNotMatch(v, /free trial|prueba gratis|teste grátis|essai gratuit|Testphase|prova gratuita|avisa|warns you|reminds you/i, `${k}: ${v}`);
 });
 
-// Coordinator 2026-11-20 (creators server live): the extra month may be promised ONLY in the applied
-// state of a code the server said is valid — the server's benefit_text, else eo_ref_benefit_default.
-test('EO-S7: the extra referral month appears only in the applied state of a server-valid code', () => {
+// Founder 2026-11-20 (council growth BLOCK): the extra month is promised ONLY by the server's own
+// benefit_text of a server-valid code; the app's default promise (eo_ref_benefit_default) is gone,
+// because nothing grants that month automatically yet. The code field and Apply stay.
+test('EO-S7: a benefit line appears only with the server benefit_text of a server-valid code; no default promise', () => {
   const PROMISE = /extra|mês a mais|mês grátis|mes extra|mois .*offert|Gratismonat|mese .*in più/i;
-  for (const k of eoKeys) if (k !== 'eo_ref_benefit_default') for (const v of valuesOf(k)) assert.doesNotMatch(v, PROMISE, `${k}: ${v}`);
-  const def = valuesOf('eo_ref_benefit_default');
-  assert.equal(def.length, 6);
-  assert.equal(def[2], '1 mês extra de Premium depois do primeiro pagamento.');
-  for (const v of def) assert.match(v, PROMISE);
-  assert.equal(SRC.split("t('eo_ref_benefit_default')").length - 1, 1, 'used once');
-  assert.match(SRC, /\{refCode \? \([\s\S]{0,700}refBenefit \|\| t\('eo_ref_benefit_default'\)/, 'inside the applied branch, after the server benefit_text');
+  for (const k of eoKeys) for (const v of valuesOf(k)) assert.doesNotMatch(v, PROMISE, `${k}: ${v}`);
+  assert.equal(valuesOf('eo_ref_benefit_default').length, 0, 'the key is removed in all 6 languages');
+  assert.doesNotMatch(SRC, /eo_ref_benefit_default/);
+  assert.match(SRC, /\{refCode \? \([\s\S]{0,700}\{refBenefit \? <Text style=\{s\.couponSub\}>\{refBenefit\}<\/Text> : null\}/, 'inside the applied branch, only the server text');
   assert.doesNotMatch(SRC, /setRefCode\((?!r\.code\)|rec\.code\)|null\))/, 'refCode only comes from a server-valid apply or the stored valid code');
 });
 

@@ -374,8 +374,9 @@ export default function EntryOfferScreen({ navigation, route, onFinish }) {
               <CheckMark size={16} color={colors.ok} />
               <View style={s.couponBody}>
                 <Text style={s.couponTitle}>{t('eo_ref_applied').replace('{code}', refCode)}</Text>
-                {/* Only here: a code the server said is valid. Its own benefit_text, else the app's line. */}
-                <Text style={s.couponSub}>{refBenefit || t('eo_ref_benefit_default')}</Text>
+                {/* Only here: a code the server said is valid, and only its own benefit_text (founder
+                    2026-11-20: no default promise until the extra month is granted automatically). */}
+                {refBenefit ? <Text style={s.couponSub}>{refBenefit}</Text> : null}
               </View>
               <TouchableOpacity style={s.linkBtn} onPress={removeCode} disabled={busy} accessibilityRole="button">
                 <Text style={s.link}>{t('eo_ref_remove')}</Text>
