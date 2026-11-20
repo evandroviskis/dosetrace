@@ -376,3 +376,28 @@ test('a step that leaves the list (Como vem after another compound) moves on to 
   assert.equal(O.stepNear(['about', 'finish'], 'goal'), 'about', 'signed-in steps hydrating');
   assert.equal(O.stepNear(O.activeSteps({ signedIn: false, protocol: {}, skipped: true }), 'vial'), 'about', 'Montar depois: on to About you');
 });
+
+// ── OB-14 (founder 2026-11-20, picture docs/design/onboarding-composto.html): one compound, the
+// first protocol; once chosen, the list and the search go away and only the choice stays on top ──
+test('OB-14: the chosen compound (from the list or typed) is what the screen shows on top', () => {
+  assert.equal(D.compoundChosen({}), null);
+  assert.equal(D.compoundChosen({ base: 'tirzepatide', name: 'Tirzepatida', typed: false }), 'Tirzepatida');
+  assert.equal(D.compoundChosen(D.typedCompound({}, ' Meu X ', ['peptides'])), 'Meu X');
+  assert.equal(D.compoundChosen(D.typedCompound({}, '   ', ['peptides'])), null);
+});
+test('OB-14: Seu primeiro protocolo, Qual composto voce quer usar, and the chosen card replaces the list', () => {
+  const { translations: tr } = require('../i18n/translations.js');
+  const pt = tr.pt;
+  assert.equal(pt.ob_cmp_kicker, 'Seu primeiro protocolo');
+  assert.equal(pt.ob_cmp_title_any, 'Qual composto você quer usar?');
+  assert.equal(pt.ob_cmp_sub, 'Comece por um. Com o Premium, você monta quantos protocolos quiser.');
+  assert.equal(pt.ob_cmp_chosen, 'Você escolheu');
+  assert.equal(pt.ob_cmp_change, 'Trocar');
+  for (const lang of ['en', 'es', 'pt', 'fr', 'de', 'it']) for (const k of ['ob_cmp_kicker', 'ob_cmp_chosen', 'ob_cmp_change']) assert.ok(tr[lang][k], `${lang} ${k}`);
+  const steps = read('screens/components/OnboardingProtocolSteps.js');
+  assert.match(steps, /const chosen = compoundChosen\(p\)/);
+  assert.match(steps, /chosen && !changing \?/, 'chosen: only the card, no search and no list');
+  assert.match(steps, /'ob_cmp_chosen'/);
+  assert.match(steps, /onPress=\{\(\) => setChanging\(true\)\}/, 'Trocar brings the search and the list back');
+  assert.match(read('screens/OnboardingFlowScreen.js'), /cur === 'compound' && <Text style=\{s\.kicker\}>\{t\('ob_cmp_kicker'\)\}<\/Text>/);
+});

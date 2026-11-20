@@ -456,6 +456,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
           {isProtocolStep && (
             <>
               <View style={s.stepHead}>
+                {cur === 'compound' && <Text style={s.kicker}>{t('ob_cmp_kicker')}</Text>}
                 <Text style={s.title}>{stepTitle(cur, protocol, { t, tracking: d.tracking })}</Text>
               </View>
               <OnboardingProtocolSteps step={cur} p={protocol} setP={setProtocol} tracking={builder ? meta.tracking_types : d.tracking} t={t} language={language} timeFormat={timeFormat} mode={mode} kb={kb} />
@@ -789,6 +790,7 @@ function makeStyles(colors) {
 
     // Step heads (obHead): large title + ink2 sentence, left-aligned
     stepHead: { gap: 14, paddingTop: 4 },
+    kicker: { fontSize: 13, lineHeight: 16, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', color: c.data, marginBottom: -8 },
     title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: c.ink, letterSpacing: -0.6 },
     sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
     textCenter: { textAlign: 'center' },

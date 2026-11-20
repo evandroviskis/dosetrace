@@ -1,0 +1,77 @@
+<title>Primeiro protocolo: composto</title>
+<style>
+:root{--page:#F3F3F0;--pfg:#15171A;--pmut:#5C6168;
+  --g:#DFE1DC;--r:#FFFFFF;--w:#ECEDE9;--ink:#111316;--ink2:#4A4F56;--ink3:#80858C;--line:#D3D5D0;--data:#2350D8;--onData:#FFFFFF;--dataSoft:#E6ECFB}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0B0C0E;--pfg:#ECEDEF;--pmut:#9AA0A8;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0B0C0E;--pfg:#ECEDEF;--pmut:#9AA0A8;color-scheme:dark}
+.dk{--g:#111316;--r:#1B1E22;--w:#24282D;--ink:#EDEEF0;--ink2:#B4B9C0;--ink3:#868C94;--line:#2E3238;--data:#8AA8FF;--onData:#0B1230;--dataSoft:#1F2A4A}
+body{background:var(--page);color:var(--pfg);font-family:-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:24px 16px 40px}
+h1{font-size:22px;margin:0 0 6px;text-wrap:balance}
+p.lead{color:var(--pmut);max-width:70ch;margin:0 0 20px;line-height:1.45}
+h2{font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:var(--pmut);margin:28px 0 12px}
+.row{display:flex;gap:18px;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.cap{font-size:13px;font-weight:600;color:var(--pmut)}
+.cap b{color:var(--pfg)}
+.ph{width:300px;max-width:100%;height:600px;background:var(--g);border-radius:28px;padding:18px 16px;box-sizing:border-box;overflow:hidden;color:var(--ink);border:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.back{width:10px;height:10px;border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg)}
+.bars{display:flex;gap:3px;flex:1}.bars i{flex:1;height:3px;border-radius:2px;background:var(--line)}.bars i.on{background:var(--ink)}
+.kick{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--data);margin-bottom:6px}
+.t{font-size:22px;font-weight:700;line-height:1.2;margin:0 0 6px}
+.sub{font-size:13px;color:var(--ink2);line-height:1.4;margin:0 0 12px}
+.srch{background:var(--r);border:1px solid var(--line);border-radius:12px;height:40px;display:flex;align-items:center;padding:0 12px;gap:8px;font-size:14px;color:var(--ink3);margin-bottom:10px}
+.srch .ic{width:12px;height:12px;border:2px solid var(--ink3);border-radius:50%}
+.card{background:var(--r);border-radius:14px;overflow:hidden}
+.li{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-size:15px;border-top:1px solid var(--line)}
+.li:first-child{border-top:0}
+.li.on{font-weight:700}
+.ck{width:14px;height:7px;border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor;transform:rotate(-45deg) translateY(-2px)}
+.chosen{background:var(--dataSoft);border:2px solid var(--data);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+.chosen .dot{width:28px;height:28px;border-radius:50%;background:var(--data);color:var(--onData);display:flex;align-items:center;justify-content:center;flex:none}
+.chosen .lab{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--data)}
+.chosen .nm{font-size:17px;font-weight:700}
+.chosen .sw{margin-left:auto;font-size:13px;font-weight:600;text-decoration:underline;color:var(--ink)}
+.hd{font-size:12px;color:var(--ink3);margin:2px 2px 6px}
+.btn{margin-top:14px;height:44px;border-radius:12px;background:var(--ink);color:var(--g);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+.btn.off{background:var(--line);color:var(--ink3)}
+.later{text-align:center;font-size:13px;color:var(--ink2);margin-top:10px;text-decoration:underline}
+.note{max-width:70ch;color:var(--pmut);font-size:14px;line-height:1.5;margin-top:22px}
+.note li{margin-bottom:6px}
+</style>
+
+<h1>Abertura: o primeiro protocolo</h1>
+<p class="lead">Hoje a pessoa não vê o que escolheu: a lista volta para o começo e o escolhido fica lá embaixo. Na proposta, o título deixa claro que é o primeiro protocolo. Ao tocar num composto, a lista some e fica só o escolhido no topo. A lista mostra o catálogo inteiro, seja qual for a marcação em "O que você está usando?".</p>
+
+<script>
+const rows=['Ácido hialurônico','BPC-157','CJC-1295','Ipamorelina','Retatrutida','Semaglutida','Testosterona (cipionato)','Tirzepatida'];
+function phone(kind){
+  const bars='<div class="bars">'+Array.from({length:12},(_,i)=>`<i class="${i<5?'on':''}"></i>`).join('')+'</div>';
+  let h=`<div class="top"><div class="back"></div>${bars}</div>`;
+  if(kind==='today'){
+    h+=`<div class="t">Qual composto você vai usar?</div><div class="sub">Escolha da lista ou digite o nome.</div><div class="srch"><span class="ic"></span>Buscar pelo nome</div><div class="card">`+
+      rows.slice(0,7).map(r=>`<div class="li">${r}</div>`).join('')+`</div><div class="hd" style="margin-top:8px">Tirzepatida está marcada lá embaixo da lista</div><div class="btn">Continuar</div>`;
+  } else {
+    h+=`<div class="kick">Seu primeiro protocolo</div><div class="t">Qual composto você quer usar?</div><div class="sub">Comece por um. Com o Premium, você monta quantos protocolos quiser.</div>`;
+    if(kind==='after'){
+      h+=`<div class="chosen"><span class="dot"><span class="ck"></span></span><div><div class="lab">Você escolheu</div><div class="nm">Tirzepatida</div></div><span class="sw">Trocar</span></div>`+
+        `<div style="height:250px"></div><div class="btn">Continuar</div>`;
+    } else {
+      h+=`<div class="srch"><span class="ic"></span>Buscar pelo nome</div><div class="card">`+rows.slice(0,6).map(r=>`<div class="li">${r}</div>`).join('')+`</div><div class="btn off">Continuar</div>`;
+    }
+    h+=`<div class="later">Montar depois</div>`;
+  }
+  return `<div class="ph">${h}</div>`;
+}
+const sets=[['today','<b>App hoje</b>: o escolhido some da vista'],['before','<b>Proposta</b>: antes de escolher'],['after','<b>Proposta</b>: depois de escolher Tirzepatida']];
+for(const [theme,label] of [['','Tema claro'],['dk','Tema escuro']]){
+  document.write(`<h2>${label}</h2><div class="row ${theme}">`+sets.map(([k,c])=>`<div class="col"><div class="cap">${c}</div>${phone(k)}</div>`).join('')+`</div>`);
+}
+</script>
+
+<div class="note"><ul>
+<li>Um composto por vez: a abertura monta só o primeiro protocolo, que é o que o plano grátis inclui.</li>
+<li>Depois de criar a conta, a oferta lembra que outros protocolos ficam no Premium.</li>
+<li>Ao tocar num composto, a lista e a busca somem: fica só o escolhido no topo e "Continuar". Assim não parece que dá para montar vários protocolos na abertura.</li>
+<li>"Trocar" devolve a busca e a lista para escolher outro.</li>
+</ul></div>

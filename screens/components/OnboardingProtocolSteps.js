@@ -25,7 +25,7 @@ import { computeDraw } from '../../lib/doseMath';
 import { pluralKey } from '../../lib/plural';
 import { localISO } from '../../lib/localDate';
 import {
-  compoundChoices, pickCompound, typedCompound, vialFields, vialPicture, FREQUENCIES, CUSTOM_INTERVALS,
+  compoundChoices, compoundChosen, pickCompound, typedCompound, vialFields, vialPicture, FREQUENCIES, CUSTOM_INTERVALS,
   pastCount, pastAnswers, summaryRows, draftToForm, startDateFor,
 } from '../../lib/onboardingDraft';
 
@@ -108,45 +108,60 @@ export default function OnboardingProtocolSteps({ step, p, setP, tracking, t, la
 
 // ── Which compound (OB-14) ──
 function CompoundStep({ s, c, p, setP, tracking, t, kb }) {
-  const [q, setQ] = useState(p.typed ? p.name || '' : '');
+  const [q, setQ] = useState('');
+  const [changing, setChanging] = useState(false);
+  const chosen = compoundChosen(p);
   const list = compoundChoices({ query: q, t });
   const typed = q.trim();
   const exact = list.find((e) => e.label.toLowerCase() === typed.toLowerCase());
+  const done = () => { setQ(''); setChanging(false); };
   return (
     <View style={s.gap10}>
       <Text style={s.sub}>{t('ob_cmp_sub')}</Text>
-      <View style={s.searchWrap}>
-        <View style={s.searchIcon} pointerEvents="none"><FeatureIcon name="search" size={18} color={c.ink3} /></View>
-        <TextInput
-          {...(kb ? kb.fieldProps('compound') : {})}
-          style={[s.input, s.searchInput]}
-          placeholder={t('ob_cmp_search')}
-          placeholderTextColor={c.ink3}
-          value={q}
-          // Typing only searches; she picks a row, or "Usar “…”" keeps her own name exactly as written
-          // (the app never picks or suggests one for her).
-          onChangeText={setQ}
-          autoCapitalize="words"
-          autoCorrect={false}
-        />
-      </View>
-      <View style={s.card}>
-        {list.map((e, i) => {
-          const on = !p.typed && p.base === e.base;
-          return (
-            <TouchableOpacity key={e.base} style={[s.listRow, i > 0 && s.sumDiv]} onPress={() => { setQ(''); setP((cur) => pickCompound(cur, e)); }} accessibilityRole="radio" accessibilityState={{ selected: on }}>
-              <Text style={[s.listText, on && s.listTextOn]}>{e.label}</Text>
-              {on ? <CheckMark size={20} color={c.ink} /> : null}
-            </TouchableOpacity>
-          );
-        })}
-        {typed && !exact ? (
-          <TouchableOpacity style={[s.listRow, list.length > 0 && s.sumDiv]} onPress={() => setP((cur) => typedCompound(cur, q, tracking))} accessibilityRole="radio" accessibilityState={{ selected: !!p.typed }}>
-            <Text style={[s.listText, p.typed && s.listTextOn]}>{t('ob_cmp_use_typed').replace('{name}', typed)}</Text>
-            {p.typed ? <CheckMark size={20} color={c.ink} /> : null}
+      {chosen && !changing ? (
+        // One compound, the first protocol: once chosen, the list and the search go away so it never
+        // looks like several protocols are set up here (founder 2026-11-20).
+        <View style={s.chosen} accessible accessibilityLabel={`${t('ob_cmp_chosen')}: ${chosen}`}>
+          <View style={s.chosenDot}><CheckMark size={16} color={c.onData} /></View>
+          <View style={s.flex1}>
+            <Text style={s.chosenLabel}>{t('ob_cmp_chosen')}</Text>
+            <Text style={s.chosenName} numberOfLines={2}>{chosen}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setChanging(true)} accessibilityRole="button" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Text style={s.chosenChange}>{t('ob_cmp_change')}</Text>
           </TouchableOpacity>
-        ) : null}
-      </View>
+        </View>
+      ) : (
+        <>
+          <View style={s.searchWrap}>
+            <View style={s.searchIcon} pointerEvents="none"><FeatureIcon name="search" size={18} color={c.ink3} /></View>
+            <TextInput
+              {...(kb ? kb.fieldProps('compound') : {})}
+              style={[s.input, s.searchInput]}
+              placeholder={t('ob_cmp_search')}
+              placeholderTextColor={c.ink3}
+              value={q}
+              // Typing only searches; she picks a row, or "Usar “…”" keeps her own name exactly as written
+              // (the app never picks or suggests one for her).
+              onChangeText={setQ}
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
+          </View>
+          <View style={s.card}>
+            {list.map((e, i) => (
+              <TouchableOpacity key={e.base} style={[s.listRow, i > 0 && s.sumDiv]} onPress={() => { done(); setP((cur) => pickCompound(cur, e)); }} accessibilityRole="button">
+                <Text style={s.listText}>{e.label}</Text>
+              </TouchableOpacity>
+            ))}
+            {typed && !exact ? (
+              <TouchableOpacity style={[s.listRow, list.length > 0 && s.sumDiv]} onPress={() => { done(); setP((cur) => typedCompound(cur, q, tracking)); }} accessibilityRole="button">
+                <Text style={s.listText}>{t('ob_cmp_use_typed').replace('{name}', typed)}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -441,6 +456,11 @@ function makeStyles(c) {
     listRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
     listText: { flex: 1, fontSize: 17, color: c.ink },
     listTextOn: { fontWeight: '600' },
+    chosen: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, borderWidth: 2, borderColor: c.data, backgroundColor: c.dataBand, paddingHorizontal: 16, paddingVertical: 14 },
+    chosenDot: { width: 30, height: 30, borderRadius: 15, backgroundColor: c.data, alignItems: 'center', justifyContent: 'center' },
+    chosenLabel: { fontSize: 13, lineHeight: 16, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', color: c.data },
+    chosenName: { fontSize: 20, lineHeight: 25, fontWeight: '700', color: c.ink },
+    chosenChange: { fontSize: 15, fontWeight: '600', color: c.ink, textDecorationLine: 'underline' },
     list: { gap: 10 },
     row: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1, borderColor: c.line, backgroundColor: c.raised },
     rowOn: { borderWidth: 1.5, borderColor: c.ink },
