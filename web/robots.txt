@@ -1,0 +1,54 @@
+# DoseTrace — https://dosetrace.io/robots.txt
+# Each User-agent group allows the rest of the site and repeats the same Disallow lines.
+# A named group does not inherit rules from User-agent: *.
+# Disallow is not access control.
+# Training or model-use crawlers: GPTBot, ClaudeBot, Google-Extended, Applebot-Extended.
+# Search or user-fetch crawlers: OAI-SearchBot, ChatGPT-User, Claude-SearchBot, PerplexityBot.
+# Allowing these bots does not control ranking.
+
+User-agent: *
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: GPTBot
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: OAI-SearchBot
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: ChatGPT-User
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: ClaudeBot
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: Claude-SearchBot
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: PerplexityBot
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: Google-Extended
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+User-agent: Applebot-Extended
+Disallow: /adm.html
+Disallow: /adm
+Disallow: /auth/
+
+Sitemap: https://dosetrace.io/sitemap.xml
