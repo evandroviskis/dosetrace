@@ -31,6 +31,12 @@ exceptions, no "temporary" Desktop files. Throwaway scratch work goes only in th
 temp, deleted by the system), and anything the founder will look at or keep is written inside the Second
 Brain. Secrets stay out of git and out of the notes (.env and keys sit git-ignored in the repo folder;
 production secrets in Vercel/Supabase). Never write at the Second Brain root (shared with other projects).
+Clarified by the founder 2026-11-23 ("eu fui mal interpretado"): the rule is "nothing outside the
+project folder", NOT "no APK/builds in the Second Brain". Inside ~/Desktop/Second Brain/dosetrace
+anything of the project may live (code, builds, APKs, videos, images), organized in subfolders; the
+Second Brain ROOT holds only project folders, never a loose file; and no file of the project anywhere
+else on the computer (Desktop, Downloads, Documents, home folder). A file found outside is moved into
+dosetrace/ (or reported to the founder when a protection hook or a secret is involved).
 
 ## Standing rule: one device at a time, no exceptions (founder, 2026-10-15; reaffirmed 2026-10-23)
 
