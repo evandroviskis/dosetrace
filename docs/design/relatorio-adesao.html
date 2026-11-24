@@ -1,6 +1,7 @@
 <title>Relatório de adesão</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="utf-8">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
@@ -121,6 +122,27 @@ table.terms td:first-child{white-space:nowrap;color:var(--pfg)}
 .dts .btn.p{background:var(--act);color:var(--onAct)}.dts .btn.s{background:var(--well);color:var(--ink)}
 .dts .inp{min-height:39px;border-radius:11px;padding:0 11px;display:flex;align-items:center;font-size:13px;color:var(--ink);border:1.5px solid var(--ink)}
 .caret2{display:inline-block;width:1.5px;height:14px;background:var(--ink);margin-left:1px}
+/* onboarding "Sobre você" (OnboardingFlowScreen makeStyles) */
+.ob{background:var(--ground);height:100%;display:flex;flex-direction:column}
+.ob .tb{display:flex;align-items:center;gap:9px;min-height:34px;padding:8px 13px 0}
+.ob .tb svg{width:14px;height:14px;color:var(--ink)}
+.ob .prog{flex:1;display:flex;gap:2px}.ob .prog i{flex:1;height:3px;border-radius:2px;background:var(--line)}.ob .prog i.f{background:var(--ink)}
+.ob .ct{padding:9px 13px 0;display:flex;flex-direction:column;gap:11px;flex:1;min-height:0;overflow:hidden}
+.ob .t{font-size:23px;line-height:28px;font-weight:600;letter-spacing:-.45px}
+.ob .sb{font-size:12.5px;line-height:17px;color:var(--ink2)}
+.ob .hn{font-size:10px;line-height:14px;color:var(--ink2)}
+.ob .fd{display:flex;flex-direction:column;gap:7px}
+.ob .fl{font-size:10px;line-height:14px;color:var(--ink2);padding:0 3px}
+.ob .in{min-height:40px;border-radius:12px;background:var(--well);border:1px solid var(--line);padding:0 12px;display:flex;align-items:center;font-size:13px;color:var(--ink)}
+.ob .in.ph0{color:var(--ink3)}.ob .in.on{border:1.5px solid var(--ink)}
+.ob .hp{font-size:10px;line-height:14px;color:var(--ink2);padding:0 3px}
+.ob .hp.auto{color:var(--ink)}
+.ob .mg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ob .mg span{min-height:31px;border-radius:16px;border:1px solid var(--line);display:grid;place-items:center;font-size:11.5px;color:var(--ink2)}
+.ob .ft{padding:12px 13px 14px;background:var(--ground)}
+.ob .pb{min-height:40px;border-radius:20px;background:var(--act);color:var(--onAct);display:grid;place-items:center;font-size:13px;font-weight:700}
+.ob .pb.dim{opacity:.35}
+.ob .new{box-shadow:0 0 0 2px var(--dataT);border-radius:13px;padding:6px;margin:0 -6px}
 /* report header snippets */
 .hdrs{display:flex;gap:20px;flex-wrap:wrap}
 .hdr{width:520px;max-width:100%;background:#FFFFFF;color:#111315;border:1px solid var(--pline);padding:18px 24px;font-family:var(--sans);font-size:9px;line-height:1.45;display:flex;flex-direction:column;gap:7px}
@@ -150,10 +172,19 @@ table.terms td:first-child{white-space:nowrap;color:var(--pfg)}
 <div id="out"></div>
 
 <h2>O nome no relatório</h2>
-<p class="lead">O nome do perfil pode ser um apelido ("o brabo da favela"), e o relatório que vai para o médico nunca pode levar o apelido. Por isso o perfil passa a ter dois campos: "Como você quer ser chamado" (o de hoje, que aparece no app) e "Nome completo" (novo, opcional, usado só nos relatórios). Sem nome completo, o app avisa antes de gerar e o relatório sai sem nenhuma linha de nome.</p>
+<p class="lead">O nome do perfil pode ser um apelido ("o brabo da favela"), e o relatório que vai para o médico nunca pode levar o apelido. Por isso todo lugar que pede um nome passa a ter dois campos, nesta ordem: "Nome completo" (novo, opcional, usado só nos relatórios) e "Como você quer ser chamado ou chamada" (o de hoje, obrigatório como hoje, que aparece no app). Sem nome completo, o app avisa antes de gerar e o relatório sai sem nenhuma linha de nome.</p>
 <div id="nm"></div>
 
 <div class="box2">
+<p><b>Onde um nome é digitado hoje</b> (todos mudam para os dois campos, na mesma ordem):</p>
+<ul>
+<li><b>Abertura, passo "Sobre você"</b>: na versão atual (redesign/graduated, screens/OnboardingFlowScreen.js:429-436) e na abertura nova (feat/onboarding-protocol, o mesmo arquivo :509-516). O mesmo passo serve para quem volta com o perfil incompleto (a pergunta obrigatória do perfil, lib/onboardingSteps.js "about").</li>
+<li><b>Editar perfil</b> (screens/SettingsScreen.js:1770-1782, nos dois ramos).</li>
+<li><b>Login com Apple ou Google</b> (lib/supabase.js:286-295 e :450-462): não é digitado, mas grava o nome da conta Apple/Google como nome do app quando ele está vazio. O nome digitado na abertura vai junto para a conta no cadastro (lib/onboardingStore, lib/pendingProfile.js).</li>
+<li>O cadastro com e-mail não pede nome. O nome aparece no cartão do perfil em Ajustes (SettingsScreen.js:994-1015) e no relatório.</li>
+</ul>
+<p><b>O preenchimento automático.</b> Enquanto ela digita o nome completo, "Como você quer ser chamado ou chamada" se preenche com o <b>primeiro nome</b> ("Evandro Santos" → "Evandro"), porque é assim que as pessoas costumam ser chamadas. O senhor disse "auto-preencher com o nome da pessoa": se preferir o nome completo inteiro, é só dizer. Assim que ela mexe no campo de baixo, ele para de acompanhar; ela pode apagar e escrever um apelido. Quem já tem um nome no app (todos os perfis de hoje) não tem esse campo trocado: ele só acompanha quando está vazio ou ainda tem o que o próprio preenchimento escreveu.</p>
+<p><b>Nome do Apple ou do Google (minha recomendação).</b> Ele aparece já escrito no campo "Nome completo" da abertura, onde ela vê e pode apagar, e o primeiro nome vai para o campo de baixo do mesmo jeito. Só vira o nome do relatório se ela continuar com ele no campo. Fora da abertura (um login novo de quem já tem perfil), ele nunca grava o nome completo sozinho, e o nome do app continua como hoje (só preenche quando está vazio).</p>
 <p><b>Onde o nome fica hoje.</b> Em display_name, dentro dos dados da conta no Supabase (user_metadata), junto com todo o perfil (sexo, nascimento, país, objetivos). Não fica nas tabelas sincronizadas do celular; vale em qualquer aparelho porque está no servidor da conta. É gravado pelo Editar perfil, pela abertura e pelo login com Apple ou Google, que só preenchem um nome vazio (lib/profileName.js).</p>
 <p><b>O que muda nos dados.</b> Uma chave nova no mesmo lugar do perfil: <b>report_name</b> (o nome completo). Não pode se chamar "full_name": o login com Google já grava o nome da conta Google nessa chave sozinho. Não precisa de migração no servidor. O que já existe não muda: o display_name de hoje continua sendo "Como você quer ser chamado", e o "Nome completo" começa vazio para todos. Nada é copiado de um para o outro (o nome de hoje pode ser apelido), e o nome do Apple ou do Google também não preenche o nome completo sozinho. Nada é apagado.</p>
 <p><b>Gravar sem perder nada.</b> O Editar perfil e a folha "Adicionar meu nome" mandam só as chaves do perfil, que o Supabase junta às que já estão lá; nunca reescrevem o perfil inteiro. O nome completo só fica vazio quando a própria pessoa apaga o campo. A regra do CLAUDE.md pede que dado digitado pela pessoa fique numa tabela sincronizada, não só em user_metadata, e o perfil inteiro (este campo incluído) está fora dela hoje. Levar o perfil para uma tabela sincronizada é uma mudança à parte, que eu recomendo registrar e fazer separada desta.</p>
@@ -202,6 +233,8 @@ table.terms td:first-child{white-space:nowrap;color:var(--pfg)}
 <li>Texto, PDF ou os dois (PDF como principal e o texto como opção)? Minha recomendação: os dois.</li>
 <li>O PDF do relatório de adesão fica grátis, como o texto de hoje, ou Premium, como o PDF dos exames?</li>
 <li>O PDF dos exames e vacinas também passa a levar o nome completo no cabeçalho (minha recomendação), ou continua sem nome?</li>
+<li>O campo do nome do app se preenche com o primeiro nome (minha recomendação) ou com o nome completo inteiro?</li>
+<li>O nome da conta Apple/Google aparece já escrito em "Nome completo" na abertura, para ela conferir (minha recomendação), ou o campo começa sempre vazio?</li>
 </ol></div>
 </div>
 
@@ -387,6 +420,22 @@ const epToday=()=>'<div class="ph"><div class="ep">'+epHead+'<div class="bd"><di
   '<div class="fld"><div class="lbl">Seu nome</div><div class="inp">O brabo da favela</div></div>'+
   '<div class="fld"><div class="lbl">Mês de nascimento</div>'+months()+'</div></div></div></div>';
 const epNew=()=>'<div class="ph"><div class="ep">'+epHead+'<div class="bd"><div class="sec">Sobre você</div>'+
+  '<div class="fld new"><div class="lbl">Nome completo (opcional)</div><div class="inp on">Marina Costa Silva<span class="caret2"></span></div><div class="hint">Aparece só nos relatórios que você exportar para enviar a alguém, como o Relatório de adesão. Nunca aparece no app.</div></div>'+
+  '<div class="fld"><div class="lbl">Como você quer ser chamado ou chamada</div><div class="inp">O brabo da favela</div><div class="hint">É o nome que aparece no app.</div></div>'+
+  '<div class="fld"><div class="lbl">Mês de nascimento</div>'+months()+'</div></div></div></div>';
+const chev='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg>';
+const obMonths='<div class="mg">'+MON.map(m=>'<span>'+m+'</span>').join('')+'</div>';
+const obTop='<div class="tb">'+chev+'<div class="prog"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i></div></div>'+
+  '<div class="ct"><div class="t">Sobre você</div><div class="sb">O DoseTrace adapta a você a calculadora, a curva Dose no corpo e seus números reais. Esses recursos funcionam com estes dados, que ficam salvos na sua conta.</div>';
+const obEnd=(dim)=>'<div class="fd"><div class="fl">Mês de nascimento *</div>'+obMonths+'</div></div><div class="ft"><div class="pb'+(dim?' dim':'')+'">Continuar</div></div>';
+const obToday=()=>'<div class="ph"><div class="ob">'+obTop+'<div class="hn">* Todos os campos são obrigatórios</div>'+
+  '<div class="fd"><div class="fl">Seu nome *</div><div class="in ph0">Como devemos te chamar?</div></div>'+obEnd(true)+'</div></div>';
+const obEmpty=()=>'<div class="ph"><div class="ob">'+obTop+'<div class="hn">* Campos obrigatórios</div>'+
+  '<div class="fd new"><div class="fl">Nome completo (opcional)</div><div class="in ph0">Ex.: Evandro Santos</div><div class="hp">Aparece só nos relatórios que você exportar para enviar a alguém, como o Relatório de adesão. Nunca aparece no app.</div></div>'+
+  '<div class="fd"><div class="fl">Como você quer ser chamado ou chamada *</div><div class="in ph0">Ex.: Evandro</div></div>'+obEnd(true)+'</div></div>';
+const obTyped=()=>'<div class="ph"><div class="ob">'+obTop+'<div class="hn">* Campos obrigatórios</div>'+
+  '<div class="fd new"><div class="fl">Nome completo (opcional)</div><div class="in on">Evandro Santos<span class="caret2"></span></div><div class="hp">Aparece só nos relatórios que você exportar para enviar a alguém, como o Relatório de adesão. Nunca aparece no app.</div></div>'+
+  '<div class="fd"><div class="fl">Como você quer ser chamado ou chamada *</div><div class="in">Evandro</div><div class="hp auto">Preenchido com o seu primeiro nome. Você pode apagar e escrever um apelido.</div></div>'+obEnd(false)+'</div></div>';
   '<div class="fld"><div class="lbl">Como você quer ser chamado</div><div class="inp">O brabo da favela</div><div class="hint">Aparece no app.</div></div>'+
   '<div class="fld new"><div class="lbl">Nome completo</div><div class="inp ph0">Ex.: Marina Costa Silva</div><div class="hint">Opcional. Aparece só nos relatórios que você exportar para enviar a alguém, como o Relatório de adesão. Nunca aparece no app.</div></div>'+
   '<div class="fld"><div class="lbl">Mês de nascimento</div>'+months()+'</div></div></div></div>';
@@ -399,10 +448,19 @@ const add=()=>'<div class="ph">'+settingsBg+'<div class="scrimC"><div class="dts
   '<div class="inp">Marina Costa Silva<span class="caret2"></span></div><div class="hn">Fica salvo no seu perfil e aparece só nos relatórios que você exportar. Você pode mudar em Editar perfil.</div>'+
   '<div class="stack"><div class="btn p">Gerar relatório</div><div class="btn s">Voltar</div></div></div></div></div>';
 let n='';
+n+='<h3 style="margin-top:24px">A abertura, passo "Sobre você"</h3>';
+for(const [cls,label] of [['lt','Tema claro'],['dk','Tema escuro']]){
+  n+='<h3>'+label+'</h3><div class="row '+cls+'">'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Abertura hoje</b> (igual na 1.3.x e na abertura nova): "Seu nome *", que vai para o relatório.':'<b>Abertura hoje</b>')+'</div>'+obToday()+'</div>'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Proposta, vazia</b>: "Nome completo" primeiro, opcional; depois o nome do app, obrigatório como hoje.':'<b>Proposta, vazia</b>')+'</div>'+obEmpty()+'</div>'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Proposta, escrevendo</b> "Evandro Santos": o campo de baixo se preenche com "Evandro" enquanto ela digita.':'<b>Proposta, escrevendo</b>')+'</div>'+obTyped()+'</div>'+
+  '</div>';
+}
+n+='<h3 style="margin-top:24px">Editar perfil e o aviso antes de gerar</h3>';
 for(const [cls,label] of [['lt','Tema claro'],['dk','Tema escuro']]){
   n+='<h3>'+label+'</h3><div class="row '+cls+'">'+
    '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Editar perfil hoje</b>: um campo só, "Seu nome", que vai para o relatório.':'<b>Editar perfil hoje</b>')+'</div>'+epToday()+'</div>'+
-   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Proposta</b>: "Como você quer ser chamado" (o mesmo valor de hoje) e "Nome completo", novo e vazio (contorno azul só neste desenho).':'<b>Proposta</b>')+'</div>'+epNew()+'</div>'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Proposta</b>: a mesma ordem da abertura. O nome de hoje fica em "Como você quer ser chamado ou chamada"; ela escreve o nome completo (contorno azul só neste desenho), e o apelido não muda, porque já existia.':'<b>Proposta</b>')+'</div>'+epNew()+'</div>'+
    '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Antes de gerar</b>, sem nome completo: a folha avisa e oferece as duas saídas.':'<b>Antes de gerar</b>')+'</div>'+ask()+'</div>'+
    '<div class="col"><div class="cap">'+(cls==='lt'?'<b>"Adicionar meu nome"</b>: o campo, e o relatório é gerado em seguida. "Voltar" volta à folha anterior.':'<b>"Adicionar meu nome"</b>')+'</div>'+add()+'</div>'+
   '</div>';
