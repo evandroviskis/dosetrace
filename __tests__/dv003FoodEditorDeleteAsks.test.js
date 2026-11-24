@@ -33,7 +33,7 @@ function phone() {
 function editor(p, items) {
   const out = { sheet: null, done: 0 };
   const deps = {
-    row: p.row, items, date: p.row.entry_date, t,
+    row: p.row, items, date: p.row.entry_date, t, language: 'en',
     safeItems, editedItems,
     deleteFoodLog: p.deleteFoodLog, updateFoodLog: p.updateFoodLog,
     done: () => { out.done++; },

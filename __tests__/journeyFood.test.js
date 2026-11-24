@@ -56,7 +56,7 @@ test('Part 23: the item name is an editable field; kcal / carbs / protein stay e
   assert.match(ed, /value=\{it\.food == null \? '' : String\(it\.food\)\}/);
   assert.match(ed, /onChangeText=\{\(v\) => setField\(i, 'food', v\)\}/);
   for (const f of ['kcal', 'carb_g', 'protein_g']) assert.match(ed, new RegExp(`setField\\(i, '${f}', v\\)`));
-  assert.match(ed, /editedItems\(orig, items\)/);
+  assert.match(ed, /editedItems\(orig, items, language\)/);
 });
 
 test('Part 23: editedItems — a renamed or re-numbered item is the user\'s; an empty name keeps the old one; nothing else changes', () => {

@@ -100,7 +100,7 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
     if (!row) return;
     const orig = safeItems(row.parsed_items);
     // A fixed item (name or numbers) is the user's and needs no follow-up (lib/nutrition).
-    const cleaned = editedItems(orig, items);
+    const cleaned = editedItems(orig, items, language);
     if (!cleaned.length) { confirmRemoveEntry(); return; } // no items left = the entry goes: ask first
     const sum = (k) => Math.round(cleaned.reduce((a, it) => a + (Number(it[k]) || 0), 0));
     updateFoodLog(row.id, { parsed_items: JSON.stringify(cleaned), kcal: sum('kcal'), carb_g: sum('carb_g'), protein_g: sum('protein_g'), fat_g: sum('fat_g'), entry_date: date || row.entry_date });
