@@ -60,7 +60,7 @@ import { logListState } from '../lib/firstLoad';
 import { localISO } from '../lib/localDate';
 import { clearDraft, getDraft } from '../lib/draftStore';
 import DoseObservation from './components/DoseObservation';
-import { canObserveDose, markLabel, noteDraftKey, noteToSave, cleanNote, repeatOnFields, REPEAT_OFF } from '../lib/doseObservation';
+import { canObserveDose, markLabel, noteDraftKey, noteToSave, cleanNote, repeatOnFields, REPEAT_OFF, repeatAllowed } from '../lib/doseObservation';
 
 // The draft store key of one dose's unsaved site choice in the site editor (A-77 / BK-14).
 export function siteDraftKey(logId) {
@@ -505,6 +505,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // DO-20: "Repetir nas próximas doses" — on copies this dose's mark and observation (the typed text saved
   // first) into the protocol; off clears both. No dose already logged changes.
   function setSheetRepeat(log, on) {
+    if (on && !repeatAllowed(sheetProtocol)) return; // DO-30: one dose a day only (the switch is not drawn otherwise)
     const fresh = on ? flushNote() : null;
     if (log.protocol_id == null) return;
     try { updateProtocol(log.protocol_id, on ? repeatOnFields(fresh || log) : REPEAT_OFF); } catch { return; }

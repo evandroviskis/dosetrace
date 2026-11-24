@@ -635,3 +635,30 @@ test('DO-29: a restart copies the repeat setting', () => {
   const n = db.getFirstSync('SELECT repeat_dose_context, repeat_dose_note FROM protocols WHERE id = ?', [nid]);
   assert.deepEqual({ ...n }, { repeat_dose_context: 'fasted', repeat_dose_note: 'Antes da yoga' });
 });
+
+// Chair decision 2026-11-24 (by logic, option b; the founder may change it): one repeat setting per protocol
+// cannot hold a morning "Em jejum" and an evening "Com refeição", and from the notification it would stamp the
+// other dose without anyone seeing it. So the repeat exists only on a protocol with ONE dose a day; on 2+ doses a
+// day the switch does not appear and nothing is stamped (marks and observations stay per dose).
+test('DO-30: the repeat is offered and applied only on a protocol with one dose a day', () => {
+  const { repeatShown, repeatOf, repeatAllowed } = OBS();
+  const once = { id: 1, doses_per_day: 1 };
+  const twice = { id: 2, doses_per_day: 2 };
+  const marked = { outcome: 'Taken', dose_context: 'fasted' };
+  assert.equal(repeatAllowed(once), true);
+  assert.equal(repeatAllowed({ id: 3 }), true, 'no count stored = one a day');
+  assert.equal(repeatAllowed(twice), false);
+  assert.equal(repeatShown(marked, once), true);
+  assert.equal(repeatShown(marked, twice), false, 'no switch on 2+ doses a day');
+  assert.equal(repeatShown(marked, { ...twice, repeat_dose_context: 'fasted' }), false, 'not even with a value left from before');
+  assert.equal(repeatOf({ ...twice, repeat_dose_context: 'fasted', repeat_dose_note: 'x' }), null, 'a value left from a 1-a-day schedule is never applied');
+  // The take: a 2-a-day protocol with old repeat values stamps nothing, from any entry point.
+  const f = fakeTake({ protocol: { ...oral, doses_per_day: 2, repeat_dose_context: 'fasted', repeat_dose_note: 'Antes da yoga' } });
+  const r = f.run({ tapMs: NOW, atNow: true, applyRepeat: true });
+  const ins = f.calls.find((c) => c[0] === 'insert')[1];
+  assert.equal(ins.dose_context, undefined);
+  assert.equal(ins.dose_note, undefined);
+  assert.equal(r.observation, null);
+  // The sheet cannot switch it on there either.
+  assert.match(sliceBlock(LOG, 'function setSheetRepeat('), /if \(on && !repeatAllowed\(sheetProtocol\)\) return;/);
+});
