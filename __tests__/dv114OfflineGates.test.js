@@ -181,13 +181,13 @@ test('DV-114: both screens save through answerGate (the one write each), go on w
 
 test('DV-114: App.js decides the gates with the pending answer laid over the account; onAuthStateChange stays synchronous', () => {
   const app = read('App.js');
-  assert.match(app, /const gateUser = session \? withPendingAnswer\(session\.user, gateAnswer\.pending\) : null;/);
+  assert.match(app, /const gateUser = session \? withPendingAnswer\(withProfile\(session\.user\), gateAnswer\.pending\) : null;/);
   const gate = app.indexOf('!isProfileComplete(gateUser)');
   const age = app.indexOf('needsAdultConfirmation(gateUser.user_metadata)');
   assert.ok(gate > 0 && age > gate, 'profile gate first, then the 18+ gate — both on gateUser');
   assert.doesNotMatch(app, /isProfileComplete\(session\.user\)|needsAdultConfirmation\(session\.user/, 'no gate reads the bare account');
   // While the phone's answer is not read yet, a gated account sees the empty ground (no gate flash).
-  assert.match(app, /!gateAnswer\.ready && gated\(session\.user\) \? \([\s\S]{0,300}<Stack\.Screen name="GateWait" component=\{BootEmpty\} \/>/);
+  assert.match(app, /!gateAnswer\.ready && gated\(withProfile\(session\.user\)\) \? \([\s\S]{0,300}<Stack\.Screen name="GateWait" component=\{BootEmpty\} \/>/);
   assert.match(app, /const onMain = !!session && !recovery && !accountHeld && !gated\(gateUser\);/);
   assert.match(app, /<SheetToast text=\{gateToast\} \/>/);
   const cb = app.slice(app.indexOf('supabase.auth.onAuthStateChange('), app.indexOf('// Sign in with Apple: if the user revokes'));

@@ -54,7 +54,8 @@ const SEED = {
   lab_prefs: (db) => db.runSync(`INSERT INTO lab_prefs (user_id, kind, test_key, item_key, value, updated_at, sync_status) VALUES (?, 'star', '', 'Testosterone', '1', 'L1', 'pending')`, [USER]).lastInsertRowId,
   reality_check_open: (db) => db.runSync(`INSERT INTO reality_check_open (user_id, start_date, start_weight_kg, created_at, updated_at, sync_status) VALUES (?, '2026-10-20', 82.5, '2026-10-20T08:00:00.000Z', 'L1', 'pending')`, [USER]).lastInsertRowId,
 };
-const GENERIC = TABLES.filter((t) => t !== 'calc_inputs');
+// Profile synced: account_profile is one row per account too, merged per key like calc_inputs (lib/profileStore).
+const GENERIC = TABLES.filter((t) => t !== 'calc_inputs' && t !== 'account_profile');
 
 // The network drops right after the insert landed: its answer is lost, and so is the look-up the same
 // pass makes. → back(): the network is back (the next pass).
