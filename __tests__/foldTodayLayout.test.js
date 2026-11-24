@@ -59,12 +59,14 @@ test('FT-1: the left page is the Today title, alerts and rings above the embedde
   // The Log draws the lead above its title, in the same list (one scroll). Review 2026-11-17: with a
   // lead the list is always mounted, so the lead never mounts twice (loading → loaded); while it
   // loads the list holds only the lead — no counts, no empty state (A-120).
-  assert.match(LOG, /export default function LogScreen\(\{ embedded = false, refreshKey, onChanged, popupGate, lead = null, scrollRequest = null \} = \{\}\)/);
+  assert.match(LOG, /export default function LogScreen\(\{ embedded = false, refreshKey, onChanged, popupGate, lead = null, scrollRequest = null, openRequest = null \} = \{\}\)/);
   assert.match(LOG, /\{listState === 'loading' && !lead \? \(\s*<View style=\{s\.loadingBox\}>/);
   assert.match(LOG, /sections=\{listState === 'loading' \? \[\] : sections\}/);
   assert.match(LOG, /ListHeaderComponent=\{lead \? <>\{leadEl\}\{listState === 'loading' \? null : header\}<\/> : header\}/);
   assert.match(LOG, /ListEmptyComponent=\{listState === 'loading' \? null : \(/);
-  assert.equal(/<ScrollView/.test(LOG), false, 'no second container for the lead');
+  // The only ScrollView is the dose sheet's own body (docs/specs/dose-observation.md DO-12), inside its Modal.
+  const outsideSheet = LOG.slice(0, LOG.indexOf('{/* The dose sheet')) + LOG.slice(LOG.indexOf('<DoseEditSheet'));
+  assert.equal(/<ScrollView/.test(outsideSheet), false, 'no second container for the lead');
   assert.match(LOG, /\{!lead && \(\s*<View style=\{\[s\.nav, embedded && s\.navEmbedded\]\}>/, 'with a lead the curve button rides in the title row');
   assert.match(LOG, /<View style=\{s\.leadTitleRow\}>\s*<Text style=\{\[s\.title, s\.titleLead\]\}>\{t\('log_title'\)\}<\/Text>\s*\{curveBtn\}/);
   assert.match(LOG, /\n\s*leadBleed: \{ marginHorizontal: -16 \}/, 'Today blocks keep their own side margins inside the list padding');

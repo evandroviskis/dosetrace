@@ -16,7 +16,7 @@ const SENTENCE = {
   de: /App-Updates, die Fehler beheben, liefert Expo.*nie dein Konto oder Gesundheitsdaten\./,
   it: /aggiornamenti dell'app che correggono problemi sono forniti da Expo.*mai il tuo account né dati sanitari\./,
 };
-const DATE = { en: 'October 30, 2026', es: '30 de octubre de 2026', pt: '30 de outubro de 2026', fr: '30 octobre 2026', de: '30. Oktober 2026', it: '30 ottobre 2026' };
+const DATE = { en: 'November 24, 2026', es: '24 de noviembre de 2026', pt: '24 de novembro de 2026', fr: '24 novembre 2026', de: '24. November 2026', it: '24 novembre 2026' };
 
 test('A-183: the privacy policy names Expo app updates and what they send, in six languages', () => {
   for (const k of Object.keys(SENTENCE)) {

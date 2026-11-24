@@ -8,7 +8,13 @@ import {
   Pressable,
   Platform,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Keyboard,
+  AppState,
 } from 'react-native';
+import { useWindowSize } from '../lib/windowSize';
+import useKeyboardLift from '../components/useKeyboardLift';
 import Modal from '../components/PresenceModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
@@ -18,7 +24,7 @@ import { cardTexts } from '../lib/unrecordedText';
 import { getCachedUser } from '../lib/supabase';
 import { useLanguage } from '../i18n/LanguageContext';
 import { protocolDisplayName } from '../lib/protocolName';
-import { getAllLogs, getLogsSince, getTodayLogs, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol } from '../lib/database';
+import { getAllLogs, getLogsSince, getTodayLogs, updateDoseLog, deleteDoseLog, updateVial, updateProtocol, getProtocolById, getVialsForProtocol, setDoseObservation } from '../lib/database';
 import { scanMissedDoses, recordDoseTaken, unsyncedState, unrecordedQueue } from '../lib/doseActions';
 import { requestVialPrompt } from '../lib/vialPromptRequests';
 import { requestSync, forceSync, addSyncListener } from '../lib/sync';
@@ -52,7 +58,9 @@ import { outcomeCounts } from '../lib/declared';
 import { NO_DOSE } from '../lib/noDose';
 import { logListState } from '../lib/firstLoad';
 import { localISO } from '../lib/localDate';
-import { clearDraft } from '../lib/draftStore';
+import { clearDraft, getDraft } from '../lib/draftStore';
+import DoseObservation from './components/DoseObservation';
+import { canObserveDose, markLabel, noteDraftKey, noteToSave, cleanNote, repeatOnFields, REPEAT_OFF } from '../lib/doseObservation';
 
 // The draft store key of one dose's unsaved site choice in the site editor (A-77 / BK-14).
 export function siteDraftKey(logId) {
@@ -71,8 +79,8 @@ const INJECTABLE = ['recon', 'rtu'];
 // popupGate (embedded, BK-20): one popup at a time across both pages — the site editor waits
 // while a popup of Today's is open, and tells Today when it opens and closes.
 // Free-feature explainers this screen offers (Today redesign part 18): the dose log + streak
-// and site rotation, each until used — read from the user's own synced dose log. (Dose notes:
-// the per-dose note is not in the app yet, so its explainer is not offered.)
+// and site rotation, each until used — read from the user's own synced dose log. (The per-dose
+// observation, docs/specs/dose-observation.md, is not offered as an explainer: not in its picture.)
 function logExplainers(userId) {
   const logs = getAllLogs(userId) || [];
   return [
@@ -85,7 +93,9 @@ function logExplainers(userId) {
 // Dose log in the same list (one scroll); the log title then shrinks to a section title with the
 // curve button beside it. scrollRequest { to: 'top' | 'log', n }: scrolls the list to the top (App
 // search "Alertas") or to the log's own title under the lead (the streak row on Today).
-export default function LogScreen({ embedded = false, refreshKey, onChanged, popupGate, lead = null, scrollRequest = null } = {}) {
+// openRequest { logId, n } (embedded, DO-17): Today's "Doses concluídas" row on the open Fold — this page opens
+// that dose's sheet. On the phone the same comes as the route param openLogId (closing goes back to Today).
+export default function LogScreen({ embedded = false, refreshKey, onChanged, popupGate, lead = null, scrollRequest = null, openRequest = null } = {}) {
   const { t, language, timeFormat } = useLanguage();
   // A-134: a dose row names its protocol as Today does (translated compound, else the typed name).
   const logName = (log) => (log && log.protocols ? protocolDisplayName(log.protocols, t) : t('log_protocol_deleted'));
@@ -129,6 +139,11 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   // The dose sheet (founder 2026-10-02, option A): a tapped Taken / Skipped row. deleteAsk:
   // the "Delete this dose?" confirm (DTSheet config inputs) for that row.
   const [doseSheet, setDoseSheet] = useState(null);
+  // DO-20: the sheet's protocol, read fresh when it opens (its "Repetir nas próximas doses").
+  const [sheetProtocol, setSheetProtocol] = useState(null);
+  const sheetRef = useRef(null); // the open sheet's row, for the saves that run outside a render
+  sheetRef.current = doseSheet;
+  const backOnClose = useRef(false); // opened from Today's row on the phone: closing goes back there
   const [doseEdit, setDoseEdit] = useState(null); // AD-95 / F2: { mode: 'time' | 'dose', log, name }
   const [deleteAsk, setDeleteAsk] = useState(null);
   // DoseTrace sheets instead of native alerts (M4): `logSheet` on the screen (the Missed
@@ -140,6 +155,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
   const [unsync, setUnsync] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const insets = useSafeAreaInsets();
+  const { height: winH } = useWindowSize(); // A-129: the measured window
+  // The sheet's observation above the Android keyboard (the Modal is not resized there; iPhone: the
+  // KeyboardAvoidingView below).
+  const sheetLift = useKeyboardLift(null, Platform.OS === 'android' && !!doseSheet);
 
   // BK-10: a Dose log pushed while folded moves onto Today's right page on unfold.
   useUnfoldToPage('Log', { embedded });
@@ -162,6 +181,31 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     pendingScroll.current = scrollRequest;
     applyScroll();
   }, [scrollRequest && scrollRequest.n]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // DO-17: Today's "Doses concluídas" row asks for one dose's sheet — opened once its row is read.
+  const openLogId = !embedded && route && route.params ? route.params.openLogId : null;
+  const wantOpen = useRef(null);
+  function tryOpenWanted(rows) {
+    const w = wantOpen.current;
+    if (!w) return;
+    const row = (rows || []).find((l) => String(l.id) === String(w.id));
+    if (!row) return;
+    wantOpen.current = null;
+    backOnClose.current = w.back;
+    openDoseSheet(row);
+  }
+  useEffect(() => {
+    if (openLogId == null) return;
+    wantOpen.current = { id: openLogId, back: true };
+    try { navigation.setParams({ openLogId: undefined }); } catch { /* no params to clear */ }
+    tryOpenWanted(logs);
+  }, [openLogId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!embedded || !openRequest || Date.now() - openRequest.n > 5000) return;
+    wantOpen.current = { id: openRequest.logId, back: false };
+    tryOpenWanted(logs);
+  }, [openRequest && openRequest.n]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { tryOpenWanted(logs); }, [logs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Embedded: refetch when a dose is written on Today's left page (not on the first
   // render; the focus effect below loads the list).
@@ -402,13 +446,70 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
       gate.opened();
       editorOpenRef.current = true;
     }
+    let p = null;
+    try { p = log.protocol_id != null ? getProtocolById(log.protocol_id) : null; } catch { p = null; }
+    setSheetProtocol(p);
     setDoseSheet(log);
   }
-  // Done, a tap outside, or the back gesture.
+  // Done (the small one or the big one, DO-12), a tap outside, or the back gesture. DO-10: the observation
+  // being typed is saved first. Opened from Today's row on the phone: back to Today.
   function closeDoseSheet() {
+    flushNote();
     afterSheetRef.current = null;
     setDoseSheet(null);
     releasePopup();
+    if (backOnClose.current && !embedded) { backOnClose.current = false; try { navigation.goBack(); } catch { /* nothing to go back to */ } }
+  }
+
+  // ── The dose's mark and observation (option B, founder 2026-11-24; docs/specs/dose-observation.md) ──
+  // Every write goes through setDoseObservation: only on a row that is still a completed dose.
+  function afterSheetWrite() {
+    requestSync();
+    fetchLogs();
+    if (embedded && onChanged) onChanged(); // Today's "Doses concluídas" row follows
+  }
+  // DO-7: a mark is saved on the tap.
+  function setSheetContext(log, value) {
+    if (!setDoseObservation(log.id, { dose_context: value })) { fetchLogs(); return; }
+    setDoseSheet((cur) => (cur && cur.id === log.id ? { ...cur, dose_context: value } : cur));
+    afterSheetWrite();
+  }
+  // DO-9: Salvar. → the row as saved, or null when the row is no longer a completed dose (the text stays
+  // in the draft: never thrown away on a maybe).
+  function writeSheetNote(log, text) {
+    if (!setDoseObservation(log.id, { dose_note: text })) { fetchLogs(); return null; }
+    clearDraft(noteDraftKey(log.id));
+    const fresh = { ...log, dose_note: cleanNote(text) };
+    setDoseSheet((cur) => (cur && cur.id === log.id ? { ...cur, dose_note: fresh.dose_note } : cur));
+    afterSheetWrite();
+    return fresh;
+  }
+  function saveSheetNote(text) {
+    Keyboard.dismiss();
+    const log = sheetRef.current;
+    if (log) writeSheetNote(log, text);
+  }
+  // DO-10: the open sheet's typed observation is saved (closing, leaving for another action, the app going
+  // to the background). → the row as it is now (saved or unchanged), or null.
+  function flushNote() {
+    const log = sheetRef.current;
+    if (!log || !canObserveDose(log)) return null;
+    const next = noteToSave(getDraft(noteDraftKey(log.id)), log.dose_note);
+    if (next === undefined) { clearDraft(noteDraftKey(log.id)); return log; }
+    return writeSheetNote(log, next);
+  }
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => { if (st !== 'active') flushNote(); });
+    return () => { try { sub.remove(); } catch { /* older RN */ } };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // DO-20: "Repetir nas próximas doses" — on copies this dose's mark and observation (the typed text saved
+  // first) into the protocol; off clears both. No dose already logged changes.
+  function setSheetRepeat(log, on) {
+    const fresh = on ? flushNote() : null;
+    if (log.protocol_id == null) return;
+    try { updateProtocol(log.protocol_id, on ? repeatOnFields(fresh || log) : REPEAT_OFF); } catch { return; }
+    try { setSheetProtocol(getProtocolById(log.protocol_id)); } catch { /* the switch shows the old state */ }
+    requestSync();
   }
   // The next popup opens once the sheet has gone (iOS cannot present a Modal while another
   // one is still animating out): Modal onDismiss on iOS, a short timer as the fallback.
@@ -421,6 +522,8 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     if (fn) fn();
   }
   function leaveSheetThen(fn) {
+    flushNote(); // DO-10: typed text is saved before the sheet leaves for another action
+    backOnClose.current = false; // the person goes on working in the Dose log
     afterSheetRef.current = fn;
     setDoseSheet(null);
     afterTimerRef.current = setTimeout(runAfterSheet, Platform.OS === 'ios' ? 700 : 50);
@@ -582,20 +685,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     return order.map(key => groups[key]);
   }
 
-  // pre_tags may arrive as a JSON string from the cloud — parse defensively
-  function parseTags(raw) {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return raw;
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  }
+  // DO-16: a completed dose's mark and observation lines (the old per-dose notes and tags lines never had data
+  // on the phone and are gone, DV-181).
+  const markOf = (log) => (canObserveDose(log) ? markLabel(log.dose_context, t) : null);
+  const noteOf = (log) => (canObserveDose(log) ? cleanNote(log.dose_note) : null);
 
   // Status = a dot + a word (DESIGN.md §5); schedule colors, never good/bad on the body.
   function outcomeColor(outcome) {
@@ -812,7 +905,6 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         )}
         renderSectionFooter={() => <View style={{ height: 16 }} />}
         renderItem={({ item: log, index, section }) => {
-          const tags = parseTags(log.pre_tags);
           const first = index === 0;
           const last = index === section.data.length - 1;
           // Every row opens: a Missed row its Mark taken / Mark skipped editor, a Taken or
@@ -838,21 +930,18 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                       <Text style={s.logDetail}>{summarizeStored(log.injection_site, t) || log.injection_site}</Text>
                     </View>
                   ) : null}
-                  {log.notes ? (
+                  {markOf(log) ? (
                     <View style={s.detailRow}>
-                      <FeatureIcon name="journal" size={13} color={colors.ink3} />
-                      <Text style={s.logDetail}>{log.notes}</Text>
+                      <FeatureIcon name="tag" size={13} color={colors.ink3} />
+                      <Text style={s.logDetail}>{markOf(log)}</Text>
                     </View>
                   ) : null}
-                  {tags.length > 0 && (
-                    <View style={s.tagRow}>
-                      {tags.map(tag => (
-                        <View key={String(tag)} style={s.tag}>
-                          <Text style={s.tagText}>{String(tag)}</Text>
-                        </View>
-                      ))}
+                  {noteOf(log) ? (
+                    <View style={[s.detailRow, s.noteRow]}>
+                      <FeatureIcon name="chat" size={13} color={colors.ink3} />
+                      <Text style={s.logDetail} numberOfLines={2} ellipsizeMode="tail">{noteOf(log)}</Text>
                     </View>
-                  )}
+                  ) : null}
                 </View>
                 <View style={s.logRight}>
                   <Text style={s.logTime}>
@@ -883,9 +972,10 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
         onRequestClose={closeDoseSheet}
         onDismiss={runAfterSheet}
       >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
         <Pressable style={s.sheetScrim} onPress={closeDoseSheet} accessibilityRole="button" accessibilityLabel={t('done')}>
           {shownSheet ? (
-            <Pressable style={[s.doseSheet, { paddingBottom: 22 + insets.bottom }]} onPress={() => {}} accessibilityViewIsModal>
+            <Pressable style={[s.doseSheet, { paddingBottom: 22 + insets.bottom, maxHeight: winH - insets.top - 24 }]} onPress={() => {}} accessibilityViewIsModal>
               <View style={s.sheetHead}>
                 <Text style={s.sheetTitle} accessibilityRole="header" numberOfLines={2}>
                   {logName(shownSheet)}
@@ -894,6 +984,7 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   <Text style={s.sheetDone}>{t('done')}</Text>
                 </TouchableOpacity>
               </View>
+              <ScrollView style={s.sheetScroll} contentContainerStyle={s.sheetBody} bounces={false} showsVerticalScrollIndicator={false} {...sheetLift.scrollProps}>
               <View>
                 <View style={s.kvRow}>
                   <Text style={s.kvKey}>{t('log_sheet_status')}</Text>
@@ -916,6 +1007,18 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   </View>
                 ) : null}
               </View>
+              {/* DO-7..DO-11, DO-20: the marks, the observation, the emergency line, the repeat — a completed dose only */}
+              {canObserveDose(shownSheet) && (
+                <DoseObservation
+                  log={shownSheet}
+                  protocol={sheetProtocol}
+                  name={logName(shownSheet)}
+                  onContext={(v) => setSheetContext(shownSheet, v)}
+                  onSaveNote={saveSheetNote}
+                  onRepeat={(on) => setSheetRepeat(shownSheet, on)}
+                  onNoteFocus={sheetLift.liftField}
+                />
+              )}
               {sheetInjectable && (
                 <TouchableOpacity style={s.changeSite} onPress={() => changeSiteFromSheet(shownSheet)} accessibilityRole="button">
                   <Text style={s.changeSiteText}>{t('log_change_site')}</Text>
@@ -948,15 +1051,22 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
                   <Text style={s.noDoseBtnText}>{t('log_no_dose')}</Text>
                 </TouchableOpacity>
               )}
+              {/* DO-12: the big Concluído (it only closes the sheet, saving the observation being typed). */}
+              <TouchableOpacity style={s.doneBtn} onPress={closeDoseSheet} accessibilityRole="button">
+                <Text style={s.doneBtnText}>{t('done')}</Text>
+              </TouchableOpacity>
               {/* DV-243: a "no dose" mark is never deleted (the scan would write the Missed row back). */}
               {shownSheet.outcome !== NO_DOSE && (
                 <TouchableOpacity style={s.dangerBtn} onPress={() => askDelete(shownSheet)} accessibilityRole="button">
                   <Text style={s.dangerBtnText}>{t('log_delete_dose')}</Text>
                 </TouchableOpacity>
               )}
+              {sheetLift.spacer}
+              </ScrollView>
             </Pressable>
           ) : null}
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       <DoseEditSheet edit={doseEdit} onClose={closeDoseEdit} onSave={saveDoseEdit} />
@@ -1049,15 +1159,20 @@ const makeStyles = (c) => StyleSheet.create({
   logName: { fontSize: 17, color: c.ink, flexShrink: 1 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   logDetail: { fontSize: 15, color: c.ink2, flexShrink: 1 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
-  tag: { minHeight: 24, borderRadius: 12, borderWidth: 1, borderColor: c.line, paddingHorizontal: 9, justifyContent: 'center' },
-  tagText: { fontSize: 12, fontWeight: '500', color: c.ink2 },
+  noteRow: { alignItems: 'flex-start' }, // DO-16: the icon on the first of the observation's two lines
   logRight: { alignItems: 'flex-end', gap: 4 },
   logTime: { fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   outcomeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   outcomeWord: { fontSize: 13, fontWeight: '600' },
   // The dose sheet (prototype sheet + .kv rows + .dangerbtn; approved render 2026-10-02).
+  flex: { flex: 1 },
   sheetScrim: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
+  // DO-7..DO-12: the sheet grew; its body scrolls when it is taller than the screen (the title stays).
+  sheetScroll: { flexGrow: 0, flexShrink: 1 },
+  sheetBody: { gap: 12 },
+  // DO-12: the big Concluído, the primary action (ink), above Excluir esta dose.
+  doneBtn: { minHeight: 52, borderRadius: 26, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
+  doneBtnText: { fontSize: 17, fontWeight: '700', color: c.onAct },
   doseSheet: { backgroundColor: c.raised, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 18, paddingHorizontal: 18, gap: 12, width: '100%', maxWidth: 560, alignSelf: 'center' },
   sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 },
   sheetTitle: { fontSize: 22, fontWeight: '700', color: c.ink, flex: 1, letterSpacing: -0.3 },

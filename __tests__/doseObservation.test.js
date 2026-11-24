@@ -185,7 +185,9 @@ test('DO-5: the migration is additive and the purge trigger blanks the repeat co
   assert.match(sql, /alter table public\.protocols add column if not exists repeat_dose_context text/i);
   assert.match(sql, /alter table public\.protocols add column if not exists repeat_dose_note text/i);
   assert.match(sql, /check \(dose_context is null or dose_context in \('fasted', 'meal'\)\)/i);
-  assert.doesNotMatch(sql, /\bdrop\b(?![^\n]*ROLLBACK)(?![^\n]*if exists (dose_context|dose_note|repeat_dose_context|repeat_dose_note))/i, 'nothing is dropped (only in the rollback note)');
+  for (const line of sql.split('\n').filter((l) => /\bdrop\b/i.test(l) && !/^\s*--/.test(l))) {
+    assert.match(line, /drop constraint if exists [a-z_]+_check;/, `only its own check is re-created: ${line}`);
+  }
   assert.doesNotMatch(sql, /^\s*(update public\.dose_logs|delete from)/im, 'no data change');
   assert.doesNotMatch(sql, /create policy|drop policy|disable row level security/i, 'RLS unaffected');
   assert.match(sql, /new\.repeat_dose_context := null;/);
@@ -325,7 +327,7 @@ test('DO-8: the help text is the picture\'s in 6 languages and is a placeholder'
   assert.equal(TR.pt.dose_obs_note_placeholder, 'Escreva o que quiser: quando tomou (antes da yoga, antes de dormir) ou como se sentiu depois. Fica no seu histórico e no relatório para o seu médico.');
   assert.equal(TR.en.dose_obs_note_placeholder, 'Write anything: when you took it (before yoga, before bed) or how you felt afterwards. It stays in your history and in the report for your doctor.');
   assert.equal(TR.es.dose_obs_note_placeholder, 'Escribe lo que quieras: cuándo la tomaste (antes del yoga, antes de dormir) o cómo te sentiste después. Queda en tu historial y en el informe para tu médico.');
-  assert.equal(TR.fr.dose_obs_note_placeholder, "Écrivez ce que vous voulez : quand vous l'avez prise (avant le yoga, avant de dormir) ou ce que vous avez ressenti ensuite. Cela reste dans votre historique et dans le rapport pour votre médecin.");
+  assert.equal(TR.fr.dose_obs_note_placeholder, "Écrivez ce que vous voulez : quand vous l’avez prise (avant votre yoga, avant de dormir) ou ce que vous avez ressenti ensuite. Cela reste dans votre historique et dans le rapport pour votre médecin.");
   assert.equal(TR.de.dose_obs_note_placeholder, 'Schreib, was du möchtest: wann du sie genommen hast (vor dem Yoga, vor dem Schlafen) oder wie es dir danach ging. Es bleibt in deinem Verlauf und im Bericht für deinen Arzt.');
   assert.equal(TR.it.dose_obs_note_placeholder, "Scrivi quello che vuoi: quando l'hai presa (prima dello yoga, prima di dormire) o come stavi dopo. Resta nel tuo storico e nel report per il tuo medico.");
   assert.equal(TR.pt.dose_obs_note_title, 'Observação');
@@ -505,10 +507,10 @@ test('DO-17: Today\'s completed row shows one line and opens the dose sheet', ()
   const open = sliceBlock(TODAY, 'function openDoseFromToday(');
   assert.match(open, /if \(book\) \{ bookSelect\('log'\); setLogOpen\(\{ logId: l\.id, n: Date\.now\(\) \}\); return; \}/);
   assert.match(open, /navigation\.navigate\('Log', \{ openLogId: l\.id \}\)/);
-  assert.match(TODAY, /<LogScreen embedded [^>]*openRequest=\{logOpen\}/);
+  assert.match(TODAY, /<LogScreen embedded [^\n]*openRequest=\{logOpen\}/);
   // The Dose log opens the asked dose's sheet once its rows are read; from Today, closing goes back.
   assert.match(LOG, /const openLogId = !embedded && route && route\.params \? route\.params\.openLogId : null;/);
-  assert.match(sliceBlock(LOG, 'function closeDoseSheet('), /if \(backOnClose\.current\) \{ backOnClose\.current = false; try \{ navigation\.goBack\(\); \} catch \{ \/\* nothing to go back to \*\/ \} \}/);
+  assert.match(sliceBlock(LOG, 'function closeDoseSheet('), /if \(backOnClose\.current && !embedded\) \{ backOnClose\.current = false; try \{ navigation\.goBack\(\); \} catch \{ \/\* nothing to go back to \*\/ \} \}/);
 });
 
 test('DO-18: the export carries the mark and the observation', () => {

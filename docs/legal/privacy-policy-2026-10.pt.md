@@ -15,7 +15,7 @@ Pontos que o texto abaixo deixa como estão, porque só um advogado pode decidir
 
 # DoseTrace — Política de Privacidade
 
-Última atualização: 30 de outubro de 2026
+Última atualização: 24 de novembro de 2026
 
 A Outcom (“nós”) opera o aplicativo DoseTrace para iPhone e Android. Esta política explica quais informações o app trata, para onde elas vão e o que você pode fazer a respeito. O DoseTrace é um diário pessoal e uma calculadora. Ele não dá orientação médica.
 
@@ -25,7 +25,7 @@ A Outcom (“nós”) opera o aplicativo DoseTrace para iPhone e Android. Esta p
 
 **Perfil (necessário para usar o app).** Nome, mês e ano de nascimento, país, sexo atribuído no nascimento, seus objetivos, nível de atividade, o que você acompanha (peptídeos, hormônios / TRT, GLP-1 / emagrecimento, suplementos orais) e se você é acompanhado por um profissional de saúde. O app pede todos esses dados antes que você possa usá-lo e os usa para personalizar as telas e fazer as contas das calculadoras. Nas calculadoras, você também pode informar sua altura, seu peso, seu percentual de gordura corporal e suas medidas.
 
-**Dados de saúde e do diário.** Os protocolos que você cria (compostos, doses, frequências, horários dos lembretes), as doses que você registra (tomadas ou puladas, a quantidade de cada dose, o horário programado e o horário em que você a tomou, locais de aplicação e se você alterou uma quantidade manualmente; quando você corrige doses passadas, os valores corrigidos substituem os anteriores), as mudanças de dose de cada protocolo com as datas, frascos, resultados de exames, registros de vacinação, as refeições do registro de comida com os valores nutricionais estimados, as pesagens, os resultados de “Seus números reais” e as anotações que você escreve.
+**Dados de saúde e do diário.** Os protocolos que você cria (compostos, doses, frequências, horários dos lembretes), as doses que você registra (tomadas ou puladas, a quantidade de cada dose, o horário programado e o horário em que você a tomou, locais de aplicação, se tomou uma dose em jejum ou com refeição, a observação que você escreve sobre uma dose e se você alterou uma quantidade manualmente; quando você corrige doses passadas, os valores corrigidos substituem os anteriores), as mudanças de dose de cada protocolo com as datas, frascos, resultados de exames, registros de vacinação, as refeições do registro de comida com os valores nutricionais estimados, as pesagens, os resultados de “Seus números reais” e as anotações que você escreve.
 
 ## 2. Onde suas informações ficam
 

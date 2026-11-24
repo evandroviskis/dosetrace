@@ -177,7 +177,7 @@ test('A-171: Today pulls the focused dose up only while it is open, and every ta
   const focus = today.slice(today.indexOf('const focusCard = (() => {'), today.indexOf('const isFocusPend'));
   assert.match(focus, /cardPlan\(\{ protocol: p, logs: todayRows, nowMs: Date\.now\(\) \}\)\.next \? p : null/);
   assert.match(today, /const isFocusPend = \(item\) => !!\(notifFocus && notifFocus\.dayKey && notifFocus\.dayKey !== todayKey/);
-  assert.match(sliceBlock(today, 'function writePending('), /recordDoseTaken\(protocolId, write\)/);
-  assert.match(sliceBlock(today, 'async function markTaken('), /recordDoseTaken\(protocol\.id, opts\.write \|\| \{\}\)/);
+  assert.match(sliceBlock(today, 'function writePending('), /recordDoseTaken\(protocolId, \{ \.\.\.write, applyRepeat: true \}\)/);
+  assert.match(sliceBlock(today, 'async function markTaken('), /recordDoseTaken\(protocol\.id, \{ \.\.\.\(opts\.write \|\| \{\}\), applyRepeat: true \}\)/);
   assert.match(sliceBlock(today, 'function commitQuestion('), /isDoseAlreadyLogged\(q\.protocolId, o\)/);
 });

@@ -53,14 +53,15 @@ function databaseDefaults() {
   // eslint-disable-next-line no-new-func
   const isoOf = new Function(`${sliceBlock(src, 'function isoOf(')}\nreturn isoOf;`)();
   const { nextScheduleHistory, SCHEDULE_FIELDS } = require('../../lib/scheduleHistory'); // DV-247: a schedule edit's history
-  return { stampForTaken, nextDoseHistory, takenStamp, doseCtx, sameMass, historyOf, isoOf, historyCut, nextScheduleHistory, SCHEDULE_FIELDS };
+  const { cleanContext, cleanNote } = require('../../lib/doseObservation'); // DO-13: a dose's mark and observation
+  return { stampForTaken, nextDoseHistory, takenStamp, doseCtx, sameMass, historyOf, isoOf, historyCut, nextScheduleHistory, SCHEDULE_FIELDS, cleanContext, cleanNote };
 }
 
 // Returns the named function, evaluated with `deps` in scope.
 function loadFn(file, header, name, deps = {}) {
   const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
   const body = sliceBlock(src, header).replace(/^export\s+/, '');
-  if (file === 'lib/database.js' && /takenStamp\(|nextDoseHistory\(|doseCtx\(|isoOf\(|nextScheduleHistory\(/.test(body)) deps = { ...databaseDefaults(), ...deps };
+  if (file === 'lib/database.js' && /takenStamp\(|nextDoseHistory\(|doseCtx\(|isoOf\(|nextScheduleHistory\(|cleanContext\(|cleanNote\(/.test(body)) deps = { ...databaseDefaults(), ...deps };
   // DV-039: recordDoseTaken always writes inside withImmediateTransaction; a test without a database runs it
   // straight through (dv039DoseSupplyOneWrite.test.js checks the transaction itself).
   if (file === 'lib/doseActions.js' && !('withImmediateTransaction' in deps) && /withImmediateTransaction\(/.test(body)) deps = { ...deps, withImmediateTransaction: (fn) => fn() };
