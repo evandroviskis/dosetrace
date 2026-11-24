@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { countIfDelivered } from './usage.ts';
 
-// DoseTrace — AI nutrition parse (v10, 2026-11-09: fiber_g per item, a number only; v9 2026-09-27). Turns a user's free-text meal
+// DoseTrace — AI nutrition parse (v11, 2026-11-23: stated macros used exactly, spoken corrections, JSON read from a wrapped reply + one retry; v10, 2026-11-09: fiber_g per item, a number only; v9 2026-09-27). Turns a user's free-text meal
 // description into STRUCTURED nutrition estimates. Acceptance checklist:
 // docs/specs/food-log.md (FL-*). Conversation spec: docs/nutrition-logger-conversation-spec.md.
 //
@@ -52,6 +52,8 @@ Rules:
 - "qty" and "unit" describe the whole amount eaten ("2 bars" -> qty 2, unit "bar"). "kcal", "protein_g", "carb_g", "fat_g", "fiber_g" are ALWAYS TOTALS for the whole qty, never per unit. "fiber_g" is the dietary fiber from the product's typical label or food composition (0 for foods with none, such as meat, eggs, oil, whey, most drinks).
 - Write "unit" in the user's language, spelled the way that language writes it in the middle of a sentence: common words stay lowercase in English, Spanish, Portuguese, French and Italian ("cup", "taza", "xícara", "tasse", "tazza", "slice", "fatia"); German nouns keep their capital letter, units included ("Tasse", "Glas", "Scheibe", "Becher", "Stück", "Portion", "Löffel": "1 Tasse Milchkaffee", never "1 tasse Milchkaffee"); abbreviations as usual ("g", "ml", "EL", "TL").
 - "category": "meal" for food eaten as a meal, "snack" for snack foods (protein bars, nuts, chips, fruit between meals, sweets), "drink" for any beverage (coffee, juice, soda, beer, shakes), "supplement" for supplements (creatine, fish oil, vitamins, whey taken as a supplement).
+- When the user states exact numbers for what they ate (a recipe they followed, a nutrition label, an app or a coach's sheet: "41 g protein, 240 kcal, 12 g carbs, 3 g fiber, 3 g fat"), use them exactly as stated, do not re-estimate them: one item, confidence "high", "ask" null. Values given per serving are multiplied by the servings eaten (1 when not said). A number the user did not give (for example fat) is estimated from the rest of the description. Other nutrients they mention (sodium, sugar) are not fields here: ignore them, never refuse or ask because of them.
+- Typed or dictated text may correct itself: when the user corrects a number or a word ("91, no, cancel that, 41", "2 eggs, I mean 3"), keep only the corrected value.
 - Vague amounts ("some rice"): assume a typical serving, confidence "low".
 - "ask" (at most ONE, or null): only when one detail would change the estimate a lot — an unknown amount of a calorie-dense food ("amount"), an unnamed brand where products differ a lot ("brand"), size ("size": regular/large), or how it was prepared ("preparation": fried/grilled). "item" is the index in "items" of the uncertain item — ALWAYS still include that item with your best estimate. "options": 2 to 4 short likely answers (each under 40 characters: brand names, sizes, amounts like "1 cup", preparations). Never ask WHEN something was eaten. Never ask about anything but the food itself.
 - Earlier items the user logged today may be listed below. "another one", "one more", "same again" mean one more of the most recent listed item; "same as breakfast/lunch/…" means the matching earlier items. Copy their names and scale their numbers. If the message refers to earlier food but nothing listed matches, return your best guess with confidence "low" and ask kind "identity" with options drawn from the listed items (or null options if none).
@@ -102,6 +104,17 @@ const DE_UNIT_ABBR: Record<string, string> = { el: 'EL', tl: 'TL', stk: 'Stk' };
 const unitCase = (s: string, lang: string) => (lang !== 'de' || !s ? s : s.replace(/\p{L}+/gu, (w: string) => (w !== w.toLowerCase() ? w : DE_UNIT_ABBR[w] ? DE_UNIT_ABBR[w] : DE_UNIT_NOUNS.has(w) || [...DE_UNIT_NOUNS].some((n) => n.length >= 4 && w.length > n.length && w.endsWith(n)) ? w.charAt(0).toUpperCase() + w.slice(1) : w)));
 // A stored macro for the follow-up text (A-133): "25 g", or "unknown" when not a number.
 const grams = (v: unknown) => { const n = numOrNull(v); return n == null ? 'unknown' : `${Math.round(n * 10) / 10} g`; };
+
+// The JSON object in a model reply: the whole reply, or the text from its first "{" to its last "}"
+// when the model added a sentence or a note around it (code fences removed). null when there is none.
+function jsonObjectOf(raw: unknown): Record<string, unknown> | null {
+  const clean = String(raw ?? '').replace(/```json|```/g, '').trim();
+  const tries = [clean];
+  const a = clean.indexOf('{'), b = clean.lastIndexOf('}');
+  if (a >= 0 && b > a) tries.push(clean.slice(a, b + 1));
+  for (const t of tries) { try { const v = JSON.parse(t); if (v && typeof v === 'object' && !Array.isArray(v)) return v; } catch { /* next */ } }
+  return null;
+}
 
 // Only names/quantities of the user's own earlier items go to the model as context.
 function recentContext(v: unknown): string {
@@ -245,24 +258,27 @@ Deno.serve(async (req) => {
           + `\n\nThe user writes in language code "${lang}" (${LANG_NAME[lang]}). Write every "ask" option (preparations, sizes, amounts, units) in ${LANG_NAME[lang]}, the way a native speaker says it${BOILED[lang] ? ` (for example "${BOILED[lang]}", not "boiled")` : ''}, even though the examples above are in English. Write "unit" in ${LANG_NAME[lang]} too, spelled as ${LANG_NAME[lang]} writes it${UNIT_EXAMPLE[lang] ? ` (for example "${UNIT_EXAMPLE[lang]}")` : ''}. Keep food names as the user wrote them and brand names exactly as named.`
           + (entryDate ? `\nThe entry date (the user's "today") is ${entryDate}, a ${weekdayOf(entryDate)}.` : '');
 
-        const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicApiKey, 'anthropic-version': '2023-06-01' },
-          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, system, messages: [{ role: 'user', content: text }] }),
-        });
+        // 2026-11-23: a reply that wraps the object in a sentence is still read, and a reply with no
+        // JSON at all gets ONE more call before giving up (the founder's recipe macros failed the first
+        // read and waited for the app's later retry, so it looked refused).
+        let parsed: { items?: unknown; ask?: unknown; refusal?: unknown; days_ago?: unknown } | null = null;
+        for (let attempt = 0; attempt < 2 && parsed == null; attempt++) {
+          const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicApiKey, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, system, messages: [{ role: 'user', content: text }] }),
+          });
 
-        if (!anthropicResponse.ok) {
-          console.error('[parse-food] provider_error', anthropicResponse.status); // status only, never the body
-          return jsonResponse({ error: 'Parser returned an error', code: 'provider_error', provider_status: anthropicResponse.status }, 502);
+          if (!anthropicResponse.ok) {
+            console.error('[parse-food] provider_error', anthropicResponse.status); // status only, never the body
+            return jsonResponse({ error: 'Parser returned an error', code: 'provider_error', provider_status: anthropicResponse.status }, 502);
+          }
+
+          const anthropicData = await anthropicResponse.json();
+          parsed = jsonObjectOf(anthropicData?.content?.[0]?.text ?? '');
+          if (parsed == null) console.error('[parse-food] non_json_output', attempt + 1);
         }
-
-        const anthropicData = await anthropicResponse.json();
-        const raw = anthropicData?.content?.[0]?.text ?? '';
-        const clean = String(raw).replace(/```json|```/g, '').trim();
-
-        let parsed: { items?: unknown; ask?: unknown; refusal?: unknown; days_ago?: unknown };
-        try { parsed = JSON.parse(clean); }
-        catch { console.error('[parse-food] non_json_output'); return jsonResponse({ error: 'Parser output was not valid JSON', code: 'invalid_parse' }, 502); }
+        if (parsed == null) return jsonResponse({ error: 'Parser output was not valid JSON', code: 'invalid_parse' }, 502);
         if (!parsed || typeof parsed !== 'object') return jsonResponse({ error: 'Unexpected shape', code: 'invalid_parse' }, 502);
 
         if (parsed.refusal === true) {
