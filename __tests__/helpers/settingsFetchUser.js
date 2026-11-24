@@ -43,7 +43,7 @@ function settings({ getCachedUser, cap = 60 } = {}) {
     // AR-18: the two names are read through lib/profileName, from the profile with the kept answer laid over it.
     profileUser: (u) => u, getNickname: require('../../lib/profileName').getNickname, getReportName: require('../../lib/profileName').getReportName,
     nicknameFollows: require('../../lib/profileName').nicknameFollows, nicknameFollowsRef: { current: false },
-    loadedReportName: { current: '' }, setReportName: set('reportName'),
+    loadedReportName: { current: '' }, setReportName: set('reportName'), setNicknameAuto: () => {},
     supabase: { auth: { updateUser: async () => ({}) } },
     getCalcInputs: async () => null, setActivityLevel: set('activityLevel'), setHasProvider: set('hasProvider'),
     setShowEditProfile: set('showEditProfile'), editProfileOpen: { current: false }, profileLoaded: deferred(),

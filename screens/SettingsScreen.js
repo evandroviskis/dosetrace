@@ -91,7 +91,7 @@ import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages'
 import { useTeamMessages } from '../lib/useTeamMessages';
 import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
 import { supplyState } from '../lib/supplyLow';
-import { birthMonthIndex, getNickname, getReportName, nicknameFields, reportNameFields, saveReportName, nicknameFollows, nicknameAfterFullName } from '../lib/profileName';
+import { birthMonthIndex, getNickname, getReportName, nicknameFields, reportNameFields, saveReportName, nicknameFollows, nicknameAfterFullName, firstNameOf } from '../lib/profileName';
 import { buildAdherenceReport } from '../lib/adherenceReportDoc';
 import { reportNameSheet } from '../lib/reportNameSheet';
 import { hasNativeModule } from '../lib/nativeModule';
@@ -306,12 +306,16 @@ export default function SettingsScreen({ navigation }) {
   const loadedReportName = useRef('');
   // AR-17b: an empty nickname follows the full name typed (first name) until she edits it herself.
   const nicknameFollowsRef = useRef(false);
+  // While the nickname holds what the auto-fill wrote, "Preenchido com o seu primeiro nome…" replaces its hint.
+  const [nicknameAuto, setNicknameAuto] = useState(false);
   function onFullNameChange(v) {
     setReportName(v);
     setDisplayName((nick) => nicknameAfterFullName({ following: nicknameFollowsRef.current, nickname: nick, fullName: v }));
+    setNicknameAuto(nicknameFollowsRef.current && !!firstNameOf(v));
   }
   function onNicknameChange(v) {
     nicknameFollowsRef.current = false; // she wrote or erased it: never follow again in this edit
+    setNicknameAuto(false);
     setDisplayName(v);
   }
   const [gender, setGender] = useState('');
@@ -591,6 +595,7 @@ export default function SettingsScreen({ navigation }) {
       const named = profileUser(user);
       setDisplayName(getNickname(named));
       nicknameFollowsRef.current = nicknameFollows(getNickname(named)); // an existing nickname is never rewritten
+      setNicknameAuto(false);
       loadedReportName.current = getReportName(named);
       setReportName(loadedReportName.current);
       setGender(pm.gender || '');
@@ -1861,7 +1866,7 @@ export default function SettingsScreen({ navigation }) {
                 autoCorrect={false}
                 accessibilityLabel={t('profile_nickname')}
               />
-              <Text style={[s.editHint, s.editHintUnder]}>{t('profile_nickname_hint')}</Text>
+              <Text style={[s.editHint, s.editHintUnder, nicknameAuto && s.editHintAuto]}>{nicknameAuto ? t('profile_nickname_autofill') : t('profile_nickname_hint')}</Text>
             </View>
 
             <View style={s.editField}>
@@ -2229,6 +2234,7 @@ const settingsGraduated = (c) => ({
   editField: { marginTop: 18 },
   editLabel: { fontSize: 13, lineHeight: 18, fontWeight: '400', color: c.ink2, marginBottom: 10, paddingHorizontal: 4 },
   editHint: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: -6, marginBottom: 10, paddingHorizontal: 4 },
+  editHintAuto: { color: c.ink }, // picture 19a9d92f .hp.auto: the auto-fill line in ink
   editHintUnder: { marginTop: 8, marginBottom: 0 }, // AR-17: the hint under its field ("Aparece no app.")
   editHintTop: { marginTop: -8 }, // DV-113: the hint right under its section title (no field label above it)
   sexHelp: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: 10, paddingHorizontal: 4 },

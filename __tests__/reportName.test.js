@@ -60,8 +60,10 @@ test('AR-17b: Edit profile wires the follow: the full-name field fills the nickn
   assert.match(s, /onChangeText=\{onNicknameChange\}/);
   const full = s.slice(s.indexOf('function onFullNameChange'), s.indexOf('function onFullNameChange') + 400);
   assert.match(full, /nicknameAfterFullName\(/);
+  assert.match(full, /setNicknameAuto\(/);
   const nick = s.slice(s.indexOf('function onNicknameChange'), s.indexOf('function onNicknameChange') + 300);
   assert.match(nick, /nicknameFollowsRef\.current = false/);
+  assert.match(nick, /setNicknameAuto\(false\)/);
 });
 
 test('AR-18/AR-19: saveReportName sends ONLY report_name (a merge write), trimmed; an empty name writes nothing', async () => {
@@ -110,9 +112,14 @@ test('AR-17: Edit profile shows the nickname with "Aparece no app." and the opti
   assert.equal(translations.fr.profile_nickname, 'Comment souhaitez-vous être appelé(e) ?');
   assert.equal(translations.de.profile_nickname, 'Wie möchtest du genannt werden?');
   assert.equal(translations.it.profile_nickname, 'Come vuoi essere chiamato o chiamata?');
-  assert.equal(translations.pt.profile_nickname_hint, 'Aparece no app.');
-  assert.equal(translations.pt.profile_report_name, 'Nome completo');
-  assert.equal(translations.pt.profile_report_name_hint, 'Opcional. Aparece só nos relatórios que você exportar para enviar a alguém, como o Relatório de adesão. Nunca aparece no app.');
+  // Founder 2026-11-24 (picture 19a9d92f, chair): the newer copy.
+  assert.equal(translations.pt.profile_nickname_hint, 'É o nome que aparece no app.');
+  assert.equal(translations.pt.profile_report_name, 'Nome completo (opcional)');
+  assert.equal(translations.pt.profile_report_name_hint, 'Aparece só nos relatórios que você exportar para enviar a alguém, como o Relatório de adesão. Nunca aparece no app.');
+  assert.equal(translations.pt.profile_nickname_autofill, 'Preenchido com o seu primeiro nome. Você pode apagar e escrever um apelido.');
+  for (const l of LANGS) assert.ok(translations[l].profile_nickname_autofill, l);
+  // the auto-fill line replaces the hint while the nickname holds what the auto-fill wrote
+  assert.match(ep, /nicknameAuto \? t\('profile_nickname_autofill'\) : t\('profile_nickname_hint'\)/);
   // the full name is optional: not in the required list
   const save = s.slice(s.indexOf('async function saveProfile'), s.indexOf('const profileData'));
   assert.doesNotMatch(save, /report_name|reportName/);
