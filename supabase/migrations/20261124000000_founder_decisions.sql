@@ -2,8 +2,8 @@
 -- onde eu consigo decidir tudo que é visual... alteração por escrito também"). Usage for the Claude sessions:
 -- docs/decisoes.md. API: api/adm-decisions.js (GET list / one, PATCH status + choice + note only).
 --
--- STATUS: NOT APPLIED (written 2026-11-24). Apply as ONE transaction with the founder's go, BEFORE deploying
--- api/adm-decisions.js. Until then the tab answers "not configured" and nothing is written.
+-- STATUS: APPLIED 2026-11-24 in production (supabase_migrations.schema_migrations 20261124201736
+-- founder_decisions), as ONE transaction, before api/adm-decisions.js was deployed. Do not apply again.
 --
 -- What it does:
 --   1. public.founder_decisions: one row per decision the founder must take (written by the Claude sessions

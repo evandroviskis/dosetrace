@@ -242,10 +242,11 @@ test('DC3: api/adm-decisions.js never logs and never reads a key other than the 
 });
 
 // ------------------------------------------------------------------ DC4: the migration
-test('DC4 SQL: founder_decisions + events, RLS on with no policy, service_role SELECT only, the save as definer for service_role only, private bucket, one transaction, not applied', () => {
+test('DC4 SQL: founder_decisions + events, RLS on with no policy, service_role SELECT only, the save as definer for service_role only, private bucket, one transaction, APPLIED 2026-11-24 (header says so, never NOT APPLIED)', () => {
   const sql = read('supabase/migrations/20261124000000_founder_decisions.sql');
   const body = sql.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
-  assert.match(sql, /STATUS: NOT APPLIED/);
+  assert.match(sql, /-- STATUS: APPLIED 2026-11-24/);
+  assert.ok(!/NOT APPLIED|Until then the tab answers/.test(sql), 'header still says not applied');
   assert.equal((body.match(/^begin;$/gm) || []).length, 1); assert.equal((body.match(/^commit;$/gm) || []).length, 1);
   for (const col of ['id uuid primary key default gen_random_uuid()', 'area text', 'kind text', 'title text', 'question text', 'context text', 'founder_said text', 'recommendation text', 'options jsonb', 'links jsonb', 'images jsonb', "status text not null default 'pendente'", 'choice text', 'note text', 'decided_at timestamptz', 'executed_at timestamptz', 'executed_note text', 'source text', 'sort int'])
     assert.ok(body.includes(col), col);
