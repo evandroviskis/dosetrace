@@ -1,5 +1,7 @@
-<title>Jejum, refeição, treino</title>
+<title>Jejum, refeição, observação</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
@@ -159,38 +161,69 @@ h3{font-size:13px;font-weight:600;color:var(--pmut);margin:18px 0 10px;text-tran
 .box b{color:var(--pfg)}
 .ask{font-weight:600;font-size:16px;margin-top:22px;max-width:78ch}
 @media (max-width:660px){.col{width:100%}.ph{margin:0 auto}}
+/* NEW: the per-dose "Observação" — the protocol note's field (ProtocolsScreen noteWell / noteWellOn, acts2) */
+.obs{display:flex;flex-direction:column;gap:6px}
+.field{min-height:44px;border-radius:12px;background:var(--well);border:1.5px solid var(--well);padding:8px 10px;font-size:12.5px;line-height:1.35;color:var(--ink)}
+.field.on{border-color:var(--ink)}
+.field .ph0{color:var(--ink3)}
+.caret{display:inline-block;width:1.5px;height:13px;background:var(--ink);vertical-align:-2px;margin-left:1px}
+.acts2{display:flex;justify-content:flex-end;gap:6px}
+.bsm{min-height:28px;border-radius:14px;padding:0 12px;display:grid;place-items:center;font-size:11px;font-weight:700}
+.bsm.sec{background:var(--well);color:var(--ink)}.bsm.pri{background:var(--act);color:var(--onAct)}
+.bdone{min-height:41px;border-radius:21px;background:var(--act);color:var(--onAct);display:grid;place-items:center;font-size:13.5px;font-weight:700}
+.ph.xtall{height:760px}
+.field.ph3{color:var(--ink3);font-size:11.5px;line-height:1.4}
+.sosline{display:flex;gap:7px;align-items:flex-start;padding:7px 9px;border-radius:11px;background:var(--well);font-size:10.5px;line-height:1.4;color:var(--ink)}
+.sosline svg{width:12px;height:12px;color:var(--risk);flex:none;margin-top:1px}
+.sosline u{font-weight:700;text-underline-offset:2px}
+.clamp1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0}
 </style>
 
 <div class="wrap">
-<h1>Marcar a dose como "Em jejum", "Com refeição" ou "Perto do treino"</h1>
-<p class="lead">Aprovado em 11/11 ("Ok para as duas ideias"). A marca é opcional: concluir a dose continua com um toque, no Hoje e na notificação, sem nenhuma pergunta nova. Quem quiser marca a dose depois, na folha da dose. A marca aparece no Registro de doses e no Relatório de adesão. O app só guarda o que a pessoa marcou: não diz qual é melhor e não compara.</p>
-<p class="lead">Exemplo: a pessoa toma L-Carnitina em jejum, antes do treino, todo dia às 07:00; Berberina no almoço; Tesamorelina à noite; e Melatonina sem marcar nada.</p>
+<h1>Marcar a dose como "Em jejum" ou "Com refeição", e escrever uma observação</h1>
+<p class="lead">Aprovado em 11/11 ("Ok para as duas ideias") e ajustado pelo senhor em 24/11: a terceira marca, sobre o treino, saiu, porque o app não pode supor o que a pessoa faz (pode ser antes da yoga, antes de dormir, antes do jantar, um remédio de pressão). Ficam duas marcas, "Em jejum" e "Com refeição", e uma <b>Observação</b> livre por dose, onde a pessoa escreve o que quiser.</p>
+<p class="lead">Tudo é opcional: concluir a dose continua com um toque, no Hoje e na notificação, sem nenhuma pergunta nova. A marca e a observação aparecem no Registro de doses, no Hoje, no Relatório de adesão e em "Baixar meus dados". O app só guarda o que a pessoa marcou ou escreveu: não diz qual é melhor, não compara e não interpreta.</p>
+<p class="lead">Exemplo: a pessoa toma L-Carnitina em jejum, antes da yoga, todo dia às 07:00; Berberina no almoço; Tesamorelina em jejum, antes de dormir; e Melatonina sem marcar nada.</p>
 
 <div id="out"></div>
 
 <h2>Regras das duas opções</h2>
 <ol class="notes">
-<li><b>O caminho padrão não muda.</b> "Concluir" no Hoje, "Marcar como concluída" na notificação, a pergunta de "Mais tarde hoje" ("Sim, concluí agora"), a pergunta do local da aplicação e "Desfazer" funcionam exatamente como hoje. Nenhuma marca vem escolhida.</li>
-<li><b>Onde se marca:</b> na folha da dose, aberta pelo Registro de doses (no Fold, a página esquerda) e, novo, também tocando na dose em "Doses concluídas" no Hoje. Salva no toque; "Concluído" fecha.</li>
-<li><b>"Em jejum" e "Com refeição" não andam juntas</b> (tocar em uma desmarca a outra). "Perto do treino" combina com qualquer uma. Tocar de novo tira a marca.</li>
-<li><b>Só em dose concluída.</b> Pulada, perdida ou "Não houve dose" não têm marca. As doses informadas de uma vez ("Desde quando você usa…", período sem registro) não recebem marca.</li>
-<li><b>Corrigir depois:</b> qualquer dose antiga pode ser marcada ou desmarcada no Registro. "Alterar horário", "Alterar dose" e a correção "Desde quando você usa {nova dose}?" nunca mexem na marca. "Desfazer" apaga a dose junto com a marca.</li>
-<li><b>Onde aparece:</b> uma linha a mais na dose do Registro de doses e de "Doses concluídas"; no Relatório de adesão, uma linha por protocolo só quando houver alguma marca nos 30 dias; e em "Baixar meus dados". Nunca na curva Dose no corpo, nunca nos exames. Quem não marca nunca vê nada a mais.</li>
-<li><b>Convive com "Anotar o que você notou"</b> (desenho dose-notes.html, ainda aguardando o senhor): seria outra linha na mesma folha. A marca diz quando a dose foi tomada; a anotação diz o que a pessoa sentiu.</li>
+<li><b>O caminho padrão não muda.</b> "Concluir" no Hoje, "Marcar como concluída" na notificação, a pergunta de "Mais tarde hoje" ("Sim, concluí agora"), a pergunta do local da aplicação e "Desfazer" funcionam exatamente como hoje. Nenhuma marca vem escolhida e a observação vem vazia.</li>
+<li><b>A folha nunca abre sozinha.</b> Depois de "Concluir", o caminho continua o de hoje: Concluir → (para injeção, a pergunta do local) → pronto. A folha da dose só abre quando a pessoa toca numa dose do Registro de doses (no Fold, a página esquerda) ou, novo, numa dose de "Doses concluídas" no Hoje.</li>
+<li><b>Como ela confirma:</b> a marca salva no toque e a observação salva ao fechar. Para deixar isso claro, a folha ganha um botão grande "Concluído" embaixo, acima de "Excluir esta dose", além do "Concluído" pequeno no alto à direita, que continua como está. O botão só fecha a folha; se a observação estiver sendo escrita, ele a salva.</li>
+<li><b>Duas marcas, que não andam juntas:</b> tocar em "Em jejum" desmarca "Com refeição" e vice-versa; tocar de novo tira a marca. A marca salva no toque.</li>
+<li><b>Observação:</b> um campo de uma linha que cresce com o texto, abaixo das marcas. Funciona como as Notas do protocolo: o texto digitado fica guardado enquanto o app está aberto (mesmo trocando de tela ou dobrando o Fold), e "Cancelar" e "Salvar" aparecem assim que a pessoa escreve. Além disso, fechar a folha ("Concluído", tocar fora ou voltar) com texto escrito <b>salva</b> o texto, para nada do que foi digitado se perder se o app fechar depois. "Cancelar" é o único jeito de descartar.</li>
+<li><b>Texto de ajuda do campo</b> (em cinza, some quando a pessoa começa a escrever, nunca é salvo): "Escreva o que quiser: quando tomou (antes da yoga, antes de dormir) ou como se sentiu depois. Fica no seu histórico e no relatório para o seu médico." O texto que o senhor escreveu não cabia em 3 linhas (dava 5 no celular); saiu "se tomou em jejum", que as marcas logo acima já cobrem, e o resto foi encurtado sem mudar o sentido. É verdade no desenho: a observação aparece no Registro de doses e no Relatório de adesão (os últimos 30 dias, que a pessoa compartilha em Ajustes). Nos outros idiomas:
+  <ul>
+  <li>en: "Write anything: when you took it (before yoga, before bed) or how you felt afterwards. It stays in your history and in the report for your doctor."</li>
+  <li>es: "Escribe lo que quieras: cuándo la tomaste (antes del yoga, antes de dormir) o cómo te sentiste después. Queda en tu historial y en el informe para tu médico."</li>
+  <li>fr: "Écrivez ce que vous voulez : quand vous l'avez prise (avant le yoga, avant de dormir) ou ce que vous avez ressenti ensuite. Cela reste dans votre historique et dans le rapport pour votre médecin."</li>
+  <li>de: "Schreib, was du möchtest: wann du sie genommen hast (vor dem Yoga, vor dem Schlafen) oder wie es dir danach ging. Es bleibt in deinem Verlauf und im Bericht für deinen Arzt."</li>
+  <li>it: "Scrivi quello che vuoi: quando l'hai presa (prima dello yoga, prima di dormire) o come stavi dopo. Resta nel tuo storico e nel report per il tuo medico."</li>
+  </ul></li>
+<li><b>Linha de emergência fixa</b> embaixo do campo, porque o texto de ajuda convida a escrever "como se sentiu": "Falta de ar, inchaço ou tontura forte depois da aplicação? Ligue para o 192 (SAMU)." Igual à já revisada em dose-notes.html: sempre visível, nunca depende do que ela escreve, o toque no número abre o discador. O número segue a região do celular, como lá: 192 no Brasil, 911 nos EUA, 112 na União Europeia, 999 no Reino Unido; país desconhecido: 112 "ou o número de emergência local". Para comprimido ou cápsula, "depois da aplicação" vira "depois da dose". O app nunca lê o texto, nunca reage a ele e nunca muda a tela pelo que ela escreve.</li>
+<li><b>Só em dose concluída.</b> Pulada, perdida ou "Não houve dose" não têm marca nem observação. As doses informadas de uma vez ("Desde quando você usa…", período sem registro) não recebem nada.</li>
+<li><b>Corrigir depois:</b> qualquer dose antiga pode ser marcada, desmarcada ou ter a observação mudada no Registro. "Alterar horário", "Alterar dose" e a correção "Desde quando você usa {nova dose}?" nunca mexem nelas. "Desfazer" apaga a dose junto com a marca e a observação.</li>
+<li><b>Onde aparece:</b> no Registro de doses, uma linha com a marca e outra com a observação (até 2 linhas, cortada com reticências); em "Doses concluídas" no Hoje, uma linha só; no Relatório de adesão, ao lado das doses de cada protocolo (contagem das marcas e a lista das observações, as iguais juntas com o número de doses e as datas); em "Baixar meus dados", em cada dose. Nunca na curva Dose no corpo, nunca nos exames, e a IA nunca lê nem comenta a observação. Quem não marca nem escreve não vê nada a mais.</li>
+<li><b>Sai junto:</b> o Registro de doses tem hoje um código que tenta mostrar "notes" e "pre_tags" de cada dose, mas esses campos nunca existiram no celular (sempre vazios, DV-181). Esse código morto sai na mesma mudança; a observação nova é outra coisa, com campo próprio.</li>
+<li><b>Diferente de "Anotar o que você notou"</b> (desenho dose-notes.html, ainda aguardando o senhor): aquele registra sinais do corpo depois da dose, com o aviso de emergência; esta observação é o contexto que a pessoa escreve sobre como tomou a dose. São campos e linhas separados e não se misturam.</li>
 </ol>
 
 <h2>A diferença entre A e B</h2>
 <div class="box">
-<p><b>A: marcar só quando quiser.</b> Cada marca é feita na dose, na folha. Simples e sempre conferida pela pessoa naquele dia. O custo: quem toma em jejum todo dia precisa abrir cada dose (3 toques). Na prática, depois de alguns dias a pessoa para, e a linha do relatório fica incompleta.</p>
-<p><b>B: A + "Repetir nas próximas doses"</b> (desligado até a pessoa ligar, um por protocolo). Ligado, cada dose concluída daquele protocolo já sai com a mesma marca, no Hoje, na notificação, em "Mais tarde hoje" e em "Pendentes de ontem". O aviso diz isso na hora ("Dose registrada · Em jejum · Perto do treino"), como hoje já diz "Local salvo · Abdome, esquerda". Num dia diferente, ela abre a dose e troca. O custo: pela notificação não há aviso, então a marca é gravada sem a pessoa ver (aparece no Registro); e um campo a mais guardado no protocolo.</p>
-<p>Minha recomendação: <b>B</b>. A marca só serve se for regular, e quem toma em jejum todo dia é justamente quem mais se importa com isso. A repetição só existe porque a própria pessoa ligou.</p>
+<p><b>A: marcar e escrever dose a dose.</b> Cada marca e cada observação são feitas na dose, na folha. Simples e sempre conferidas pela pessoa naquele dia. O custo: quem toma em jejum, antes da yoga, todo dia precisa abrir cada dose. Na prática, depois de alguns dias a pessoa para, e o relatório fica incompleto.</p>
+<p><b>B: A + "Repetir nas próximas doses"</b> (um por protocolo, desligado até a pessoa ligar; aparece depois da primeira marca ou observação). Ligado, cada dose concluída daquele protocolo já sai com a mesma marca <b>e</b> a mesma observação, no Hoje, na notificação, em "Mais tarde hoje" e em "Pendentes de ontem". O aviso diz isso na hora ("Dose registrada · Em jejum · Antes da yoga"), como hoje já diz "Local salvo · Abdome, esquerda". Num dia diferente, ela abre a dose e troca ou apaga. O custo: pela notificação não há aviso, então a marca e o texto são gravados sem a pessoa ver (aparecem no Registro); e dois campos a mais guardados no protocolo.</p>
+<p>Minha recomendação: <b>B</b>. A marca e a observação só servem ao médico se forem regulares, e quem repete a mesma rotina todo dia é quem mais se importa com isso. A repetição só existe porque a própria pessoa ligou.</p>
 </div>
 
 <h2>O que muda nos dados</h2>
 <div class="box">
-<p><b>Nas duas:</b> uma coluna nova na tabela das doses (dose_logs), no celular e na nuvem, sincronizada como as outras. Precisa de uma migração no Supabase (só acrescenta a coluna, sem mexer no que existe; publicar pede o "pode" do senhor). Uma versão antiga do app ignora a coluna e não apaga a marca. A coluna antiga "pre_tags", que existe na nuvem e não é usada, não será reaproveitada: o conteúdo antigo dela é desconhecido.</p>
-<p><b>Só na B:</b> mais uma coluna no protocolo (protocols), com a marca que se repete.</p>
-<p>A política de privacidade lista os dados de cada dose; entra "jejum, refeição ou treino" nessa lista, nos 6 idiomas.</p>
+<p><b>Nas duas:</b> duas colunas novas na tabela das doses (<b>dose_logs</b>), no celular e na nuvem, sincronizadas como as outras: <b>dose_context</b> (vazio, "fasted" = Em jejum ou "meal" = Com refeição) e <b>dose_note</b> (o texto da observação, ou vazio). Precisa de uma migração no Supabase (só acrescenta as colunas, sem mexer no que existe; publicar pede o "pode" do senhor). As duas são enviadas sempre, inclusive vazias, para que apagar uma marca ou uma observação chegue à nuvem. Uma versão antiga do app ignora as colunas e não as apaga.</p>
+<p><b>Só na B:</b> duas colunas no protocolo (<b>protocols</b>): <b>repeat_dose_context</b> e <b>repeat_dose_note</b>, com o que se repete. As duas vazias = repetição desligada.</p>
+<p>As colunas antigas "notes" e "pre_tags" de dose_logs, que existem na nuvem e não são usadas, ficam como estão e não são reaproveitadas: o conteúdo antigo delas é desconhecido.</p>
+<p>A política de privacidade lista os dados de cada dose; entram "se foi em jejum ou com refeição e a observação que você escreve" nessa lista, nos 6 idiomas.</p>
 </div>
 
 <p class="ask">Qual o senhor prefere: A ou B?</p>
@@ -204,12 +237,13 @@ const S={
   tick:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 6.3l2.4 2.3 4.8-5"/></svg>',
   /* new monoline glyph for the mark line (added to assets/feature-icons in the FeatureIcon style) */
   tag:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.6V3.2c0-.4.3-.7.7-.7h5.4l4.9 4.9a1 1 0 010 1.4l-4.1 4.1a1 1 0 01-1.4 0L2.5 8.6z"/><circle cx="5.6" cy="5.6" r="1"/></svg>',
+  /* the observation line: FeatureIcon "chat" (existing glyph) */
+  chat:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 3.5h11v7.2H7l-3 2.6v-2.6H2.5z"/></svg>',
   pin:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.5s4.5-4.3 4.5-8a4.5 4.5 0 00-9 0c0 3.7 4.5 8 4.5 8z"/><circle cx="8" cy="6.5" r="1.6"/></svg>',
   vial:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1.8h5M6.3 1.8v2.4h3.4V1.8M5.2 4.2h5.6v9a1 1 0 01-1 1H6.2a1 1 0 01-1-1v-9zM5.2 8h5.6"/></svg>',
   caps:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="5.5" width="12.4" height="5" rx="2.5" transform="rotate(-35 8 8)"/><path d="M6.3 10.6l3.5-5"/></svg>',
   curve:'<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2v12h12"/><path d="M4 11l2.5-5 2.5 3.5 2-4 2 3.5"/></svg>'
 };
-const TAG=(txt,cls='')=>`<div class="tagline ${cls}">${S.tag}<span>${txt}</span></div>`;
 
 /* ---------- 1. Today, right after "Concluir" ---------- */
 function today(v){
@@ -230,12 +264,12 @@ function today(v){
     <div class="list"><div class="lrow"><i class="tdot" style="background:var(--p3)"></i><div class="main"><div class="nm">Tesamorelina · 22:00</div><div class="sm">1 mg · em 14 h 58 min</div></div><span class="mini">Concluir</span></div><div class="lrow"><i class="tdot" style="background:var(--p4)"></i><div class="main"><div class="nm">Melatonina · 22:30</div><div class="sm">3 mg · em 15 h 28 min</div></div><span class="mini">Concluir</span></div></div>
     <div class="list">
       <div class="thead">${S.check}<b>Doses concluídas</b>${S.chevUp}</div>
-      <div class="trow${opens?' ':''}"><i class="tdot" style="background:var(--p1)"></i>
-        <div class="main"><div class="nm">L-Carnitina</div>${tagged?TAG('Em jejum · Perto do treino','newtag'):''}</div>
+      <div class="trow"><i class="tdot" style="background:var(--p1)"></i>
+        <div class="main"><div class="nm">L-Carnitina</div>${tagged?`<div class="tagline newtag">${S.tag}<span class="clamp1">Em jejum · Antes da yoga</span></div>`:''}</div>
         <span class="when">07:02</span>${opens?S.chev:''}</div>
     </div>
   </div>
-  <div class="toast"><span>${tagged?'Dose registrada · Em jejum · Perto do treino':'Dose registrada'}</span><u>Desfazer</u></div>`;
+  <div class="toast"><span>${tagged?'Dose registrada · Em jejum · Antes da yoga':'Dose registrada'}</span><u>Desfazer</u></div>`;
 }
 
 /* ---------- 2. The dose sheet ---------- */
@@ -243,30 +277,40 @@ function sheetBg(){
   return `<div class="scr"><div class="nav"><span class="bk">‹ Hoje</span><span class="pl">${S.curve} Dose no corpo</span></div>
   <div class="l-title">Registro de doses</div>
   <div class="trio"><div><b>41</b><span><i class="sd" style="background:var(--ok)"></i>Concluídas</span></div><div><b>2</b><span><i class="sd" style="background:var(--attention)"></i>Puladas</span></div><div><b>1</b><span><i class="sd" style="background:var(--risk)"></i>Perdidas</span></div></div>
-  <div class="grp"><b>Hoje</b><span>1 dose</span></div>
-  <div class="day"><div class="drow"><div class="info"><div class="nmr">${S.caps}L-Carnitina</div></div><div class="rt"><span class="tm">07:02</span><span class="st"><i></i>Dose concluída</span></div></div></div>
   </div>`;
 }
+const PH='Escreva o que quiser: quando tomou (antes da yoga, antes de dormir) ou como se sentiu depois. Fica no seu histórico e no relatório para o seu médico.';
+const SOS='<div class="sosline"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2l6 10.6H2z"/><path d="M8 6.6v2.8M8 11.2v.1"/></svg><span>Falta de ar, inchaço ou tontura forte depois da aplicação? <u>Ligue para o 192 (SAMU).</u></span></div>';
 function sheet(v){
+  const on = v==='B';
   const marks = v==='hoje' ? '' : `
     <div class="mk">
-      <div class="mkh"><b>Jejum, refeição ou treino</b><span>Opcional</span></div>
-      <div class="pills">
-        <span class="pill on">${S.tick}Em jejum</span>
-        <span class="pill">Com refeição</span>
-        <span class="pill on">${S.tick}Perto do treino</span>
-      </div>
+      <div class="mkh"><b>Jejum ou refeição</b><span>Opcional</span></div>
+      <div class="pills"><span class="pill${on?' on':''}">${on?S.tick:''}Em jejum</span><span class="pill">Com refeição</span></div>
     </div>`;
+  const obs = v==='hoje' ? '' : (v==='A' ? `
+    <div class="obs">
+      <div class="mkh"><b>Observação</b><span>Opcional</span></div>
+      <div class="field ph3">${PH}</div>
+      ${SOS}
+    </div>` : `
+    <div class="obs">
+      <div class="mkh"><b>Observação</b><span>Opcional</span></div>
+      <div class="field on">Antes da yoga<span class="caret"></span></div>
+      <div class="acts2"><span class="bsm sec">Cancelar</span><span class="bsm pri">Salvar</span></div>
+      ${SOS}
+    </div>`);
   const repeat = v==='B' ? `
-    <div class="rep"><div class="tx"><b>Repetir nas próximas doses</b><span>Cada dose concluída de L-Carnitina já sai com estas marcas. Você pode trocar ou tirar em qualquer dose.</span></div><span class="sw on"><i></i></span></div>` : '';
+    <div class="rep"><div class="tx"><b>Repetir nas próximas doses</b><span>Cada dose concluída de L-Carnitina já sai com "Em jejum" e "Antes da yoga". Você pode trocar ou apagar em qualquer dose.</span></div><span class="sw on"><i></i></span></div>` : '';
   return sheetBg()+`<div class="scrim"></div><div class="sheet">
     <div class="shead"><b>L-Carnitina</b><span>Concluído</span></div>
     <div><div class="kv"><span class="k">Status</span><span class="v">Dose concluída</span></div>
       <div class="kv"><span class="k">Dose</span><span class="v">2 cápsulas</span></div>
       <div class="kv"><span class="k">Quando</span><span class="v">Hoje, 07:02</span></div></div>
-    ${marks}${repeat}
+    ${marks}${obs}${repeat}
     <div class="chg"><span>Alterar horário</span>${S.chev}</div>
     <div class="chg"><span>Alterar dose</span>${S.chev}</div>
+    ${v==='hoje'?'':'<div class="bdone">Concluído</div>'}
     <div class="danger">Excluir esta dose</div>
   </div>`;
 }
@@ -274,18 +318,18 @@ function sheet(v){
 /* ---------- 3. The Dose log rows ---------- */
 function log(v){
   const t = v!=='hoje';
-  const row=(icon,name,det,tag,time)=>`<div class="drow"><div class="info"><div class="nmr">${icon}${name}</div>${det?`<div class="det">${S.pin}<span>${det}</span></div>`:''}${t&&tag?`<div class="det newtag">${S.tag}<span>${tag}</span></div>`:''}</div><div class="rt"><span class="tm">${time}</span><span class="st"><i></i>Dose concluída</span></div>${S.chev}</div>`;
+  const row=(icon,name,det,tag,note,time)=>`<div class="drow"><div class="info"><div class="nmr">${icon}${name}</div>${det?`<div class="det">${S.pin}<span>${det}</span></div>`:''}${t&&tag?`<div class="det newtag">${S.tag}<span>${tag}</span></div>`:''}${t&&note?`<div class="det newtag">${S.chat}<span class="clamp2">${note}</span></div>`:''}</div><div class="rt"><span class="tm">${time}</span><span class="st"><i></i>Dose concluída</span></div>${S.chev}</div>`;
   return `<div class="scr fade"><div class="nav"><span class="bk">‹ Hoje</span><span class="pl">${S.curve} Dose no corpo</span></div>
   <div class="l-title">Registro de doses</div>
   <div class="trio"><div><b>41</b><span><i class="sd" style="background:var(--ok)"></i>Concluídas</span></div><div><b>2</b><span><i class="sd" style="background:var(--attention)"></i>Puladas</span></div><div><b>1</b><span><i class="sd" style="background:var(--risk)"></i>Perdidas</span></div></div>
   <div class="grp"><b>Hoje</b><span>1 dose</span></div>
-  <div class="day">${row(S.caps,'L-Carnitina',null,'Em jejum · Perto do treino','07:02')}</div>
+  <div class="day">${row(S.caps,'L-Carnitina',null,'Em jejum','Antes da yoga','07:02')}</div>
   <div class="grp"><b>Ontem</b><span>4 doses</span></div>
   <div class="day">
-    ${row(S.caps,'Melatonina',null,null,'22:31')}
-    ${row(S.vial,'Tesamorelina','Abdome, esquerda','Em jejum','22:04')}
-    ${row(S.caps,'Berberina',null,'Com refeição','12:41')}
-    ${row(S.caps,'L-Carnitina',null,'Em jejum · Perto do treino','07:05')}
+    ${row(S.caps,'Melatonina',null,null,null,'22:31')}
+    ${row(S.vial,'Tesamorelina','Abdome, esquerda','Em jejum','Antes de dormir','22:04')}
+    ${row(S.caps,'Berberina',null,'Com refeição',null,'12:41')}
+    ${row(S.caps,'L-Carnitina',null,'Em jejum','Acordei tarde, tomei às 10:00 e fui para a yoga logo depois','10:02')}
   </div></div>`;
 }
 
@@ -306,7 +350,7 @@ Total de doses registradas: 118
 L-Carnitina
   Dose: 2 cápsulas · Todo dia
   Concluídas: 29 · Puladas: 1 · Perdidas: 0 · Adesão: 97%
-${nw('  Em jejum: 27 · Perto do treino: 18 · Sem marca: 2')}  Sequência atual: 12 doses sem falhar
+${nw('  Em jejum: 27 · Sem marca: 2')}${nw('  Observações:\n    "Antes da yoga" · 25 doses, 26 out. – 24 nov.\n    "Acordei tarde, tomei às 10:00 e fui para a yoga\n    logo depois" · 23 nov., 10:02')}  Sequência atual: 12 doses sem falhar
 
 Berberina
   Dose: 500 mg · Todo dia
@@ -316,7 +360,7 @@ ${nw('  Com refeição: 25 · Sem marca: 3')}  Sequência atual: 9 doses sem fal
 Tesamorelina
   Dose: 1 mg · Todo dia
   Concluídas: 30 · Puladas: 0 · Perdidas: 0 · Adesão: 100%
-${nw('  Em jejum: 30')}  Sequência atual: 30 doses sem falhar
+${nw('  Em jejum: 30')}${nw('  Observações:\n    "Antes de dormir" · 30 doses, 26 out. – 24 nov.')}  Sequência atual: 30 doses sem falhar
 
 Melatonina
   Dose: 3 mg · Todo dia
@@ -331,19 +375,19 @@ const parts=[
   {h:'1. Hoje, logo depois de tocar em Concluir', lead:'Às 07:02 a pessoa tocou em Concluir na L-Carnitina. Um toque, nenhuma pergunta, nas três colunas. Muda só o que aparece depois.', f:today, tall:false,
    caps:{hoje:'<b>App hoje</b>: o aviso "Dose registrada · Desfazer" e a dose em Doses concluídas (a linha não abre nada).',
          A:'<b>A</b>: igual a hoje. A linha da dose em Doses concluídas passa a abrir a folha da dose (seta).',
-         B:'<b>B</b> (repetir ligado na L-Carnitina): a dose já sai marcada e o aviso diz quais marcas foram gravadas.'}},
-  {h:'2. A folha da dose (Registro de doses, ou a dose em Doses concluídas)', lead:'A mesma folha de hoje, com um bloco a mais entre os dados da dose e "Alterar horário". Pílulas iguais às do formulário do protocolo. Nenhuma vem marcada.', f:sheet, tall:true,
-   caps:{hoje:'<b>App hoje</b>: Status, Dose, Quando, Alterar horário, Alterar dose, Excluir.',
-         A:'<b>A</b>: "Jejum, refeição ou treino", opcional. Aqui com Em jejum e Perto do treino marcados.',
-         B:'<b>B</b>: o mesmo, e "Repetir nas próximas doses" aparece depois da primeira marca, desligado até ela ligar.'}},
-  {h:'3. Registro de doses: a linha de cada dose', lead:'A marca entra como uma linha discreta, igual à do local da aplicação. A Melatonina, sem marca, fica exatamente como hoje.', f:log, tall:false,
+         B:'<b>B</b> (repetir ligado na L-Carnitina): a dose já sai com a marca e a observação, e o aviso diz o que foi gravado.'}},
+  {h:'2. A folha da dose (Registro de doses, ou a dose em Doses concluídas)', lead:'A mesma folha de hoje, com dois blocos a mais entre os dados da dose e "Alterar horário": as duas marcas (pílulas iguais às do formulário do protocolo) e a Observação (o campo das Notas do protocolo). Nada vem preenchido. A linha de emergência fica sempre embaixo do campo. Embaixo da folha, um botão grande "Concluído" fecha a folha (e salva a observação que estiver sendo escrita).', f:sheet, tall:'xtall',
+   caps:{hoje:'<b>App hoje</b>: Status, Dose, Quando, Alterar horário, Alterar dose, Excluir. Para fechar, só o "Concluído" pequeno no alto.',
+         A:'<b>A</b>: a folha como abre da primeira vez: nada marcado, e a Observação vazia com o texto de ajuda em cinza (some ao escrever, nunca é salvo).',
+         B:'<b>B</b>: "Em jejum" marcado e "Antes da yoga" sendo escrito (Cancelar e Salvar, como nas Notas do protocolo); e "Repetir nas próximas doses".'}},
+  {h:'3. Registro de doses: a linha de cada dose', lead:'A marca e a observação entram como linhas discretas, iguais à do local da aplicação. A observação longa é cortada em 2 linhas; o texto inteiro está na folha. A Melatonina, sem nada, fica exatamente como hoje.', f:log, tall:false,
    caps:{hoje:'<b>App hoje</b>: nome, local (se for injeção), horário e status.',
-         A:'<b>A</b> e <b>B</b>: a mesma linha, com as marcas que a pessoa fez.',
-         B:'<b>B</b>: igual à A. Uma marca repetida aparece igual a uma marcada à mão; a pessoa a ligou.'}},
-  {h:'4. Relatório de adesão (Ajustes)', lead:'Uma linha por protocolo, só quando houver marca nos 30 dias. Só contagem, no mesmo formato de "Concluídas: · Puladas:". Uma dose pode ter duas marcas.', f:report, tall:true,
-   caps:{hoje:'<b>App hoje</b>: sem linha de marcas.',
-         A:'<b>A</b>: a linha nova em destaque (o destaque é só neste desenho).',
-         B:'<b>B</b>: igual à A; com a repetição, a linha tende a ficar completa.'}}
+         A:'<b>A</b>: as linhas com o que a pessoa marcou e escreveu.',
+         B:'<b>B</b>: igual à A. O que foi repetido aparece igual ao que foi feito à mão; a pessoa ligou a repetição.'}},
+  {h:'4. Relatório de adesão (Ajustes)', lead:'Ao lado das doses de cada protocolo, só quando houver algo nos 30 dias: a contagem das marcas e as observações. Observações iguais aparecem uma vez, com o número de doses e as datas; uma diferente aparece com o dia e a hora da dose.', f:report, tall:true,
+   caps:{hoje:'<b>App hoje</b>: sem marcas e sem observações.',
+         A:'<b>A</b>: as linhas novas em destaque (o destaque é só neste desenho).',
+         B:'<b>B</b>: igual à A; com a repetição, as linhas tendem a ficar completas.'}}
 ];
 
 let h='';
@@ -351,7 +395,7 @@ for(const p of parts){
   h+=`<h2>${p.h}</h2><p class="lead">${p.lead}</p>`;
   for(const [cls,label] of [['lt','Tema claro'],['dk','Tema escuro']]){
     h+=`<h3>${label}</h3><div class="row ${cls}">`+
-      [['hoje','App hoje'],['A','Opção A'],['B','Opção B']].map(([v])=>`<div class="col"><div class="cap">${cls==='lt'?p.caps[v]:(v==='hoje'?'<b>App hoje</b>':v==='A'?'<b>A</b>':'<b>B</b> <span class="rec">MINHA RECOMENDAÇÃO</span>')}</div><div class="ph${p.tall?' tall':''}">${p.f(v)}</div></div>`).join('')+
+      [['hoje'],['A'],['B']].map(([v])=>`<div class="col"><div class="cap">${cls==='lt'?p.caps[v]:(v==='hoje'?'<b>App hoje</b>':v==='A'?'<b>A</b>':'<b>B</b> <span class="rec">MINHA RECOMENDAÇÃO</span>')}</div><div class="ph${p.tall===true?' tall':p.tall?' '+p.tall:''}">${p.f(v)}</div></div>`).join('')+
     `</div>`;
   }
 }
