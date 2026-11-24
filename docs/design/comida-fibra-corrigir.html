@@ -1,0 +1,120 @@
+<title>Fibra ao corrigir</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one row per theme; phones side by side (today | A | B | A without fiber). The page follows the viewer's theme.
+   The sheet replicates screens/components/FoodEntryEditor.js (makeStyles), drawn at 85% of the real size. */
+:root{
+  --page:#F1F2EF;--pfg:#15171A;--pmut:#5B6066;--pline:#D5D8D2;
+  /* app tokens, light (lib/theme.js LIGHT) */
+  --g:#DDE0DB;--r:#FFFFFF;--w:#EEF0EC;--ln:#C3C7C0;
+  --ink:#111315;--ink2:#454A4F;--ink3:#53585D;--risk:#9E1F19;
+  --segOn:#FFFFFF;--segOnLine:#C3C7C0;--ov:rgba(0,0,0,0.45);
+  --sans:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;color-scheme:dark}
+/* app tokens, dark (lib/theme.js DARK) */
+.dk{--g:#121416;--r:#282B30;--w:#1D2024;--ln:#3C4147;
+  --ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--risk:#F08A80;
+  --segOn:#4A4F56;--segOnLine:#5E646B;--ov:rgba(0,0,0,0.6)}
+body{background:var(--page);color:var(--pfg);font-family:var(--sans);margin:0;
+  padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:24px;margin:0 0 8px;text-wrap:balance}
+p.lead{color:var(--pmut);max-width:70ch;margin:0 0 8px;line-height:1.5;font-size:15px}
+h2{font-size:14px;font-weight:600;color:var(--pmut);margin:32px 0 12px}
+.row{display:flex;gap:20px;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0;max-width:100%}
+.cap{font-size:13px;color:var(--pmut);max-width:320px;line-height:1.4;min-height:36px}
+.cap b{color:var(--pfg);font-weight:600}
+
+/* phone + the chat behind the sheet */
+.ph{position:relative;width:320px;max-width:100%;height:770px;background:var(--g);border-radius:30px;border:1px solid var(--pline);
+  box-sizing:border-box;overflow:hidden;color:var(--ink);font-family:var(--sans)}
+.chat{padding:40px 12px 0}
+.entry{margin-left:auto;width:88%;box-sizing:border-box;background:var(--r);border:1px solid var(--ln);border-radius:17px;padding:10px 12px;display:flex;flex-direction:column;gap:5px}
+.entry .f{font-size:13px;line-height:1.3}
+.entry .tot{font-size:13px;font-weight:600;margin-top:2px}
+.entry .m{font-size:11px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.ov{position:absolute;inset:0;background:var(--ov)}
+
+/* the sheet (FoodEntryEditor makeStyles x 0.85) */
+.sheet{position:absolute;left:7px;right:7px;bottom:26px;background:var(--r);border-radius:22px;overflow:hidden}
+.body{padding:17px;display:flex;flex-direction:column;gap:12px}
+.head{display:flex;align-items:center;gap:10px;min-height:37px}
+.side{min-width:44px;font-size:14.5px;color:var(--ink)}
+.side.end{text-align:right;font-weight:600}
+.title{flex:1;text-align:center;font-size:14.5px;font-weight:600;line-height:1.25}
+.seg{display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--w)}
+.seg span{flex:1;min-height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--ink2);border:1px solid var(--w);box-sizing:border-box}
+.seg span.on{background:var(--segOn);border-color:var(--segOnLine);color:var(--ink);font-weight:700}
+.item{display:flex;flex-direction:column;gap:7px;padding-top:8px;border-top:1px solid var(--ln)}
+.ihead{display:flex;align-items:center;gap:7px}
+.inp{background:var(--r);border:1px solid var(--ln);border-radius:12px;min-height:42px;box-sizing:border-box;padding:0 12px;
+  display:flex;align-items:center;font-size:14.5px;color:var(--ink);font-variant-numeric:tabular-nums;min-width:0}
+.inp.name{flex:1}
+.inp .ph-t{color:var(--ink3)}
+.del{width:37px;height:37px;display:flex;align-items:center;justify-content:center;color:var(--ink2);flex:none}
+.del svg{width:14px;height:14px}
+.fields{display:flex;gap:7px}
+.fields.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 7px}
+.fields.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 7px}
+.num{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.lab{font-size:11px;line-height:1.35;color:var(--ink2);padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.danger{min-height:42px;display:flex;align-items:center;justify-content:center;font-size:14.5px;font-weight:600;color:var(--risk)}
+.new{outline:2px dashed var(--ink3);outline-offset:3px;border-radius:12px}
+
+.note{max-width:72ch;color:var(--pmut);font-size:14px;line-height:1.55;margin-top:28px}
+.note li{margin-bottom:7px}
+.note b{color:var(--pfg)}
+</style>
+
+<h1>Fibra na tela "Corrigir este registro"</h1>
+<p class="lead">Hoje a tela de corrigir um registro de comida deixa mudar o nome, kcal, carboidratos e proteína de cada item, mas não a fibra, que a IA já lê desde 9/11. A proposta acrescenta o campo "fibra" com o mesmo estilo dos outros. A única escolha é onde o campo fica: A (duas linhas de dois) ou B (a linha de três de hoje e a fibra embaixo). O contorno tracejado só marca o que é novo; ele não existe no app.</p>
+
+<div id="out"></div>
+
+<div class="note"><ul>
+<li><b>Onde fica.</b> <b>A</b> (minha escolha): quatro campos em duas linhas, kcal e carboidratos, depois proteína e fibra, na mesma ordem em que a conversa mostra os números ("kcal · carboidratos · proteína · fibra"). Cada campo fica mais largo, e os nomes longos de outros idiomas (alemão: "Kohlenhydrate", "Ballaststoffe") cabem. <b>B</b> deixa a linha de três como está e põe a fibra sozinha embaixo, com a largura de um campo. Os quatro na mesma linha não cabem: no iPhone cada campo ficaria com cerca de 70 pontos e "carboidratos" seria cortado.</li>
+<li><b>O número.</b> A fibra aparece como está guardada, com uma casa decimal: "7,5" em português ("7.5" em inglês). O teclado do campo tem vírgula, e o valor é lido no idioma do app. Os outros campos continuam números inteiros, como hoje.</li>
+<li><b>Vazio não é 0.</b> Quando a leitura não trouxe fibra (registros de antes de 9/11, ou a IA não devolveu o número), o campo fica vazio, com um traço apagado, e nada é salvo como 0. Se a pessoa digitar 0, fica 0 g. Se apagar um número que existia, volta a ficar "sem fibra". Um dia ou uma semana sem fibra conhecida não mostra "0 g fibra".</li>
+<li><b>Mudar outro campo não mexe na fibra.</b> Se a pessoa corrigir kcal, carboidratos ou proteína, a fibra fica como está na tela; nada é recalculado escondido. O que aparece é o que se salva. Corrigir a fibra conta como corrigir o item: ele deixa de ser estimativa e a pergunta pendente sobre ele some, como já acontece com os outros campos.</li>
+<li><b>Os totais.</b> Ao tocar em Salvar, o cartão do registro na conversa, o total do dia ("Hoje") e a média da semana em Evolução usam a fibra nova, arredondada para gramas inteiros como hoje (7,5 + 0 = "8 g fibra"). Remover um item tira a fibra dele dos totais.</li>
+<li><b>Gordura</b> não aparece nesta tela, e hoje também não: é guardada e somada, mas não é mostrada. A proposta não muda isso.</li>
+<li>Cores só dos tokens do app, nos dois temas. Nenhum texto novo: "fibra" já é a palavra usada na conversa e em Evolução.</li>
+</ul></div>
+
+<script>
+const X='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+const chat=(rows,tot,m)=>`<div class="chat"><div class="entry">${rows.map(r=>`<div class="f">${r}</div>`).join('')}<div class="tot">≈ ${tot} kcal</div><div class="m">${m}</div></div></div><div class="ov"></div>`;
+const head=(day)=>`<div class="head"><span class="side">Cancelar</span><span class="title">Corrigir este registro</span><span class="side end">Salvar</span></div>
+  <div class="seg">${[['today','Hoje'],['yesterday','Ontem'],['earlier','Outro dia']].map(([k,l])=>`<span class="${k===day?'on':''}">${l}</span>`).join('')}</div>`;
+const num=(l,v,isNew)=>`<div class="num${isNew?' new':''}"><span class="lab">${l}</span><div class="inp">${v===''?'<span class="ph-t">—</span>':v}</div></div>`;
+function item(it,layout){
+  const base=[num('kcal',it.kcal),num('carboidratos',it.carb),num('proteína',it.prot)];
+  let f;
+  if(layout==='today') f=`<div class="fields">${base.join('')}</div>`;
+  else if(layout==='A') f=`<div class="fields grid">${base.join('')}${num('fibra',it.fib,true)}</div>`;
+  else f=`<div class="fields three">${base.join('')}${num('fibra',it.fib,true)}</div>`;
+  return `<div class="item"><div class="ihead"><div class="inp name">${it.food}</div><span class="del">${X}</span></div>${f}</div>`;
+}
+const sheet=(day,items,layout)=>`<div class="sheet"><div class="body">${head(day)}${items.map(i=>item(i,layout)).join('')}<div class="danger">Remover registro</div></div></div>`;
+
+const oat={food:'Aveia com banana',kcal:'320',carb:'54',prot:'11',fib:'7,5'};
+const cof={food:'Café com leite',kcal:'60',carb:'6',prot:'3',fib:'0'};
+const chatNow=chat(['Aveia com banana · ~320 kcal','Café com leite · ~60 kcal'],'380','60 g carboidratos · 14 g proteína · 8 g fibra');
+const old1={food:'Arroz com feijão',kcal:'410',carb:'72',prot:'14',fib:''};
+const chatOld=chat(['Arroz com feijão · ~410 kcal'],'410','72 g carboidratos · 14 g proteína');
+
+const sets=[
+  [()=>chatNow+sheet('today',[oat,cof],'today'),'<b>App hoje</b>: kcal, carboidratos e proteína; a fibra não pode ser corrigida'],
+  [()=>chatNow+sheet('today',[oat,cof],'A'),'<b>A</b> (minha escolha): duas linhas de dois, fibra ao lado de proteína'],
+  [()=>chatNow+sheet('today',[oat,cof],'B'),'<b>B</b>: a linha de três de hoje e a fibra sozinha embaixo'],
+  [()=>chatOld+sheet('yesterday',[old1],'A'),'<b>A, leitura sem fibra</b>: campo vazio com traço, nunca um 0 inventado'],
+];
+let h='';
+for(const [cls,label] of [['','Tema claro'],['dk','Tema escuro']]){
+  h+=`<h2>${label}</h2><div class="row ${cls}">`+sets.map(([f,c])=>`<div class="col"><div class="cap">${c}</div><div class="ph">${f()}</div></div>`).join('')+`</div>`;
+}
+document.getElementById('out').innerHTML=h;
+</script>
