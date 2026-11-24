@@ -2,6 +2,29 @@
 
 Read this first, every session. These rules exist because they were each broken and cost real time/tokens. The founder should not have to babysit — that is what this file is for.
 
+## Standing rule: one device at a time, no exceptions (founder, 2026-10-15; reaffirmed 2026-10-23)
+
+Signing in on a new device replaces the previous one (AD-77 / A-119, committed to 1.3.2). Nothing in
+the app is critical enough to need two-device consistency: at worst a dose is not marked on the new
+device and the user marks it again. Every defect, test, analysis or proposal about data diverging
+between two devices is CLOSED by this decision (DV-182, DV-183, DV-209, DV-222, A-178 and anything of
+the same nature). Do not investigate, do not fix, do not ask. The only exception: a genuinely new fact
+the decision did not foresee — raise it in one line, citing the decision, and stop.
+
+## Standing rule: check the record before proposing (founder, 2026-10-23)
+
+Before any proposal, fix, recommendation or decision question to the founder, run
+`scripts/checar-decisoes.sh <keywords>` and cite its output (and call the **porteiro** agent,
+`.claude/agents/porteiro.md`, and cite its answer). If the topic is already decided, apply the
+decision and cite it in one line; never ask the founder something whose answer is in `STATE.md`,
+`docs/decisions.md`, `docs/specs/`, `docs/product/DIVERGENCES.md` or `~/Desktop/Second Brain/`.
+Work spent on an already-decided topic is an error even when the result is right. Reopen only with a
+new fact, in one line.
+- `scripts/checar-decisoes.sh <palavras…>` — case-insensitive search of STATE.md, docs/decisions.md,
+  docs/specs/, docs/product/DIVERGENCES.md, CLAUDE.md and the Second Brain (01-decisoes.md, dosetrace/);
+  prints file:line + excerpt, marks Second Brain lines VIGENTE/SUBSTITUÍDA, or
+  "NENHUMA DECISÃO REGISTRADA para: …". A UserPromptSubmit hook runs it on every founder message.
+
 ## Standing rule: approved → the NEXT build (2026-09-10, founder directive)
 
 Anything the founder says he wants AND approves ships in the **very next build** by

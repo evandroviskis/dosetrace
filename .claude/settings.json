@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/checar-prompt.sh\"",
+            "timeout": 10,
+            "statusMessage": "Checando decisões registradas…"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/handoff-lembrete.sh\"",
+            "timeout": 5,
+            "statusMessage": "Handoff: etapa fechada?"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}/.claude/hooks/second-brain-sessao.sh\"",
+            "timeout": 10,
+            "statusMessage": "Lendo o Second Brain…"
+          }
+        ]
+      }
+    ]
+  }
+}
