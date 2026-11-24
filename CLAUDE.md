@@ -54,6 +54,7 @@ the decision did not foresee — raise it in one line, citing the decision, and 
 ## Standing rule: every reply ends with ONE list of what the founder must decide (founder, 2026-11-24)
 
 "Por que você, quando você termina uma execução de qualquer coisa, você não resume tudo que eu tenho que decidir?" Decisions scattered across long messages force him to scroll back. So every reply that leaves anything open ends with one numbered block, "O que o senhor precisa decidir", holding ALL open decisions of the session (not only the new ones), each in one line with the options and my recommendation. Nothing to decide → say so in one line. Keep the body of the reply short; the decisions live only in that block.
+CUMULATIVE, EVERY reply, no exception (founder, same day): if he talks about something else and does not answer, the next reply answers what he said AND repeats every still-open decision; new decisions are added to the old ones. The live list is ~/Desktop/Second Brain/dosetrace/91-decisoes-pendentes.md (answered items move to 02-decisoes.md); the UserPromptSubmit hook .claude/hooks/decisoes-pendentes.sh injects it at every prompt.
 
 ## Standing rule: check the record before proposing (founder, 2026-10-23)
 
