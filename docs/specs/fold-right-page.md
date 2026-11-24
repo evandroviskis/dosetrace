@@ -4,7 +4,7 @@
 - supersedes: docs/specs/book-layout.md BK-3's dose page (the dose page with Mark taken / Skip on the right) and the BK-16 rows about actions on that page. Rebuild = replace: screens/components/DosePage.js is deleted.
 - decided by logic (docs/decisions.md 2026-10-07 night, item 5): Skip / Mark taken / Undo stay on the left card; "Delete protocol" is not offered on Today's right page; Edit and the refill / zoom sheets open in My Protocols.
 - code: screens/TodayScreen.js (renderRightPage, saveProtocolNote), screens/ProtocolsScreen.js (ProtocolDetail and noteDraftKey exported; Delete optional), i18n.
-- checklist-signed:
+- checklist-signed: 2026-11-24 by the founder in the admin panel Decisões tab ("Assinar 4 listas de aceitação antigas": Aprovo; option A = sign the three already live)
 - committed-to: 1.3.0 (approved → next build)
 
 ## Acceptance checklist
