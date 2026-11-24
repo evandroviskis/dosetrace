@@ -18,6 +18,7 @@ const D1 = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1';
 const D2 = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd2';
 const D3 = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd3';
 const D4 = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd4';
+const D5 = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd5';
 const NOPE = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd9';
 
 function row(o) {
@@ -31,6 +32,7 @@ function world(o) {
       row({ id: D2, area: 'painel', kind: 'texto', title: 'Texto do aviso', status: 'aprovado', decided_at: '2026-11-24T13:00:00Z' }),
       row({ id: D3, area: 'site', title: 'Já feito', status: 'aprovado', decided_at: '2026-11-23T10:00:00Z', executed_at: '2026-11-23T12:00:00Z', executed_note: 'Feito no commit abc' }),
       row({ id: D4, area: 'app', title: 'Outra pendente', sort: -1 }),
+      row({ id: D5, area: 'app', title: 'Em retrabalho', status: 'alterando', choice: null, note: 'Mais espaço embaixo.', decided_at: '2026-11-24T14:00:00Z', rework_at: '2026-11-24T15:00:00Z' }),
     ],
     events: [],
     rpcCalls: [],
@@ -53,6 +55,7 @@ function world(o) {
       const r = W.rows.find((x) => x.id === a.p_id);
       if (!r) return F.json({ state: 'unknown' });
       if (r.executed_at) return F.json({ state: 'executed', executed_at: r.executed_at });
+      if (r.status === 'alterando') return F.json({ state: 'reworking', rework_at: r.rework_at });
       const choice = a.p_choice == null || !String(a.p_choice).trim() ? null : String(a.p_choice).trim();
       if (choice && r.options.indexOf(choice) < 0) return F.json({ state: 'bad_choice' });
       const note = a.p_note == null || !String(a.p_note).trim() ? null : String(a.p_note).trim();
@@ -111,14 +114,18 @@ test('DC1: a save needs Origin https://dosetrace.io, role admin and the 15-minut
 }));
 
 // ------------------------------------------------------------------ DC2: the list
-test('DC2: GET lists every decision with counts per group (pending / decided / executed), filters by group and area, no signed URL in the list', withEnv(async () => {
+test('DC2: GET lists every decision with counts per group (pending / being changed / decided, executed inside decided), filters by group and area, no signed URL in the list', withEnv(async () => {
   const W = world();
   const r = await get(W);
   assert.equal(r.code, 200);
-  assert.deepEqual(r.json.counts, { pendentes: 2, decididas: 1, executadas: 1, total: 4 });
-  assert.equal(r.json.items.length, 4);
+  assert.deepEqual(r.json.counts, { pendentes: 2, alterando: 1, decididas: 2, executadas: 1, total: 5 });
+  assert.equal(r.json.items.length, 5);
   assert.deepEqual(r.json.items.filter((x) => x.group === 'pendentes').map((x) => x.id), [D4, D1], 'sort first, then newest');
-  assert.equal(r.json.items.find((x) => x.id === D3).group, 'executadas');
+  assert.equal(r.json.items.find((x) => x.id === D3).group, 'decididas');
+  assert.equal(r.json.items.find((x) => x.id === D3).executed, true);
+  assert.equal(r.json.items.find((x) => x.id === D5).group, 'alterando');
+  assert.deepEqual((await get(W, '?status=alterando')).json.items.map((x) => x.id), [D5]);
+  assert.deepEqual((await get(W, '?status=decididas')).json.items.map((x) => x.id).sort(), [D2, D3].sort(), 'decided includes the executed ones');
   assert.equal(W.signCalls.length, 0, 'the list signs nothing');
   assert.equal(r.headers['cache-control'], 'no-store');
   const p = await get(W, '?status=pendentes');
@@ -203,6 +210,9 @@ test('DC3: the database answers — unknown 404, executed 409 (read only after C
   assert.equal((await patch(W, { id: NOPE, status: 'aprovado' })).code, 404);
   const ex = await patch(W, { id: D3, status: 'recusado' });
   assert.equal(ex.code, 409); assert.equal(ex.json.error, 'executed');
+  const rw = await patch(W, { id: D5, status: 'aprovado' });
+  assert.equal(rw.code, 409); assert.equal(rw.json.error, 'reworking', 'being changed by Claude: read only (founder 2026-11-24)');
+  assert.equal(W.rows.find((x) => x.id === D5).status, 'alterando');
   const ch = await patch(W, { id: D1, status: 'aprovado', choice: 'C' });
   assert.equal(ch.code, 400); assert.equal(ch.json.field, 'choice');
   const L = world({ limit: 0 });
@@ -251,6 +261,28 @@ test('DC4 SQL: founder_decisions + events, RLS on with no policy, service_role S
   assert.ok(!/\bauth\./.test(body), 'nothing in the auth schema');
 });
 
+test('DC6 SQL: "Alteração em andamento" in its own migration on top of the applied one — status alterando with rework_at, executed only after his answer, the save refuses it; one transaction, not applied, the first migration untouched', () => {
+  const sql = read('supabase/migrations/20261124010000_founder_decisions_alterando.sql');
+  const body = sql.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
+  assert.match(sql, /STATUS: NOT APPLIED/);
+  assert.equal((body.match(/^begin;$/gm) || []).length, 1); assert.equal((body.match(/^commit;$/gm) || []).length, 1);
+  assert.match(body, /add column if not exists rework_at timestamptz;/);
+  assert.match(body, /drop constraint if exists founder_decisions_status_check;\nalter table public\.founder_decisions add constraint founder_decisions_status_check\n  check \(status in \('pendente', 'aprovado', 'recusado', 'ajustar', 'alterando'\)\);/);
+  assert.match(body, /add constraint founder_decisions_rework\n  check \(\(status = 'alterando'\) = \(rework_at is not null\)\);/);
+  assert.match(body, /add constraint founder_decisions_executed\n  check \(executed_at is null or status in \('aprovado', 'recusado', 'ajustar'\)\);/);
+  assert.match(body, /raise exception 'an old status check is still in place'/, 'aborts if the old check survived');
+  const fn = body.match(/create or replace function public\.founder_decision_save[\s\S]*?\$\$;/)[0];
+  assert.match(fn, /security definer/);
+  assert.match(fn, /if r\.status = 'alterando' then return jsonb_build_object\('state', 'reworking'/);
+  assert.ok(fn.indexOf("'reworking'") < fn.indexOf('update public.founder_decisions'), 'refused before any write');
+  assert.match(fn, /set status = p_status, choice = v_choice, note = v_note, decided_at = now\(\)/);
+  assert.match(fn, /p_status not in \('aprovado', 'recusado', 'ajustar'\)/, 'the panel can never set alterando');
+  assert.match(body, /revoke all on function public\.founder_decision_save\(uuid, uuid, text, text, text\) from public, anon, authenticated;\ngrant execute on function public\.founder_decision_save\(uuid, uuid, text, text, text\) to service_role;/);
+  assert.ok(!/create policy|grant (insert|update|delete|all)/i.test(body));
+  const first = read('supabase/migrations/20261124000000_founder_decisions.sql');
+  assert.ok(!/alterando/.test(first), 'the applied migration stays as committed in 210e1e0a');
+});
+
 // ------------------------------------------------------------------ DC5: the page
 function loadInBox(file) {
   const win = {}, doc = { getElementById: () => null, querySelectorAll: () => [], body: { contains: () => false }, head: { appendChild() {} }, createElement: () => ({}), addEventListener() {}, documentElement: {} };
@@ -263,10 +295,10 @@ test('DC5: the tab — labels in 6 languages (same keys), no emoji, formal Portu
   assert.deepEqual(Object.keys(T).sort(), LANGS.slice().sort());
   const en = Object.keys(T.en).sort();
   for (const l of LANGS) { assert.deepEqual(Object.keys(T[l]).sort(), en, l + ' parity'); for (const [k, v] of Object.entries(T[l])) { assert.ok(typeof v === 'string' && v.length, l + ' ' + k); assert.ok(!EMOJI.test(v), 'emoji ' + l + ' ' + k); } }
-  for (const k of ['h_question', 'h_context', 'h_said', 'h_rec', 'approve', 'refuse', 'adjust', 'save', 'saved_at', 'executed_at', 'g_pendentes', 'g_decididas', 'g_executadas'])
+  for (const k of ['h_question', 'h_context', 'h_said', 'h_rec', 'approve', 'refuse', 'adjust', 'save', 'saved_at', 'executed_at', 'g_pendentes', 'g_alterando', 'g_decididas', 'sub_executadas', 'reworking_since', 'last_note'])
     assert.ok(T.pt[k], k);
   assert.equal(T.pt.h_question, 'O que decidir'); assert.equal(T.pt.h_context, 'Contexto'); assert.equal(T.pt.h_said, 'O que o senhor disse');
-  assert.equal(T.pt.h_rec, 'Recomendação do Claude'); assert.equal(T.pt.approve, 'Aprovo'); assert.equal(T.pt.refuse, 'Não aprovo'); assert.equal(T.pt.adjust, 'Precisa ajustar'); assert.equal(T.pt.save, 'Salvar');
+  assert.equal(T.pt.h_rec, 'Recomendação do Claude'); assert.equal(T.pt.g_alterando, 'Alteração em andamento'); assert.equal(T.pt.reworking_since, 'Em alteração pelo Claude desde {d}'); assert.equal(T.pt.approve, 'Aprovo'); assert.equal(T.pt.refuse, 'Não aprovo'); assert.equal(T.pt.adjust, 'Precisa ajustar'); assert.equal(T.pt.save, 'Salvar');
   assert.ok(!/\b(você|a gente|dá para|deu para)\b/i.test(JSON.stringify(T.pt)), 'formal Portuguese');
   const src = read('web/adm-decisions.js');
   const style = src.match(/var STYLE = ([\s\S]*?);\n/)[1];
@@ -282,10 +314,28 @@ test('DC5: grouping and the safe link rule match the server', () => {
   const g = win.DCTab._group;
   assert.equal(g({ status: 'pendente' }), 'pendentes');
   assert.equal(g({ status: 'ajustar', decided_at: 'x' }), 'decididas');
-  assert.equal(g({ status: 'aprovado', decided_at: 'x', executed_at: 'y' }), 'executadas');
+  assert.equal(g({ status: 'aprovado', decided_at: 'x', executed_at: 'y' }), 'decididas');
+  assert.equal(g({ status: 'alterando', decided_at: 'x', rework_at: 'y' }), 'alterando');
+  const st = win.DCTab._state; st.det = { status: 'alterando' }; assert.equal(win.DCTab._readOnly(), true); st.det = { status: 'ajustar' }; assert.equal(win.DCTab._readOnly(), false); st.det = { status: 'aprovado', executed_at: 'x' }; assert.equal(win.DCTab._readOnly(), true); st.det = null;
   const safe = win.DCTab._safeUrl;
   assert.equal(safe('https://claude.ai/x'), 'https://claude.ai/x');
   assert.equal(safe('javascript:alert(1)'), null); assert.equal(safe('http://x.y'), null); assert.equal(safe('data:text/html,1'), null);
+});
+
+test('DC6: a decision being changed opens read only — the "being changed since" banner (never "carried out"), his last answer, no options, no decision buttons, no note box, no Save', () => {
+  const win = loadInBox('web/adm-decisions.js');
+  const st = win.DCTab._state;
+  st.det = { id: D5, area: 'app', kind: 'visual', title: 'T', question: 'Q', options: ['A', 'B'], links: [], images: [], status: 'alterando', choice: 'B', note: 'Mais contraste.', created_at: '2026-11-24T10:00:00Z', decided_at: '2026-11-24T12:00:00Z', rework_at: '2026-11-24T13:00:00Z', executed_at: null };
+  st.draft = { status: null, choice: null, note: '' };
+  const h = win.DCTab._detail();
+  assert.ok(h.includes('dc-banner acc'), 'being-changed banner');
+  assert.ok(!h.includes('dc-banner good'), 'never the carried-out banner');
+  assert.ok(h.includes('Mais contraste.') && h.includes('Option chosen: B'), 'his last answer');
+  for (const k of ['data-a="status"', 'data-a="choice"', 'id="dc-note"', 'data-a="save"']) assert.ok(!h.includes(k), 'no ' + k);
+  st.det = Object.assign({}, st.det, { status: 'ajustar', rework_at: null });
+  const open = win.DCTab._detail();
+  for (const k of ['data-a="status"', 'data-a="choice"', 'id="dc-note"', 'data-a="save"']) assert.ok(open.includes(k), 'editable again: ' + k);
+  st.det = null; st.draft = null;
 });
 
 test('DC5: web/adm.html wires the tab — desktop tab and phone tab bar with the pending badge, label ×6, Back key, external links through the bridge, script after the main one; vercel.json lets the signed pictures load', () => {

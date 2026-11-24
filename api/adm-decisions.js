@@ -9,13 +9,16 @@
  * DT Admin device); PATCH also needs Origin https://dosetrace.io, role admin and the 15-minute step-up
  * (device: the phone's biometrics).
  *
- * GET                       → { items, counts: { pendentes, decididas, executadas, total }, generated_at }
- *   ?status=pendentes|decididas|executadas   ?area=app|painel|site|divulgacao|outro   (counts never filtered)
+ * GET                       → { items, counts: { pendentes, alterando, decididas, executadas, total }, generated_at }
+ *   ?status=pendentes|alterando|decididas|executadas   ?area=app|painel|site|divulgacao|outro   (counts never filtered)
+ *   Groups (founder 2026-11-24): Pendentes (his turn) · Alteração em andamento (status 'alterando', set only by a
+ *   Claude session while it reworks the decision; read only) · Decididas (his answer, executed ones included;
+ *   item.executed = true and "executadas" is a sub-filter of it). The badge counts only pendentes.
  * GET ?id=<uuid>            → { item } with images[].url = a signed URL valid for 10 minutes (private bucket)
  * PATCH { id, status, choice?, note? }  — only these four keys; status aprovado|recusado|ajustar; choice one of
  *   the decision's options (or null); note up to 4000 characters, line breaks kept. Written by the definer
- *   function founder_decision_save only (it sets decided_at, keeps a history row, refuses an executed decision
- *   and more than 60 saves per hour). Body over 16 KB → 413.
+ *   function founder_decision_save only (it sets decided_at, keeps a history row, refuses an executed decision (409
+ *   executed), one being changed by Claude (409 reworking) and more than 60 saves per hour). Body over 16 KB → 413.
  * Nothing here logs; the service key never leaves the server.
  */
 const { checkAdmin } = require('./_admAuth.js');
@@ -27,10 +30,10 @@ const MAX_NOTE = 4000;
 const MAX_CHOICE = 300;
 const LIST_LIMIT = 500;
 const AREAS = ['app', 'painel', 'site', 'divulgacao', 'outro'];
-const GROUPS = ['pendentes', 'decididas', 'executadas'];
+const GROUPS = ['pendentes', 'alterando', 'decididas', 'executadas'];
 const STATUSES = ['aprovado', 'recusado', 'ajustar'];
 const WRITABLE = ['id', 'status', 'choice', 'note'];
-const COLS = 'id,created_at,updated_at,area,kind,title,question,context,founder_said,recommendation,options,links,images,status,choice,note,decided_at,executed_at,executed_note,source,sort';
+const COLS = 'id,created_at,updated_at,area,kind,title,question,context,founder_said,recommendation,options,links,images,status,choice,note,decided_at,rework_at,executed_at,executed_note,source,sort';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,250}$/;
 // Control characters other than tab and line break never come from a typed note.
@@ -69,7 +72,8 @@ async function readBody(req) {
   });
 }
 
-function groupOf(r) { return r.executed_at ? 'executadas' : r.status === 'pendente' ? 'pendentes' : 'decididas'; }
+function groupOf(r) { return r.status === 'pendente' ? 'pendentes' : r.status === 'alterando' ? 'alterando' : 'decididas'; }
+function inFilter(x, f) { return !f || (f === 'executadas' ? x.executed : x.group === f); }
 function safeUrl(u) { const s = String(u || '').trim(); return /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : null; }
 function safePath(p) { const s = String(p || ''); return PATH_RE.test(s) && s.indexOf('..') < 0 && s.indexOf('//') < 0 ? s : null; }
 function kindOf(p) { return /\.html?$/i.test(p) ? 'html' : 'image'; }
@@ -78,7 +82,7 @@ function shape(r) {
   const links = (Array.isArray(r.links) ? r.links : []).map((l) => ({ label: String((l && l.label) || '').slice(0, 200), url: safeUrl(l && l.url) })).filter((l) => l.url);
   const images = (Array.isArray(r.images) ? r.images : []).map((i) => ({ label: String((i && i.label) || '').slice(0, 200), path: safePath(i && i.path) })).filter((i) => i.path).map((i) => Object.assign(i, { kind: kindOf(i.path) }));
   const options = (Array.isArray(r.options) ? r.options : []).filter((o) => typeof o === 'string');
-  return Object.assign({}, r, { links, images, options, group: groupOf(r) });
+  return Object.assign({}, r, { links, images, options, group: groupOf(r), executed: !!r.executed_at });
 }
 function missing(r) { return r.status === 404 || (r.j && (r.j.code === 'PGRST205' || r.j.code === '42P01' || r.j.code === 'PGRST202')); }
 
@@ -139,9 +143,9 @@ async function handler(req, res, opts) {
       if (!r.ok) return json(res, 503, { error: missing(r) ? 'not_configured' : 'unavailable' });
       const all = (Array.isArray(r.j) ? r.j : []).map(shape);
       all.sort((a, b) => (a.sort - b.sort) || (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
-      const counts = { pendentes: 0, decididas: 0, executadas: 0, total: all.length };
-      for (const x of all) counts[x.group]++;
-      const items = all.filter((x) => (!status || x.group === status) && (!area || x.area === area));
+      const counts = { pendentes: 0, alterando: 0, decididas: 0, executadas: 0, total: all.length };
+      for (const x of all) { counts[x.group]++; if (x.executed) counts.executadas++; }
+      const items = all.filter((x) => inFilter(x, status) && (!area || x.area === area));
       return json(res, 200, { items, counts, generated_at: new Date(now).toISOString() });
     }
     if (method !== 'PATCH') return json(res, 405, { error: 'method' });
@@ -155,6 +159,7 @@ async function handler(req, res, opts) {
     if (st === 'saved') return json(res, 200, { ok: true, id: r.j.id, status: r.j.status, choice: r.j.choice, note: r.j.note, decided_at: r.j.decided_at });
     if (st === 'unknown') return json(res, 404, { error: 'unknown' });
     if (st === 'executed') return json(res, 409, { error: 'executed', executed_at: r.j.executed_at });
+    if (st === 'reworking') return json(res, 409, { error: 'reworking', rework_at: r.j.rework_at });
     if (st === 'bad_choice') return json(res, 400, bad('choice'));
     if (st === 'bad_note') return json(res, 400, bad('note'));
     if (st === 'bad_status') return json(res, 400, bad('status'));

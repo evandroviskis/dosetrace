@@ -8,11 +8,11 @@
   var T = {
     en: {
       title_h: 'Decisions', intro: 'What you need to decide. Tap a decision to open it.',
-      g_pendentes: 'Pending', g_decididas: 'Decided', g_executadas: 'Done',
+      g_pendentes: 'Pending', g_alterando: 'Being changed', g_decididas: 'Decided',
       area_all: 'All areas', a_app: 'App', a_painel: 'Panel', a_site: 'Website', a_divulgacao: 'Marketing', a_outro: 'Other',
       k_visual: 'Visual', k_texto: 'Text', k_regra: 'Rule', k_outro: 'Other',
       loading: 'Loading the decisions…', e_conf: 'The Decisions tab is not active on the server yet (the migration has not been applied).', e_load: 'Could not load the decisions ({n}).', retry: 'Try again',
-      empty_pendentes: 'No decision pending.', empty_decididas: 'No decision waiting to be carried out.', empty_executadas: 'No decision carried out yet.',
+      empty_pendentes: 'No decision pending.', empty_alterando: 'No decision being changed.', empty_decididas: 'No decision taken yet.', sub_waiting: 'Waiting to be carried out', sub_executadas: 'Carried out',
       back: 'Decisions', h_question: 'What to decide', h_context: 'Context', h_said: 'What you said', h_rec: 'Claude’s recommendation', h_pics: 'Pictures', h_links: 'Links', h_options: 'Options', h_decision: 'Decision', h_note: 'Note',
       note_ph: 'Write here what needs to change, or any note.', approve: 'I approve', refuse: 'I do not approve', adjust: 'Needs changes',
       save: 'Save', saving: 'Saving…', need_status: 'Choose “I approve”, “I do not approve” or “Needs changes” to save.', unsaved: 'Not saved yet. The text stays on this device until you save.',
@@ -20,16 +20,16 @@
       tap_pic: 'Tap a picture to see it full size.', open_html: 'Open the design', open_browser: 'Open in the browser', close: 'Close', real_size: 'Actual size', fit: 'Fit to screen',
       pic_missing: 'Picture unavailable (the link expires after 10 minutes; open the decision again).',
       st_pendente: 'Pending', st_aprovado: 'Approved', st_recusado: 'Not approved', st_ajustar: 'Needs changes',
-      created: 'Created on {d}', from: 'Source: {s}', chosen: 'Option chosen: {c}', no_choice: 'No option chosen', locked: 'This decision has been carried out and can no longer be changed.',
+      created: 'Created on {d}', from: 'Source: {s}', chosen: 'Option chosen: {c}', no_choice: 'No option chosen', locked: 'This decision has been carried out and can no longer be changed.', reworking_since: 'Being changed by Claude since {d}', reworking_hint: 'You cannot decide while it is being changed. The new version will appear under Pending.', last_note: 'Your last answer', st_alterando: 'Being changed', e_reworking: 'This decision is being changed by Claude. The new version will appear under Pending.',
       e_executed: 'This decision has already been carried out and can no longer be changed.', e_rate: 'Too many saves in a short time. Try again in {m} min.', e_choice: 'This option no longer exists in this decision. Open the decision again.', e_generic: 'Could not save ({m}). Your text is still here.', e_code: 'Code not confirmed.',
     },
     pt: {
       title_h: 'Decisões', intro: 'O que o senhor precisa decidir. Toque em uma decisão para abrir.',
-      g_pendentes: 'Pendentes', g_decididas: 'Decididas', g_executadas: 'Executadas',
+      g_pendentes: 'Pendentes', g_alterando: 'Alteração em andamento', g_decididas: 'Decididas',
       area_all: 'Todas as áreas', a_app: 'App', a_painel: 'Painel', a_site: 'Site', a_divulgacao: 'Divulgação', a_outro: 'Outro',
       k_visual: 'Visual', k_texto: 'Texto', k_regra: 'Regra', k_outro: 'Outro',
       loading: 'Carregando as decisões…', e_conf: 'A aba Decisões ainda não está ativa no servidor (falta aplicar a migração).', e_load: 'Não foi possível carregar as decisões ({n}).', retry: 'Tentar de novo',
-      empty_pendentes: 'Nenhuma decisão pendente.', empty_decididas: 'Nenhuma decisão aguardando execução.', empty_executadas: 'Nenhuma decisão executada ainda.',
+      empty_pendentes: 'Nenhuma decisão pendente.', empty_alterando: 'Nenhuma decisão em alteração.', empty_decididas: 'Nenhuma decisão tomada ainda.', sub_waiting: 'Aguardando execução', sub_executadas: 'Executadas',
       back: 'Decisões', h_question: 'O que decidir', h_context: 'Contexto', h_said: 'O que o senhor disse', h_rec: 'Recomendação do Claude', h_pics: 'Imagens', h_links: 'Links', h_options: 'Opções', h_decision: 'Decisão', h_note: 'Observação',
       note_ph: 'Escreva aqui o que precisa mudar, ou qualquer observação.', approve: 'Aprovo', refuse: 'Não aprovo', adjust: 'Precisa ajustar',
       save: 'Salvar', saving: 'Salvando…', need_status: 'Escolha Aprovo, Não aprovo ou Precisa ajustar para salvar.', unsaved: 'Ainda não salvo. O texto fica guardado neste aparelho até o senhor salvar.',
@@ -37,16 +37,16 @@
       tap_pic: 'Toque em uma imagem para ver em tamanho grande.', open_html: 'Abrir o desenho', open_browser: 'Abrir no navegador', close: 'Fechar', real_size: 'Tamanho real', fit: 'Ajustar à tela',
       pic_missing: 'Imagem indisponível (o link expira em 10 minutos; abra a decisão de novo).',
       st_pendente: 'Pendente', st_aprovado: 'Aprovado', st_recusado: 'Não aprovado', st_ajustar: 'Precisa ajustar',
-      created: 'Criada em {d}', from: 'Origem: {s}', chosen: 'Opção escolhida: {c}', no_choice: 'Nenhuma opção escolhida', locked: 'Esta decisão já foi executada e não pode mais ser alterada.',
+      created: 'Criada em {d}', from: 'Origem: {s}', chosen: 'Opção escolhida: {c}', no_choice: 'Nenhuma opção escolhida', locked: 'Esta decisão já foi executada e não pode mais ser alterada.', reworking_since: 'Em alteração pelo Claude desde {d}', reworking_hint: 'Enquanto está em alteração, não é possível decidir. A nova versão aparecerá em Pendentes.', last_note: 'Última resposta do senhor', st_alterando: 'Em alteração', e_reworking: 'Esta decisão está sendo alterada pelo Claude. A nova versão aparecerá em Pendentes.',
       e_executed: 'Esta decisão já foi executada e não pode mais ser alterada.', e_rate: 'Muitas gravações em pouco tempo. Tente de novo em {m} min.', e_choice: 'Esta opção não existe mais nesta decisão. Abra a decisão de novo.', e_generic: 'Não foi possível salvar ({m}). O texto continua aqui.', e_code: 'Código não confirmado.',
     },
   };
   function tr(base, over) { var o = {}; Object.keys(base).forEach(function (k) { o[k] = over[k] != null ? over[k] : base[k]; }); return o; }
   T.es = tr(T.en, {
-    title_h: 'Decisiones', intro: 'Lo que tienes que decidir. Toca una decisión para abrirla.', g_pendentes: 'Pendientes', g_decididas: 'Decididas', g_executadas: 'Ejecutadas',
+    title_h: 'Decisiones', intro: 'Lo que tienes que decidir. Toca una decisión para abrirla.', g_pendentes: 'Pendientes', g_alterando: 'Cambio en curso', g_decididas: 'Decididas',
     area_all: 'Todas las áreas', a_app: 'App', a_painel: 'Panel', a_site: 'Sitio web', a_divulgacao: 'Difusión', a_outro: 'Otro', k_visual: 'Visual', k_texto: 'Texto', k_regra: 'Regla', k_outro: 'Otro',
     loading: 'Cargando las decisiones…', e_conf: 'La pestaña Decisiones aún no está activa en el servidor (falta aplicar la migración).', e_load: 'No se pudieron cargar las decisiones ({n}).', retry: 'Reintentar',
-    empty_pendentes: 'Ninguna decisión pendiente.', empty_decididas: 'Ninguna decisión esperando ejecución.', empty_executadas: 'Aún no hay decisiones ejecutadas.',
+    empty_pendentes: 'Ninguna decisión pendiente.', empty_alterando: 'Ninguna decisión en cambio.', empty_decididas: 'Aún no hay decisiones tomadas.', sub_waiting: 'Esperando ejecución', sub_executadas: 'Ejecutadas',
     back: 'Decisiones', h_question: 'Qué decidir', h_context: 'Contexto', h_said: 'Lo que dijiste', h_rec: 'Recomendación de Claude', h_pics: 'Imágenes', h_links: 'Enlaces', h_options: 'Opciones', h_decision: 'Decisión', h_note: 'Observación',
     note_ph: 'Escribe aquí lo que hay que cambiar, o cualquier observación.', approve: 'Apruebo', refuse: 'No apruebo', adjust: 'Hay que ajustar',
     save: 'Guardar', saving: 'Guardando…', need_status: 'Elige Apruebo, No apruebo o Hay que ajustar para guardar.', unsaved: 'Aún sin guardar. El texto queda en este dispositivo hasta que guardes.',
@@ -54,14 +54,14 @@
     tap_pic: 'Toca una imagen para verla en grande.', open_html: 'Abrir el diseño', open_browser: 'Abrir en el navegador', close: 'Cerrar', real_size: 'Tamaño real', fit: 'Ajustar a la pantalla',
     pic_missing: 'Imagen no disponible (el enlace caduca a los 10 minutos; abre la decisión de nuevo).',
     st_pendente: 'Pendiente', st_aprovado: 'Aprobado', st_recusado: 'No aprobado', st_ajustar: 'Hay que ajustar',
-    created: 'Creada el {d}', from: 'Origen: {s}', chosen: 'Opción elegida: {c}', no_choice: 'Ninguna opción elegida', locked: 'Esta decisión ya se ejecutó y ya no se puede cambiar.',
+    created: 'Creada el {d}', from: 'Origen: {s}', chosen: 'Opción elegida: {c}', no_choice: 'Ninguna opción elegida', locked: 'Esta decisión ya se ejecutó y ya no se puede cambiar.', reworking_since: 'Claude la está cambiando desde el {d}', reworking_hint: 'Mientras se cambia, no se puede decidir. La nueva versión aparecerá en Pendientes.', last_note: 'Tu última respuesta', st_alterando: 'En cambio', e_reworking: 'Claude está cambiando esta decisión. La nueva versión aparecerá en Pendientes.',
     e_executed: 'Esta decisión ya se ejecutó y ya no se puede cambiar.', e_rate: 'Demasiados guardados en poco tiempo. Inténtalo de nuevo en {m} min.', e_choice: 'Esta opción ya no existe en esta decisión. Abre la decisión de nuevo.', e_generic: 'No se pudo guardar ({m}). Tu texto sigue aquí.', e_code: 'Código no confirmado.',
   });
   T.fr = tr(T.en, {
-    title_h: 'Décisions', intro: 'Ce que vous devez décider. Touchez une décision pour l’ouvrir.', g_pendentes: 'En attente', g_decididas: 'Décidées', g_executadas: 'Réalisées',
+    title_h: 'Décisions', intro: 'Ce que vous devez décider. Touchez une décision pour l’ouvrir.', g_pendentes: 'En attente', g_alterando: 'Modification en cours', g_decididas: 'Décidées',
     area_all: 'Tous les domaines', a_app: 'Appli', a_painel: 'Panneau', a_site: 'Site web', a_divulgacao: 'Communication', a_outro: 'Autre', k_visual: 'Visuel', k_texto: 'Texte', k_regra: 'Règle', k_outro: 'Autre',
     loading: 'Chargement des décisions…', e_conf: 'L’onglet Décisions n’est pas encore actif sur le serveur (la migration n’a pas été appliquée).', e_load: 'Impossible de charger les décisions ({n}).', retry: 'Réessayer',
-    empty_pendentes: 'Aucune décision en attente.', empty_decididas: 'Aucune décision en attente de réalisation.', empty_executadas: 'Aucune décision réalisée pour l’instant.',
+    empty_pendentes: 'Aucune décision en attente.', empty_alterando: 'Aucune décision en cours de modification.', empty_decididas: 'Aucune décision prise pour l’instant.', sub_waiting: 'En attente de réalisation', sub_executadas: 'Réalisées',
     back: 'Décisions', h_question: 'Ce qu’il faut décider', h_context: 'Contexte', h_said: 'Ce que vous avez dit', h_rec: 'Recommandation de Claude', h_pics: 'Images', h_links: 'Liens', h_options: 'Options', h_decision: 'Décision', h_note: 'Remarque',
     note_ph: 'Écrivez ici ce qui doit changer, ou toute remarque.', approve: 'J’approuve', refuse: 'Je n’approuve pas', adjust: 'À ajuster',
     save: 'Enregistrer', saving: 'Enregistrement…', need_status: 'Choisissez J’approuve, Je n’approuve pas ou À ajuster pour enregistrer.', unsaved: 'Pas encore enregistré. Le texte reste sur cet appareil jusqu’à l’enregistrement.',
@@ -69,14 +69,14 @@
     tap_pic: 'Touchez une image pour l’agrandir.', open_html: 'Ouvrir la maquette', open_browser: 'Ouvrir dans le navigateur', close: 'Fermer', real_size: 'Taille réelle', fit: 'Ajuster à l’écran',
     pic_missing: 'Image indisponible (le lien expire après 10 minutes ; rouvrez la décision).',
     st_pendente: 'En attente', st_aprovado: 'Approuvé', st_recusado: 'Non approuvé', st_ajustar: 'À ajuster',
-    created: 'Créée le {d}', from: 'Origine : {s}', chosen: 'Option choisie : {c}', no_choice: 'Aucune option choisie', locked: 'Cette décision a été réalisée et ne peut plus être modifiée.',
+    created: 'Créée le {d}', from: 'Origine : {s}', chosen: 'Option choisie : {c}', no_choice: 'Aucune option choisie', locked: 'Cette décision a été réalisée et ne peut plus être modifiée.', reworking_since: 'En cours de modification par Claude depuis le {d}', reworking_hint: 'Pendant la modification, vous ne pouvez pas décider. La nouvelle version apparaîtra dans En attente.', last_note: 'Votre dernière réponse', st_alterando: 'En modification', e_reworking: 'Claude modifie cette décision. La nouvelle version apparaîtra dans En attente.',
     e_executed: 'Cette décision a déjà été réalisée et ne peut plus être modifiée.', e_rate: 'Trop d’enregistrements en peu de temps. Réessayez dans {m} min.', e_choice: 'Cette option n’existe plus dans cette décision. Rouvrez la décision.', e_generic: 'Impossible d’enregistrer ({m}). Votre texte est toujours là.', e_code: 'Code non confirmé.',
   });
   T.de = tr(T.en, {
-    title_h: 'Entscheidungen', intro: 'Was du entscheiden musst. Tippe auf eine Entscheidung, um sie zu öffnen.', g_pendentes: 'Offen', g_decididas: 'Entschieden', g_executadas: 'Umgesetzt',
+    title_h: 'Entscheidungen', intro: 'Was du entscheiden musst. Tippe auf eine Entscheidung, um sie zu öffnen.', g_pendentes: 'Offen', g_alterando: 'Wird geändert', g_decididas: 'Entschieden',
     area_all: 'Alle Bereiche', a_app: 'App', a_painel: 'Panel', a_site: 'Website', a_divulgacao: 'Marketing', a_outro: 'Sonstiges', k_visual: 'Visuell', k_texto: 'Text', k_regra: 'Regel', k_outro: 'Sonstiges',
     loading: 'Entscheidungen werden geladen…', e_conf: 'Der Tab Entscheidungen ist auf dem Server noch nicht aktiv (die Migration fehlt).', e_load: 'Entscheidungen konnten nicht geladen werden ({n}).', retry: 'Erneut versuchen',
-    empty_pendentes: 'Keine offene Entscheidung.', empty_decididas: 'Keine Entscheidung wartet auf die Umsetzung.', empty_executadas: 'Noch keine Entscheidung umgesetzt.',
+    empty_pendentes: 'Keine offene Entscheidung.', empty_alterando: 'Keine Entscheidung wird gerade geändert.', empty_decididas: 'Noch keine Entscheidung getroffen.', sub_waiting: 'Wartet auf Umsetzung', sub_executadas: 'Umgesetzt',
     back: 'Entscheidungen', h_question: 'Was zu entscheiden ist', h_context: 'Kontext', h_said: 'Was du gesagt hast', h_rec: 'Empfehlung von Claude', h_pics: 'Bilder', h_links: 'Links', h_options: 'Optionen', h_decision: 'Entscheidung', h_note: 'Anmerkung',
     note_ph: 'Schreib hier, was sich ändern soll, oder eine Anmerkung.', approve: 'Freigegeben', refuse: 'Nicht freigegeben', adjust: 'Muss angepasst werden',
     save: 'Speichern', saving: 'Wird gespeichert…', need_status: 'Wähle Freigegeben, Nicht freigegeben oder Muss angepasst werden, um zu speichern.', unsaved: 'Noch nicht gespeichert. Der Text bleibt bis zum Speichern auf diesem Gerät.',
@@ -84,14 +84,14 @@
     tap_pic: 'Tippe auf ein Bild, um es groß zu sehen.', open_html: 'Entwurf öffnen', open_browser: 'Im Browser öffnen', close: 'Schließen', real_size: 'Originalgröße', fit: 'An Bildschirm anpassen',
     pic_missing: 'Bild nicht verfügbar (der Link läuft nach 10 Minuten ab; öffne die Entscheidung erneut).',
     st_pendente: 'Offen', st_aprovado: 'Freigegeben', st_recusado: 'Nicht freigegeben', st_ajustar: 'Muss angepasst werden',
-    created: 'Erstellt am {d}', from: 'Quelle: {s}', chosen: 'Gewählte Option: {c}', no_choice: 'Keine Option gewählt', locked: 'Diese Entscheidung wurde umgesetzt und kann nicht mehr geändert werden.',
+    created: 'Erstellt am {d}', from: 'Quelle: {s}', chosen: 'Gewählte Option: {c}', no_choice: 'Keine Option gewählt', locked: 'Diese Entscheidung wurde umgesetzt und kann nicht mehr geändert werden.', reworking_since: 'Wird seit {d} von Claude geändert', reworking_hint: 'Während der Änderung kannst du nicht entscheiden. Die neue Version erscheint unter Offen.', last_note: 'Deine letzte Antwort', st_alterando: 'Wird geändert', e_reworking: 'Claude ändert diese Entscheidung gerade. Die neue Version erscheint unter Offen.',
     e_executed: 'Diese Entscheidung wurde bereits umgesetzt und kann nicht mehr geändert werden.', e_rate: 'Zu viele Speichervorgänge in kurzer Zeit. Versuche es in {m} Min. erneut.', e_choice: 'Diese Option gibt es in dieser Entscheidung nicht mehr. Öffne die Entscheidung erneut.', e_generic: 'Speichern fehlgeschlagen ({m}). Dein Text ist noch da.', e_code: 'Code nicht bestätigt.',
   });
   T.it = tr(T.en, {
-    title_h: 'Decisioni', intro: 'Ciò che devi decidere. Tocca una decisione per aprirla.', g_pendentes: 'In sospeso', g_decididas: 'Decise', g_executadas: 'Eseguite',
+    title_h: 'Decisioni', intro: 'Ciò che devi decidere. Tocca una decisione per aprirla.', g_pendentes: 'In sospeso', g_alterando: 'Modifica in corso', g_decididas: 'Decise',
     area_all: 'Tutte le aree', a_app: 'App', a_painel: 'Pannello', a_site: 'Sito web', a_divulgacao: 'Promozione', a_outro: 'Altro', k_visual: 'Visivo', k_texto: 'Testo', k_regra: 'Regola', k_outro: 'Altro',
     loading: 'Caricamento delle decisioni…', e_conf: 'La scheda Decisioni non è ancora attiva sul server (manca la migrazione).', e_load: 'Impossibile caricare le decisioni ({n}).', retry: 'Riprova',
-    empty_pendentes: 'Nessuna decisione in sospeso.', empty_decididas: 'Nessuna decisione in attesa di esecuzione.', empty_executadas: 'Ancora nessuna decisione eseguita.',
+    empty_pendentes: 'Nessuna decisione in sospeso.', empty_alterando: 'Nessuna decisione in modifica.', empty_decididas: 'Ancora nessuna decisione presa.', sub_waiting: 'In attesa di esecuzione', sub_executadas: 'Eseguite',
     back: 'Decisioni', h_question: 'Cosa decidere', h_context: 'Contesto', h_said: 'Cosa hai detto', h_rec: 'Raccomandazione di Claude', h_pics: 'Immagini', h_links: 'Link', h_options: 'Opzioni', h_decision: 'Decisione', h_note: 'Nota',
     note_ph: 'Scrivi qui cosa va cambiato, o qualsiasi nota.', approve: 'Approvo', refuse: 'Non approvo', adjust: 'Da modificare',
     save: 'Salva', saving: 'Salvataggio…', need_status: 'Scegli Approvo, Non approvo o Da modificare per salvare.', unsaved: 'Non ancora salvato. Il testo resta su questo dispositivo finché non salvi.',
@@ -99,12 +99,12 @@
     tap_pic: 'Tocca un’immagine per vederla in grande.', open_html: 'Apri il progetto', open_browser: 'Apri nel browser', close: 'Chiudi', real_size: 'Dimensione reale', fit: 'Adatta allo schermo',
     pic_missing: 'Immagine non disponibile (il link scade dopo 10 minuti; riapri la decisione).',
     st_pendente: 'In sospeso', st_aprovado: 'Approvato', st_recusado: 'Non approvato', st_ajustar: 'Da modificare',
-    created: 'Creata il {d}', from: 'Origine: {s}', chosen: 'Opzione scelta: {c}', no_choice: 'Nessuna opzione scelta', locked: 'Questa decisione è stata eseguita e non può più essere modificata.',
+    created: 'Creata il {d}', from: 'Origine: {s}', chosen: 'Opzione scelta: {c}', no_choice: 'Nessuna opzione scelta', locked: 'Questa decisione è stata eseguita e non può più essere modificata.', reworking_since: 'In modifica da parte di Claude dal {d}', reworking_hint: 'Durante la modifica non puoi decidere. La nuova versione apparirà in In sospeso.', last_note: 'La tua ultima risposta', st_alterando: 'In modifica', e_reworking: 'Claude sta modificando questa decisione. La nuova versione apparirà in In sospeso.',
     e_executed: 'Questa decisione è già stata eseguita e non può più essere modificata.', e_rate: 'Troppi salvataggi in poco tempo. Riprova tra {m} min.', e_choice: 'Questa opzione non esiste più in questa decisione. Riapri la decisione.', e_generic: 'Impossibile salvare ({m}). Il tuo testo è ancora qui.', e_code: 'Codice non confermato.',
   });
   window.DC_T = T;
 
-  var GROUPS = ['pendentes', 'decididas', 'executadas'];
+  var GROUPS = ['pendentes', 'alterando', 'decididas'];
   var AREAS = ['app', 'painel', 'site', 'divulgacao', 'outro'];
   var MAX_NOTE = 4000;
   var DRAFT_KEY = 'dt_adm_dc_draft_';
@@ -112,7 +112,10 @@
   function t(k, v) { var l = T[L()] ? L() : 'en'; var s = T[l][k] != null ? T[l][k] : (T.en[k] != null ? T.en[k] : k); if (v) Object.keys(v).forEach(function (p) { s = String(s).split('{' + p + '}').join(v[p]); }); return s; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function when(iso) { if (!iso) return '—'; try { return new Date(iso).toLocaleString(L(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { return String(iso); } }
-  function groupOf(r) { return r && r.executed_at ? 'executadas' : r && r.status === 'pendente' ? 'pendentes' : 'decididas'; }
+  // Founder 2026-11-24: Pendentes / Alteração em andamento / Decididas (the executed ones inside Decididas, after the waiting ones).
+  function groupOf(r) { return r && r.status === 'pendente' ? 'pendentes' : r && r.status === 'alterando' ? 'alterando' : 'decididas'; }
+  // Read only: carried out, or being changed by Claude (never decided while it changes).
+  function readOnly() { var it = DC.det; return !!(it && (it.executed_at || it.status === 'alterando')); }
   function safeUrl(u) { var s = String(u || '').trim(); return /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : null; }
   function chars(s) { return Array.from(String(s || '')).length; }
   function mob() { try { return window.DTADM.isMobile(); } catch (e) { return false; } }
@@ -161,7 +164,7 @@
   function dirty() { var it = DC.det, d = DC.draft; if (!it || !d) return false; return (d.status || null) !== (it.status === 'pendente' ? null : it.status) || (d.choice || null) !== (it.choice || null) || String(d.note || '').trim() !== String(it.note || ''); }
   function errText(x) {
     var j = x && x.j;
-    if (x && x.status === 409) return t('e_executed');
+    if (x && x.status === 409) return j && j.error === 'reworking' ? t('e_reworking') : t('e_executed');
     if (x && x.status === 429) return t('e_rate', { m: Math.max(1, Math.ceil(((j && j.retry_after) || 60) / 60)) });
     if (x && x.status === 400 && j && j.field === 'choice') return t('e_choice');
     if (x && x.status === 503 && j && j.error === 'not_configured') return t('e_conf');
@@ -193,22 +196,27 @@
 
   // ------------------------------------------------------------------ list
   function stChip(r) {
+    if (r.status === 'alterando' && !r.executed_at) return '<span class="dc-st acc">' + esc(t('st_alterando')) + '</span>';
     if (r.executed_at) return '<span class="dc-st good">' + esc(t('executed_at', { d: when(r.executed_at) })) + '</span>';
     var cls = r.status === 'aprovado' ? 'good' : r.status === 'recusado' ? 'bad' : r.status === 'ajustar' ? 'warn' : 'acc';
     return '<span class="dc-st ' + cls + '">' + esc(t('st_' + r.status)) + '</span>';
   }
   function tags(r) { return '<span class="dc-tag">' + esc(t('a_' + r.area)) + '</span><span class="dc-tag">' + esc(t('k_' + r.kind)) + '</span>'; }
   function list() {
-    var d = DC.data, c = (d && d.counts) || { pendentes: 0, decididas: 0, executadas: 0 };
+    var d = DC.data, c = (d && d.counts) || { pendentes: 0, alterando: 0, decididas: 0, executadas: 0 };
     var h = '<div class="dc-head"><h2 class="dc-h1">' + esc(t('title_h')) + '</h2><p class="dc-intro">' + esc(t('intro')) + '</p></div>';
     h += '<div class="dc-seg" role="tablist">' + GROUPS.map(function (g) { return '<button type="button" role="tab" data-a="group" data-v="' + g + '" class="' + (DC.group === g ? 'on' : '') + '" aria-selected="' + (DC.group === g) + '">' + esc(t('g_' + g)) + ' <b>' + (c[g] || 0) + '</b></button>'; }).join('') + '</div>';
     h += '<div class="dc-areas">' + [''].concat(AREAS).map(function (a) { return '<button type="button" data-a="area" data-v="' + a + '" class="' + (DC.area === a ? 'on' : '') + '" aria-pressed="' + (DC.area === a) + '">' + esc(a ? t('a_' + a) : t('area_all')) + '</button>'; }).join('') + '</div>';
     var items = ((d && d.items) || []).filter(function (r) { return r.group === DC.group && (!DC.area || r.area === DC.area); });
     if (!items.length) return h + '<div class="dc-empty">' + esc(t('empty_' + DC.group)) + '</div>';
-    h += '<div class="dc-list">' + items.map(function (r) {
-      var sub = r.executed_at ? (r.executed_note || '') : r.status !== 'pendente' ? (t('decided_on', { d: when(r.decided_at) }) + (r.choice ? ' · ' + r.choice : '')) : r.question;
+    function card(r) {
+      var sub = r.executed_at ? (r.executed_note || '') : r.status === 'alterando' ? t('reworking_since', { d: when(r.rework_at) }) : r.status !== 'pendente' ? (t('decided_on', { d: when(r.decided_at) }) + (r.choice ? ' · ' + r.choice : '')) : r.question;
       return '<button type="button" class="dc-item" data-a="open" data-v="' + esc(r.id) + '"><span class="dc-item-top">' + tags(r) + stChip(r) + '</span><span class="dc-item-t">' + esc(r.title) + '</span><span class="dc-item-q">' + esc(sub) + '</span></button>';
-    }).join('') + '</div>';
+    }
+    if (DC.group !== 'decididas') return h + '<div class="dc-list">' + items.map(card).join('') + '</div>';
+    var wait = items.filter(function (r) { return !r.executed_at; }), done = items.filter(function (r) { return !!r.executed_at; });
+    if (wait.length) h += '<h3 class="dc-sub">' + esc(t('sub_waiting')) + ' · ' + wait.length + '</h3><div class="dc-list">' + wait.map(card).join('') + '</div>';
+    if (done.length) h += '<h3 class="dc-sub">' + esc(t('sub_executadas')) + ' · ' + done.length + '</h3><div class="dc-list">' + done.map(card).join('') + '</div>';
     return h;
   }
 
@@ -219,10 +227,11 @@
     var h = '<button type="button" class="dc-back" data-a="back">‹ ' + esc(t('back')) + '</button>';
     if (DC.detErr) return h + '<div class="dc-empty">' + esc(DC.detErr) + '</div>';
     if (!it) return h + '<div class="dc-empty">' + esc(t('loading')) + '</div>';
-    var locked = !!it.executed_at;
+    var locked = readOnly(), rework = it.status === 'alterando' && !it.executed_at;
     h += '<div class="dc-meta">' + tags(it) + stChip(it) + '</div><h2 class="dc-title">' + esc(it.title) + '</h2>';
     h += '<div class="dc-small">' + esc(t('created', { d: when(it.created_at) })) + (it.source ? ' · ' + esc(t('from', { s: it.source })) : '') + '</div>';
-    if (locked) h += '<div class="dc-banner good"><b>' + esc(t('executed_at', { d: when(it.executed_at) })) + '</b>' + (it.executed_note ? ' — ' + esc(it.executed_note) : '') + '</div>';
+    if (it.executed_at) h += '<div class="dc-banner good"><b>' + esc(t('executed_at', { d: when(it.executed_at) })) + '</b>' + (it.executed_note ? ' — ' + esc(it.executed_note) : '') + '</div>';
+    else if (rework) h += '<div class="dc-banner acc"><b>' + esc(t('reworking_since', { d: when(it.rework_at) })) + '</b><br>' + esc(t('reworking_hint')) + '</div>';
     else if (it.status !== 'pendente') h += '<div class="dc-banner"><b>' + esc(t('decided_on', { d: when(it.decided_at) })) + '</b> · ' + esc(t('waiting')) + '</div>';
     h += block(t('h_question'), it.question, 'dc-q');
     h += block(t('h_context'), it.context);
@@ -240,7 +249,9 @@
     if (links.length) h += '<section class="dc-sec"><h3>' + esc(t('h_links')) + '</h3><div class="dc-links">' + links.map(function (l) { return '<button type="button" class="dc-big" data-a="ext" data-v="' + esc(l.url) + '">' + esc(l.label || l.url) + '</button>'; }).join('') + '</div></section>';
     var d = DC.draft || {};
     if (locked) {
-      h += '<section class="dc-sec"><h3>' + esc(t('h_decision')) + '</h3><div class="dc-body">' + esc(t('st_' + it.status)) + '\n' + esc(it.choice ? t('chosen', { c: it.choice }) : t('no_choice')) + (it.note ? '\n\n' + esc(it.note) : '') + '</div><div class="dc-small">' + esc(t('locked')) + '</div></section>';
+      // Being changed: his last answer (what Claude is working from); the status itself is 'alterando', so the last answer is shown as written.
+      if (rework) h += '<section class="dc-sec"><h3>' + esc(t('last_note')) + '</h3><div class="dc-body dc-said">' + esc(it.choice ? t('chosen', { c: it.choice }) : t('no_choice')) + (it.note ? '\n\n' + esc(it.note) : '') + '</div><div class="dc-small">' + esc(t('decided_on', { d: when(it.decided_at) })) + '</div></section>';
+      else h += '<section class="dc-sec"><h3>' + esc(t('h_decision')) + '</h3><div class="dc-body">' + esc(t('st_' + it.status)) + '\n' + esc(it.choice ? t('chosen', { c: it.choice }) : t('no_choice')) + (it.note ? '\n\n' + esc(it.note) : '') + '</div><div class="dc-small">' + esc(t('locked')) + '</div></section>';
       return h;
     }
     if (it.options && it.options.length) h += '<section class="dc-sec"><h3>' + esc(t('h_options')) + '</h3><div class="dc-opts" role="radiogroup">' + it.options.map(function (o, i) { var on = d.choice === o; return '<button type="button" role="radio" aria-checked="' + on + '" data-a="choice" data-v="' + i + '" class="' + (on ? 'on' : '') + '">' + esc(o) + '</button>'; }).join('') + '</div></section>';
@@ -282,7 +293,7 @@
     if (a === 'pic') { DC.box = { i: Number(v), real: false }; draw(); return; }
     if (a === 'boxclose') { DC.box = null; draw(); return; }
     if (a === 'boxsize') { if (DC.box) { DC.box.real = !DC.box.real; draw(); } return; }
-    if (!DC.det || DC.det.executed_at || !DC.draft) return;
+    if (!DC.det || readOnly() || !DC.draft) return;
     if (a === 'choice') { var o = DC.det.options[Number(v)]; DC.draft.choice = DC.draft.choice === o ? null : o; writeDraft(DC.det.id, DC.draft); draw(); return; }
     if (a === 'status') { DC.draft.status = DC.draft.status === v ? null : v; writeDraft(DC.det.id, DC.draft); draw(); return; }
     if (a === 'save') { save(); return; }
@@ -301,7 +312,7 @@
     + '.dc-tag{display:inline-block;border:1px solid var(--line);color:var(--muted);font-size:12.5px;border-radius:7px;padding:1px 8px;font-weight:600}.dc-st{display:inline-block;font-size:12.5px;border-radius:999px;padding:1px 9px;border:1px solid var(--line);color:var(--muted);font-weight:700}.dc-st.good{color:var(--good);border-color:var(--good)}.dc-st.bad{color:var(--bad);border-color:var(--bad)}.dc-st.warn{color:var(--warn);border-color:var(--warn)}.dc-st.acc{color:var(--accent);border-color:var(--accent)}'
     + '.dc-empty{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 16px;color:var(--muted);font-size:16px;text-align:center}'
     + '.dc-back{min-height:48px;font-size:16px;font-weight:700;padding:8px 16px;margin:4px 0 12px;border-radius:12px}.dc-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.dc-title{font-size:23px;line-height:1.25;text-transform:none;letter-spacing:0;color:var(--ink);margin:8px 0 4px}.dc-small{color:var(--muted);font-size:14px;margin-top:4px}'
-    + '.dc-banner{border:1px solid var(--warn);border-radius:12px;padding:12px 14px;font-size:16px;margin:12px 0 0}.dc-banner.good{border-color:var(--good)}.dc-banner b{color:var(--ink)}'
+    + '.dc-banner{border:1px solid var(--warn);border-radius:12px;padding:12px 14px;font-size:16px;margin:12px 0 0}.dc-banner.good{border-color:var(--good)}.dc-banner.acc{border-color:var(--accent)}.dc-sub{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 8px;font-weight:800}.dc-sub:first-of-type{margin-top:4px}.dc-banner b{color:var(--ink)}'
     + '.dc-sec{margin:18px 0 0;padding:0}.dc-sec h3{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:800}.dc-sec h3 label{cursor:pointer}'
     + '.dc-body{font-size:17px;line-height:1.6;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}.dc-body.dc-q{font-weight:700;border-color:var(--accent)}.dc-body.dc-said{border-left:4px solid var(--accent2);font-style:italic}.dc-body.dc-rec{border-left:4px solid var(--good)}'
     + '.dc-fig{margin:10px 0 0}.dc-fig figcaption{font-size:15px;font-weight:700;margin:0 0 6px}.dc-pic{display:block;width:100%;padding:0;border-radius:14px;overflow:hidden;background:var(--surface2)}.dc-pic img{display:block;width:100%;height:auto}'
@@ -328,7 +339,7 @@
     pending: pending,
     // Android Back (DTAdminBack): picture → decision → list.
     back: function () { if (!DC.root || !document.body.contains(DC.root)) return false; if (DC.box) { DC.box = null; draw(); return true; } if (DC.sel) { DC.sel = null; DC.det = null; draw(); return true; } return false; },
-    _state: DC, _t: t, _group: groupOf, _safeUrl: safeUrl,
+    _state: DC, _t: t, _group: groupOf, _safeUrl: safeUrl, _readOnly: readOnly, _detail: detail,
   };
   var early = document.getElementById('dc-root'); if (early && !early.innerHTML) window.DCTab.mount(early);
 })();

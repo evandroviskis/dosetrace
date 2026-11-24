@@ -1,6 +1,6 @@
 # Aba Decisões — como a sessão do Claude usa
 
-Aprovada pelo Evandro em 2026-11-24. Ele decide no painel (dosetrace.io/adm › Decisões, também no DT Admin), mesmo sem o Claude aberto; depois diz "tomei decisões no painel, veja e execute". Tabela `public.founder_decisions` (migração `supabase/migrations/20261124000000_founder_decisions.sql`), API `api/adm-decisions.js`, tela `web/adm-decisions.js`.
+Aprovada pelo Evandro em 2026-11-24. Ele decide no painel (dosetrace.io/adm › Decisões, também no DT Admin), mesmo sem o Claude aberto; depois diz "tomei decisões no painel, veja e execute". Tabela `public.founder_decisions` (migrações `supabase/migrations/20261124000000_founder_decisions.sql` e `20261124010000_founder_decisions_alterando.sql`), API `api/adm-decisions.js`, tela `web/adm-decisions.js`.
 
 Regras: escrever **tudo** o que ele precisa para decidir sem perguntar (o que decidir, a explicação completa, o que foi conversado, as palavras dele com data, a recomendação); português formal; nunca segredo, e-mail de usuário ou dado de saúde. O painel só grava `status`, `choice`, `note` e `decided_at`; o resto é da sessão, por SQL (editor SQL do Supabase ou conector MCP, como dono do banco).
 
@@ -42,6 +42,8 @@ select id, area, kind, title, status, choice, note, decided_at
  order by decided_at;
 ```
 
+Grupos no painel (Evandro, 2026-11-24): **Pendentes** (`pendente`) · **Alteração em andamento** (`alterando`, só leitura) · **Decididas** (a resposta dele; as executadas ficam dentro, depois das que aguardam execução). O número na aba conta só `pendente`.
+
 `status`: `aprovado` (Aprovo) · `recusado` (Não aprovo) · `ajustar` (Precisa ajustar; o que mudar está em `note`). `choice` = a opção escolhida (ou nulo). Histórico de cada gravação dele: `select * from public.founder_decision_events where decision_id = '<id>' order by at;`.
 
 ## 3. Marcar como executada (depois de fazer e verificar)
@@ -52,16 +54,38 @@ update public.founder_decisions
  where id = '<id>' and status <> 'pendente' and executed_at is null;
 ```
 
-Executada fica só leitura no painel (ele vê "Executado em … — nota"). Se "Precisa ajustar" gerou uma nova versão para ele decidir, crie **outra** decisão citando a anterior em `context`, e marque a anterior como executada com essa referência.
+Executada fica só leitura no painel (ele vê "Executado em … — nota").
 
-Reabrir por engano (só antes de executar): `update public.founder_decisions set status = 'pendente', choice = null, decided_at = null where id = '<id>' and executed_at is null;`
+## 4. "Precisa ajustar": alteração em andamento e nova versão
+
+Ao começar a refazer (o painel deixa de aceitar decisão nela e mostra "Em alteração pelo Claude desde …" com a última resposta dele):
+
+```sql
+update public.founder_decisions set status = 'alterando', rework_at = now()
+ where id = '<id>' and status = 'ajustar' and executed_at is null;
+```
+
+Quando a nova versão estiver pronta, volta para Pendentes com o conteúdo novo. A resposta anterior dele vai para `founder_said` (com a data), para ele ver o que pediu; o histórico completo fica em `founder_decision_events`:
+
+```sql
+update public.founder_decisions
+   set status = 'pendente', rework_at = null, decided_at = null, choice = null,
+       founder_said = coalesce(founder_said || E'\n\n', '') || 'Pedido de ajuste (' || to_char(decided_at at time zone 'America/New_York', 'YYYY-MM-DD HH24:MI') || '): ' || coalesce(note, ''),
+       note = null,
+       question = 'Nova versão: ...', context = $ctx$O que mudou e por quê.$ctx$,
+       options = '[...]'::jsonb, images = '[...]'::jsonb, links = '[...]'::jsonb
+ where id = '<id>' and status = 'alterando';
+```
+
+Reabrir por engano (só antes de executar): `update public.founder_decisions set status = 'pendente', choice = null, decided_at = null, rework_at = null where id = '<id>' and executed_at is null;`
 
 ## Aceite (2026-11-24)
 
 | # | Critério | Prova |
 |---|---|---|
 | DC1 | Mesma sessão das outras abas: sem token 401, token falso 401, não admin 403; gravar exige Origin, papel admin e código de 15 min (ou o aparelho DT Admin) | `__tests__/admDecisions.test.js` DC1 |
-| DC2 | Lista com contagem por grupo (Pendentes / Decididas / Executadas), filtro por área; uma decisão traz as imagens com link assinado de 10 min; links só https | DC2 |
+| DC2 | Lista com contagem por grupo (Pendentes / Alteração em andamento / Decididas, executadas dentro de Decididas), filtro por área; uma decisão traz as imagens com link assinado de 10 min; links só https | DC2 |
 | DC3 | Só `status`, `choice`, `note` graváveis (qualquer outro campo 400); observação até 4000 caracteres; corpo acima de 16 KB 413; executada 409; opção fora da lista 400; 60 gravações por hora 429 | DC3 |
 | DC4 | RLS ligada sem política, service_role só SELECT, gravação só pela função definer, bucket privado | DC4 + provas no fim da migração |
+| DC6 | `alterando` só pela sessão (SQL): só leitura no painel, gravação recusada (409), grupo próprio; migração separada sobre a aplicada | DC3 + DC6 |
 | DC5 | Aba no computador e no celular com o número de pendentes, 6 idiomas, tokens dos dois temas, botões de 56 px, texto 17 px, voltar do Android fecha uma camada | DC5 + `docs/evidence/decisoes/` (390 px, claro e escuro) |
