@@ -47,8 +47,10 @@ import {
   insertVial, deactivateVialsByProtocol, updateVial, getAllLogs,
   getDeletedProtocols, restoreProtocol as restoreProtocolDB, getNewestVialForProtocol,
   permanentlyDeleteProtocol, getEndedProtocols, restartEndedProtocol, getVialsForProtocol,
-  setProtocolPlannedEnd, withImmediateTransaction, doseEditContext,
+  setProtocolPlannedEnd, withImmediateTransaction, doseEditContext, getProtocolTakenLogs,
 } from '../lib/database';
+import { copperCycle, copperView } from '../lib/copperCycle';
+import { CopperFormSheet, GhkAmountSheet } from './components/CopperSheets';
 import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
 import { pastStartAsk, pastStartWrites, editStartAsk, editStartWrites } from '../lib/pastDoses';
@@ -368,6 +370,46 @@ function RowsBlock({ s, title, rows, style }) {
         )))}
       </View>
     </View>
+  );
+}
+
+// Copper this cycle (docs/specs/ghk-cu-copper.md; picture docs/design/ghk-cu-cobre-ciclo.html, approved 2026-11-24):
+// the collapsed section of a GHK-Cu, GLOW or KLOW protocol — the Taken doses of this run, the GHK-Cu in them and
+// the elemental copper (a range while the form on the label is "Não sei"). Pure arithmetic (lib/copperCycle); it
+// never says whether an amount is much or little. logs: this protocol's Taken rows (getProtocolTakenLogs);
+// onSave(id, fields): writes copper_form / ghk_cu_mg on the protocol. Nothing on any other protocol.
+function CopperSection({ p, logs, ended, name, onSave, t, s }) {
+  const { language } = useLanguage();
+  const [sheet, setSheet] = useState(null); // 'form' | 'ghk' | null
+  const model = copperCycle(p, logs);
+  if (!model) return null;
+  const v = copperView(model, p, { t, language, ended, name });
+  const open = (which) => (onSave ? () => setSheet(which) : undefined);
+  const rows = v.rows.map((r) => (r.tap ? { label: r.label, value: r.value, muted: r.muted, onPress: open(r.tap) } : r));
+  const save = (fields) => { setSheet(null); if (onSave) onSave(p.id, fields); };
+  return (
+    <CollapsibleSection style={s.blkNext} title={v.title} summary={v.summary}>
+      <RowsBlock s={s} rows={rows} style={s.blkD} />
+      {v.ask ? (
+        <View style={s.copperAsk}>
+          <Text style={s.copperAskText}>{v.ask.line}</Text>
+          {v.ask.button && onSave ? (
+            <TouchableOpacity style={s.obtn2} onPress={() => setSheet('ghk')} accessibilityRole="button">
+              <Text style={s.obtn2Text}>{v.ask.button}</Text>
+            </TouchableOpacity>
+          ) : null}
+          <Text style={s.copperWhyText}>{v.ask.note}</Text>
+        </View>
+      ) : (
+        <View style={s.copperWhy}>
+          <Text style={s.copperWhyHead}>{t('copper_how')}</Text>
+          <Text style={s.copperWhyText}>{v.why}</Text>
+          <Text style={s.copperWhyText}>{v.closing}</Text>
+        </View>
+      )}
+      <CopperFormSheet visible={sheet === 'form'} current={p.copper_form || null} onSave={save} onClose={() => setSheet(null)} t={t} language={language} />
+      <GhkAmountSheet visible={sheet === 'ghk'} name={name} totalMg={model.totalMg} current={model.vialGhkMg} onSave={save} onClose={() => setSheet(null)} t={t} language={language} />
+    </CollapsibleSection>
   );
 }
 
@@ -806,7 +848,7 @@ export function noteDraftKey(id) {
 // protocol with no mixed vial) leaves out the syringe and the vial block (FR-3, lib/supplyNotice.js).
 // A-121 (option A, docs/design/a121-telas/4-*): onEndDate(p) — the "Termina em" row under Schedule & reminders on
 // every ACTIVE protocol (the planned end in the app language's format, or "Sem data"); null = no row.
-export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null, onEndProtocol = null, onBlockY = null, onRestart = null }) {
+export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, onRefill, onRefillVial, onEditVial, onZoom, draft, onDraft, t, withoutVial = false, notice = null, onNoteFocus = null, onEndDate = null, onEndProtocol = null, onBlockY = null, onRestart = null, copperLogs = null, onCopperSave = null }) {
   const { colors: c } = useTheme();
   const { language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -944,6 +986,9 @@ export function ProtocolDetail({ p, vial, openEdit, deleteProtocol, onSaveNote, 
           <RowsBlock s={s} rows={doseRows} />
         </CollapsibleSection>
       ) : null}
+
+      {/* Copper this cycle (docs/specs/ghk-cu-copper.md CU-1): GHK-Cu, GLOW and KLOW only, closed on arrival. */}
+      {copperLogs ? <CopperSection p={p} logs={copperLogs} ended={ended} name={name} onSave={onCopperSave} t={t} s={s} /> : null}
 
       {ended ? (p.note ? (
         <View style={[s.blkD, s.blkNext]}>
@@ -2680,6 +2725,13 @@ export default function ProtocolsScreen() {
     requestSync();
   }
 
+  // Copper this cycle (CU-6, CU-8): the form on the label / the blend's GHK-Cu, saved on the protocol (synced).
+  function saveCopper(id, fields) {
+    updateProtocol(id, fields);
+    fetchProtocols();
+    requestSync();
+  }
+
   // "New vial" (A-132 screen 3, AD-80 screen 5): the "New vial" window over the protocol page — a
   // reconstituted vial asks its mix date, a ready-to-use vial the new box's month/year (blank
   // allowed). Cancel changes nothing; Start new = the one new-vial write (lib/newVial
@@ -2807,6 +2859,7 @@ export default function ProtocolsScreen() {
       draft={getDraft(noteDraftKey(p.id))}
       onDraft={(id, text) => { if (inBook && text != null) claimBookProtocol(id); onNoteDraft(id, text); }}
       onNoteFocus={detailLift.liftField}
+      copperLogs={getProtocolTakenLogs(p.id)} onCopperSave={saveCopper}
       t={t}
     />
   );
@@ -4256,6 +4309,12 @@ const protocolsGraduated = (c) => ({
   rwSep: { borderTopWidth: 1, borderTopColor: c.line },
   rwWithNote: { minHeight: 0, paddingBottom: 4 },
   rwNote: { paddingBottom: 12 },
+  // Copper this cycle (picture .cs-b .rows / .why / .ask): rows flush inside the section, then the explanation.
+  copperWhy: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 12, paddingHorizontal: 16, paddingBottom: 16, gap: 6 },
+  copperWhyHead: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: c.ink2 },
+  copperWhyText: { fontSize: 13, lineHeight: 18, color: c.ink3 },
+  copperAsk: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 14, paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
+  copperAskText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   rwKey: { fontSize: 17, color: c.ink2, flexShrink: 1 },
   // A-141 (1): the value keeps its own width (a short number never breaks) and is capped
   // at 60% of the row, where a long value wraps at its spaces; the label takes the rest.
