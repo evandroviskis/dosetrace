@@ -1,0 +1,359 @@
+<title>Jejum, refeição, treino</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: four parts (Today after "Concluir", the dose sheet, the Dose log row, the adherence report).
+   Each part: one row per theme, three phones side by side (App hoje | Opção A | Opção B).
+   The page follows the viewer's theme; the phones carry the app's own tokens (lib/theme.js LIGHT / DARK). */
+:root{
+  --page:#F1F2EF;--pfg:#15171A;--pmut:#5B6066;--pline:#D5D8D2;--rec:#17623F;
+  --sans:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;--rec:#62C597;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;--rec:#62C597;color-scheme:dark}
+
+/* app tokens, copied from lib/theme.js */
+.lt{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--tick:#71766F;
+  --ink:#111315;--ink2:#454A4F;--ink3:#53585D;--onInk:#FFFFFF;--data:#2350D8;--act:#111315;--onAct:#FFFFFF;
+  --attention:#7E4A00;--risk:#9E1F19;--ok:#17623F;--toast:#111315;--toastText:#FFFFFF;--scrim:rgba(0,0,0,0.45);
+  --p1:#C8643A;--p2:#2E9C78;--p3:#6E5BB8;--p4:#B0873A}
+.dk{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--tick:#747A7F;
+  --ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--onInk:#121416;--data:#8AA8FF;--act:#EEEFEB;--onAct:#121416;
+  --attention:#E3A54E;--risk:#F08A80;--ok:#62C597;--toast:#EEEFEB;--toastText:#121416;--scrim:rgba(0,0,0,0.45);
+  --p1:#E8875C;--p2:#4CC49B;--p3:#9C8BE6;--p4:#D9AE5E}
+
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--pfg);font-family:var(--sans);margin:0;
+  padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-size:24px;margin:0 0 8px;text-wrap:balance;letter-spacing:-.01em}
+p.lead{color:var(--pmut);max-width:72ch;margin:0 0 8px;line-height:1.5;font-size:15px}
+h2{font-size:19px;margin:40px 0 6px;text-wrap:balance}
+h3{font-size:13px;font-weight:600;color:var(--pmut);margin:18px 0 10px;text-transform:uppercase;letter-spacing:.06em}
+.rec{font-size:11px;font-weight:700;color:var(--rec);border:1px solid var(--rec);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle;letter-spacing:.04em;white-space:nowrap}
+.row{display:flex;gap:20px;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0;width:300px;max-width:100%}
+.cap{font-size:13px;color:var(--pmut);line-height:1.4;min-height:72px}
+.cap b{color:var(--pfg);font-weight:600}
+
+/* phone */
+.ph{width:300px;max-width:100%;height:600px;background:var(--ground);border-radius:30px;border:1px solid var(--pline);
+  overflow:hidden;color:var(--ink);position:relative;font-family:var(--sans);display:flex;flex-direction:column}
+.ph.tall{height:640px}
+.scr{padding:14px 13px 0;flex:1;min-height:0;overflow:hidden;position:relative}
+.fade::after{content:"";position:absolute;left:0;right:0;bottom:0;height:36px;background:linear-gradient(transparent,var(--ground))}
+
+/* Today (screens/TodayScreen.js todayV21Styles) */
+.t-date{font-size:12px;color:var(--ink2)}
+.t-title{font-size:27px;font-weight:700;letter-spacing:-.6px;margin:1px 0 14px}
+.lab{display:flex;justify-content:space-between;align-items:baseline;padding:0 3px;margin:0 0 7px}
+.lab b{font-size:13.5px;font-weight:600}.lab span{font-size:12px;font-weight:500;color:var(--ink3);font-variant-numeric:tabular-nums}
+.sublab{font-size:12px;font-weight:600;color:var(--ink2);padding:0 3px;margin:2px 0 6px;display:flex;justify-content:space-between}
+.sublab span{color:var(--ink3);font-weight:500}
+.dose{background:var(--raised);border-radius:19px;padding:14px 14px 12px;margin-bottom:10px;display:flex;flex-direction:column;gap:11px}
+.dtop{display:flex;gap:9px;align-items:flex-start}
+.ddot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
+.dinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dname{font-size:16px;font-weight:700;letter-spacing:-.15px}
+.damt{font-family:var(--mono);font-weight:500;font-size:12.5px;letter-spacing:-.25px}
+.dsub{font-size:12px;color:var(--ink2)}
+.dright{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.dtime{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.due{display:flex;align-items:center;gap:5px;min-height:19px;padding:0 7px;border-radius:10px;border:1px solid var(--attention);font-size:9.5px;font-weight:700;color:var(--attention)}
+.due i{width:5px;height:5px;border-radius:50%;background:var(--attention)}
+.acts{display:flex;gap:8px}
+.bS,.bA{flex:1;min-height:41px;border-radius:21px;display:grid;place-items:center;font-size:13.5px;font-weight:700}
+.bS{background:var(--well);color:var(--ink)}.bA{background:var(--act);color:var(--onAct);flex:2}
+.list{background:var(--raised);border-radius:17px;padding:0 12px;margin-bottom:12px}
+.lrow{display:flex;align-items:center;gap:9px;min-height:44px;padding:8px 0}
+.lrow+.lrow{border-top:1px solid var(--line)}
+.lrow .main{flex:1;min-width:0}
+.lrow .nm{font-size:13px;font-weight:500}
+.lrow .sm{font-size:10.5px;color:var(--ink2);margin-top:1px;font-variant-numeric:tabular-nums}
+.mini{font-size:10.5px;font-weight:600;border:1px solid var(--line);border-radius:12px;padding:5px 9px}
+.tdot{width:7px;height:7px;border-radius:50%;flex:none;margin-left:4px}
+.thead{display:flex;align-items:center;gap:9px;min-height:38px;padding:7px 0}
+.thead b{flex:1;font-size:13.5px;font-weight:600}
+.trow{display:flex;align-items:flex-start;gap:9px;padding:9px 0;border-top:1px solid var(--line)}
+.trow .tdot{margin-top:5px}
+.trow .main{flex:1;min-width:0}
+.trow .nm{font-size:13.5px}
+.trow .when{font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tagline{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--ink2);margin-top:3px}
+.tagline svg{width:11px;height:11px;color:var(--ink3);flex:none}
+.chev{width:9px;height:9px;color:var(--tick);flex:none;margin-top:3px}
+.toast{position:absolute;left:10px;right:10px;bottom:12px;background:var(--toast);color:var(--toastText);border-radius:14px;padding:11px 14px;display:flex;align-items:center;gap:14px;font-size:13px;z-index:5}
+.toast span{flex:1;line-height:1.3}.toast u{font-weight:700;text-underline-offset:2px}
+.tapx{outline:2px dashed var(--attention);outline-offset:2px}
+
+/* Dose log (screens/LogScreen.js makeStyles) */
+.nav{display:flex;justify-content:space-between;align-items:center;min-height:34px}
+.nav .bk{font-size:13.5px}
+.nav .pl{display:flex;align-items:center;gap:5px;min-height:28px;border-radius:14px;padding:0 11px;border:1px solid var(--line);font-size:10.5px}
+.l-title{font-size:26px;font-weight:600;letter-spacing:-.55px;margin:3px 3px 12px}
+.trio{display:flex;gap:7px;padding:0 3px;margin-bottom:16px}
+.trio div{flex:1}
+.trio b{display:block;font-size:26px;font-weight:300;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+.trio span{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:500;color:var(--ink2)}
+.sd{width:6px;height:6px;border-radius:50%;display:inline-block;flex:none}
+.grp{display:flex;justify-content:space-between;align-items:baseline;padding:0 3px;margin-bottom:6px}
+.grp b{font-size:13.5px;font-weight:600}.grp span{font-size:10.5px;color:var(--ink2)}
+.day{background:var(--raised);border-radius:17px;padding:0 12px;margin-bottom:13px}
+.drow{display:flex;align-items:center;gap:9px;min-height:44px;padding:8px 0}
+.drow+.drow{border-top:1px solid var(--line)}
+.drow .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.drow .nmr{display:flex;align-items:center;gap:6px;font-size:13.5px}
+.drow .nmr svg{width:12px;height:12px;color:var(--ink2);flex:none}
+.drow .det{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink2)}
+.drow .det svg{width:10px;height:10px;color:var(--ink3);flex:none}
+.drow .rt{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.drow .rt .tm{font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.drow .rt .st{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--ok)}
+.drow .rt .st i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.newtag{color:var(--ink)}
+
+/* the dose sheet (LogScreen doseSheet, kvRow, changeSite, dangerBtn) */
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:3}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--raised);border-radius:18px 18px 0 0;padding:14px 14px 18px;z-index:4;display:flex;flex-direction:column;gap:9px}
+.shead{display:flex;justify-content:space-between;align-items:center;min-height:34px}
+.shead b{font-size:17.5px;font-weight:700;letter-spacing:-.25px}.shead span{font-size:13.5px;font-weight:600}
+.kv{display:flex;justify-content:space-between;align-items:center;min-height:34px;border-bottom:1px solid var(--line);font-size:12px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--ink2)}.kv .v{font-weight:500}
+.chg{display:flex;justify-content:space-between;align-items:center;min-height:38px;border-radius:11px;background:var(--well);padding:0 11px;font-size:12.5px}
+.chg svg{width:9px;height:9px;color:var(--ink3)}
+.danger{min-height:36px;display:grid;place-items:center;font-size:13.5px;font-weight:600;color:var(--risk)}
+/* NEW: the optional marks — the protocol form's pills (ProtocolsScreen pill / pillOn) */
+.mk{display:flex;flex-direction:column;gap:7px;padding:2px 0 3px}
+.mkh{display:flex;justify-content:space-between;align-items:baseline}
+.mkh b{font-size:12px;font-weight:500;color:var(--ink2)}.mkh span{font-size:10.5px;color:var(--ink3)}
+.pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{min-height:28px;border-radius:14px;padding:0 9px;border:1px solid var(--line);display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink2)}
+.pill.on{border:1.5px solid var(--ink);color:var(--ink);font-weight:600;padding:0 8.5px}
+.pill svg{width:10px;height:10px}
+.rep{display:flex;align-items:center;gap:10px;border-radius:11px;background:var(--well);padding:8px 11px}
+.rep .tx{flex:1;min-width:0}
+.rep .tx b{display:block;font-size:12.5px;font-weight:500}
+.rep .tx span{display:block;font-size:10.5px;color:var(--ink2);line-height:1.35;margin-top:2px}
+.sw{width:40px;height:24px;border-radius:12px;background:var(--line);padding:2px;flex:none;display:flex}
+.sw i{width:20px;height:20px;border-radius:50%;background:var(--raised);display:block}
+.sw.on{background:var(--ink);justify-content:flex-end}
+.hl{box-shadow:0 0 0 2px var(--data);border-radius:12px}
+
+/* report preview (SettingsScreen modal, reportPaper / reportText) */
+.mnav{display:flex;justify-content:space-between;align-items:center;min-height:36px;padding:0 2px}
+.mnav span{font-size:13px;min-width:46px}.mnav b{font-size:13.5px;font-weight:600}
+.intro{font-size:12px;color:var(--ink2);line-height:1.4;margin:8px 2px 10px}
+.paper{background:var(--well);border-radius:11px;padding:12px;font-family:var(--mono);font-weight:500;font-size:9.4px;line-height:1.55;white-space:pre-wrap;color:var(--ink)}
+.paper .nw{background:color-mix(in srgb,var(--data) 16%,transparent);border-radius:3px}
+.share{position:absolute;left:13px;right:13px;bottom:14px;min-height:41px;border-radius:21px;background:var(--act);color:var(--onAct);display:grid;place-items:center;font-size:13.5px;font-weight:700;z-index:2}
+
+/* notes */
+.notes{max-width:78ch;color:var(--pmut);font-size:14.5px;line-height:1.55;margin-top:18px}
+.notes li{margin-bottom:7px}.notes b{color:var(--pfg)}
+.box{border:1px solid var(--pline);border-radius:14px;padding:14px 18px;max-width:78ch;margin-top:14px}
+.box p{margin:0 0 8px;font-size:14.5px;line-height:1.55;color:var(--pmut)}.box p:last-child{margin:0}
+.box b{color:var(--pfg)}
+.ask{font-weight:600;font-size:16px;margin-top:22px;max-width:78ch}
+@media (max-width:660px){.col{width:100%}.ph{margin:0 auto}}
+</style>
+
+<div class="wrap">
+<h1>Marcar a dose como "Em jejum", "Com refeição" ou "Perto do treino"</h1>
+<p class="lead">Aprovado em 11/11 ("Ok para as duas ideias"). A marca é opcional: concluir a dose continua com um toque, no Hoje e na notificação, sem nenhuma pergunta nova. Quem quiser marca a dose depois, na folha da dose. A marca aparece no Registro de doses e no Relatório de adesão. O app só guarda o que a pessoa marcou: não diz qual é melhor e não compara.</p>
+<p class="lead">Exemplo: a pessoa toma L-Carnitina em jejum, antes do treino, todo dia às 07:00; Berberina no almoço; Tesamorelina à noite; e Melatonina sem marcar nada.</p>
+
+<div id="out"></div>
+
+<h2>Regras das duas opções</h2>
+<ol class="notes">
+<li><b>O caminho padrão não muda.</b> "Concluir" no Hoje, "Marcar como concluída" na notificação, a pergunta de "Mais tarde hoje" ("Sim, concluí agora"), a pergunta do local da aplicação e "Desfazer" funcionam exatamente como hoje. Nenhuma marca vem escolhida.</li>
+<li><b>Onde se marca:</b> na folha da dose, aberta pelo Registro de doses (no Fold, a página esquerda) e, novo, também tocando na dose em "Doses concluídas" no Hoje. Salva no toque; "Concluído" fecha.</li>
+<li><b>"Em jejum" e "Com refeição" não andam juntas</b> (tocar em uma desmarca a outra). "Perto do treino" combina com qualquer uma. Tocar de novo tira a marca.</li>
+<li><b>Só em dose concluída.</b> Pulada, perdida ou "Não houve dose" não têm marca. As doses informadas de uma vez ("Desde quando você usa…", período sem registro) não recebem marca.</li>
+<li><b>Corrigir depois:</b> qualquer dose antiga pode ser marcada ou desmarcada no Registro. "Alterar horário", "Alterar dose" e a correção "Desde quando você usa {nova dose}?" nunca mexem na marca. "Desfazer" apaga a dose junto com a marca.</li>
+<li><b>Onde aparece:</b> uma linha a mais na dose do Registro de doses e de "Doses concluídas"; no Relatório de adesão, uma linha por protocolo só quando houver alguma marca nos 30 dias; e em "Baixar meus dados". Nunca na curva Dose no corpo, nunca nos exames. Quem não marca nunca vê nada a mais.</li>
+<li><b>Convive com "Anotar o que você notou"</b> (desenho dose-notes.html, ainda aguardando o senhor): seria outra linha na mesma folha. A marca diz quando a dose foi tomada; a anotação diz o que a pessoa sentiu.</li>
+</ol>
+
+<h2>A diferença entre A e B</h2>
+<div class="box">
+<p><b>A: marcar só quando quiser.</b> Cada marca é feita na dose, na folha. Simples e sempre conferida pela pessoa naquele dia. O custo: quem toma em jejum todo dia precisa abrir cada dose (3 toques). Na prática, depois de alguns dias a pessoa para, e a linha do relatório fica incompleta.</p>
+<p><b>B: A + "Repetir nas próximas doses"</b> (desligado até a pessoa ligar, um por protocolo). Ligado, cada dose concluída daquele protocolo já sai com a mesma marca, no Hoje, na notificação, em "Mais tarde hoje" e em "Pendentes de ontem". O aviso diz isso na hora ("Dose registrada · Em jejum · Perto do treino"), como hoje já diz "Local salvo · Abdome, esquerda". Num dia diferente, ela abre a dose e troca. O custo: pela notificação não há aviso, então a marca é gravada sem a pessoa ver (aparece no Registro); e um campo a mais guardado no protocolo.</p>
+<p>Minha recomendação: <b>B</b>. A marca só serve se for regular, e quem toma em jejum todo dia é justamente quem mais se importa com isso. A repetição só existe porque a própria pessoa ligou.</p>
+</div>
+
+<h2>O que muda nos dados</h2>
+<div class="box">
+<p><b>Nas duas:</b> uma coluna nova na tabela das doses (dose_logs), no celular e na nuvem, sincronizada como as outras. Precisa de uma migração no Supabase (só acrescenta a coluna, sem mexer no que existe; publicar pede o "pode" do senhor). Uma versão antiga do app ignora a coluna e não apaga a marca. A coluna antiga "pre_tags", que existe na nuvem e não é usada, não será reaproveitada: o conteúdo antigo dela é desconhecido.</p>
+<p><b>Só na B:</b> mais uma coluna no protocolo (protocols), com a marca que se repete.</p>
+<p>A política de privacidade lista os dados de cada dose; entra "jejum, refeição ou treino" nessa lista, nos 6 idiomas.</p>
+</div>
+
+<p class="ask">Qual o senhor prefere: A ou B?</p>
+</div>
+
+<script>
+const S={
+  chev:'<svg class="chev" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.8L6.8 5 3.5 8.2"/></svg>',
+  chevUp:'<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink3)"><path d="M2.5 7.8L6 4.3l3.5 3.5"/></svg>',
+  check:'<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ok)"><circle cx="8" cy="8" r="6.6"/><path d="M5 8.2l2 2 4-4.3"/></svg>',
+  tick:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 6.3l2.4 2.3 4.8-5"/></svg>',
+  /* new monoline glyph for the mark line (added to assets/feature-icons in the FeatureIcon style) */
+  tag:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.6V3.2c0-.4.3-.7.7-.7h5.4l4.9 4.9a1 1 0 010 1.4l-4.1 4.1a1 1 0 01-1.4 0L2.5 8.6z"/><circle cx="5.6" cy="5.6" r="1"/></svg>',
+  pin:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.5s4.5-4.3 4.5-8a4.5 4.5 0 00-9 0c0 3.7 4.5 8 4.5 8z"/><circle cx="8" cy="6.5" r="1.6"/></svg>',
+  vial:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1.8h5M6.3 1.8v2.4h3.4V1.8M5.2 4.2h5.6v9a1 1 0 01-1 1H6.2a1 1 0 01-1-1v-9zM5.2 8h5.6"/></svg>',
+  caps:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.8" y="5.5" width="12.4" height="5" rx="2.5" transform="rotate(-35 8 8)"/><path d="M6.3 10.6l3.5-5"/></svg>',
+  curve:'<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2v12h12"/><path d="M4 11l2.5-5 2.5 3.5 2-4 2 3.5"/></svg>'
+};
+const TAG=(txt,cls='')=>`<div class="tagline ${cls}">${S.tag}<span>${txt}</span></div>`;
+
+/* ---------- 1. Today, right after "Concluir" ---------- */
+function today(v){
+  const tagged = v==='B';
+  const opens = v!=='hoje';
+  return `<div class="scr">
+    <div class="t-date">Terça-feira, 24 de novembro</div>
+    <div class="t-title">Hoje</div>
+    <div class="lab"><b>Doses</b><span>1 de 4</span></div>
+    <div class="sublab">Agora<span>1</span></div>
+    <div class="dose">
+      <div class="dtop"><i class="ddot" style="background:var(--p2)"></i>
+        <div class="dinfo"><div class="dname">Berberina</div><div class="damt">500 mg</div><div class="dsub">1 comprimido · todo dia</div></div>
+        <div class="dright"><span class="dtime">07:30</span><span class="due"><i></i>Pendente</span></div></div>
+      <div class="acts"><div class="bS">Pular</div><div class="bA">Concluir</div></div>
+    </div>
+    <div class="sublab">Mais tarde hoje<span>2</span></div>
+    <div class="list"><div class="lrow"><i class="tdot" style="background:var(--p3)"></i><div class="main"><div class="nm">Tesamorelina · 22:00</div><div class="sm">1 mg · em 14 h 58 min</div></div><span class="mini">Concluir</span></div><div class="lrow"><i class="tdot" style="background:var(--p4)"></i><div class="main"><div class="nm">Melatonina · 22:30</div><div class="sm">3 mg · em 15 h 28 min</div></div><span class="mini">Concluir</span></div></div>
+    <div class="list">
+      <div class="thead">${S.check}<b>Doses concluídas</b>${S.chevUp}</div>
+      <div class="trow${opens?' ':''}"><i class="tdot" style="background:var(--p1)"></i>
+        <div class="main"><div class="nm">L-Carnitina</div>${tagged?TAG('Em jejum · Perto do treino','newtag'):''}</div>
+        <span class="when">07:02</span>${opens?S.chev:''}</div>
+    </div>
+  </div>
+  <div class="toast"><span>${tagged?'Dose registrada · Em jejum · Perto do treino':'Dose registrada'}</span><u>Desfazer</u></div>`;
+}
+
+/* ---------- 2. The dose sheet ---------- */
+function sheetBg(){
+  return `<div class="scr"><div class="nav"><span class="bk">‹ Hoje</span><span class="pl">${S.curve} Dose no corpo</span></div>
+  <div class="l-title">Registro de doses</div>
+  <div class="trio"><div><b>41</b><span><i class="sd" style="background:var(--ok)"></i>Concluídas</span></div><div><b>2</b><span><i class="sd" style="background:var(--attention)"></i>Puladas</span></div><div><b>1</b><span><i class="sd" style="background:var(--risk)"></i>Perdidas</span></div></div>
+  <div class="grp"><b>Hoje</b><span>1 dose</span></div>
+  <div class="day"><div class="drow"><div class="info"><div class="nmr">${S.caps}L-Carnitina</div></div><div class="rt"><span class="tm">07:02</span><span class="st"><i></i>Dose concluída</span></div></div></div>
+  </div>`;
+}
+function sheet(v){
+  const marks = v==='hoje' ? '' : `
+    <div class="mk">
+      <div class="mkh"><b>Jejum, refeição ou treino</b><span>Opcional</span></div>
+      <div class="pills">
+        <span class="pill on">${S.tick}Em jejum</span>
+        <span class="pill">Com refeição</span>
+        <span class="pill on">${S.tick}Perto do treino</span>
+      </div>
+    </div>`;
+  const repeat = v==='B' ? `
+    <div class="rep"><div class="tx"><b>Repetir nas próximas doses</b><span>Cada dose concluída de L-Carnitina já sai com estas marcas. Você pode trocar ou tirar em qualquer dose.</span></div><span class="sw on"><i></i></span></div>` : '';
+  return sheetBg()+`<div class="scrim"></div><div class="sheet">
+    <div class="shead"><b>L-Carnitina</b><span>Concluído</span></div>
+    <div><div class="kv"><span class="k">Status</span><span class="v">Dose concluída</span></div>
+      <div class="kv"><span class="k">Dose</span><span class="v">2 cápsulas</span></div>
+      <div class="kv"><span class="k">Quando</span><span class="v">Hoje, 07:02</span></div></div>
+    ${marks}${repeat}
+    <div class="chg"><span>Alterar horário</span>${S.chev}</div>
+    <div class="chg"><span>Alterar dose</span>${S.chev}</div>
+    <div class="danger">Excluir esta dose</div>
+  </div>`;
+}
+
+/* ---------- 3. The Dose log rows ---------- */
+function log(v){
+  const t = v!=='hoje';
+  const row=(icon,name,det,tag,time)=>`<div class="drow"><div class="info"><div class="nmr">${icon}${name}</div>${det?`<div class="det">${S.pin}<span>${det}</span></div>`:''}${t&&tag?`<div class="det newtag">${S.tag}<span>${tag}</span></div>`:''}</div><div class="rt"><span class="tm">${time}</span><span class="st"><i></i>Dose concluída</span></div>${S.chev}</div>`;
+  return `<div class="scr fade"><div class="nav"><span class="bk">‹ Hoje</span><span class="pl">${S.curve} Dose no corpo</span></div>
+  <div class="l-title">Registro de doses</div>
+  <div class="trio"><div><b>41</b><span><i class="sd" style="background:var(--ok)"></i>Concluídas</span></div><div><b>2</b><span><i class="sd" style="background:var(--attention)"></i>Puladas</span></div><div><b>1</b><span><i class="sd" style="background:var(--risk)"></i>Perdidas</span></div></div>
+  <div class="grp"><b>Hoje</b><span>1 dose</span></div>
+  <div class="day">${row(S.caps,'L-Carnitina',null,'Em jejum · Perto do treino','07:02')}</div>
+  <div class="grp"><b>Ontem</b><span>4 doses</span></div>
+  <div class="day">
+    ${row(S.caps,'Melatonina',null,null,'22:31')}
+    ${row(S.vial,'Tesamorelina','Abdome, esquerda','Em jejum','22:04')}
+    ${row(S.caps,'Berberina',null,'Com refeição','12:41')}
+    ${row(S.caps,'L-Carnitina',null,'Em jejum · Perto do treino','07:05')}
+  </div></div>`;
+}
+
+/* ---------- 4. The adherence report preview ---------- */
+function report(v){
+  const t = v!=='hoje';
+  const nw=(s)=>t?`<span class="nw">${s}</span>\n`:'';
+  const txt =
+`RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────
+Usuário: Marina Costa
+Período: 26 de out. – 24 de nov. de 2026 (30 dias)
+Adesão geral: 96%
+Protocolos ativos: 4
+Total de doses registradas: 118
+────────────────────────────
+
+L-Carnitina
+  Dose: 2 cápsulas · Todo dia
+  Concluídas: 29 · Puladas: 1 · Perdidas: 0 · Adesão: 97%
+${nw('  Em jejum: 27 · Perto do treino: 18 · Sem marca: 2')}  Sequência atual: 12 doses sem falhar
+
+Berberina
+  Dose: 500 mg · Todo dia
+  Concluídas: 28 · Puladas: 1 · Perdidas: 1 · Adesão: 93%
+${nw('  Com refeição: 25 · Sem marca: 3')}  Sequência atual: 9 doses sem falhar
+
+Tesamorelina
+  Dose: 1 mg · Todo dia
+  Concluídas: 30 · Puladas: 0 · Perdidas: 0 · Adesão: 100%
+${nw('  Em jejum: 30')}  Sequência atual: 30 doses sem falhar
+
+Melatonina
+  Dose: 3 mg · Todo dia
+  Concluídas: 29 · Puladas: 0 · Perdidas: 1 · Adesão: 97%
+  Sequência atual: 14 doses sem falhar`;
+  return `<div class="scr fade"><div class="mnav"><span>Cancelar</span><b>Relatório de adesão</b><span></span></div>
+    <div class="intro">É exatamente isto que o seu profissional de saúde vai receber.</div>
+    <div class="paper">${txt}</div></div><div style="position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--ground);z-index:1"></div><div class="share">Compartilhar</div>`;
+}
+
+const parts=[
+  {h:'1. Hoje, logo depois de tocar em Concluir', lead:'Às 07:02 a pessoa tocou em Concluir na L-Carnitina. Um toque, nenhuma pergunta, nas três colunas. Muda só o que aparece depois.', f:today, tall:false,
+   caps:{hoje:'<b>App hoje</b>: o aviso "Dose registrada · Desfazer" e a dose em Doses concluídas (a linha não abre nada).',
+         A:'<b>A</b>: igual a hoje. A linha da dose em Doses concluídas passa a abrir a folha da dose (seta).',
+         B:'<b>B</b> (repetir ligado na L-Carnitina): a dose já sai marcada e o aviso diz quais marcas foram gravadas.'}},
+  {h:'2. A folha da dose (Registro de doses, ou a dose em Doses concluídas)', lead:'A mesma folha de hoje, com um bloco a mais entre os dados da dose e "Alterar horário". Pílulas iguais às do formulário do protocolo. Nenhuma vem marcada.', f:sheet, tall:true,
+   caps:{hoje:'<b>App hoje</b>: Status, Dose, Quando, Alterar horário, Alterar dose, Excluir.',
+         A:'<b>A</b>: "Jejum, refeição ou treino", opcional. Aqui com Em jejum e Perto do treino marcados.',
+         B:'<b>B</b>: o mesmo, e "Repetir nas próximas doses" aparece depois da primeira marca, desligado até ela ligar.'}},
+  {h:'3. Registro de doses: a linha de cada dose', lead:'A marca entra como uma linha discreta, igual à do local da aplicação. A Melatonina, sem marca, fica exatamente como hoje.', f:log, tall:false,
+   caps:{hoje:'<b>App hoje</b>: nome, local (se for injeção), horário e status.',
+         A:'<b>A</b> e <b>B</b>: a mesma linha, com as marcas que a pessoa fez.',
+         B:'<b>B</b>: igual à A. Uma marca repetida aparece igual a uma marcada à mão; a pessoa a ligou.'}},
+  {h:'4. Relatório de adesão (Ajustes)', lead:'Uma linha por protocolo, só quando houver marca nos 30 dias. Só contagem, no mesmo formato de "Concluídas: · Puladas:". Uma dose pode ter duas marcas.', f:report, tall:true,
+   caps:{hoje:'<b>App hoje</b>: sem linha de marcas.',
+         A:'<b>A</b>: a linha nova em destaque (o destaque é só neste desenho).',
+         B:'<b>B</b>: igual à A; com a repetição, a linha tende a ficar completa.'}}
+];
+
+let h='';
+for(const p of parts){
+  h+=`<h2>${p.h}</h2><p class="lead">${p.lead}</p>`;
+  for(const [cls,label] of [['lt','Tema claro'],['dk','Tema escuro']]){
+    h+=`<h3>${label}</h3><div class="row ${cls}">`+
+      [['hoje','App hoje'],['A','Opção A'],['B','Opção B']].map(([v])=>`<div class="col"><div class="cap">${cls==='lt'?p.caps[v]:(v==='hoje'?'<b>App hoje</b>':v==='A'?'<b>A</b>':'<b>B</b> <span class="rec">MINHA RECOMENDAÇÃO</span>')}</div><div class="ph${p.tall?' tall':''}">${p.f(v)}</div></div>`).join('')+
+    `</div>`;
+  }
+}
+document.getElementById('out').innerHTML=h;
+</script>
