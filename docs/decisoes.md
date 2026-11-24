@@ -1,0 +1,67 @@
+# Aba Decisões — como a sessão do Claude usa
+
+Aprovada pelo Evandro em 2026-11-24. Ele decide no painel (dosetrace.io/adm › Decisões, também no DT Admin), mesmo sem o Claude aberto; depois diz "tomei decisões no painel, veja e execute". Tabela `public.founder_decisions` (migração `supabase/migrations/20261124000000_founder_decisions.sql`), API `api/adm-decisions.js`, tela `web/adm-decisions.js`.
+
+Regras: escrever **tudo** o que ele precisa para decidir sem perguntar (o que decidir, a explicação completa, o que foi conversado, as palavras dele com data, a recomendação); português formal; nunca segredo, e-mail de usuário ou dado de saúde. O painel só grava `status`, `choice`, `note` e `decided_at`; o resto é da sessão, por SQL (editor SQL do Supabase ou conector MCP, como dono do banco).
+
+## 1. Criar uma decisão
+
+```sql
+insert into public.founder_decisions (area, kind, title, question, context, founder_said, recommendation, options, links, images, source)
+values (
+  'app',                       -- app | painel | site | divulgacao | outro
+  'visual',                    -- visual | texto | regra | outro
+  'Botão "Registrar dose" na tela Hoje',
+  'Qual dos dois botões entra na próxima build: A ou B?',
+  $ctx$Explicação completa, com quebras de linha.
+O que foi conversado, o que muda para o usuário, riscos.$ctx$,
+  $said$"Esse botão está muito pequeno." (2026-11-24 10:12)$said$,
+  'A, porque ...',
+  '["A — azul, cantos arredondados", "B — verde, pílula"]'::jsonb,   -- '[]' quando for só aprovar/recusar
+  '[{"label": "Desenho lado a lado", "url": "https://claude.ai/artifact/..."}]'::jsonb,  -- só https
+  '[{"label": "A e B, tema claro", "path": "app/2026-11-24-botao-claro.png"}]'::jsonb,
+  'sessão do app 2026-11-24'
+) returning id;
+```
+
+Imagens: PNG/JPEG/WebP (até 10 MB) no bucket privado `founder-decisions`, no caminho usado em `images[].path` (letras, números, `.`, `_`, `-`, `/`; nunca `..`). Enviar pelo painel do Supabase (Storage › founder-decisions › Upload) ou, com a chave só no ambiente (nunca em arquivo, nota ou log):
+
+```bash
+curl -sS -X POST "$SUPABASE_URL/storage/v1/object/founder-decisions/app/2026-11-24-botao-claro.png" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" -H "Content-Type: image/png" --data-binary @docs/design/botao-claro.png
+```
+
+O painel mostra cada imagem por um link assinado de 10 minutos. Prefira PNG (claro e escuro lado a lado): um arquivo `.html` aparece só como botão "Abrir o desenho" e o Storage pode servi-lo como texto; para HTML interativo, use `links` (artefato).
+
+## 2. Ler o que ele decidiu e ainda não foi executado
+
+```sql
+select id, area, kind, title, status, choice, note, decided_at
+  from public.founder_decisions
+ where status <> 'pendente' and executed_at is null
+ order by decided_at;
+```
+
+`status`: `aprovado` (Aprovo) · `recusado` (Não aprovo) · `ajustar` (Precisa ajustar; o que mudar está em `note`). `choice` = a opção escolhida (ou nulo). Histórico de cada gravação dele: `select * from public.founder_decision_events where decision_id = '<id>' order by at;`.
+
+## 3. Marcar como executada (depois de fazer e verificar)
+
+```sql
+update public.founder_decisions
+   set executed_at = now(), executed_note = 'O que foi feito, onde (commit/branch/build) e como foi verificado.'
+ where id = '<id>' and status <> 'pendente' and executed_at is null;
+```
+
+Executada fica só leitura no painel (ele vê "Executado em … — nota"). Se "Precisa ajustar" gerou uma nova versão para ele decidir, crie **outra** decisão citando a anterior em `context`, e marque a anterior como executada com essa referência.
+
+Reabrir por engano (só antes de executar): `update public.founder_decisions set status = 'pendente', choice = null, decided_at = null where id = '<id>' and executed_at is null;`
+
+## Aceite (2026-11-24)
+
+| # | Critério | Prova |
+|---|---|---|
+| DC1 | Mesma sessão das outras abas: sem token 401, token falso 401, não admin 403; gravar exige Origin, papel admin e código de 15 min (ou o aparelho DT Admin) | `__tests__/admDecisions.test.js` DC1 |
+| DC2 | Lista com contagem por grupo (Pendentes / Decididas / Executadas), filtro por área; uma decisão traz as imagens com link assinado de 10 min; links só https | DC2 |
+| DC3 | Só `status`, `choice`, `note` graváveis (qualquer outro campo 400); observação até 4000 caracteres; corpo acima de 16 KB 413; executada 409; opção fora da lista 400; 60 gravações por hora 429 | DC3 |
+| DC4 | RLS ligada sem política, service_role só SELECT, gravação só pela função definer, bucket privado | DC4 + provas no fim da migração |
+| DC5 | Aba no computador e no celular com o número de pendentes, 6 idiomas, tokens dos dois temas, botões de 56 px, texto 17 px, voltar do Android fecha uma camada | DC5 + `docs/evidence/decisoes/` (390 px, claro e escuro) |
