@@ -14,32 +14,34 @@
 body{ margin:0; background:var(--page); color:var(--pfg); font:15px/1.5 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
   padding-block:28px 56px; padding-inline:16px; }
 h1{ font-family:"Geist",-apple-system,sans-serif; font-size:24px; margin:0 0 8px; text-wrap:balance; }
-p.lead{ color:var(--pmut); max-width:72ch; margin:0 0 10px; }
+p.lead{ color:var(--pmut); max-width:74ch; margin:0 0 10px; }
 h2{ font-size:14px; font-weight:600; color:var(--pmut); margin:34px 0 12px; }
-.box{ background:var(--pbox); border:1px solid var(--pline); border-radius:16px; padding:16px 18px; max-width:980px; margin:14px 0; }
+.box{ background:var(--pbox); border:1px solid var(--pline); border-radius:16px; padding:16px 18px; max-width:1000px; margin:14px 0; }
 .box h3{ font-size:15px; margin:0 0 8px; }
-.box p{ margin:0 0 8px; color:var(--pfg); }
+.box p{ margin:0 0 8px; }
 .box p.m{ color:var(--pmut); font-size:13.5px; }
+.box ul{ margin:0 0 8px; padding-left:20px; }
+.box li{ margin:0 0 4px; }
 .tbl{ width:100%; border-collapse:collapse; font-size:13.5px; margin:6px 0 10px; }
 .tbl th,.tbl td{ text-align:left; padding:7px 8px; border-top:1px solid var(--pline); vertical-align:top; }
 .tbl th{ color:var(--pmut); font-weight:600; border-top:0; }
-.tbl td.n{ font-family:"Geist Mono",ui-monospace,monospace; white-space:nowrap; }
+.tbl td.n, code{ font-family:"Geist Mono",ui-monospace,monospace; font-size:12.5px; }
+.tbl td.n{ white-space:nowrap; }
 .tblwrap{ overflow-x:auto; }
 a{ color:var(--hl); }
 .row{ display:flex; gap:22px; flex-wrap:wrap; align-items:flex-start; }
 .col{ display:flex; flex-direction:column; gap:10px; width:304px; max-width:100%; min-width:0; }
-.cap{ font-size:13.5px; color:var(--pmut); line-height:1.45; min-height:120px; }
+.cap{ font-size:13.5px; color:var(--pmut); line-height:1.45; min-height:118px; }
 .cap b{ color:var(--pfg); }
 .mini-l{ font-size:12px; color:var(--pmut); margin:0 0 -4px; }
-.pick{ font-weight:600; color:var(--pfg); }
 
 /* ---------- app tokens (lib/theme.js, copied) ---------- */
 .lt{ --ground:#DDE0DB; --raised:#FFFFFF; --well:#EEF0EC; --line:#C3C7C0; --tick:#71766F;
   --ink:#111315; --ink2:#454A4F; --ink3:#53585D; --onInk:#FFFFFF; --data:#2350D8; --onData:#FFFFFF;
-  --act:#111315; --onAct:#FFFFFF; --risk:#9E1F19; --scrim:rgba(0,0,0,0.45); --dot:#2F6FB0; --hlA:#2350D8; }
+  --act:#111315; --onAct:#FFFFFF; --risk:#9E1F19; --scrim:rgba(0,0,0,0.45); --hlA:#2350D8; }
 .dk{ --ground:#121416; --raised:#282B30; --well:#1D2024; --line:#3C4147; --tick:#747A7F;
   --ink:#EEEFEB; --ink2:#B5B9B4; --ink3:#9A9F9A; --onInk:#121416; --data:#8AA8FF; --onData:#0F1114;
-  --act:#EEEFEB; --onAct:#121416; --risk:#F08A80; --scrim:rgba(0,0,0,0.45); --dot:#6FA6DE; --hlA:#8AA8FF; }
+  --act:#EEEFEB; --onAct:#121416; --risk:#F08A80; --scrim:rgba(0,0,0,0.45); --hlA:#8AA8FF; }
 
 /* ---------- phone: real point sizes of screens/ProtocolsScreen.js, drawn at 78% ---------- */
 .ph{ zoom:.78; width:390px; height:844px; border-radius:46px; overflow:hidden; position:relative; flex:none;
@@ -61,11 +63,11 @@ a{ color:var(--hl); }
 .vialHead{ font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; }
 .vialSub{ font-size:15px; color:var(--ink2); font-variant-numeric:tabular-nums; }
 .vbtns{ display:flex; gap:10px; }
-.obtn2{ min-height:50px; border-radius:25px; background:var(--well); display:flex; align-items:center; justify-content:center; gap:8px; font-size:17px; font-weight:700; color:var(--ink); flex:1; }
+.obtn2{ min-height:50px; border-radius:25px; background:var(--well); display:flex; align-items:center; justify-content:center; gap:8px; font-size:17px; font-weight:700; color:var(--ink); flex:1; text-align:center; padding:0 12px; }
 .rows{ background:var(--raised); border-radius:22px; padding:0 16px; }
 .rw{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; min-height:50px; padding:13px 0; }
 .rw.tap{ align-items:center; }
-.rw + .rw, .sep{ border-top:1px solid var(--line); }
+.rows > * + *{ border-top:1px solid var(--line); }
 .rw.withNote{ min-height:0; padding-bottom:4px; }
 .rwKey{ font-size:17px; color:var(--ink2); flex-shrink:1; }
 .rwVal{ font-size:17px; font-weight:600; color:var(--ink); text-align:right; flex-shrink:0; max-width:60%; }
@@ -87,118 +89,160 @@ a{ color:var(--hl); }
 .why{ border-top:1px solid var(--line); padding:12px 16px 16px; display:flex; flex-direction:column; gap:6px; }
 .why-h{ font-size:13px; line-height:18px; font-weight:600; color:var(--ink2); }
 .why-p{ font-size:13px; line-height:18px; color:var(--ink3); margin:0; }
+.ask{ border-top:1px solid var(--line); padding:14px 16px 16px; display:flex; flex-direction:column; gap:10px; }
+.ask-p{ font-size:15px; line-height:20px; color:var(--ink2); margin:0; }
+.ask .obtn2{ flex:none; }
 .endRow{ background:var(--raised); border-radius:22px; min-height:56px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; color:var(--risk); }
 .danger{ min-height:50px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; color:var(--risk); }
 .hl{ outline:2.5px dashed var(--hlA); outline-offset:4px; }
-/* DTActionSheet (screens/components/ProtocolParts.js) */
+/* bottom sheet (sheetStyles in screens/components/ProtocolParts.js) */
 .scrim{ position:absolute; inset:0; background:var(--scrim); z-index:5; display:flex; flex-direction:column; justify-content:flex-end; padding:8px 8px 30px; }
-.actWrap{ display:flex; flex-direction:column; gap:8px; }
-.actGroup{ background:var(--raised); border-radius:18px; overflow:hidden; }
-.actHead{ padding:14px 18px; display:flex; flex-direction:column; gap:2px; text-align:center; }
-.actHeading{ font-size:13px; line-height:18px; font-weight:600; color:var(--ink); }
-.actTitle{ font-size:13px; line-height:18px; color:var(--ink2); }
-.actOpt{ min-height:56px; display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--ink); border-top:1px solid var(--line); text-align:center; padding:0 12px; }
-.actGroup.cancel .actOpt{ border-top:0; font-weight:700; }
+.sheet{ background:var(--raised); border-radius:26px; padding:20px; display:flex; flex-direction:column; gap:14px; }
+.sh-title{ font-size:22px; line-height:28px; font-weight:700; color:var(--ink); margin:0; }
+.sh-body{ font-size:17px; line-height:22px; color:var(--ink2); margin:0; }
+.sh-hint{ font-size:13px; line-height:18px; color:var(--ink3); margin:0; }
+.opts{ display:flex; flex-direction:column; }
+.opt{ display:flex; align-items:center; gap:12px; min-height:56px; padding:10px 0; }
+.opt + .opt{ border-top:1px solid var(--line); }
+.opt-t{ flex:1; display:flex; flex-direction:column; gap:2px; }
+.opt-l{ font-size:17px; color:var(--ink); }
+.opt-s{ font-size:13px; line-height:18px; color:var(--ink3); }
+.opt.on .opt-l{ font-weight:600; }
+.opt-ck{ width:22px; flex:none; display:flex; justify-content:center; }
+.winp{ display:flex; align-items:center; justify-content:space-between; font-size:17px; color:var(--ink); background:var(--raised); border-radius:14px; min-height:50px; padding:11px 13px; border:2px solid var(--ink); font-variant-numeric:tabular-nums; }
+.winp .u{ color:var(--ink3); font-family:"Geist Mono",ui-monospace,monospace; font-size:15px; }
+.caret{ display:inline-block; width:2px; height:20px; background:var(--data); vertical-align:-4px; margin-left:1px; }
+.btnRow{ display:flex; gap:10px; }
+.btn{ flex:1; min-height:44px; border-radius:26px; display:flex; align-items:center; justify-content:center; padding:0 16px; font-size:15px; font-weight:700; }
+.btn.pri{ background:var(--act); color:var(--onAct); }
+.btn.sec{ background:var(--well); color:var(--ink); }
 </style>
 </head>
 <body>
-<h1>Cobre acumulado no ciclo do GHK-Cu</h1>
-<p class="lead">Ideia aprovada em 11/11 ("Ok para as duas ideias"): a página de um protocolo de GHK-Cu soma o cobre das doses que a pessoa marcou como concluídas no ciclo. Mostra só a conta e como ela é feita, sem dizer se a quantidade é muita ou pouca, sem limites e sem faixas de referência. Exemplo: GHK-Cu 2 mg por dose, frasco de 50 mg, ciclo iniciado em 3 de nov., 18 doses concluídas até hoje (24 de nov.). A linha azul tracejada marca o que muda.</p>
+<h1>Cobre acumulado no ciclo do GHK-Cu e das misturas</h1>
+<p class="lead">Refeito com a sua resposta de 24/11: a forma no rótulo é opcional e começa em "Não sei", e as misturas GLOW e KLOW também entram. Com "Não sei", o app não finge precisão: mostra a faixa entre a menor e a maior parte de cobre possível. Numa mistura, o app só calcula se a pessoa informar quanto de GHK-Cu o frasco tem; sem isso, não mostra número nenhum (nada de receita "comum" como padrão). O resto não muda: só doses concluídas, por ciclo, e nunca diz se é muito ou pouco. A linha azul tracejada marca o que é novo.</p>
 
 <div class="box">
   <h3>Como a conta é feita</h3>
-  <p>Cobre = soma do GHK-Cu das doses concluídas × a parte do peso que é cobre. Exemplo: 18 doses × 2 mg = 36 mg de GHK-Cu; 36 mg × 15,8% = <b>5,69 mg de cobre</b> (0,32 mg por dose).</p>
-  <p>O percentual sai da fórmula de cada forma, com cobre = 63,546 g/mol:</p>
+  <p><b>GHK-Cu puro:</b> GHK-Cu das doses concluídas × parte de cobre da forma. Exemplo: 18 doses × 2 mg = 36 mg. Com a forma escolhida (complexo), 36 mg × 15,8% = <b>5,69 mg</b>. Com "Não sei", 36 mg × 7,4% a 36 mg × 15,8% = <b>2,65 a 5,69 mg</b>.</p>
+  <p><b>Mistura (GLOW, KLOW):</b> cada dose × (GHK-Cu do frasco ÷ total do frasco) × parte de cobre. Exemplo KLOW, frasco de 80 mg, 4 mg por dose: 18 doses = 72 mg de mistura; com "50 de 80 mg", 72 × 50 ÷ 80 = 45 mg de GHK-Cu; com "Não sei" na forma, <b>3,32 a 7,11 mg</b> de cobre (com o complexo, 7,11 mg).</p>
   <div class="tblwrap"><table class="tbl">
-    <tr><th>Forma escrita no rótulo</th><th>Fórmula</th><th>g/mol</th><th>Cobre</th></tr>
-    <tr><td>GHK-Cu (complexo 1:1, um cobre por GHK). É o que a maioria dos certificados dos frascos traz (401,9 a 403,9 g/mol)</td><td class="n">C14H22CuN6O4</td><td class="n">401,9</td><td class="n">15,8%</td></tr>
-    <tr><td>GHK-Cu acetato (o complexo com uma molécula de acetato)</td><td class="n">C14H22CuN6O4·C2H4O2</td><td class="n">462,0</td><td class="n">13,8%</td></tr>
-    <tr><td>Acetato de prezatida de cobre (dois GHK por cobre, o nome farmacêutico)</td><td class="n">C32H54CuN12O12</td><td class="n">862,4</td><td class="n">7,4%</td></tr>
-    <tr><td>GHK sem cobre (referência)</td><td class="n">C14H24N6O4</td><td class="n">340,4</td><td class="n">0%</td></tr>
+    <tr><th>Escolha em "Forma no rótulo"</th><th>O que aparece no rótulo ou certificado</th><th>Fórmula · g/mol</th><th>Cobre</th></tr>
+    <tr><td>Não sei (padrão)</td><td>Só "GHK-Cu 50 mg", sem fórmula (o caso mais comum)</td><td>—</td><td class="n">7,4% a 15,8%</td></tr>
+    <tr><td>Complexo GHK-Cu</td><td>Um cobre por GHK; certificados com 401,9 a 403,9 g/mol</td><td class="n">C14H22CuN6O4 · 401,9</td><td class="n">15,8%</td></tr>
+    <tr><td>Acetato de GHK-Cu</td><td>"GHK-Cu acetate"</td><td class="n">C14H22CuN6O4·C2H4O2 · 462,0</td><td class="n">13,8%</td></tr>
+    <tr><td>Duas moléculas de GHK por cobre</td><td>"Prezatide copper acetate" (acetato de prezatida de cobre)</td><td class="n">C32H54CuN12O12 · 862,4</td><td class="n">7,4%</td></tr>
   </table></div>
-  <p class="m">Fontes: NCATS / GSRS (GHK 340,38 g/mol; acetato de prezatida de cobre 862,39 g/mol), <a href="https://drugs.ncats.io/substance/A3LEI4P1NB">drugs.ncats.io</a>; Cayman Chemical, item 28259, "GHK-Cu (acetate)" C14H22CuN6O4 • C2H4O2, <a href="https://www.caymanchem.com/product/28259">caymanchem.com</a>; complexo C14H22CuN6O4, 401,91 g/mol, <a href="https://en.wikipedia.org/wiki/Copper_peptide_GHK-Cu">Copper peptide GHK-Cu</a> e certificados de análise de fornecedores. As contas de peso foram refeitas com os pesos atômicos padrão. O percentual muda com a forma (de 15,8% a 7,4%, metade), e por isso existem as duas opções abaixo.</p>
+  <p class="m">Cobre = 63,546 g/mol. Fontes: NCATS / GSRS (GHK 340,38 g/mol; acetato de prezatida de cobre 862,39 g/mol), <a href="https://drugs.ncats.io/substance/A3LEI4P1NB">drugs.ncats.io</a>; Cayman Chemical, item 28259, "GHK-Cu (acetate)" C14H22CuN6O4 • C2H4O2, <a href="https://www.caymanchem.com/product/28259">caymanchem.com</a>; complexo C14H22CuN6O4, 401,91 g/mol, <a href="https://en.wikipedia.org/wiki/Copper_peptide_GHK-Cu">Copper peptide GHK-Cu</a> e certificados de fornecedores. Pesos refeitos com os pesos atômicos padrão. A faixa de "Não sei" usa a menor (7,4%) e a maior (15,8%) das três formas.</p>
 </div>
 
 <div class="box">
   <h3>O que é "ciclo" (como o app já funciona)</h3>
-  <p>Ciclo = uma rodada do protocolo: começa na data de início dele e vai até ele ser encerrado. "Retomar" um protocolo encerrado já cria uma rodada nova que começa hoje (o próprio app avisa: "Um novo ciclo começa hoje; o ciclo anterior fica no histórico"). Então a soma volta a zero ao retomar, e a rodada anterior guarda a soma dela na sua página em Encerrados (título "Cobre no ciclo", só leitura). "Continuar" depois de "Ciclo concluído" mantém o mesmo ciclo.</p>
-  <p class="m">Entram só as doses marcadas como concluídas nessa rodada, cada uma com a quantidade gravada nela (uma dose alterada com "Alterar dose" conta com o valor novo). Doses puladas ou perdidas não entram. O passado estimado de antes do cadastro (resposta "Sim" à pergunta da data de início) não é registro de dose e também não entra. Doses em mcg são convertidas e a soma é mostrada em mg.</p>
+  <p>Ciclo = uma rodada do protocolo, da data de início até ele ser encerrado. "Retomar" já cria uma rodada nova que começa hoje (o app avisa: "Um novo ciclo começa hoje; o ciclo anterior fica no histórico"): a soma recomeça do zero, e a rodada anterior guarda a dela na sua página em Encerrados ("Cobre no ciclo"). "Continuar" depois de "Ciclo concluído" mantém o mesmo ciclo.</p>
+  <p class="m">Entram só as doses concluídas da rodada, cada uma com a quantidade gravada nela. Puladas, perdidas e o passado estimado de antes do cadastro não entram. Doses em mcg são convertidas e a soma aparece em mg.</p>
 </div>
 
 <div id="out"></div>
 
 <div class="box">
-  <h3>Minha escolha: B</h3>
-  <p>Para quem tem o frasco mais comum, o número é igual nas duas opções. Para quem tem um frasco com acetato no rótulo, a B mostra o número certo, enquanto a A só avisa que a conta dá mais do que o real. Isso segue o "o mais próximo da realidade possível, não brincar com os números" (11/11). O custo da B: um campo novo salvo no protocolo e sincronizado, ou seja, uma migração no Supabase.</p>
-  <h3>Perguntas que só você pode responder</h3>
-  <p>1. A ou B?</p>
-  <p>2. Misturas que têm GHK-Cu (GLOW, KLOW): somar o cobre delas também? A quantidade de GHK-Cu numa mistura vem da receita comum (50 mg de 80 mg no KLOW), que muda de fornecedor para fornecedor, e o app nunca lê o rótulo da mistura. Minha sugestão: por ora, só protocolos de GHK-Cu puro.</p>
+  <h3>Dados novos (sincronizados, com migração)</h3>
+  <p>Os dois campos ficam no <b>protocolo</b>, não no frasco. A tabela de frascos só guarda data de preparo, água, doses e validade; o tamanho do frasco (<code>amount</code>, os 80 mg) e a anotação da mistura (<code>composition</code>) já moram no protocolo.</p>
+  <ul>
+    <li><code>protocols.copper_form</code> (texto: <code>complex</code> · <code>acetate</code> · <code>bis</code>; vazio = "Não sei"). Vale para GHK-Cu puro e para as misturas.</li>
+    <li><code>protocols.ghk_cu_mg</code> (número, só nas misturas; vazio = "Não sei"). Não pode passar do total do frasco. A anotação livre <code>composition</code> continua sem ser lida pelo app.</li>
+  </ul>
+  <p class="m">Migração: as duas colunas no Supabase (<code>protocols</code>) e no SQLite local, enviadas pela sincronização como as demais colunas opcionais, e as duas entram na lista do que "Retomar" copia (<code>RESTART_COPIED</code> em lib/protocolEnd.js). Ponto a notar: o valor vale para o ciclo inteiro. Se no meio do ciclo a pessoa trocar para um frasco com outra mistura e corrigir o número, a conta das doses anteriores também muda. Guardar por dose exigiria um campo a mais em cada registro de dose.</p>
 </div>
 
 <script>
 (function(){
   const chevR = (col) => `<svg width="9" height="15" viewBox="0 0 10 16"><path d="M2 2l6 6-6 6" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const fold = (open) => `<svg width="15" height="9" viewBox="0 0 16 10"><path d="${open ? 'M2 8l6-6 6 6' : 'M2 2l6 6 6-6'}" fill="none" stroke="var(--ink3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const check = `<svg width="18" height="14" viewBox="0 0 18 14"><path d="M2 7.5l4.5 4.5L16 2" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const repeat = `<svg width="18" height="18" viewBox="0 0 1024 1024" fill="none" stroke="var(--ink)" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"><path d="M336 424 H616 A120 120 0 0 1 616 664"/><path d="M556 604 L616 664 L676 604"/><path d="M688 600 H408 A120 120 0 0 1 408 360"/><path d="M468 420 L408 360 L348 420"/></svg>`;
-  const cells = () => { // 25 doses in the vial, 7 left (filled in data), as VialCells
-    const total = 25, left = 7, W = 318, pitch = W / total, w = pitch - 2.6; let r = '';
+  const cells = () => { const total = 25, left = 7, W = 318, pitch = W / total, w = pitch - 2.6; let r = '';
     for (let k = 0; k < total; k++) { const f = k < left; r += `<rect x="${(k * pitch + .5).toFixed(2)}" y="0.5" width="${w.toFixed(2)}" height="9" rx="2" fill="${f ? 'var(--data)' : 'none'}" stroke="${f ? 'var(--data)' : 'var(--tick)'}" stroke-width="1"/>`; }
-    return `<svg width="${W + 1}" height="10">${r}</svg>`;
-  };
-  const top = () => `<div class="sb">9:41</div>
-    <div class="nav"><div class="back">${chevR('var(--ink)')}<span>Protocolos</span></div><div class="addBtn">Editar</div></div>
-    <div class="fade"></div>`;
+    return `<svg width="${W + 1}" height="10">${r}</svg>`; };
+  const top = () => `<div class="sb">9:41</div><div class="nav"><div class="back">${chevR('var(--ink)')}<span>Protocolos</span></div><div class="addBtn">Editar</div></div><div class="fade"></div>`;
   const vial = `<div class="blkD"><div class="secth">Frasco</div><div class="hobj">${cells()}
-      <div class="vialHead">7 de 25 doses restantes</div>
-      <div class="vialSub">Reconstituído 3 de nov. · 9 dias restantes</div>
+      <div class="vialHead">7 de 25 doses restantes</div><div class="vialSub">Reconstituído 3 de nov. · 9 dias restantes</div>
       <div class="vbtns"><div class="obtn2">Editar frasco</div><div class="obtn2">${repeat}Novo frasco</div></div></div></div>`;
   const schedule = `<div class="blkD next"><div class="secth">Horários e lembretes</div><div class="rows">
       <div class="rw"><span class="rwKey">Frequência</span><span class="rwVal">Todo dia</span></div>
       <div class="rw"><span class="rwKey">Lembrete</span><span class="rwVal mono">21:00</span></div>
-      <div class="rw tap"><span class="rwKey">Termina em</span><span class="tapEnd"><span class="rwVal muted">Sem data</span>${chevR('var(--tick)')}</span></div>
-    </div></div>`;
+      <div class="rw tap"><span class="rwKey">Termina em</span><span class="tapEnd"><span class="rwVal muted">Sem data</span>${chevR('var(--tick)')}</span></div></div></div>`;
   const remind = `<div class="obtn2" style="flex:none">+ Lembrete</div>`;
-  const doseDet = `<div class="cs next"><div class="cs-h"><div class="cs-t"><span class="cs-title">Detalhes da dose</span><span class="cs-sum">2 mg</span></div><div class="cs-chev">${fold(false)}</div></div></div>`;
+  const doseDet = (d) => `<div class="cs next"><div class="cs-h"><div class="cs-t"><span class="cs-title">Detalhes da dose</span><span class="cs-sum">${d}</span></div><div class="cs-chev">${fold(false)}</div></div></div>`;
   const notes = `<div class="cs next"><div class="cs-h"><div class="cs-t"><span class="cs-title">Notas</span><span class="cs-sum">Nenhuma nota</span></div><div class="cs-chev">${fold(false)}</div></div></div>`;
   const tail = `<div class="endRow">Encerrar protocolo</div><div class="danger">Excluir protocolo</div>`;
-  const copperClosed = (hl) => `<div class="cs next${hl ? ' hl' : ''}"><div class="cs-h"><div class="cs-t"><span class="cs-title">Cobre neste ciclo</span><span class="cs-sum">5,69 mg · 18 doses</span></div><div class="cs-chev">${fold(false)}</div></div></div>`;
+  const head = (sum, open) => `<div class="cs-h"><div class="cs-t"><span class="cs-title">Cobre neste ciclo</span><span class="cs-sum">${sum}</span></div><div class="cs-chev">${fold(open)}</div></div>`;
+  const row = (k, v, mono) => `<div class="rw"><span class="rwKey">${k}</span><span class="rwVal${mono ? ' mono' : ''}">${v}</span></div>`;
+  const tapRow = (k, v, muted) => `<div class="rw tap"><span class="rwKey">${k}</span><span class="tapEnd"><span class="rwVal${muted ? ' muted' : ''}">${v}</span>${chevR('var(--tick)')}</span></div>`;
+  const noteRow = (k, v, note) => `<div><div class="rw withNote"><span class="rwKey">${k}</span><span class="rwVal mono">${v}<span class="mark">*</span></span></div><div class="calcNote">${note}</div></div>`;
   const disclaimer = `<p class="why-p">É aritmética a partir do que você registrou; o DoseTrace não avalia a quantidade.</p>`;
-  const copperOpen = (opt) => `<div class="cs next hl"><div class="cs-h"><div class="cs-t"><span class="cs-title">Cobre neste ciclo</span><span class="cs-sum">5,69 mg · 18 doses</span></div><div class="cs-chev">${fold(true)}</div></div>
-    <div class="cs-b"><div class="rows">
-      <div class="rw"><span class="rwKey">Início do ciclo</span><span class="rwVal">3 de nov.</span></div>
-      <div class="rw"><span class="rwKey">Doses concluídas</span><span class="rwVal mono">18</span></div>
-      <div class="rw"><span class="rwKey">GHK-Cu nas doses</span><span class="rwVal mono">36&nbsp;mg</span></div>
-      ${opt === 'B' ? `<div class="rw tap"><span class="rwKey">Forma no rótulo</span><span class="tapEnd"><span class="rwVal">Complexo GHK-Cu</span>${chevR('var(--tick)')}</span></div>` : ''}
-      <div class="sep"><div class="rw withNote"><span class="rwKey">Cobre elementar</span><span class="rwVal mono">5,69&nbsp;mg<span class="mark">*</span></span></div>
-      <div class="calcNote">36 mg × 15,8% = 5,69 mg</div></div>
-    </div>
-    <div class="why"><span class="why-h">Como é calculado</span>
-      ${opt === 'B'
-        ? `<p class="why-p">Soma das doses marcadas como concluídas desde o início deste ciclo, cada uma com a quantidade registrada nela; doses puladas ou perdidas não entram. O percentual de cobre vem da forma escrita no rótulo: no complexo GHK-Cu (C14H22CuN6O4, 401,9 g/mol), o átomo de cobre (63,55 g/mol) é 15,8% do peso. Ao retomar o protocolo, um novo ciclo começa do zero.</p>`
-        : `<p class="why-p">Soma das doses marcadas como concluídas desde o início deste ciclo, cada uma com a quantidade registrada nela; doses puladas ou perdidas não entram. O cobre é 15,8% do peso do GHK-Cu: o complexo (C14H22CuN6O4, 401,9 g/mol) tem um átomo de cobre (63,55 g/mol). Se o rótulo indicar outra forma, como acetato, a parte de cobre é menor. Ao retomar o protocolo, um novo ciclo começa do zero.</p>`}
-      ${disclaimer}
-    </div></div></div>`;
+  const base = 'Soma das doses marcadas como concluídas desde o início deste ciclo, cada uma com a quantidade registrada nela; doses puladas ou perdidas não entram.';
+  const rangeWhy = 'A parte de cobre depende da forma do GHK-Cu: 15,8% no complexo, 13,8% no acetato e 7,4% quando são duas moléculas de GHK por cobre. Como a forma não foi informada, o app mostra a faixa entre a menor e a maior. Escolha a forma em Forma no rótulo para ver um número só.';
+  const restart = 'Ao retomar o protocolo, um novo ciclo começa do zero.';
 
-  const today = (th) => `<div class="ph tall ${th}">${top()}<div class="scroll">${vial}${schedule}${remind}${doseDet}${notes}${tail}</div></div>`;
-  const optPhone = (th, opt) => `<div class="ph tall ${th}">${top()}<div class="scroll">${remind}${doseDet}${copperOpen(opt)}${notes}${tail}</div></div>`;
-  const miniClosed = (th) => `<p class="mini-l">Como chega (fechada, a cada visita):</p><div class="ph short ${th}">${copperClosed(true).replace(' next', '')}</div>`;
-  const sheetPhone = (th) => `<p class="mini-l">Ao tocar em "Forma no rótulo":</p><div class="ph ${th}">${top()}<div class="scroll">${remind}${doseDet}${copperOpen('B')}</div>
-    <div class="scrim"><div class="actWrap">
-      <div class="actGroup hl"><div class="actHead"><span class="actHeading">Forma no rótulo</span><span class="actTitle">Escolha a forma escrita no rótulo do frasco. Ela muda só o percentual de cobre da conta.</span></div>
-        <div class="actOpt">Complexo GHK-Cu · 15,8%</div>
-        <div class="actOpt">GHK-Cu acetato · 13,8%</div>
-        <div class="actOpt">Acetato de prezatida de cobre · 7,4%</div></div>
-      <div class="actGroup cancel"><div class="actOpt">Cancelar</div></div>
-    </div></div></div>`;
+  // 1 · GHK-Cu puro, forma "Não sei" (padrão): a faixa
+  const pureUnknown = `<div class="cs next hl">${head('2,65 a 5,69 mg · 18 doses', true)}<div class="cs-b"><div class="rows">
+      ${row('Início do ciclo', '3 de nov.')}${row('Doses concluídas', '18', true)}${row('GHK-Cu nas doses', '36&nbsp;mg', true)}
+      ${tapRow('Forma no rótulo', 'Não sei', true)}
+      ${noteRow('Cobre elementar', '2,65 a 5,69&nbsp;mg', 'Entre 2,65 e 5,69 mg: a forma não está no rótulo. 36 mg × 7,4% a 36 mg × 15,8%.')}</div>
+    <div class="why"><span class="why-h">Como é calculado</span><p class="why-p">${base} ${rangeWhy} ${restart}</p>${disclaimer}</div></div></div>`;
+  // 2 · GHK-Cu puro, forma escolhida: um número
+  const pureKnown = `<div class="cs next hl">${head('5,69 mg · 18 doses', true)}<div class="cs-b"><div class="rows">
+      ${row('Início do ciclo', '3 de nov.')}${row('Doses concluídas', '18', true)}${row('GHK-Cu nas doses', '36&nbsp;mg', true)}
+      ${tapRow('Forma no rótulo', 'Complexo GHK-Cu')}
+      ${noteRow('Cobre elementar', '5,69&nbsp;mg', '36 mg × 15,8% = 5,69 mg')}</div>
+    <div class="why"><span class="why-h">Como é calculado</span><p class="why-p">${base} No complexo GHK-Cu (C14H22CuN6O4, 401,9 g/mol), o átomo de cobre (63,55 g/mol) é 15,8% do peso. ${restart}</p>${disclaimer}</div></div></div>`;
+  // 3 · KLOW sem o GHK-Cu do frasco: nada inventado
+  const blendUnknown = `<div class="cs next hl">${head('Falta o GHK-Cu do frasco', true)}<div class="cs-b"><div class="rows">
+      ${row('Início do ciclo', '3 de nov.')}${row('Doses concluídas', '18', true)}${row('KLOW nas doses', '72&nbsp;mg', true)}</div>
+    <div class="ask"><p class="ask-p">Informe quanto de GHK-Cu o frasco tem para ver o cobre.</p><div class="obtn2">Informar o GHK-Cu do frasco</div>
+      <p class="why-p">A mistura muda de fornecedor para fornecedor; o app não supõe uma receita.</p></div></div></div>`;
+  // 4 · KLOW com 50 de 80 mg, forma "Não sei"
+  const blendKnown = `<div class="cs next hl">${head('3,32 a 7,11 mg · 18 doses', true)}<div class="cs-b"><div class="rows">
+      ${row('Início do ciclo', '3 de nov.')}${row('Doses concluídas', '18', true)}${row('KLOW nas doses', '72&nbsp;mg', true)}
+      ${tapRow('GHK-Cu no frasco', '50 de 80 mg')}
+      ${noteRow('GHK-Cu nas doses', '45&nbsp;mg', '72 mg × 50 ÷ 80 = 45 mg')}
+      ${tapRow('Forma no rótulo', 'Não sei', true)}
+      ${noteRow('Cobre elementar', '3,32 a 7,11&nbsp;mg', 'Entre 3,32 e 7,11 mg: a forma não está no rótulo. 45 mg × 7,4% a 45 mg × 15,8%.')}</div>
+    <div class="why"><span class="why-h">Como é calculado</span><p class="why-p">${base} O GHK-Cu de cada dose é a parte dele no frasco que você informou (50 de 80 mg). ${rangeWhy} ${restart}</p>${disclaimer}</div></div></div>`;
 
-  const capToday = `<div class="cap"><b>App hoje</b><br>A página do GHK-Cu (rolada até o fim) não soma nada: a quantidade de cobre não aparece em lugar nenhum. As seções secundárias chegam fechadas.</div>`;
-  const capA = `<div class="cap"><b>Opção A · percentual fixo</b><br>Seção nova "Cobre neste ciclo", entre "Detalhes da dose" e "Notas". Chega fechada, com a soma no resumo. Aberta: início do ciclo, doses concluídas, GHK-Cu somado e o cobre, com a conta embaixo. Usa sempre 15,8% (o complexo, a forma mais comum); o texto avisa que outra forma, como acetato, dá menos cobre.</div>`;
-  const capB = `<div class="cap"><b>Opção B · forma escolhida</b><br>Igual à A, com uma linha a mais: "Forma no rótulo", que já vem no complexo GHK-Cu (15,8%). Quem tiver no rótulo acetato (13,8%) ou acetato de prezatida de cobre (7,4%) troca ali, e a conta é refeita. Exige um campo novo no protocolo, sincronizado.</div>`;
+  const formSheet = `<div class="scrim"><div class="sheet hl"><p class="sh-title">Forma no rótulo</p>
+      <p class="sh-hint">Opcional. Muda só a parte de cobre da conta. Se o rótulo diz apenas "GHK-Cu", escolha Não sei.</p>
+      <div class="opts">
+        <div class="opt"><div class="opt-t"><span class="opt-l">Não sei</span><span class="opt-s">Mostra a faixa: 7,4% a 15,8% de cobre</span></div><div class="opt-ck"></div></div>
+        <div class="opt on"><div class="opt-t"><span class="opt-l">Complexo GHK-Cu</span><span class="opt-s">15,8% de cobre · um cobre por GHK</span></div><div class="opt-ck">${check}</div></div>
+        <div class="opt"><div class="opt-t"><span class="opt-l">Acetato de GHK-Cu</span><span class="opt-s">13,8% de cobre · "GHK-Cu acetate"</span></div><div class="opt-ck"></div></div>
+        <div class="opt"><div class="opt-t"><span class="opt-l">Duas moléculas de GHK por cobre</span><span class="opt-s">7,4% de cobre · "prezatide copper acetate"</span></div><div class="opt-ck"></div></div>
+      </div>
+      <div class="btnRow"><div class="btn sec">Cancelar</div></div></div></div>`;
+  const amountSheet = `<div class="scrim"><div class="sheet hl"><p class="sh-title">Quanto de GHK-Cu tem no frasco?</p>
+      <p class="sh-body">KLOW, frasco de 80 mg. Veja o rótulo ou o certificado do fornecedor.</p>
+      <div class="winp"><span>50<span class="caret"></span></span><span class="u">mg de 80 mg</span></div>
+      <p class="sh-hint">Opcional. Sem esse número, o app não calcula o cobre desta mistura.</p>
+      <div class="btnRow"><div class="btn sec">Não sei</div><div class="btn pri">Salvar</div></div></div></div>`;
 
+  const today = (th) => `<div class="ph tall ${th}">${top()}<div class="scroll">${vial}${schedule}${remind}${doseDet('2 mg')}${notes}${tail}</div></div>`;
+  const page = (th, d, sect) => `<div class="ph tall ${th}">${top()}<div class="scroll">${remind}${doseDet(d)}${sect}${notes}${tail}</div></div>`;
+  const sheetPh = (th, d, sect, sheet, label) => `<p class="mini-l">${label}</p><div class="ph ${th}">${top()}<div class="scroll">${remind}${doseDet(d)}${sect}</div>${sheet}</div>`;
+  const mini = (th, sum) => `<p class="mini-l">Como chega (fechada, a cada visita):</p><div class="ph short ${th}"><div class="cs hl">${head(sum, false)}</div></div>`;
+
+  const cap = {
+    today: `<div class="cap"><b>App hoje · GHK-Cu</b><br>A página (rolada até o fim) não soma nada: a quantidade de cobre não aparece em lugar nenhum.</div>`,
+    pu: `<div class="cap"><b>GHK-Cu puro · forma "Não sei" (padrão)</b><br>Seção "Cobre neste ciclo" entre "Detalhes da dose" e "Notas", fechada ao chegar. Sem a forma, o cobre aparece como faixa ("2,65 a 5,69 mg"), e o texto explica por que é uma faixa.</div>`,
+    pk: `<div class="cap"><b>GHK-Cu puro · forma escolhida</b><br>Tocando em "Forma no rótulo", a pessoa escolhe entre quatro opções (o percentual fica visível em letra pequena). Com uma forma escolhida, aparece um número só.</div>`,
+    bu: `<div class="cap"><b>KLOW (ou GLOW) · GHK-Cu do frasco não informado</b><br>O app não sabe quanto de GHK-Cu há na mistura e não inventa: mostra as doses e o total da mistura, sem cobre, com o pedido e o botão.</div>`,
+    bk: `<div class="cap"><b>KLOW · "50 de 80 mg" informado</b><br>A dose é dividida pela parte de GHK-Cu do frasco (72 mg × 50 ÷ 80 = 45 mg). Com a forma em "Não sei", o cobre aparece como faixa; com uma forma, um número só. Os dois campos são opcionais.</div>`,
+  };
   const block = (th, label) => `<h2>${label}</h2><div class="row">
-    <div class="col">${capToday}${today(th)}</div>
-    <div class="col">${capA}${miniClosed(th)}${optPhone(th, 'A')}</div>
-    <div class="col">${capB}${miniClosed(th)}${optPhone(th, 'B')}${sheetPhone(th)}</div>
+    <div class="col">${cap.today}${today(th)}</div>
+    <div class="col">${cap.pu}${mini(th, '2,65 a 5,69 mg · 18 doses')}${page(th, '2 mg', pureUnknown)}</div>
+    <div class="col">${cap.pk}${page(th, '2 mg', pureKnown)}${sheetPh(th, '2 mg', pureKnown, formSheet, 'Ao tocar em "Forma no rótulo":')}</div>
+    <div class="col">${cap.bu}${mini(th, 'Falta o GHK-Cu do frasco')}${page(th, '4 mg', blendUnknown)}</div>
+    <div class="col">${cap.bk}${page(th, '4 mg', blendKnown)}${sheetPh(th, '4 mg', blendUnknown, amountSheet, 'Ao tocar em "Informar o GHK-Cu do frasco" (ou em "GHK-Cu no frasco"):')}</div>
   </div>`;
   document.getElementById('out').innerHTML = block('lt', 'Tema claro') + block('dk', 'Tema escuro');
 })();
