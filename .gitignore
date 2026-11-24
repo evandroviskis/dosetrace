@@ -76,3 +76,6 @@ Claude outputs/
 # Agent worktrees (full repo copies): never in git, never in the EAS build archive
 .claude/worktrees/
 modules/*/android/build/
+
+# Secrets kept inside the project folder, never in git (founder rule 2026-11-23)
+segredos/
