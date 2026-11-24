@@ -195,7 +195,8 @@ Não são perguntas de agora (marketing/finanças, contador, advogado): a estrat
 - P5 a tela do criador de teste mostra os dados de teste com a faixa TESTE. **Regra geral nova:** contas de teste ficam fora só dos números de usuários reais; para testar, pode criar e mostrar onde precisar, identificado.
 - Fato do registro aplicado (arquivo `../../65-oferta-entrada-e-indicacao.md`, 2026-11-19): o modelo padrão de cada criador novo é **35 % da receita líquida por 12 meses, só assinatura paga confirmada**. Continua configurável por criador. O benefício ao público ("1 mês extra de Premium depois do primeiro pagamento") é da sessão do app; o painel só guarda o texto.
 
-## Desvios para o Evandro aceitar (construído diferente do texto acima)
+## Desvios aceitos pelo Evandro (construído diferente do texto acima)
+**Aceitos os cinco em 2026-11-24 18:44 EST, na aba Decisões (sort 71): "Aceito as 5".** O DV-4 pode ir para o Resumo depois, se ele pedir.
 | # | O quê | Por quê |
 |---|---|---|
 | DV-1 | Webhook como função da Vercel (`api/rc-webhook.js`), não edge function do Supabase | Mesmos testes e mesmo deploy das outras funções do painel. Para o RevenueCat é só uma URL. |
