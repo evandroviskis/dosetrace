@@ -7,8 +7,9 @@ Regras: escrever **tudo** o que ele precisa para decidir sem perguntar (o que de
 ## 1. Criar uma decisão
 
 ```sql
-insert into public.founder_decisions (area, kind, title, question, context, founder_said, recommendation, options, links, images, source)
+insert into public.founder_decisions (origem, area, kind, title, question, context, founder_said, recommendation, options, links, images, source)
 values (
+  'app',                       -- origem = a sessão que envia: app (App) | adm (Painel admin) | ads (Publicidade)
   'app',                       -- app | painel | site | divulgacao | outro
   'visual',                    -- visual | texto | regra | outro
   'Botão "Registrar dose" na tela Hoje',
@@ -42,7 +43,7 @@ select id, area, kind, title, status, choice, note, decided_at
  order by decided_at;
 ```
 
-Grupos no painel (Evandro, 2026-11-24): **Pendentes** (`pendente`) · **Alteração em andamento** (`alterando`, só leitura) · **Decididas** (a resposta dele; as executadas ficam dentro, depois das que aguardam execução). O número na aba conta só `pendente`.
+Grupos no painel (Evandro, 2026-11-24): **Pendentes** (`pendente`) · **Alteração em andamento** (`alterando`, só leitura) · **Decididas** (a resposta dele; as executadas ficam dentro, depois das que aguardam execução). O número na aba conta só `pendente`. No topo, a aba separa pela sessão que enviou (`origem`): Todas · App · Painel admin · Publicidade, cada uma com as suas pendentes; cada sessão lê as suas com `and origem = 'app'` (ou `'adm'`, `'ads'`) nas consultas abaixo.
 
 `status`: `aprovado` (Aprovo) · `recusado` (Não aprovo) · `ajustar` (Precisa ajustar; o que mudar está em `note`). `choice` = a opção escolhida (ou nulo). Histórico de cada gravação dele: `select * from public.founder_decision_events where decision_id = '<id>' order by at;`.
 
@@ -88,4 +89,5 @@ Reabrir por engano (só antes de executar): `update public.founder_decisions set
 | DC3 | Só `status`, `choice`, `note` graváveis (qualquer outro campo 400); observação até 4000 caracteres; corpo acima de 16 KB 413; executada 409; opção fora da lista 400; 60 gravações por hora 429 | DC3 |
 | DC4 | RLS ligada sem política, service_role só SELECT, gravação só pela função definer, bucket privado | DC4 + provas no fim da migração |
 | DC6 | `alterando` só pela sessão (SQL): só leitura no painel, gravação recusada (409), grupo próprio; migração separada sobre a aplicada | DC3 + DC6 |
+| DC7 | Separada pela sessão que enviou (`origem` app/adm/ads; migração 20261124020000, já no ar): controle no topo com as pendentes de cada uma, rótulo em cada cartão, número da aba = total pendente | DC2 + DC7 |
 | DC5 | Aba no computador e no celular com o número de pendentes, 6 idiomas, tokens dos dois temas, botões de 56 px, texto 17 px, voltar do Android fecha uma camada | DC5 + `docs/evidence/decisoes/` (390 px, claro e escuro) |

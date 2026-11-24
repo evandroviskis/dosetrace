@@ -2,8 +2,8 @@
 -- sendo alteradas, preciso que você não deixe ela disponível para eu tomar decisão. Então são: pendentes, decididas e
 -- alteração em andamento."). On top of 20261124000000_founder_decisions.sql (applied as committed in 210e1e0a).
 --
--- STATUS: NOT APPLIED (written 2026-11-24). Apply as ONE transaction with the go, BEFORE deploying the API that
--- knows 'alterando' (api/adm-decisions.js after 210e1e0a). Until then nothing changes: no row can be 'alterando'.
+-- STATUS: APPLIED 2026-11-24 by the coordinating session (verified live the same day: founder_decisions_status_check
+-- lists 'alterando', founder_decisions_rework present, founder_decision_save refuses 'alterando'). Do not re-apply.
 --
 -- What it does:
 --   1. status may also be 'alterando': set ONLY by a Claude session by SQL while it reworks a decision after his

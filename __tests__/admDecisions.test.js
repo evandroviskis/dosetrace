@@ -22,17 +22,17 @@ const D5 = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd5';
 const NOPE = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd9';
 
 function row(o) {
-  return Object.assign({ created_at: '2026-11-24T12:00:00Z', updated_at: '2026-11-24T12:00:00Z', area: 'app', kind: 'visual', title: 'T', question: 'Q', context: null, founder_said: null, recommendation: null, options: [], links: [], images: [], status: 'pendente', choice: null, note: null, decided_at: null, executed_at: null, executed_note: null, source: 'test', sort: 0 }, o);
+  return Object.assign({ created_at: '2026-11-24T12:00:00Z', updated_at: '2026-11-24T12:00:00Z', area: 'app', kind: 'visual', title: 'T', question: 'Q', context: null, founder_said: null, recommendation: null, options: [], links: [], images: [], status: 'pendente', choice: null, note: null, decided_at: null, executed_at: null, executed_note: null, source: 'test', sort: 0, origem: 'app' }, o);
 }
 function world(o) {
   o = o || {};
   const W = {
     rows: [
       row({ id: D1, title: 'Cor do botão', options: ['A', 'B'], images: [{ label: 'Claro', path: 'app/botao-claro.png' }, { label: 'Desenho', path: 'app/botao.html' }, { label: 'Fora', path: '../etc/passwd' }], links: [{ label: 'Artefato', url: 'https://claude.ai/artifact/x' }, { label: 'Mau', url: 'javascript:alert(1)' }] }),
-      row({ id: D2, area: 'painel', kind: 'texto', title: 'Texto do aviso', status: 'aprovado', decided_at: '2026-11-24T13:00:00Z' }),
-      row({ id: D3, area: 'site', title: 'Já feito', status: 'aprovado', decided_at: '2026-11-23T10:00:00Z', executed_at: '2026-11-23T12:00:00Z', executed_note: 'Feito no commit abc' }),
+      row({ id: D2, origem: 'adm', area: 'painel', kind: 'texto', title: 'Texto do aviso', status: 'aprovado', decided_at: '2026-11-24T13:00:00Z' }),
+      row({ id: D3, origem: 'ads', area: 'site', title: 'Já feito', status: 'aprovado', decided_at: '2026-11-23T10:00:00Z', executed_at: '2026-11-23T12:00:00Z', executed_note: 'Feito no commit abc' }),
       row({ id: D4, area: 'app', title: 'Outra pendente', sort: -1 }),
-      row({ id: D5, area: 'app', title: 'Em retrabalho', status: 'alterando', choice: null, note: 'Mais espaço embaixo.', decided_at: '2026-11-24T14:00:00Z', rework_at: '2026-11-24T15:00:00Z' }),
+      row({ id: D5, origem: 'ads', area: 'app', title: 'Em retrabalho', status: 'alterando', choice: null, note: 'Mais espaço embaixo.', decided_at: '2026-11-24T14:00:00Z', rework_at: '2026-11-24T15:00:00Z' }),
     ],
     events: [],
     rpcCalls: [],
@@ -133,6 +133,17 @@ test('DC2: GET lists every decision with counts per group (pending / being chang
   assert.deepEqual(p.json.counts, r.json.counts, 'the badge count never depends on the filter');
   assert.deepEqual((await get(W, '?status=executadas')).json.items.map((x) => x.id), [D3]);
   assert.deepEqual((await get(W, '?area=painel')).json.items.map((x) => x.id), [D2]);
+  assert.ok(r.json.items.every((x) => ['app', 'adm', 'ads'].indexOf(x.origem) >= 0), 'every item says which session posted it');
+  assert.deepEqual(r.json.by_origem, {
+    app: { pendentes: 2, alterando: 0, decididas: 0, executadas: 0, total: 2 },
+    adm: { pendentes: 0, alterando: 0, decididas: 1, executadas: 0, total: 1 },
+    ads: { pendentes: 0, alterando: 1, decididas: 1, executadas: 1, total: 2 },
+  });
+  const ads = await get(W, '?origem=ads');
+  assert.deepEqual(ads.json.items.map((x) => x.id).sort(), [D3, D5].sort());
+  assert.deepEqual(ads.json.counts, r.json.counts, 'the badge total never depends on the origin filter');
+  assert.deepEqual((await get(W, '?origem=app&status=pendentes')).json.items.map((x) => x.id), [D4, D1]);
+  assert.equal((await get(W, '?origem=site')).code, 400);
   assert.equal((await get(W, '?status=tudo')).code, 400);
   assert.equal((await get(W, '?area=lua')).code, 400);
   assert.equal((await get(W, '?id=nope')).code, 400);
@@ -261,10 +272,10 @@ test('DC4 SQL: founder_decisions + events, RLS on with no policy, service_role S
   assert.ok(!/\bauth\./.test(body), 'nothing in the auth schema');
 });
 
-test('DC6 SQL: "Alteração em andamento" in its own migration on top of the applied one — status alterando with rework_at, executed only after his answer, the save refuses it; one transaction, not applied, the first migration untouched', () => {
+test('DC6 SQL: "Alteração em andamento" in its own migration on top of the applied one — status alterando with rework_at, executed only after his answer, the save refuses it; one transaction, applied 2026-11-24, the first migration untouched', () => {
   const sql = read('supabase/migrations/20261124010000_founder_decisions_alterando.sql');
   const body = sql.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
-  assert.match(sql, /STATUS: NOT APPLIED/);
+  assert.match(sql, /STATUS: APPLIED 2026-11-24/);
   assert.equal((body.match(/^begin;$/gm) || []).length, 1); assert.equal((body.match(/^commit;$/gm) || []).length, 1);
   assert.match(body, /add column if not exists rework_at timestamptz;/);
   assert.match(body, /drop constraint if exists founder_decisions_status_check;\nalter table public\.founder_decisions add constraint founder_decisions_status_check\n  check \(status in \('pendente', 'aprovado', 'recusado', 'ajustar', 'alterando'\)\);/);
@@ -336,6 +347,40 @@ test('DC6: a decision being changed opens read only — the "being changed since
   const open = win.DCTab._detail();
   for (const k of ['data-a="status"', 'data-a="choice"', 'id="dc-note"', 'data-a="save"']) assert.ok(open.includes(k), 'editable again: ' + k);
   st.det = null; st.draft = null;
+});
+
+test('DC7: segmented by the session that posted it — "Todas · App · Painel admin · Publicidade" with the pending count of each, group counts follow the chosen origin, a small origin label on every card; the badge stays the total pending', () => {
+  const win = loadInBox('web/adm-decisions.js');
+  const T = win.DC_T;
+  assert.equal(T.pt.o_all, 'Todas'); assert.equal(T.pt.o_app, 'App'); assert.equal(T.pt.o_adm, 'Painel admin'); assert.equal(T.pt.o_ads, 'Publicidade');
+  const st = win.DCTab._state;
+  const it = (id, origem, status, group) => ({ id, origem, status, group, area: 'app', kind: 'visual', title: 'T ' + id, question: 'Q', decided_at: status === 'pendente' ? null : 'x' });
+  st.data = { items: [it('1', 'app', 'pendente', 'pendentes'), it('2', 'app', 'pendente', 'pendentes'), it('3', 'ads', 'pendente', 'pendentes'), it('4', 'adm', 'aprovado', 'decididas')],
+    counts: { pendentes: 3, alterando: 0, decididas: 1, executadas: 0, total: 4 },
+    by_origem: { app: { pendentes: 2, alterando: 0, decididas: 0, executadas: 0, total: 2 }, adm: { pendentes: 0, alterando: 0, decididas: 1, executadas: 0, total: 1 }, ads: { pendentes: 1, alterando: 0, decididas: 0, executadas: 0, total: 1 } } };
+  st.group = 'pendentes'; st.origem = '';
+  let h = win.DCTab._list();
+  const seg = h.match(/<div class="dc-orig-seg"[\s\S]*?<\/div>/)[0];
+  assert.deepEqual([...seg.matchAll(/data-a="origem" data-v="([a-z]*)"/g)].map((m) => m[1]), ['', 'app', 'adm', 'ads']);
+  assert.deepEqual([...seg.matchAll(/<b>(\d+)<\/b>/g)].map((m) => m[1]), ['3', '2', '0', '1'], 'pending per origin');
+  assert.ok(h.indexOf('<div class="dc-orig-seg"') < h.indexOf('<div class="dc-seg"'), 'origin control at the top');
+  assert.equal((h.match(/class="dc-orig"/g) || []).length, 3, 'origin label on each card');
+  st.origem = 'app';
+  h = win.DCTab._list();
+  assert.equal((h.match(/data-a="open"/g) || []).length, 2, 'only the app session');
+  const gseg = h.match(/<div class="dc-seg"[\s\S]*?<\/div>/)[0];
+  assert.deepEqual([...gseg.matchAll(/<b>(\d+)<\/b>/g)].map((m) => m[1]), ['2', '0', '0'], 'group counts of the chosen origin');
+  assert.equal(win.DCTab.pending(), 3, 'badge = total pending, whatever the filter');
+  st.data = null; st.origem = '';
+});
+
+test('DC7 SQL: the origem migration records what is live (applied 2026-11-24), idempotent', () => {
+  const sql = read('supabase/migrations/20261124020000_founder_decisions_origem.sql');
+  const body = sql.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
+  assert.match(sql, /STATUS: APPLIED 2026-11-24/);
+  assert.match(body, /alter table public\.founder_decisions add column if not exists origem text not null default 'app'\n  check \(origem in \('app', 'adm', 'ads'\)\);/);
+  assert.match(body, /create index if not exists founder_decisions_origem on public\.founder_decisions \(origem, status\);/);
+  assert.equal((body.match(/^begin;$/gm) || []).length, 1); assert.equal((body.match(/^commit;$/gm) || []).length, 1);
 });
 
 test('DC5: web/adm.html wires the tab — desktop tab and phone tab bar with the pending badge, label ×6, Back key, external links through the bridge, script after the main one; vercel.json lets the signed pictures load', () => {

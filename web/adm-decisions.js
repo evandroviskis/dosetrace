@@ -7,7 +7,7 @@
   'use strict';
   var T = {
     en: {
-      title_h: 'Decisions', intro: 'What you need to decide. Tap a decision to open it.',
+      title_h: 'Decisions', o_all: 'All', o_app: 'App', o_adm: 'Admin panel', o_ads: 'Marketing', o_from: 'Posted by', intro: 'What you need to decide. Tap a decision to open it.',
       g_pendentes: 'Pending', g_alterando: 'Being changed', g_decididas: 'Decided',
       area_all: 'All areas', a_app: 'App', a_painel: 'Panel', a_site: 'Website', a_divulgacao: 'Marketing', a_outro: 'Other',
       k_visual: 'Visual', k_texto: 'Text', k_regra: 'Rule', k_outro: 'Other',
@@ -24,7 +24,7 @@
       e_executed: 'This decision has already been carried out and can no longer be changed.', e_rate: 'Too many saves in a short time. Try again in {m} min.', e_choice: 'This option no longer exists in this decision. Open the decision again.', e_generic: 'Could not save ({m}). Your text is still here.', e_code: 'Code not confirmed.',
     },
     pt: {
-      title_h: 'Decisões', intro: 'O que o senhor precisa decidir. Toque em uma decisão para abrir.',
+      title_h: 'Decisões', o_all: 'Todas', o_app: 'App', o_adm: 'Painel admin', o_ads: 'Publicidade', o_from: 'Enviada por', intro: 'O que o senhor precisa decidir. Toque em uma decisão para abrir.',
       g_pendentes: 'Pendentes', g_alterando: 'Alteração em andamento', g_decididas: 'Decididas',
       area_all: 'Todas as áreas', a_app: 'App', a_painel: 'Painel', a_site: 'Site', a_divulgacao: 'Divulgação', a_outro: 'Outro',
       k_visual: 'Visual', k_texto: 'Texto', k_regra: 'Regra', k_outro: 'Outro',
@@ -43,7 +43,7 @@
   };
   function tr(base, over) { var o = {}; Object.keys(base).forEach(function (k) { o[k] = over[k] != null ? over[k] : base[k]; }); return o; }
   T.es = tr(T.en, {
-    title_h: 'Decisiones', intro: 'Lo que tienes que decidir. Toca una decisión para abrirla.', g_pendentes: 'Pendientes', g_alterando: 'Cambio en curso', g_decididas: 'Decididas',
+    title_h: 'Decisiones', o_all: 'Todas', o_app: 'App', o_adm: 'Panel admin', o_ads: 'Publicidad', o_from: 'Enviada por', intro: 'Lo que tienes que decidir. Toca una decisión para abrirla.', g_pendentes: 'Pendientes', g_alterando: 'Cambio en curso', g_decididas: 'Decididas',
     area_all: 'Todas las áreas', a_app: 'App', a_painel: 'Panel', a_site: 'Sitio web', a_divulgacao: 'Difusión', a_outro: 'Otro', k_visual: 'Visual', k_texto: 'Texto', k_regra: 'Regla', k_outro: 'Otro',
     loading: 'Cargando las decisiones…', e_conf: 'La pestaña Decisiones aún no está activa en el servidor (falta aplicar la migración).', e_load: 'No se pudieron cargar las decisiones ({n}).', retry: 'Reintentar',
     empty_pendentes: 'Ninguna decisión pendiente.', empty_alterando: 'Ninguna decisión en cambio.', empty_decididas: 'Aún no hay decisiones tomadas.', sub_waiting: 'Esperando ejecución', sub_executadas: 'Ejecutadas',
@@ -58,7 +58,7 @@
     e_executed: 'Esta decisión ya se ejecutó y ya no se puede cambiar.', e_rate: 'Demasiados guardados en poco tiempo. Inténtalo de nuevo en {m} min.', e_choice: 'Esta opción ya no existe en esta decisión. Abre la decisión de nuevo.', e_generic: 'No se pudo guardar ({m}). Tu texto sigue aquí.', e_code: 'Código no confirmado.',
   });
   T.fr = tr(T.en, {
-    title_h: 'Décisions', intro: 'Ce que vous devez décider. Touchez une décision pour l’ouvrir.', g_pendentes: 'En attente', g_alterando: 'Modification en cours', g_decididas: 'Décidées',
+    title_h: 'Décisions', o_all: 'Toutes', o_app: 'Appli', o_adm: 'Panneau admin', o_ads: 'Publicité', o_from: 'Envoyée par', intro: 'Ce que vous devez décider. Touchez une décision pour l’ouvrir.', g_pendentes: 'En attente', g_alterando: 'Modification en cours', g_decididas: 'Décidées',
     area_all: 'Tous les domaines', a_app: 'Appli', a_painel: 'Panneau', a_site: 'Site web', a_divulgacao: 'Communication', a_outro: 'Autre', k_visual: 'Visuel', k_texto: 'Texte', k_regra: 'Règle', k_outro: 'Autre',
     loading: 'Chargement des décisions…', e_conf: 'L’onglet Décisions n’est pas encore actif sur le serveur (la migration n’a pas été appliquée).', e_load: 'Impossible de charger les décisions ({n}).', retry: 'Réessayer',
     empty_pendentes: 'Aucune décision en attente.', empty_alterando: 'Aucune décision en cours de modification.', empty_decididas: 'Aucune décision prise pour l’instant.', sub_waiting: 'En attente de réalisation', sub_executadas: 'Réalisées',
@@ -73,7 +73,7 @@
     e_executed: 'Cette décision a déjà été réalisée et ne peut plus être modifiée.', e_rate: 'Trop d’enregistrements en peu de temps. Réessayez dans {m} min.', e_choice: 'Cette option n’existe plus dans cette décision. Rouvrez la décision.', e_generic: 'Impossible d’enregistrer ({m}). Votre texte est toujours là.', e_code: 'Code non confirmé.',
   });
   T.de = tr(T.en, {
-    title_h: 'Entscheidungen', intro: 'Was du entscheiden musst. Tippe auf eine Entscheidung, um sie zu öffnen.', g_pendentes: 'Offen', g_alterando: 'Wird geändert', g_decididas: 'Entschieden',
+    title_h: 'Entscheidungen', o_all: 'Alle', o_app: 'App', o_adm: 'Admin-Panel', o_ads: 'Werbung', o_from: 'Gesendet von', intro: 'Was du entscheiden musst. Tippe auf eine Entscheidung, um sie zu öffnen.', g_pendentes: 'Offen', g_alterando: 'Wird geändert', g_decididas: 'Entschieden',
     area_all: 'Alle Bereiche', a_app: 'App', a_painel: 'Panel', a_site: 'Website', a_divulgacao: 'Marketing', a_outro: 'Sonstiges', k_visual: 'Visuell', k_texto: 'Text', k_regra: 'Regel', k_outro: 'Sonstiges',
     loading: 'Entscheidungen werden geladen…', e_conf: 'Der Tab Entscheidungen ist auf dem Server noch nicht aktiv (die Migration fehlt).', e_load: 'Entscheidungen konnten nicht geladen werden ({n}).', retry: 'Erneut versuchen',
     empty_pendentes: 'Keine offene Entscheidung.', empty_alterando: 'Keine Entscheidung wird gerade geändert.', empty_decididas: 'Noch keine Entscheidung getroffen.', sub_waiting: 'Wartet auf Umsetzung', sub_executadas: 'Umgesetzt',
@@ -88,7 +88,7 @@
     e_executed: 'Diese Entscheidung wurde bereits umgesetzt und kann nicht mehr geändert werden.', e_rate: 'Zu viele Speichervorgänge in kurzer Zeit. Versuche es in {m} Min. erneut.', e_choice: 'Diese Option gibt es in dieser Entscheidung nicht mehr. Öffne die Entscheidung erneut.', e_generic: 'Speichern fehlgeschlagen ({m}). Dein Text ist noch da.', e_code: 'Code nicht bestätigt.',
   });
   T.it = tr(T.en, {
-    title_h: 'Decisioni', intro: 'Ciò che devi decidere. Tocca una decisione per aprirla.', g_pendentes: 'In sospeso', g_alterando: 'Modifica in corso', g_decididas: 'Decise',
+    title_h: 'Decisioni', o_all: 'Tutte', o_app: 'App', o_adm: 'Pannello admin', o_ads: 'Pubblicità', o_from: 'Inviata da', intro: 'Ciò che devi decidere. Tocca una decisione per aprirla.', g_pendentes: 'In sospeso', g_alterando: 'Modifica in corso', g_decididas: 'Decise',
     area_all: 'Tutte le aree', a_app: 'App', a_painel: 'Pannello', a_site: 'Sito web', a_divulgacao: 'Promozione', a_outro: 'Altro', k_visual: 'Visivo', k_texto: 'Testo', k_regra: 'Regola', k_outro: 'Altro',
     loading: 'Caricamento delle decisioni…', e_conf: 'La scheda Decisioni non è ancora attiva sul server (manca la migrazione).', e_load: 'Impossibile caricare le decisioni ({n}).', retry: 'Riprova',
     empty_pendentes: 'Nessuna decisione in sospeso.', empty_alterando: 'Nessuna decisione in modifica.', empty_decididas: 'Ancora nessuna decisione presa.', sub_waiting: 'In attesa di esecuzione', sub_executadas: 'Eseguite',
@@ -106,6 +106,8 @@
 
   var GROUPS = ['pendentes', 'alterando', 'decididas'];
   var AREAS = ['app', 'painel', 'site', 'divulgacao', 'outro'];
+  // Which Claude session posted it (founder 2026-11-24): App · Painel admin · Publicidade.
+  var ORIGENS = ['app', 'adm', 'ads'];
   var MAX_NOTE = 4000;
   var DRAFT_KEY = 'dt_adm_dc_draft_';
   function L() { try { return (window.DTADM && window.DTADM.lang()) || 'en'; } catch (e) { return 'en'; } }
@@ -128,7 +130,7 @@
   function dropDraft(id) { try { var s = store(); if (s) s.removeItem(DRAFT_KEY + id); } catch (e) {} }
 
   // ------------------------------------------------------------------ state, API
-  var DC = { root: null, data: null, err: null, loading: false, group: 'pendentes', area: '', sel: null, det: null, detErr: null, draft: null, busy: false, saveErr: null, savedAt: null, box: null };
+  var DC = { root: null, data: null, err: null, loading: false, group: 'pendentes', area: '', origem: '', sel: null, det: null, detErr: null, draft: null, busy: false, saveErr: null, savedAt: null, box: null };
   function api(m, b, q) { return window.DTADM.api(m, b, '/api/adm-decisions' + (q || '')); }
   function pending() { return DC.data && DC.data.counts ? DC.data.counts.pendentes : null; }
   function paintBadge() {
@@ -201,17 +203,20 @@
     var cls = r.status === 'aprovado' ? 'good' : r.status === 'recusado' ? 'bad' : r.status === 'ajustar' ? 'warn' : 'acc';
     return '<span class="dc-st ' + cls + '">' + esc(t('st_' + r.status)) + '</span>';
   }
+  function origLabel(r) { var o = ORIGENS.indexOf(r.origem) >= 0 ? r.origem : 'app'; return '<span class="dc-orig">' + esc(t('o_' + o)) + '</span>'; }
   function tags(r) { return '<span class="dc-tag">' + esc(t('a_' + r.area)) + '</span><span class="dc-tag">' + esc(t('k_' + r.kind)) + '</span>'; }
   function list() {
-    var d = DC.data, c = (d && d.counts) || { pendentes: 0, alterando: 0, decididas: 0, executadas: 0 };
+    var d = DC.data, all = (d && d.counts) || { pendentes: 0, alterando: 0, decididas: 0, executadas: 0 }, by = (d && d.by_origem) || {};
+    var c = DC.origem ? (by[DC.origem] || { pendentes: 0, alterando: 0, decididas: 0, executadas: 0 }) : all;
     var h = '<div class="dc-head"><h2 class="dc-h1">' + esc(t('title_h')) + '</h2><p class="dc-intro">' + esc(t('intro')) + '</p></div>';
+    h += '<div class="dc-orig-seg" role="tablist">' + [''].concat(ORIGENS).map(function (o) { var n = o ? ((by[o] && by[o].pendentes) || 0) : (all.pendentes || 0); return '<button type="button" role="tab" data-a="origem" data-v="' + o + '" class="' + (DC.origem === o ? 'on' : '') + '" aria-selected="' + (DC.origem === o) + '">' + esc(o ? t('o_' + o) : t('o_all')) + ' <b>' + n + '</b></button>'; }).join('') + '</div>';
     h += '<div class="dc-seg" role="tablist">' + GROUPS.map(function (g) { return '<button type="button" role="tab" data-a="group" data-v="' + g + '" class="' + (DC.group === g ? 'on' : '') + '" aria-selected="' + (DC.group === g) + '">' + esc(t('g_' + g)) + ' <b>' + (c[g] || 0) + '</b></button>'; }).join('') + '</div>';
     h += '<div class="dc-areas">' + [''].concat(AREAS).map(function (a) { return '<button type="button" data-a="area" data-v="' + a + '" class="' + (DC.area === a ? 'on' : '') + '" aria-pressed="' + (DC.area === a) + '">' + esc(a ? t('a_' + a) : t('area_all')) + '</button>'; }).join('') + '</div>';
-    var items = ((d && d.items) || []).filter(function (r) { return r.group === DC.group && (!DC.area || r.area === DC.area); });
+    var items = ((d && d.items) || []).filter(function (r) { return r.group === DC.group && (!DC.area || r.area === DC.area) && (!DC.origem || (r.origem || 'app') === DC.origem); });
     if (!items.length) return h + '<div class="dc-empty">' + esc(t('empty_' + DC.group)) + '</div>';
     function card(r) {
       var sub = r.executed_at ? (r.executed_note || '') : r.status === 'alterando' ? t('reworking_since', { d: when(r.rework_at) }) : r.status !== 'pendente' ? (t('decided_on', { d: when(r.decided_at) }) + (r.choice ? ' · ' + r.choice : '')) : r.question;
-      return '<button type="button" class="dc-item" data-a="open" data-v="' + esc(r.id) + '"><span class="dc-item-top">' + tags(r) + stChip(r) + '</span><span class="dc-item-t">' + esc(r.title) + '</span><span class="dc-item-q">' + esc(sub) + '</span></button>';
+      return '<button type="button" class="dc-item" data-a="open" data-v="' + esc(r.id) + '"><span class="dc-item-top">' + origLabel(r) + tags(r) + stChip(r) + '</span><span class="dc-item-t">' + esc(r.title) + '</span><span class="dc-item-q">' + esc(sub) + '</span></button>';
     }
     if (DC.group !== 'decididas') return h + '<div class="dc-list">' + items.map(card).join('') + '</div>';
     var wait = items.filter(function (r) { return !r.executed_at; }), done = items.filter(function (r) { return !!r.executed_at; });
@@ -228,7 +233,7 @@
     if (DC.detErr) return h + '<div class="dc-empty">' + esc(DC.detErr) + '</div>';
     if (!it) return h + '<div class="dc-empty">' + esc(t('loading')) + '</div>';
     var locked = readOnly(), rework = it.status === 'alterando' && !it.executed_at;
-    h += '<div class="dc-meta">' + tags(it) + stChip(it) + '</div><h2 class="dc-title">' + esc(it.title) + '</h2>';
+    h += '<div class="dc-meta">' + origLabel(it) + tags(it) + stChip(it) + '</div><h2 class="dc-title">' + esc(it.title) + '</h2>';
     h += '<div class="dc-small">' + esc(t('created', { d: when(it.created_at) })) + (it.source ? ' · ' + esc(t('from', { s: it.source })) : '') + '</div>';
     if (it.executed_at) h += '<div class="dc-banner good"><b>' + esc(t('executed_at', { d: when(it.executed_at) })) + '</b>' + (it.executed_note ? ' — ' + esc(it.executed_note) : '') + '</div>';
     else if (rework) h += '<div class="dc-banner acc"><b>' + esc(t('reworking_since', { d: when(it.rework_at) })) + '</b><br>' + esc(t('reworking_hint')) + '</div>';
@@ -285,6 +290,7 @@
     var el = ev.target.closest('[data-a]'); if (!el || !DC.root.contains(el)) return;
     var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
     if (a === 'group') { DC.group = GROUPS.indexOf(v) >= 0 ? v : 'pendentes'; draw(); return; }
+    if (a === 'origem') { DC.origem = ORIGENS.indexOf(v) >= 0 ? v : ''; draw(); return; }
     if (a === 'area') { DC.area = AREAS.indexOf(v) >= 0 ? v : ''; draw(); return; }
     if (a === 'open') { open(v); return; }
     if (a === 'back') { DC.sel = null; DC.det = null; DC.box = null; draw(); return; }
@@ -307,7 +313,7 @@
 
   var STYLE = '.dc{max-width:860px;margin:0 auto}.dc-head{margin:6px 0 12px}.dc-h1{font-size:22px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0 0 4px}.dc-intro{color:var(--muted);font-size:15px;margin:0}'
     + '.dc-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px}.dc-seg button{min-height:52px;font-size:15.5px;font-weight:700;border-radius:12px;background:var(--surface);color:var(--ink)}.dc-seg button b{display:inline-block;min-width:24px;padding:0 6px;border-radius:999px;background:var(--surface2);color:var(--ink);font-size:13px}.dc-seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.dc-seg button.on b{background:var(--bg);color:var(--ink)}'
-    + '.dc-areas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.dc-areas button{min-height:44px;border-radius:999px;font-size:14.5px;padding:6px 14px}'
+    + '.dc-orig-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 10px}.dcm .dc-orig-seg{grid-template-columns:repeat(2,minmax(0,1fr))}.dc-orig-seg button{min-height:48px;font-size:15px;font-weight:700;border-radius:12px;background:var(--surface);color:var(--ink)}.dc-orig-seg button b{display:inline-block;min-width:24px;padding:0 6px;border-radius:999px;background:var(--surface2);color:var(--ink);font-size:13px}.dc-orig-seg button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}.dc-orig-seg button.on b{background:var(--bg);color:var(--ink)}.dc-orig{display:inline-block;font-size:12.5px;font-weight:800;color:var(--accent);border-left:3px solid var(--accent);padding:0 6px;letter-spacing:.02em}.dc-areas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.dc-areas button{min-height:44px;border-radius:999px;font-size:14.5px;padding:6px 14px}'
     + '.dc-list{display:grid;gap:10px}.dc-item{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-height:72px}.dc-item:hover{border-color:var(--accent)}.dc-item-top{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}.dc-item-t{display:block;font-size:18px;font-weight:700;line-height:1.3;color:var(--ink)}.dc-item-q{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted);font-size:15px;margin-top:4px;white-space:pre-wrap}'
     + '.dc-tag{display:inline-block;border:1px solid var(--line);color:var(--muted);font-size:12.5px;border-radius:7px;padding:1px 8px;font-weight:600}.dc-st{display:inline-block;font-size:12.5px;border-radius:999px;padding:1px 9px;border:1px solid var(--line);color:var(--muted);font-weight:700}.dc-st.good{color:var(--good);border-color:var(--good)}.dc-st.bad{color:var(--bad);border-color:var(--bad)}.dc-st.warn{color:var(--warn);border-color:var(--warn)}.dc-st.acc{color:var(--accent);border-color:var(--accent)}'
     + '.dc-empty{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 16px;color:var(--muted);font-size:16px;text-align:center}'
@@ -339,7 +345,7 @@
     pending: pending,
     // Android Back (DTAdminBack): picture → decision → list.
     back: function () { if (!DC.root || !document.body.contains(DC.root)) return false; if (DC.box) { DC.box = null; draw(); return true; } if (DC.sel) { DC.sel = null; DC.det = null; draw(); return true; } return false; },
-    _state: DC, _t: t, _group: groupOf, _safeUrl: safeUrl, _readOnly: readOnly, _detail: detail,
+    _state: DC, _t: t, _group: groupOf, _safeUrl: safeUrl, _readOnly: readOnly, _detail: detail, _list: list,
   };
   var early = document.getElementById('dc-root'); if (early && !early.innerHTML) window.DCTab.mount(early);
 })();
