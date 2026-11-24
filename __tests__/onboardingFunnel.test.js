@@ -34,8 +34,9 @@ test('wired: each step shown is noted (signed out) or logged (signed in), the vi
   const FLOW = read('screens/OnboardingFlowScreen.js');
   assert.match(FLOW, /useEffect\(\(\) => \{\s+if \(!cur\) return;\s+if \(signedIn\) Analytics\.viewed\('ob_' \+ cur\);\s+else onboardingFunnel\.note\(cur\);\s+\}, \[cur, signedIn\]\);/);
   const INTRO = read('components/OnboardingIntro.js');
-  assert.match(INTRO, /function skip\(\) \{ onboardingFunnel\.intro\('skipped'\);/);
-  assert.match(INTRO, /function start\(\) \{ if \(startOn && onDone\) \{ onboardingFunnel\.intro\('finished'\); onDone\(\); \} \}/);
+  // the controls (2026-11-24): Pular notes 'skipped'; Começar (the pill on the end frame) notes 'finished'
+  assert.match(INTRO, /function skip\(\) \{\s*const plan = introSkip\(curRef\.current\);\s*if \(!plan\) return;\s*onboardingFunnel\.intro\('skipped'\);/);
+  assert.match(INTRO, /if \(plan\.finish\) \{\s*if \(onDone\) \{ onboardingFunnel\.intro\('finished'\); onDone\(\); \}/);
   const APP = read('App.js');
   assert.match(APP, /onboardingFunnel\.flush\(logEvent\)\.catch\(\(\) => \{\}\);/);
   const AN = read('lib/analytics.js');

@@ -3,7 +3,9 @@
 // picture docs/design/onboarding-intro.html, founder 2026-11-20): one continuous ~32 s video that
 // plays by itself and replaces the five separate feature screens. Scenes in the approved order and
 // timings, the example numbers from the app's own math, the story bars, Skip to the end frame,
-// "Start" as the only way on, Reduce Motion = each scene complete and a tap to go on.
+// "Start" as the only way on. The controls (Voltar / Avançar, founder 2026-11-24) and the
+// dose-observation scene behind lib/obIntro OBSERVATION_SCENE: __tests__/onboardingIntroControls.test.js.
+// The timings below are the six scenes approved on 2026-11-20 (OBSERVATION_SCENE false).
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -11,6 +13,7 @@ const path = require('node:path');
 const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
 const exists = (f) => fs.existsSync(path.join(__dirname, '..', f));
 const I = require('../lib/obIntro');
+const T6 = I.makeIntro(false);
 const F = require('../lib/obFeatures');
 const O = require('../lib/onboardingSteps');
 const { translations: tr } = require('../i18n/translations.js');
@@ -63,23 +66,25 @@ test('OB-1: the old feature screens and the "n of 5" kicker are removed (rebuild
 
 // ── OB-27: the timeline ──
 test('OB-27: six scenes in the approved order and timings, about 32 s, one after the other', () => {
-  assert.deepEqual(I.SCENES.map((s) => s.key), ['open', 'syringe', 'body', 'reminders', 'labs', 'end']);
-  assert.deepEqual(I.SCENES.map((s) => s.start), [0, 3500, 10000, 18500, 25000, 30500]);
-  for (let i = 1; i < I.SCENES.length; i++) assert.equal(I.SCENES[i].start, I.SCENES[i - 1].end, `${I.SCENES[i].key} starts where the one before ends`);
-  assert.equal(I.INTRO_END, I.SCENES[I.SCENES.length - 1].end);
-  assert.ok(I.INTRO_END >= 31800 && I.INTRO_END <= 33000, `${I.INTRO_END} ms`);
-  assert.deepEqual(I.STORY_BARS, ['syringe', 'body', 'reminders', 'labs']);
+  for (const X of [T6, I]) {
+    for (let i = 1; i < X.SCENES.length; i++) assert.equal(X.SCENES[i].start, X.SCENES[i - 1].end, `${X.SCENES[i].key} starts where the one before ends`);
+    assert.equal(X.INTRO_END, X.SCENES[X.SCENES.length - 1].end);
+  }
+  assert.deepEqual(T6.SCENES.map((s) => s.key), ['open', 'syringe', 'body', 'reminders', 'labs', 'end']);
+  assert.deepEqual(T6.SCENES.map((s) => s.start), [0, 3500, 10000, 18500, 25000, 30500]);
+  assert.ok(T6.INTRO_END >= 31800 && T6.INTRO_END <= 33000, `${T6.INTRO_END} ms`);
+  assert.deepEqual(T6.STORY_BARS, ['syringe', 'body', 'reminders', 'labs']);
 });
 
 test('OB-27: every element of a scene is complete at its hold frame, and the scene leaves only after it', () => {
-  for (const s of I.SCENES) {
-    const beats = I.sceneBeats(s.key);
+  for (const X of [T6, I.makeIntro(true)]) for (const s of X.SCENES) {
+    const beats = X.sceneBeats(s.key);
     assert.ok(beats.length >= 3, `${s.key}: ${beats.length} beats`);
     for (const b of beats) {
       assert.ok(b.at >= s.start, `${s.key}.${b.name} starts in its scene`);
       assert.ok(b.at + b.dur <= s.hold, `${s.key}.${b.name} complete by the hold frame (${b.at + b.dur} > ${s.hold})`);
     }
-    const out = I.BEATS[s.key].out;
+    const out = X.BEATS[s.key].out;
     if (s.key === 'end') assert.equal(out, undefined, 'the end frame never leaves');
     else assert.ok(out >= s.hold && out + I.OUT_DUR <= s.end, `${s.key} leaves after its hold, before the next scene`);
     assert.ok(s.hold > s.start && s.hold <= s.end);
@@ -91,34 +96,36 @@ test('OB-27: every element of a scene is complete at its hold frame, and the sce
   assert.ok(B.body.cols[0] < B.body.cols[1] && B.body.cols[1] < B.body.cols[2] && B.body.cols[2] < B.body.line[0] && B.body.line[0] < B.body.foot);
   assert.ok(B.reminders.n1[0] < B.reminders.taken[0] && B.reminders.taken[0] < B.reminders.chip && B.reminders.chip < B.reminders.n2[0] && B.reminders.n2[0] < B.reminders.snooze[0]);
   assert.ok(B.labs.cards.every((c, i) => i === 0 || c > B.labs.cards[i - 1]), 'lab cards one by one');
-  assert.ok(B.end.title < B.end.button, 'the headline before the button');
+  assert.equal(B.end.button, undefined, 'Começar is the button row now, not drawn by the video');
 });
 
 test('OB-27: scene at a time, story-bar fill, Skip to the end frame', () => {
-  assert.equal(I.sceneIndexAt(0), 0);
-  assert.equal(I.sceneIndexAt(3499), 0);
-  assert.equal(I.sceneIndexAt(3500), 1);
-  assert.equal(I.sceneIndexAt(20000), 3);
-  assert.equal(I.sceneIndexAt(30500), 5);
-  assert.equal(I.sceneIndexAt(99999), 5);
-  // each bar fills during its own scene (syringe = bar 0 … labs = bar 3)
-  assert.deepEqual([0, 1, 2, 3].map((b) => I.barFill(2000, b, false)), [0, 0, 0, 0]);
-  assert.equal(I.barFill(3500 + 3250, 0, false), 0.5);
-  assert.deepEqual([0, 1, 2, 3].map((b) => I.barFill(19000, b, false)).map((v) => Math.round(v * 100) / 100), [1, 1, 0.08, 0]);
-  assert.deepEqual([0, 1, 2, 3].map((b) => I.barFill(I.INTRO_END, b, false)), [1, 1, 1, 1]);
+  const X = T6;
+  assert.equal(X.sceneIndexAt(0), 0);
+  assert.equal(X.sceneIndexAt(3499), 0);
+  assert.equal(X.sceneIndexAt(3500), 1);
+  assert.equal(X.sceneIndexAt(20000), 3);
+  assert.equal(X.sceneIndexAt(30500), 5);
+  assert.equal(X.sceneIndexAt(99999), 5);
+  // each bar fills while its own scene plays, start to hold (syringe = bar 0 … labs = bar 3)
+  assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(2000, b, false)), [0, 0, 0, 0]);
+  assert.equal(X.barFill(3500 + 2950, 0, false), 0.5);
+  assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(19000, b, false)).map((v) => Math.round(v * 100) / 100), [1, 1, 0.08, 0]); // 500 of 5900 ms
+  assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(X.INTRO_END, b, false)), [1, 1, 1, 1]);
   // Reduce Motion: a bar is full as soon as its scene shows, never a partial fill
-  assert.deepEqual([0, 1, 2, 3].map((b) => I.barFill(I.SCENES[2].hold, b, true)), [1, 1, 0, 0]);
-  assert.equal(I.skipTime(), I.INTRO_END, 'Skip shows the end frame, complete');
-  assert.equal(I.sceneIndexAt(I.skipTime()), 5);
-  assert.ok(I.INTRO_END >= I.BEATS.end.button + I.IN_DUR, 'the Start button is complete at the end frame');
+  assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(X.SCENES[2].hold, b, true)), [1, 1, 0, 0]);
+  assert.equal(X.skipTime(), X.INTRO_END, 'Skip shows the end frame, complete');
+  assert.equal(X.sceneIndexAt(X.skipTime()), 5);
+  assert.ok(X.INTRO_END >= X.BEATS.end.title + X.sceneBeats('end').find((b) => b.name === 'title').dur, 'the headline is complete at the end frame');
 });
 
-test('OB-27 / Reduce Motion: each scene is shown complete and a tap goes to the next; the end frame waits for Start', () => {
-  assert.equal(I.reducedStart(), I.SCENES[0].hold);
-  const seen = [I.reducedStart()];
-  for (let i = 0; i < 10; i++) seen.push(I.reducedNext(seen[seen.length - 1]));
-  assert.deepEqual(seen.slice(0, 6), I.SCENES.map((s) => s.hold));
-  assert.ok(seen.slice(5).every((v) => v === I.INTRO_END), 'no advance past the end frame');
+test('OB-27 / Reduce Motion: each scene is shown complete and Avançar goes to the next; the end frame waits for Começar', () => {
+  for (const X of [T6, I]) {
+    const seen = [X.introStart({ reduced: true })];
+    for (let i = 0; i < 10; i++) { const p = X.introNext(seen[seen.length - 1].cur, seen[seen.length - 1].to, true); if (p.finish) break; seen.push(p); }
+    assert.deepEqual(seen.map((p) => p.to), X.SCENES.map((s) => s.hold), 'every hold frame, in order');
+    assert.deepEqual(X.introNext(X.END, X.INTRO_END, true), { finish: true }, 'no advance past the end frame: Começar goes on');
+  }
 });
 
 // ── OB-3: syringe ──
@@ -194,35 +201,35 @@ test('OB-6: labs show Glucose, LDL and Vitamin D with every value and its month,
 });
 
 // ── OB-7: end frame / OB-27 controls ──
-test('OB-7 / OB-27: Skip always shown, Start only on the end frame, no auto-advance from the end', () => {
+test('OB-7 / OB-27: Skip until the end frame, Start only on the end frame, no auto-advance from the end', () => {
   const s = code();
   assert.match(s, /'ob_skip'/);
-  assert.match(s, /'obi_start'/);
   assert.match(s, /'obi_end'/);
-  assert.match(s, /skipTime\(\)/, 'Skip jumps to the end frame');
+  assert.match(read('lib/obIntro.js'), /'obi_start'/);
+  assert.match(s, /introSkip\(/, 'Skip jumps to the end frame');
   const calls = s.match(/onDone\(/g) || [];
-  assert.equal(calls.length, 1, 'onDone is called from one place only (the Start button)');
-  assert.match(s, /onPress=\{start\}/);
-  assert.match(s, /pointerEvents=\{startOn \? 'auto' : 'none'\}/, 'Start cannot be tapped before it shows');
+  assert.equal(calls.length, 1, 'onDone is called from one place only (Começar)');
+  assert.match(s, /onPress=\{primary\}/);
+  assert.match(s, /if \(plan\.finish\) \{/, 'Começar only when introNext says the end frame is on (lib/obIntro)');
 });
 
 test('OB-27: motion on the UI thread — one clock, transform / opacity / dashoffset, Reduce Motion and screen readers honoured', () => {
   const s = code();
   assert.match(s, /useReducedMotion\(\)/);
   assert.match(s, /isScreenReaderEnabled/);
-  assert.match(s, /withTiming\(INTRO_END/);
-  assert.equal((s.match(/withTiming\(/g) || []).length, 1, 'one clock');
+  assert.match(s, /clock\.set\(withTiming\(plan\.to, \{ duration: plan\.to - plan\.from, easing: Easing\.linear \}\)\)/);
+  assert.equal((s.match(/withTiming\(/g) || []).length, 2, 'one clock, played hold to hold, and the short fade of a jump');
   assert.doesNotMatch(s, /withRepeat|withSpring|setInterval|setTimeout|Animated\.timing|runOnJS/);
   assert.match(s, /scheduleOnRN\(/);
   assert.match(s, /cancelAnimation\(/);
-  assert.match(s, /reducedNext\(/);
+  assert.match(s, /introReduce\(/);
   assert.doesNotMatch(s, /animatedProps=\{[^}]*\bd\b/, 'no animated path d');
 });
 
 test('OB-27: the flow shows the video full screen on the intro step and Start goes on', () => {
   const onb = read('screens/OnboardingFlowScreen.js');
   assert.match(onb, /import OnboardingIntro from '\.\.\/components\/OnboardingIntro';/);
-  assert.match(onb, /cur === 'intro' \? \(\s*<OnboardingIntro onDone=\{next\} \/>/);
+  assert.match(onb, /cur === 'intro' \? \(\s*<OnboardingIntro onDone=\{next\} atEnd=\{introAtEnd\.current\} backRef=\{introBack\} \/>/);
   assert.doesNotMatch(onb, /OnboardingFeature\b|isFeature|featureKind|FEATURE_STEPS/);
   assert.match(onb, /\(step > 0 \|\| signedIn\) && cur !== 'intro' &&/, 'the flow top bar is hidden on the video');
   assert.match(onb, /\{cur !== 'intro' && \(\s*<View style=\{\[s\.footer/, 'the flow footer is hidden on the video');
@@ -234,10 +241,11 @@ const KEYS = [
   'obi_ex_compound1', 'obi_syr_calc', 'obi_syr_draw', 'obi_body_title', 'obi_body_sub', 'obi_body_day', 'obi_body_you_take',
   'obi_body_leg_today', 'obi_body_leg_ago', 'obi_body_foot', 'obi_rem_title', 'obi_rem_now', 'obi_rem_msg',
   'obi_rem_done', 'obi_ex_supplement', 'obi_lab_title', 'obi_lab_glucose', 'obi_lab_ldl', 'obi_lab_vitd',
-  'obi_lab_foot', 'obi_end', 'obi_start', 'obi_tap_next', 'obi_a11y_video',
+  'obi_lab_foot', 'obi_end', 'obi_start', 'obi_next', 'obi_a11y_video',
+  'obi_obs_title', 'obi_obs_sub', 'obi_obs_note', 'obi_obs_report', 'obi_obs_ph',
 ];
 test('every intro copy key exists in the 6 languages, with the same placeholders, and every obi_ key is used', () => {
-  const used = new Set([...src().matchAll(/'(obi_[a-z0-9_]+)'/g), ...read('lib/obFeatures.js').matchAll(/'(obi_[a-z0-9_]+)'/g)].map((m) => m[1]));
+  const used = new Set([...src().matchAll(/'(obi_[a-z0-9_]+)'/g), ...read('lib/obFeatures.js').matchAll(/'(obi_[a-z0-9_]+)'/g), ...read('lib/obIntro.js').matchAll(/'(obi_[a-z0-9_]+)'/g)].map((m) => m[1]));
   for (const k of KEYS) assert.ok(used.has(k), `${k} used`);
   for (const k of Object.keys(tr.en).filter((x) => x.startsWith('obi_'))) assert.ok(used.has(k), `unused key ${k}`);
   for (const k of KEYS) {

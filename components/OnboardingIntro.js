@@ -1,45 +1,54 @@
-// The onboarding intro video (docs/specs/onboarding-protocol.md OB-2..OB-7, OB-27; approved picture
-// docs/design/onboarding-intro.html, founder 2026-11-20): one continuous ~32 s video that plays by
-// itself and replaces the five separate feature screens. Opening, syringe, dose in the body,
-// reminders, labs, then the end frame with "Começar" — the only way on (no auto-advance). Four story
-// bars and "Pular" (to the end frame) are always on screen.
+// The onboarding intro video (docs/specs/onboarding-protocol.md OB-2..OB-7, OB-27, OB-29, OB-30; approved
+// pictures docs/design/onboarding-intro.html, founder 2026-11-20, and
+// docs/design/onboarding-intro-controles.html, founder 2026-11-24): opening, syringe, dose in the
+// body, reminders, [dose observation — lib/obIntro OBSERVATION_SCENE], labs, then the end frame.
 //
-// Motion: ONE clock (a shared value in ms, 0 → INTRO_END, linear, UI thread); every element is a
-// worklet of it, using transform / opacity, stroke-dashoffset for the line draws and the
-// sanctioned width of absolute, childless bars (story bars, syringe fill). No React render per
-// frame: the scene index and "Start is visible" cross to the RN runtime only when they change.
-// The timeline (order, timings, holds) is lib/obIntro; the example numbers are lib/obFeatures (the
-// app's own dose math and half-life formula) — never typed here, never her data.
+// Controls (2026-11-24): the opening plays and goes on to the syringe by itself; from the syringe on
+// each scene plays its animation once and stops on its complete (hold) frame. "Avançar" plays the
+// next scene (pressed mid-scene: straight to the next one); "Voltar" shows the previous scene
+// complete (a short fade, never a replay; hidden on the opening); "Pular" (top right) goes to the end
+// frame and is hidden there; on the end frame the pill says "Começar", the only way on (onDone).
+// The Android back is Voltar (the flow asks backRef); on the opening it is the flow's own back.
+// Back into the video from the next step (atEnd) opens it on the end frame, never from the start.
 //
-// Reduce Motion, or a screen reader on: no playback. Each scene is shown complete (its hold frame)
-// and a tap goes to the next; the end frame waits for "Começar". Skip works the same.
+// Motion: ONE clock (a shared value in ms, linear, UI thread) played from hold to hold; every
+// element is a worklet of it, using transform / opacity, stroke-dashoffset for the line draws and
+// the sanctioned size of absolute, childless shapes (story bars, syringe fill, the observation
+// sheet). No React render per frame: the scene index, the row latch and the typed letters of the
+// observation note cross to the RN runtime only when they change. The timeline and the controls are
+// lib/obIntro; the example numbers are lib/obFeatures (the app's own dose math and half-life
+// formula) — never typed here, never her data.
+//
+// Reduce Motion, or a screen reader on: no playback. The same buttons; each scene is shown complete
+// and read out (one accessible element per scene).
 //
 // Drawn like the picture on its own 390 x 786 canvas (the phone minus the status-bar strip),
 // scaled to fit, so the choreography ports 1:1; texts inside are part of the video (no font
-// scaling) and the tap layer reads each scene out for screen readers. Theme tokens only.
-import { useEffect, useMemo, useState } from 'react';
+// scaling). Theme tokens only.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, AccessibilityInfo } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, useAnimatedProps, useAnimatedReaction,
-  withTiming, cancelAnimation, Easing, useReducedMotion,
+  withTiming, cancelAnimation, Easing, useReducedMotion, FadeIn, FadeOut,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Rect, Line, Path, Circle, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatTime } from '../lib/timeFormat';
-import { MONTHS_SHORT } from '../lib/localeFormat';
+import { MONTHS_SHORT, formatDate } from '../lib/localeFormat';
 import { MONO } from '../lib/fonts';
 import { syringeParts, SYR_VIEW } from '../lib/syringeGeometry';
 import SyringeScale from '../screens/components/SyringeScale';
 import { eInOutCubic } from './motion';
 import { demoDec } from './previewFx';
 import {
-  SCENES, INTRO_END, BEATS, IN_DUR, OUT_DUR, HOLDS, STORY_BARS,
-  sceneIndexAt, barFill, skipTime, reducedStart, reducedNext, clamp01,
+  SCENES, END, BEATS, IN_DUR, OUT_DUR, HOLDS, STORY_BARS, BAR_W, barLeft,
+  sceneIndexAt, barFill, typedCount, noteLines, clamp01,
+  introStart, introNext, introBack, introSkip, introReduce, navShown, controls,
 } from '../lib/obIntro';
 import {
-  SYRINGE_EXAMPLE, syringeUnits, syringeMl, BODY_EXAMPLE, bodyColumns, LAB_EXAMPLE, LAB_MONTHS, REMINDER_EXAMPLE,
+  SYRINGE_EXAMPLE, syringeUnits, syringeMl, BODY_EXAMPLE, bodyColumns, LAB_EXAMPLE, LAB_MONTHS, REMINDER_EXAMPLE, OBS_EXAMPLE,
 } from '../lib/obFeatures';
 import { onboardingFunnel } from '../lib/onboardingFunnelStore';
 
@@ -50,8 +59,7 @@ const APath = Animated.createAnimatedComponent(Path);
 const EASE = Easing.bezierFn(0.2, 0.8, 0.2, 1);
 const CW = 390, CH = 786, Y0 = 44; // the canvas: the picture's 390 x 844 phone minus its top 44 pt
 const y = (v) => v - Y0;
-const END_INDEX = SCENES.length - 1;
-const START_AT = BEATS.end.button;
+const CUT_MS = 180; // the short fade of a jump (Voltar, Pular, Avançar mid-scene)
 const NB = ' ';
 
 const fill = (str, vars) => Object.keys(vars).reduce((o, k) => o.split(`{${k}}`).join(String(vars[k])), String(str || ''));
@@ -213,7 +221,10 @@ function SyringeScene({ clock, c, s, t, language }) {
 
 // ── 2. Dose in the body (OB-4): doses add up, each coloured by its age, then a line across the tops ──
 const MG_PX = 1.28; // 100 mg = 128 pt, as in the picture
-const BASE = y(598);
+const BASE = y(568); // 30 pt higher than the 2026-11-20 picture: the footnote sat under the button row
+// The column sum sits this far above the column top, clear of the line across the tops (it ran
+// through the "mg" of "100 mg").
+const SUM_LIFT = 46;
 const COL_X = [70, 175, 280];
 const COL_W = 60;
 function BodyScene({ clock, c, s, t }) {
@@ -250,9 +261,9 @@ function BodyScene({ clock, c, s, t }) {
               <Tx style={[s.segVal, { color: ink(sg.age) }]}>{String(Math.round(sg.mg))}</Tx>
             </View>
           ))}
-          <Tx style={[s.colSum, { left: g.x - 30, top: g.top - 36 }]} numberOfLines={1}>{`${Math.round(g.total)}${NB}${BODY_EXAMPLE.unit}`}</Tx>
-          <Tx style={[s.colDay, { left: g.x - 30, top: y(610) }]} numberOfLines={1}>{fill(t('obi_body_day'), { n: g.day })}</Tx>
-          <Tx style={[s.colSumLine, { left: g.x - 30, top: y(632) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+          <Tx style={[s.colSum, { left: g.x - 30, top: g.top - SUM_LIFT }]} numberOfLines={1}>{`${Math.round(g.total)}${NB}${BODY_EXAMPLE.unit}`}</Tx>
+          <Tx style={[s.colDay, { left: g.x - 30, top: y(580) }]} numberOfLines={1}>{fill(t('obi_body_day'), { n: g.day })}</Tx>
+          <Tx style={[s.colSumLine, { left: g.x - 30, top: y(602) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
             {i === 0 ? fill(t('obi_body_you_take'), { n: Math.round(g.total) }) : g.segs.map((sg) => String(Math.round(sg.mg))).join(' + ')}
           </Tx>
         </Enter>
@@ -260,7 +271,7 @@ function BodyScene({ clock, c, s, t }) {
       <Svg width={CW} height={BASE - LINE_TOP} style={{ position: 'absolute', left: 0, top: LINE_TOP }}>
         <DrawLine clock={clock} at={B.line[0]} dur={B.line[1]} d={line.d} length={line.length} color={c.ink} width={2} />
       </Svg>
-      <Enter clock={clock} at={B.legend} style={[s.legend, { top: y(660) }]}>
+      <Enter clock={clock} at={B.legend} style={[s.legend, { top: y(630) }]}>
         {[[c.data, t('obi_body_leg_today')], [c.data2, fill(t('obi_body_leg_ago'), { n: BODY_EXAMPLE.interval })], [c.data3, fill(t('obi_body_leg_ago'), { n: 2 * BODY_EXAMPLE.interval })]].map(([col, label]) => (
           <View key={label} style={s.legendRow}>
             <View style={[s.legendKey, { backgroundColor: col }]} />
@@ -268,8 +279,8 @@ function BodyScene({ clock, c, s, t }) {
           </View>
         ))}
       </Enter>
-      <Enter clock={clock} at={B.foot} style={[s.textBlock, { top: y(738) }]}>
-        <Tx style={s.foot}>{fill(t('obi_body_foot'), { name, days: BODY_EXAMPLE.halfLifeDays })}</Tx>
+      <Enter clock={clock} at={B.foot} style={[s.textBlock, { top: y(708) }]}>
+        <Tx style={[s.foot, s.bodyFoot]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.85}>{fill(t('obi_body_foot'), { name, days: BODY_EXAMPLE.halfLifeDays })}</Tx>
       </Enter>
     </Scene>
   );
@@ -332,7 +343,136 @@ function RemindersScene({ clock, s, t, language, timeFormat }) {
   );
 }
 
-// ── 4. Labs (OB-6): three general markers one by one, each line drawing through every value and its
+// ── 4. Dose observation (OB-30, lib/obIntro OBSERVATION_SCENE): the completed dose of Melatonin, the
+// sheet opens with the two marks (none chosen) and the Observação field, the note is typed letter by
+// letter, Salvar, and the same words show in the report she can take to her doctor. The app only
+// keeps and shows what she wrote: no comment, no interpretation. ──
+const OBS_TOP = y(272);
+function PillGlyph({ color }) {
+  return (
+    <Svg width={18.4} height={18.4} viewBox="0 0 16 16" style={{ position: 'absolute', left: 14, top: 14 }}>
+      <Rect x={1.8} y={5.5} width={12.4} height={5} rx={2.5} transform="rotate(-35 8 8)" fill="none" stroke={color} strokeWidth={1.4} />
+      <Path d="M6.3 10.6l3.5-5" fill="none" stroke={color} strokeWidth={1.4} strokeLinecap="round" />
+    </Svg>
+  );
+}
+// The note on two lines, typed: the letters on screen cross to React only when their count changes.
+function TypedNote({ clock, s, note }) {
+  const B = BEATS.obs;
+  const len = note.length;
+  const [n, setN] = useState(() => typedCount(clock.get(), len));
+  useAnimatedReaction(() => typedCount(clock.get(), len), (v, prev) => { if (v !== prev) scheduleOnRN(setN, v); }, [len]);
+  const [l1, l2] = noteLines(note, n);
+  const onSecond = l2.length > 0 || n > l1.length;
+  const t0 = B.type[0], t1 = B.type[0] + B.type[1], p1 = B.press[0] + B.press[1];
+  // the caret: on while typing, then blinking until Salvar; the field outline while it is focused
+  const caret = useAnimatedStyle(() => {
+    const v = clock.get();
+    const focused = v >= t0 - 100 && v < p1;
+    const on = v < t1 ? 1 : Math.floor(v / 500) % 2 === 0 ? 1 : 0;
+    return { opacity: focused ? on : 0 };
+  });
+  return (
+    <View style={s.noteText}>
+      <View style={s.noteLine}>
+        <Tx style={s.noteType} numberOfLines={1}>{l1}</Tx>
+        {!onSecond ? <Animated.View style={[s.caret, caret]} /> : null}
+      </View>
+      <View style={s.noteLine}>
+        <Tx style={s.noteType} numberOfLines={1}>{l2}</Tx>
+        {onSecond ? <Animated.View style={[s.caret, caret]} /> : null}
+      </View>
+    </View>
+  );
+}
+function ObservationScene({ clock, s, c, t, language, timeFormat }) {
+  const B = BEATS.obs;
+  const ex = OBS_EXAMPLE;
+  const name = t(OBS_EXAMPLE.nameKey);
+  const dose = `${demoDec(ex.dose, language)}${NB}${ex.unit}`;
+  const time = formatTime(ex.time, language, timeFormat);
+  const note = t('obi_obs_note');
+  const day = formatDate(new Date(), language, 'dayMonth');
+  const [g0, gd] = B.grow, [p0, pd] = B.press, [a0, ad] = B.actsOut, t0 = B.type[0], f0 = B.type[0] - 100, f1 = B.press[0] + B.press[1];
+  // the card grows from the dose row (64 pt) to the sheet (272 pt); it closes up as Cancelar / Salvar leave
+  const sheet = useAnimatedStyle(() => {
+    const v = clock.get();
+    return { height: 64 + 208 * EASE(clamp01((v - g0) / gd)) - 36 * EASE(clamp01((v - a0) / ad)) };
+  });
+  const acts = useAnimatedStyle(() => ({ opacity: 1 - EASE(clamp01((clock.get() - a0) / ad)) }));
+  const press = useAnimatedStyle(() => { const v = clock.get(); return { opacity: v >= p0 && v < p0 + pd + 150 ? 0.3 : 0 }; });
+  const ph = useAnimatedStyle(() => ({ opacity: clock.get() < t0 ? 1 : 0 }));
+  const focus = useAnimatedStyle(() => { const v = clock.get(); return { opacity: v >= f0 && v < f1 ? 1 : 0 }; });
+  return (
+    <Scene clock={clock} k="obs">
+      <Title s={s} text={t('obi_obs_title')} />
+      <Enter clock={clock} at={B.sub} style={[s.textBlock, { top: y(214) }]}>
+        <Tx style={s.sub} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{t('obi_obs_sub')}</Tx>
+      </Enter>
+      <Enter clock={clock} at={B.card} style={[s.obsCard, { top: OBS_TOP }]}>
+        <Animated.View style={[s.obsSheet, sheet]} />
+        <PillGlyph color={c.ink2} />
+        <Tx style={s.obsName} numberOfLines={1}>{name}</Tx>
+        <Tx style={s.obsDose} numberOfLines={1}>{dose}</Tx>
+        <Tx style={s.obsWhen} numberOfLines={1}>{fill(t('team_msg_today_at'), { time })}</Tx>
+        <View style={s.obsDone}>
+          <View style={s.obsDot} />
+          <Tx style={s.obsDoneText} numberOfLines={1}>{t('today_taken')}</Tx>
+        </View>
+      </Enter>
+      <Enter clock={clock} at={B.marks} style={[s.obsBlock, { top: y(347) }]}>
+        <View style={s.obsRule} />
+        <View style={s.obsHead}>
+          <Tx style={s.obsLabel} numberOfLines={1}>{t('dose_mark_label')}</Tx>
+          <Tx style={s.obsOpt} numberOfLines={1}>{t('optional')}</Tx>
+        </View>
+        <View style={s.marks}>
+          {['dose_mark_fasted', 'dose_mark_meal'].map((k) => (
+            <View key={k} style={s.mark}><Tx style={s.markText} numberOfLines={1}>{t(k)}</Tx></View>
+          ))}
+        </View>
+      </Enter>
+      <Enter clock={clock} at={B.note} style={[s.obsBlock, { top: y(413) }]}>
+        <View style={s.obsHead}>
+          <Tx style={s.obsLabel} numberOfLines={1}>{t('dose_note_label')}</Tx>
+          <Tx style={s.obsOpt} numberOfLines={1}>{t('optional')}</Tx>
+        </View>
+        <View style={s.field}>
+          <Animated.View style={[s.fieldFocus, focus]} />
+          <Animated.View style={[s.fieldPh, ph]}><Tx style={s.fieldPhText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('obi_obs_ph')}</Tx></Animated.View>
+          <TypedNote clock={clock} s={s} note={note} />
+        </View>
+      </Enter>
+      <Enter clock={clock} at={B.acts} style={[s.obsActs, { top: y(500) }]}>
+        <Animated.View style={[s.obsActsRow, acts]}>
+          <View style={s.actQuiet}><Tx style={s.actQuietText} numberOfLines={1}>{t('cancel')}</Tx></View>
+          <View style={s.actMain}>
+            <Tx style={s.actMainText} numberOfLines={1}>{t('save')}</Tx>
+            <Animated.View style={[s.actPress, press]} />
+          </View>
+        </Animated.View>
+      </Enter>
+      <Enter clock={clock} at={B.report} style={[s.textBlock, { top: y(536) }]}>
+        <Tx style={s.reportLabel} numberOfLines={1}>{t('obi_obs_report')}</Tx>
+        <View style={s.reportCard}>
+          <View style={s.reportPaper}>
+            <Tx style={s.reportMono} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('report_header')}</Tx>
+            <Tx style={[s.reportMono, { marginTop: 4 }]} numberOfLines={1}>{name}</Tx>
+            <Tx style={s.reportMono} numberOfLines={1}>{`  ${fill(t('report_dose_line'), { dose, frequency: t('protocols_every_day') })}`}</Tx>
+          </View>
+        </View>
+      </Enter>
+      <Enter clock={clock} at={B.reportNote} style={[s.reportNote, { top: y(637) }]}>
+        <View style={s.reportMark} />
+        <Tx style={s.reportMono} numberOfLines={1}>{`  ${t('report_notes_label')}`}</Tx>
+        <Tx style={[s.reportMono, s.reportQuote]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8}>{`“${note}” · ${day}, ${time}`}</Tx>
+      </Enter>
+    </Scene>
+  );
+}
+// ---- end observation
+
+// ── 5. Labs (OB-6): three general markers one by one, each line drawing through every value and its
 // month; one neutral colour, nothing behind the line ──
 function LabsScene({ clock, c, s, t, language }) {
   const B = BEATS.labs;
@@ -369,7 +509,7 @@ function LabsScene({ clock, c, s, t, language }) {
 }
 // ---- end labs
 
-// ── 5. End (OB-7): the scale again and the headline; the Start button is drawn by the video ──
+// ── 6. End (OB-7): the scale again and the headline; "Começar" is the pill of the button row ──
 function EndScene({ clock, c, s, t }) {
   const B = BEATS.end;
   return (
@@ -385,9 +525,10 @@ function EndScene({ clock, c, s, t }) {
   );
 }
 
-const SCENE_VIEWS = [OpenScene, SyringeScene, BodyScene, RemindersScene, LabsScene, EndScene];
+// The scene views by key: with OBSERVATION_SCENE false the timeline has no 'obs' and it never mounts.
+const SCENE_VIEWS = { open: OpenScene, syringe: SyringeScene, body: BodyScene, reminders: RemindersScene, obs: ObservationScene, labs: LabsScene, end: EndScene };
 
-// What each scene says, for screen readers (the tap layer reads it; the drawing is hidden).
+// What each scene says, for screen readers (one accessible element reads it; the drawing is hidden).
 function sceneLabel(i, { t, language, timeFormat }) {
   const key = SCENES[i].key;
   if (key === 'open') return `${t('obi_a11y_video')}. ${t('obi_open')}`;
@@ -404,6 +545,11 @@ function sceneLabel(i, { t, language, timeFormat }) {
     const ex = REMINDER_EXAMPLE;
     return [t('obi_rem_title'), fill(t('obi_rem_msg'), { name: t('obi_ex_compound1') }), t('notif_action_complete'), fill(t('obi_rem_done'), { time: formatTime(ex.logged, language, timeFormat) }), fill(t('obi_rem_msg'), { name: t('obi_ex_supplement') }), t('notif_action_snooze_hour')].join('. ');
   }
+  if (key === 'obs') {
+    const ex = OBS_EXAMPLE;
+    return [t('obi_obs_title'), t('obi_obs_sub'), `${t(ex.nameKey)}, ${demoDec(ex.dose, language)}${NB}${ex.unit}, ${fill(t('team_msg_today_at'), { time: formatTime(ex.time, language, timeFormat) })}, ${t('today_taken')}`,
+      `${t('dose_note_label')}: ${t('obi_obs_note')}`, t('obi_obs_report')].join('. ');
+  }
   if (key === 'labs') {
     const months = MONTHS_SHORT[language] || MONTHS_SHORT.en;
     return [t('obi_lab_title'), ...LAB_EXAMPLE.map((m) => `${t(m.nameKey)} (${m.unit}): ${m.values.map((v, k) => `${months[LAB_MONTHS[k]]} ${v}`).join(', ')}`), t('obi_lab_foot')].join('. ');
@@ -413,15 +559,15 @@ function sceneLabel(i, { t, language, timeFormat }) {
 
 // ── the video ──
 function StoryBar({ clock, b, reduced, s }) {
-  const st = useAnimatedStyle(() => ({ width: 81 * barFill(clock.get(), b, reduced) }), [reduced]);
+  const st = useAnimatedStyle(() => ({ width: BAR_W * barFill(clock.get(), b, reduced) }), [reduced]);
   return (
-    <View style={[s.bar, { left: 24 + 87 * b }]}>
+    <View style={[s.bar, { left: barLeft(b) }]}>
       <Animated.View style={[s.barFill, st]} />
     </View>
   );
 }
 
-export default function OnboardingIntro({ onDone }) {
+export default function OnboardingIntro({ onDone, atEnd, backRef }) {
   const { colors: c } = useTheme();
   const { t, language, timeFormat } = useLanguage();
   const s = useMemo(() => makeStyles(c), [c]);
@@ -434,72 +580,127 @@ export default function OnboardingIntro({ onDone }) {
     return () => { live = false; if (sub && sub.remove) sub.remove(); };
   }, []);
   const reduced = !!(reduceMotion || reader);
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
 
-  const clock = useSharedValue(reduced ? reducedStart() : 0);
-  const [scene, setScene] = useState(sceneIndexAt(reduced ? reducedStart() : 0));
-  const [startOn, setStartOn] = useState(false);
+  // The first plan (lib/obIntro introStart): the opening plays on to the syringe; Reduce Motion: the
+  // opening complete; back from the next step: the end frame complete.
+  const first = useMemo(() => introStart({ reduced, atEnd }), []);
+  const clock = useSharedValue(first.from);
+  const fade = useSharedValue(1);
+  const [cur, setCur] = useState(first.cur);
+  const curRef = useRef(first.cur);
+  const [nav, setNav] = useState(first.nav);
+  const navRef = useRef(first.nav);
+  const [scene, setScene] = useState(sceneIndexAt(first.from));
   const [box, setBox] = useState(null);
 
-  // Play once, linear, on the UI thread; Reduce Motion / a screen reader: the hold frame of the scene.
-  useEffect(() => {
+  function latchNav() { if (!navRef.current) { navRef.current = true; setNav(true); } }
+  // Run a plan: the clock jumps to `from` and plays to the hold frame `to` (Reduce Motion: no play,
+  // no fade). Every button and the Android back come through here.
+  function go(plan, byHand) {
+    curRef.current = plan.cur;
+    setCur(plan.cur);
+    if (byHand || plan.nav) latchNav();
     cancelAnimation(clock);
-    const now = clock.get();
-    if (reduced) {
-      clock.set(now >= INTRO_END ? INTRO_END : HOLDS[sceneIndexAt(now)]);
-      return undefined;
+    if (plan.cut && !reducedRef.current) {
+      fade.set(0);
+      fade.set(withTiming(1, { duration: CUT_MS, easing: Easing.out(Easing.quad) }));
     }
-    if (now < INTRO_END) clock.set(withTiming(INTRO_END, { duration: INTRO_END - now, easing: Easing.linear }));
-    return () => cancelAnimation(clock);
+    clock.set(plan.from);
+    if (!reducedRef.current && plan.to > plan.from) clock.set(withTiming(plan.to, { duration: plan.to - plan.from, easing: Easing.linear }));
+  }
+
+  // First mount: play the first plan. Reduce Motion / a screen reader turned on later: the scene on
+  // screen, complete.
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; go(first, false); return undefined; }
+    if (reduced) go(introReduce(clock.get()), false);
+    return undefined;
   }, [reduced]);
+  useEffect(() => () => { cancelAnimation(clock); if (backRef) backRef.current = null; }, []);
 
-  // Only two crossings reach React: the scene index (6 times) and "Start is on screen" (once).
+  // Only a few crossings reach React: the scene index (once per scene) and the row latch (once).
   useAnimatedReaction(() => sceneIndexAt(clock.get()), (i, prev) => { if (i !== prev) scheduleOnRN(setScene, i); });
-  useAnimatedReaction(() => clock.get() >= START_AT, (on, prev) => { if (on !== prev) scheduleOnRN(setStartOn, on); });
+  useAnimatedReaction(() => navShown(false, clock.get()), (on, prev) => { if (on && !prev) scheduleOnRN(latchNav); });
 
-  function skip() { onboardingFunnel.intro('skipped'); cancelAnimation(clock); clock.set(skipTime()); }
-  function tapNext() { clock.set(reducedNext(clock.get())); }
-  function start() { if (startOn && onDone) { onboardingFunnel.intro('finished'); onDone(); } }
+  // Avançar (Começar on the end frame), Voltar, Pular.
+  function primary() {
+    const plan = introNext(curRef.current, clock.get(), reducedRef.current);
+    if (plan.finish) {
+      if (onDone) { onboardingFunnel.intro('finished'); onDone(); }
+      return;
+    }
+    go(plan, true);
+  }
+  function goBack() {
+    const plan = introBack(curRef.current, navRef.current);
+    if (!plan) return false;
+    go(plan, true);
+    return true;
+  }
+  function skip() {
+    const plan = introSkip(curRef.current);
+    if (!plan) return;
+    onboardingFunnel.intro('skipped');
+    go(plan, true);
+  }
+  // The flow's Android back asks the video first: true = handled (the scene before); false = the flow's own back.
+  if (backRef) backRef.current = goBack;
 
-  const startSt = useAnimatedStyle(() => {
-    const p = EASE(clamp01((clock.get() - START_AT) / IN_DUR));
-    return { opacity: clock.get() < START_AT ? 0 : p, transform: [{ translateY: 10 * (1 - p) }] };
-  });
-
-  const sc = box ? Math.min(box.w / CW, box.h / CH, 1.3) : 1;
+  // A screen reader hears the new scene when a button changes it.
   const ctx = { t, language, timeFormat };
+  const lastSaid = useRef(scene);
+  useEffect(() => {
+    if (lastSaid.current === scene) return;
+    lastSaid.current = scene;
+    if (reader) AccessibilityInfo.announceForAccessibility(sceneLabel(scene, ctx));
+  }, [scene, reader]);
+
+  const fadeSt = useAnimatedStyle(() => ({ opacity: fade.get() }));
+  const ctl = controls(cur, nav);
+  const sc = box ? Math.min(box.w / CW, box.h / CH, 1.3) : 1;
   // The scene on screen and the next one (mounted ahead, still invisible), so a scene never
-  // mounts in the frame it should appear.
-  const shown = [scene, scene + 1].filter((i) => i <= END_INDEX);
+  // mounts in the frame it should appear (a jump mounts under the cut fade).
+  const shown = [scene, scene + 1].filter((i) => i <= END);
   return (
     <View style={s.root} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {box ? (
         <View style={[s.canvas, { left: (box.w - CW * sc) / 2, top: (box.h - CH * sc) / 2, transform: [{ scale: sc }] }]}>
-          {shown.map((i) => { const V = SCENE_VIEWS[i]; return <V key={SCENES[i].key} clock={clock} c={c} s={s} t={t} language={language} timeFormat={timeFormat} />; })}
+          <Animated.View pointerEvents="none" style={[s.full, fadeSt]}>
+            {shown.map((i) => { const V = SCENE_VIEWS[SCENES[i].key]; return <V key={SCENES[i].key} clock={clock} c={c} s={s} t={t} language={language} timeFormat={timeFormat} />; })}
+          </Animated.View>
 
-          {reduced && scene < END_INDEX ? (
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={tapNext}
-              accessibilityRole="button"
-              accessibilityLabel={sceneLabel(scene, ctx)}
-              accessibilityHint={t('obi_tap_next')}
-            >
-              <Tx style={s.tapHint}>{t('obi_tap_next')}</Tx>
-            </Pressable>
-          ) : null}
-          {scene === END_INDEX ? <Tx style={s.srOnly} accessibilityRole="header">{t('obi_end')}</Tx> : null}
+          <View accessible accessibilityRole={scene === END ? 'header' : 'text'} accessibilityLabel={sceneLabel(scene, ctx)} style={s.sceneA11y} />
 
           <View pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             {STORY_BARS.map((k, b) => <StoryBar key={k} clock={clock} b={b} reduced={reduced} s={s} />)}
           </View>
-          <Pressable onPress={skip} style={s.skip} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('ob_skip')}>
-            <Tx style={s.skipText}>{t('ob_skip')}</Tx>
-          </Pressable>
-          <Animated.View style={[s.startWrap, startSt]} pointerEvents={startOn ? 'auto' : 'none'}>
-            <Pressable onPress={start} style={s.startBtn} accessibilityRole="button" accessibilityLabel={t('obi_start')} accessibilityElementsHidden={!startOn} importantForAccessibility={startOn ? 'auto' : 'no-hide-descendants'}>
-              <Tx style={s.startText}>{t('obi_start')}</Tx>
-            </Pressable>
-          </Animated.View>
+          {ctl.skip ? (
+            <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(160)} style={s.skipWrap}>
+              <Pressable onPress={skip} style={({ pressed }) => [s.skip, pressed && s.pressedQuiet]} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('ob_skip')}>
+                <Tx style={s.skipText}>{t('ob_skip')}</Tx>
+              </Pressable>
+            </Animated.View>
+          ) : null}
+          {ctl.row ? (
+            <Animated.View entering={FadeIn.duration(260)} style={s.row}>
+              {ctl.back ? (
+                <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(160)} style={s.backWrap}>
+                  <Pressable onPress={goBack} style={({ pressed }) => [s.backBtn, pressed && s.pressedQuiet]} hitSlop={6} accessibilityRole="button" accessibilityLabel={t('back')}>
+                    <Svg width={10} height={20} viewBox="0 0 10 20">
+                      <Path d="M9 1 L1 10 L9 19" fill="none" stroke={c.ink} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                    <Tx style={s.backText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{t('back')}</Tx>
+                  </Pressable>
+                </Animated.View>
+              ) : null}
+              <Pressable onPress={primary} style={({ pressed }) => [s.primaryBtn, pressed && s.pressedMain]} accessibilityRole="button" accessibilityLabel={t(ctl.primary)}>
+                <Tx style={s.primaryText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{t(ctl.primary)}</Tx>
+              </Pressable>
+            </Animated.View>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -511,9 +712,10 @@ const makeStyles = (c) => StyleSheet.create({
   canvas: { position: 'absolute', width: CW, height: CH, transformOrigin: 'top left' },
   full: { position: 'absolute', left: 0, top: 0, width: CW, height: CH },
   // top: story bars + Pular
-  bar: { position: 'absolute', top: y(58), width: 81, height: 4, borderRadius: 2, backgroundColor: c.line, overflow: 'hidden' },
+  bar: { position: 'absolute', top: y(58), width: BAR_W, height: 4, borderRadius: 2, backgroundColor: c.line, overflow: 'hidden' },
   barFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 2, backgroundColor: c.ink },
-  skip: { position: 'absolute', right: 16, top: y(70), minHeight: 36, minWidth: 44, paddingHorizontal: 8, alignItems: 'flex-end', justifyContent: 'center' },
+  skipWrap: { position: 'absolute', right: 16, top: y(70) },
+  skip: { minHeight: 36, minWidth: 44, paddingHorizontal: 8, alignItems: 'flex-end', justifyContent: 'center' },
   skipText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   title: { position: 'absolute', left: 24, top: y(133), width: 342, fontSize: 28, lineHeight: 34, fontWeight: '600', letterSpacing: -0.56, color: c.ink },
   textBlock: { position: 'absolute', left: 24, width: 342 },
@@ -542,6 +744,7 @@ const makeStyles = (c) => StyleSheet.create({
   colSum: { position: 'absolute', width: COL_W + 60, fontSize: 17, lineHeight: 22, fontFamily: MONO['500'], color: c.ink, textAlign: 'center' },
   colDay: { position: 'absolute', width: COL_W + 60, fontSize: 14, lineHeight: 18, fontWeight: '600', color: c.ink2, textAlign: 'center' },
   colSumLine: { position: 'absolute', width: COL_W + 60, fontSize: 12, lineHeight: 16, fontFamily: MONO['400'], color: c.ink2, textAlign: 'center' },
+  bodyFoot: { lineHeight: 16 }, // three lines (de, es) still end above the button row at y(760)
   legend: { position: 'absolute', left: 24, width: 342, gap: 6 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendKey: { width: 14, height: 14, borderRadius: 3 },
@@ -563,6 +766,45 @@ const makeStyles = (c) => StyleSheet.create({
   btnTextOn: { fontSize: 12, fontWeight: '700', color: c.onData },
   chip: { alignSelf: 'center', marginTop: 12, marginBottom: 18, minHeight: 30, borderRadius: 15, paddingHorizontal: 14, backgroundColor: c.raised, justifyContent: 'center' },
   chipText: { fontSize: 12, lineHeight: 16, fontWeight: '700', color: c.ok },
+  // dose observation (OB-30)
+  obsCard: { position: 'absolute', left: 24, width: 342, height: 272 },
+  obsSheet: { position: 'absolute', left: 0, top: 0, width: 342, borderRadius: 20, backgroundColor: c.raised },
+  obsName: { position: 'absolute', left: 40, right: 140, top: 10, fontSize: 16, lineHeight: 20, fontWeight: '700', color: c.ink },
+  obsDose: { position: 'absolute', left: 40, top: 32, fontSize: 12.5, lineHeight: 16, fontFamily: MONO['500'], color: c.ink2 },
+  obsWhen: { position: 'absolute', right: 16, top: 11, maxWidth: 150, fontSize: 13, lineHeight: 18, color: c.ink2, textAlign: 'right' },
+  obsDone: { position: 'absolute', right: 16, top: 33, maxWidth: 170, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  obsDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.ok },
+  obsDoneText: { fontSize: 11, lineHeight: 14, fontWeight: '600', color: c.ok, flexShrink: 1 },
+  obsBlock: { position: 'absolute', left: 40, width: 310 },
+  obsRule: { position: 'absolute', left: 0, right: 0, top: -11, height: 1, backgroundColor: c.line },
+  obsHead: { height: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  obsLabel: { fontSize: 12.5, lineHeight: 16, fontWeight: '500', color: c.ink2, flexShrink: 1 },
+  obsOpt: { fontSize: 11, lineHeight: 14, color: c.ink3 },
+  marks: { flexDirection: 'row', gap: 6, marginTop: 7 },
+  mark: { height: 30, borderRadius: 15, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, justifyContent: 'center' },
+  markText: { fontSize: 12, lineHeight: 16, color: c.ink2 },
+  field: { marginTop: 7, height: 56, borderRadius: 12, borderWidth: 1.5, borderColor: c.well, backgroundColor: c.well },
+  fieldFocus: { position: 'absolute', left: -1.5, top: -1.5, right: -1.5, bottom: -1.5, borderRadius: 12, borderWidth: 1.5, borderColor: c.ink },
+  fieldPh: { position: 'absolute', left: 12, right: 12, top: 11 },
+  fieldPhText: { fontSize: 12.5, lineHeight: 16, color: c.ink3 },
+  noteText: { position: 'absolute', left: 12, right: 12, top: 6 },
+  noteLine: { height: 20, flexDirection: 'row', alignItems: 'center' },
+  noteType: { fontSize: 13.5, lineHeight: 20, color: c.ink, flexShrink: 1 },
+  caret: { width: 1.5, height: 16, marginLeft: 1, backgroundColor: c.ink },
+  obsActs: { position: 'absolute', left: 40, width: 310 },
+  obsActsRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 6 },
+  actQuiet: { height: 30, borderRadius: 15, paddingHorizontal: 12, backgroundColor: c.well, justifyContent: 'center' },
+  actQuietText: { fontSize: 12.5, fontWeight: '700', color: c.ink },
+  actMain: { height: 30, borderRadius: 15, paddingHorizontal: 14, backgroundColor: c.act, justifyContent: 'center', overflow: 'hidden' },
+  actMainText: { fontSize: 12.5, fontWeight: '700', color: c.onAct },
+  actPress: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, backgroundColor: c.ground },
+  reportLabel: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: c.ink2 },
+  reportCard: { marginTop: 6, height: 146, borderRadius: 18, backgroundColor: c.raised, padding: 10 },
+  reportPaper: { flex: 1, borderRadius: 11, backgroundColor: c.well, paddingHorizontal: 12, paddingTop: 8 },
+  reportMono: { fontSize: 11.5, lineHeight: 18, fontFamily: MONO['500'], color: c.ink },
+  reportNote: { position: 'absolute', left: 44, width: 304, height: 55, paddingLeft: 4 },
+  reportMark: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 3, backgroundColor: c.data, opacity: 0.16 },
+  reportQuote: { paddingLeft: 28, paddingRight: 4 },
   // labs
   labCard: { position: 'absolute', left: 24, width: 342, height: 136, borderRadius: 18, backgroundColor: c.raised },
   labName: { position: 'absolute', left: 16, right: 90, top: 13, fontSize: 16, lineHeight: 20, fontWeight: '700', color: c.ink },
@@ -570,10 +812,15 @@ const makeStyles = (c) => StyleSheet.create({
   labPt: { position: 'absolute', top: 0, bottom: 0, width: 48 },
   labVal: { position: 'absolute', left: 0, right: 0, fontSize: 11, lineHeight: 14, fontFamily: MONO['500'], color: c.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
   labMonth: { position: 'absolute', left: 0, right: 0, top: 112, fontSize: 11, lineHeight: 14, color: c.ink2, textAlign: 'center' },
-  // end + reduced motion
-  startWrap: { position: 'absolute', left: 24, top: y(760), width: 342 },
-  startBtn: { height: 54, borderRadius: 27, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
-  startText: { fontSize: 17, fontWeight: '700', color: c.onAct },
-  tapHint: { position: 'absolute', left: 24, right: 24, top: y(790), fontSize: 13, lineHeight: 18, color: c.ink2, textAlign: 'center' },
-  srOnly: { position: 'absolute', left: 24, top: y(300), width: 342, height: 1, opacity: 0 },
+  // the controls (2026-11-24): Voltar / Avançar where Começar was
+  row: { position: 'absolute', left: 24, top: y(760), width: 342, height: 54 },
+  backWrap: { position: 'absolute', left: -8, top: 0, width: 108, height: 54 },
+  backBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 12, paddingRight: 6, borderRadius: 27 },
+  backText: { fontSize: 17, fontWeight: '600', color: c.ink, flexShrink: 1 },
+  primaryBtn: { position: 'absolute', left: 108, top: 0, width: 234, height: 54, borderRadius: 27, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  primaryText: { fontSize: 17, fontWeight: '700', color: c.onAct },
+  pressedQuiet: { opacity: 0.6 },
+  pressedMain: { opacity: 0.82 },
+  // the scene read out (screen readers); invisible
+  sceneA11y: { position: 'absolute', left: 24, top: y(100), width: 342, height: y(740) - y(100) },
 });

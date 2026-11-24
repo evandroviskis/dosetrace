@@ -137,6 +137,11 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
   const [ready, setReady] = useState(signedIn);
   const [cur, setCur] = useState(builder ? 'compound' : signedIn ? null : 'splash');
   const resumeTo = useRef(null); // the step to reopen once the consent is confirmed again (entryStep)
+  // The intro video (components/OnboardingIntro, founder 2026-11-24): the Android back asks it first
+  // (its Voltar, the scene before); Back from the step after it reopens it on its end frame, never
+  // from the start (the founder saw the presentation restart).
+  const introBack = useRef(null);
+  const introAtEnd = useRef(false);
   // Council 2026-11-20: where people stop (step names only). Before the account the steps wait on the
   // phone (lib/onboardingFunnel) and go as one event after the sign-in; signed in, each step is logged.
   useEffect(() => {
@@ -227,13 +232,15 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
     transform: [{ translateX: 24 * dir.value * (1 - enter.value) }],
   }));
 
-  // Android hardware / swipe back: close an open picker, else step back one; on the first
-  // screen let the OS handle it (exit). There must always be a way back.
+  // Android hardware / swipe back: close an open picker; on the intro video, its Voltar (the scene
+  // before, complete); else step back one; on the first screen let the OS handle it (exit). There
+  // must always be a way back.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (showSetup) { setShowSetup(false); return true; }
       if (showLang) { setShowLang(false); return true; }
       if (showCountry) { setShowCountry(false); return true; }
+      if (cur === 'intro' && introBack.current && introBack.current()) return true;
       if (step > 0) { back(); return true; }
       if (builder) { onBuilderDone && onBuilderDone(null); return true; }
       return false;
@@ -292,6 +299,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
     resumeTo.current = null;
     if (n) over.lastStep = n;
     await persist(over);
+    introAtEnd.current = false; // forward into the video: it plays from the start
     if (n) setCur(n);
     else finish();
   }
@@ -305,6 +313,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
       return;
     }
     const p = prevStep(steps, cur);
+    introAtEnd.current = p === 'intro';
     if (p) setCur(p); // Back keeps every answer (OB-20)
   }
   // OB-20: "Montar depois" → the protocol is not built and the onboarding goes on (the draft keeps
@@ -384,7 +393,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
 
   return (
     <SafeAreaView style={s.root}>
-      {/* OB-27: the intro video is full screen with its own story bars, Pular and Começar. */}
+      {/* OB-27: the intro video is full screen with its own story bars, Pular, Voltar and Avançar / Começar. */}
       {(step > 0 || signedIn) && cur !== 'intro' && (
         <View style={s.topBar}>
           <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} disabled={step === 0} style={[s.backBtn, step === 0 && s.hidden]} accessibilityRole="button" accessibilityLabel={t('back')}>
@@ -412,7 +421,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
         {/* RS-8: Android, after "Turn on notifications" — the conversation for the phone items only;
             its last chip ("Continuar" / "Configurar depois") and "Agora não" go on exactly as before. */}
         {cur === 'intro' ? (
-          <OnboardingIntro onDone={next} />
+          <OnboardingIntro onDone={next} atEnd={introAtEnd.current} backRef={introBack} />
         ) : cur === 'reminders' && showSetup ? (
           <ReminderConversation mode="onboarding" onContinue={() => toAuth('create')} />
         ) : (
