@@ -43,8 +43,8 @@ test('food editor keyboard: on Android the sheet scrolls the focused field above
   // the item's name
   assert.match(src, /ref=\{\(n\) => \{ nameRefs\.current\[i\] = n; \}\}/);
   assert.match(src, /onFocus=\{\(\) => lift\.liftField\(\{ current: nameRefs\.current\[i\] \}\)\}/);
-  // kcal / carbs / protein
-  assert.equal((src.match(/<EditNum .*onFocus=\{lift\.liftField\} \/>/g) || []).length, 3, 'every number field asks to be lifted');
+  // kcal / carbs / protein / fiber (FW-12, founder 2026-11-24)
+  assert.equal((src.match(/<EditNum .*onFocus=\{lift\.liftField\} \/>/g) || []).length, 4, 'every number field asks to be lifted');
   const num = src.slice(src.indexOf('function EditNum('));
   assert.match(num, /function EditNum\(\{[^}]*onFocus[^}]*\}\)/);
   assert.match(num, /const ref = useRef\(null\);/);
