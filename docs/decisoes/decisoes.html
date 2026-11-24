@@ -1,0 +1,115 @@
+<title>Decisões DoseTrace</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column of decision cards, pending first; each card holds the question, the design link, the choice and a note. */
+:root{
+  --bg:#EEF0EC;--card:#FFFFFF;--line:#D3D7D0;--ink:#111315;--ink2:#4A4F54;
+  --act:#111315;--onact:#FFFFFF;--ok:#17623F;--okbg:#E2F1E8;--no:#9E1F19;--nobg:#F8E4E2;--adj:#7A5200;--adjbg:#F6ECD6;--link:#2350D8;
+  --sans:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121416;--card:#1D2024;--line:#33383E;--ink:#EEEFEB;--ink2:#A9AEA9;--act:#EEEFEB;--onact:#121416;--ok:#62C597;--okbg:#17362A;--no:#F08A80;--nobg:#3D2321;--adj:#E7C27A;--adjbg:#3A2F1A;--link:#8AA8FF;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121416;--card:#1D2024;--line:#33383E;--ink:#EEEFEB;--ink2:#A9AEA9;--act:#EEEFEB;--onact:#121416;--ok:#62C597;--okbg:#17362A;--no:#F08A80;--nobg:#3D2321;--adj:#E7C27A;--adjbg:#3A2F1A;--link:#8AA8FF;color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);margin:0;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:24px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--ink2);font-size:14px;line-height:1.5;margin:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{font:600 14px var(--sans);padding:8px 14px;border-radius:20px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.tab[aria-pressed="true"]{background:var(--act);color:var(--onact);border-color:var(--act)}
+.note-top{font-size:13px;color:var(--ink2);min-height:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.head{display:flex;gap:10px;align-items:flex-start}
+.num{font:700 13px var(--sans);min-width:26px;height:26px;border-radius:13px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.title{font-size:16px;font-weight:600;line-height:1.35;flex:1;min-width:0;text-wrap:balance}
+.pill{font:600 12px var(--sans);padding:3px 9px;border-radius:10px;white-space:nowrap}
+.p-pendente{background:var(--bg);color:var(--ink2)}.p-aprovado{background:var(--okbg);color:var(--ok)}.p-recusado{background:var(--nobg);color:var(--no)}.p-ajustar{background:var(--adjbg);color:var(--adj)}
+.ctx{font-size:14px;line-height:1.55;color:var(--ink);margin:0;white-space:pre-line}
+.rec{font-size:14px;color:var(--ink2);margin:0}.rec b{color:var(--ink)}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{font:600 14px var(--sans);color:var(--link);text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{font:500 14px var(--sans);padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;text-align:left}
+.opt[aria-pressed="true"]{border-color:var(--act);box-shadow:inset 0 0 0 1px var(--act);font-weight:700}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.act{font:600 14px var(--sans);padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.act.sel-aprovado{background:var(--okbg);color:var(--ok);border-color:var(--ok)}
+.act.sel-recusado{background:var(--nobg);color:var(--no);border-color:var(--no)}
+.act.sel-ajustar{background:var(--adjbg);color:var(--adj);border-color:var(--adj)}
+label{font-size:13px;color:var(--ink2)}
+textarea{width:100%;box-sizing:border-box;min-height:70px;font:15px/1.45 var(--sans);padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:vertical}
+.save{align-self:flex-start;font:700 15px var(--sans);padding:11px 20px;border-radius:22px;border:none;background:var(--act);color:var(--onact);cursor:pointer}
+.save:disabled{opacity:.45;cursor:default}
+.saved{font-size:13px;color:var(--ink2)}
+.empty{background:var(--card);border:1px dashed var(--line);border-radius:16px;padding:22px;color:var(--ink2);font-size:14px;line-height:1.5}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+</style>
+
+<div class="wrap">
+  <h1>Decisões DoseTrace</h1>
+  <p class="sub">O que está esperando a sua decisão. Abra o desenho, escolha, escreva uma observação se quiser e toque em Salvar. O Claude lê o que o senhor salvou aqui antes de seguir; o que estiver pendente não avança.</p>
+  <div class="tabs" role="group" aria-label="Filtro">
+    <button class="tab" id="tPend" aria-pressed="true">Pendentes <span id="cPend"></span></button>
+    <button class="tab" id="tDone" aria-pressed="false">Decididas <span id="cDone"></span></button>
+  </div>
+  <div class="note-top" id="status">Carregando as decisões…</div>
+  <div id="list"></div>
+</div>
+
+<script>
+const STATUS={pendente:"Pendente",aprovado:"Aprovado",recusado:"Recusado",ajustar:"Precisa ajustar"};
+let rows=[],view="pend",db=null,drafts={};
+const $=(id)=>document.getElementById(id);
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+function isDone(r){return r.status&&r.status!=="pendente";}
+function render(){
+  const pend=rows.filter(r=>!isDone(r)),done=rows.filter(isDone);
+  $("cPend").textContent="("+pend.length+")";$("cDone").textContent="("+done.length+")";
+  const list=$("list");list.replaceChildren();
+  const show=view==="pend"?pend:done;
+  if(!show.length){list.append(el("div","empty",view==="pend"?"Nada pendente agora. Quando o Claude tiver uma pergunta, ela aparece aqui com o desenho.":"Nenhuma decisão salva ainda."));return;}
+  const box=el("div",null);box.style.cssText="display:flex;flex-direction:column;gap:14px";
+  show.forEach(r=>box.append(card(r)));list.append(box);
+}
+function card(r){
+  const d=drafts[r.id]||(drafts[r.id]={status:r.status||"pendente",choice:r.choice||"",note:r.note||""});
+  const c=el("div","card");
+  const h=el("div","head");h.append(el("div","num",String(r.order||"")),el("div","title",r.title||""));
+  const st=d.status||"pendente";const pill=el("span","pill p-"+st,STATUS[st]||st);h.append(pill);c.append(h);
+  if(r.context)c.append(el("p","ctx",r.context));
+  if(r.recommendation){const p=el("p","rec");const b=el("b",null,"Recomendação do Claude: ");p.append(b,document.createTextNode(r.recommendation));c.append(p);}
+  const links=(Array.isArray(r.links)?r.links:[]).filter(l=>l&&typeof l.url==="string"&&l.url.startsWith("https://"));
+  if(links.length){const lw=el("div","links");links.forEach(l=>{const a=el("a",null,l.label||"Ver desenho");a.href=l.url;a.target="_blank";a.rel="noopener";lw.append(a);});c.append(lw);}
+  const opts=Array.isArray(r.options)?r.options:[];
+  if(opts.length){const ow=el("div","opts");opts.forEach(o=>{const b=el("button","opt",String(o));b.type="button";b.setAttribute("aria-pressed",String(d.choice===o));b.onclick=()=>{d.choice=d.choice===o?"":o;if(d.choice&&d.status==="pendente")d.status="aprovado";render();};ow.append(b);});c.append(ow);}
+  const aw=el("div","acts");
+  [["aprovado","Aprovo"],["recusado","Não aprovo"],["ajustar","Precisa ajustar"]].forEach(([k,t])=>{const b=el("button","act"+(d.status===k?" sel-"+k:""),t);b.type="button";b.onclick=()=>{d.status=d.status===k?"pendente":k;render();};aw.append(b);});
+  c.append(aw);
+  const lab=el("label",null,"Observação (opcional)");const id="n_"+r.id;lab.htmlFor=id;
+  const ta=document.createElement("textarea");ta.id=id;ta.value=d.note;ta.placeholder="Escreva o que quiser sobre esta decisão";ta.oninput=()=>{d.note=ta.value;sv.disabled=!changed(r,d);};
+  c.append(lab,ta);
+  const sv=el("button","save","Salvar");sv.type="button";sv.disabled=!changed(r,d);
+  const msg=el("span","saved",r.decidedAt?"Salvo em "+new Date(r.decidedAt).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"");
+  sv.onclick=async()=>{if(!db){msg.textContent="Sem conexão com o armazenamento. Tente de novo em instantes.";return;}
+    sv.disabled=true;msg.textContent="Salvando…";
+    try{const now=new Date().toISOString();await db.collection("decisions").doc(r.id).update({status:d.status,choice:d.choice,note:d.note,decidedAt:now});msg.textContent="Salvo.";}
+    catch(e){msg.textContent=e&&e.code==="invalid_argument"?"Só o dono da página pode salvar.":"Não foi possível salvar. Tente de novo.";sv.disabled=false;}};
+  const row=el("div");row.style.cssText="display:flex;gap:12px;align-items:center;flex-wrap:wrap";row.append(sv,msg);c.append(row);
+  return c;
+}
+function changed(r,d){return (d.status||"pendente")!==(r.status||"pendente")||(d.choice||"")!==(r.choice||"")||(d.note||"")!==(r.note||"");}
+$("tPend").onclick=()=>{view="pend";$("tPend").setAttribute("aria-pressed","true");$("tDone").setAttribute("aria-pressed","false");render();};
+$("tDone").onclick=()=>{view="done";$("tDone").setAttribute("aria-pressed","true");$("tPend").setAttribute("aria-pressed","false");render();};
+render();
+(async()=>{
+  try{db=await window.claude?.use?.("db");}catch(e){db=null;}
+  if(!db){$("status").textContent="O armazenamento não está disponível nesta visualização. Abra pelo link do claude.ai com a sua conta.";return;}
+  const timer=setTimeout(()=>{$("status").textContent="Ainda não foi possível carregar. Verifique a internet; a página tenta de novo sozinha.";},10000);
+  db.collection("decisions").orderBy("order").onSnapshot(snap=>{
+    if(!snap.metadata.fromCache){clearTimeout(timer);$("status").textContent="";}
+    rows=snap.docs.map(s=>Object.assign({id:s.id},s.data()));
+    rows.forEach(r=>{const d=drafts[r.id];if(d&&!changed(r,d))delete drafts[r.id];});
+    render();
+  },err=>{clearTimeout(timer);$("status").textContent="Não foi possível carregar as decisões ("+(err&&err.code||"erro")+").";});
+})();
+</script>
