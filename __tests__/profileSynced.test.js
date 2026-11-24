@@ -182,20 +182,27 @@ test('PS-3: every key moves except the provider claims, the mirrors of other syn
   assert.match(sql, /and e\.key !~ 'migrated'/);
 });
 
-test('PS-4: reads — after this phone read the cloud table, the profile comes from the table (user_metadata only fills keys it lacks); before, exactly user_metadata as today', async () => {
+test('PS-4: reads — during the mirror period (user_metadata written first, 1.3.0 / 1.3.1 in the stores) user_metadata wins, the table only fills keys it lacks; at the cutover the table wins once read here (founder B1, 2026-11-24)', async () => {
   const db = H.makeDb();
   const cloud = H.makeCloud();
-  backfill(cloud, { ...META, display_name: 'Sam from the table' });
-  const meta = { ...META, display_name: 'stale session copy' };
-  assert.equal(view(db, meta).display_name, 'stale session copy', 'no row, not ready: user_metadata');
+  backfill(cloud, { ...META, display_name: 'Old in the table', report_name: 'Only in the table' });
+  const meta = { ...META, display_name: 'New in user_metadata' };
+  assert.equal(PS.MIRROR_PERIOD, true, 'the mirror period is on (flip at the cutover, with the mirror removal)');
+  assert.equal(view(db, meta).display_name, 'New in user_metadata', 'no row: user_metadata');
   await core.pullChanges(db, cloud, U);
   assert.equal(ready(db), true);
   const v = view(db, meta);
-  assert.equal(v.display_name, 'Sam from the table', 'ready: the table wins');
+  assert.equal(v.display_name, 'New in user_metadata', 'mirror period: user_metadata wins even after the table was read');
+  assert.equal(v.report_name, 'Only in the table', 'a key user_metadata lacks comes from the table');
   const user = PS.withProfileMeta({ id: U, user_metadata: { ...meta, only_in_meta: 1, calc_inputs: { a: 1 } } }, { row: PS.readProfileRow(db, U), ready: true });
-  assert.equal(user.user_metadata.display_name, 'Sam from the table');
+  assert.equal(user.user_metadata.display_name, 'New in user_metadata');
   assert.equal(user.user_metadata.only_in_meta, 1, 'a key the table lacks still shows');
   assert.deepEqual(user.user_metadata.calc_inputs, { a: 1 }, 'non-profile keys untouched');
+  // The flip, documented: after the cutover (mirror: false) the table wins once read in full here, and
+  // before it is read, user_metadata still does.
+  const row = PS.readProfileRow(db, U);
+  assert.equal(PS.profileView({ row, meta, ready: true, mirror: false }).display_name, 'Old in the table', 'cutover: the table wins');
+  assert.equal(PS.profileView({ row, meta, ready: false, mirror: false }).display_name, 'New in user_metadata', 'cutover, table not read yet: user_metadata');
   // Not ready (the cloud table missing): user_metadata wins over a local row, exactly today's values.
   const db2 = H.makeDb();
   PS.ensureProfileRow(db2, U, { display_name: 'old copy' }, { now: now() });
@@ -435,8 +442,9 @@ test('PS-12: old store versions — user_metadata keeps every key (the mirror), 
   assert.equal(server.meta.display_name, 'Sam C.', '1.3.0 / 1.3.1 and the server functions read the same value');
   assert.equal(server.meta.birth_year, 1985, 'no other key touched (merge)');
   assert.equal(cloudPayload(cloud).display_name, 'Sam C.');
-  // 1.3.1 (same account, after a takeover) writes a key: the trigger brings it into the table; this
-  // phone shows it after its next pull.
+  // 1.3.1 (same account, after a takeover) writes a key: user_metadata has it and the trigger brings it
+  // into the table; this phone shows it.
+  server.meta.food_reminders = true;
   triggerCopy(cloud, { food_reminders: true });
   await core.pullChanges(db, cloud, U);
   assert.equal(view(db, server.meta).food_reminders, true);
@@ -494,4 +502,28 @@ test('PS-16 (Gate B F2): a metadata write whose answer lands after the intended 
   assert.equal(db.getAllSync(`SELECT * FROM ${T}`).length, 0);
   // lib/supabase passes the user App.js last saw (knownUser_, set synchronously on every auth event).
   assert.match(read('lib/supabase.js'), /function noteProfileWriteLazy\(user, data\) \{\n\s+require\('\.\/profile'\)\.noteProfileWrite\(user, data, knownUser_ \? knownUser_\.id : null\);\n\}/);
+});
+
+test('PS-17 (founder B1): a stale table — the table has Old, user_metadata has New — the app shows New, and an Edit profile save never writes Old back (not to user_metadata, not to the table)', async () => {
+  const db = H.makeDb();
+  const cloud = H.makeCloud();
+  backfill(cloud, { ...META, display_name: 'Old', country: 'US' }); // the table missed a write (e.g. a failed trigger copy)
+  const server = { meta: { ...META, display_name: 'New', country: 'BR' } };
+  await core.pullChanges(db, cloud, U);
+  assert.equal(payloadOf(rows(db)[0]).display_name, 'Old', 'the local copy is stale');
+  const shown = PS.withProfileMeta({ id: U, user_metadata: server.meta }, { row: PS.readProfileRow(db, U), ready: ready(db) }).user_metadata;
+  assert.equal(shown.display_name, 'New');
+  assert.equal(shown.country, 'BR');
+  // Edit profile loads what is shown and saves it (screens/SettingsScreen saveProfile: every field of the
+  // form), here with one field changed: the metadata write first, then the table.
+  const data = { display_name: shown.display_name, country: shown.country, birth_year: 1986 };
+  Object.assign(server.meta, data);
+  afterMetadataWrite({ data: { user: { id: U, user_metadata: server.meta } }, error: null }, data,
+    (u, d) => PS.noteWrite(db, u, d, { sessionUserId: U, localOwner: () => U, ready: ready(db), now: now() }));
+  await core.pushPending(db, cloud, U);
+  assert.equal(server.meta.display_name, 'New', 'user_metadata never gets Old back');
+  assert.equal(cloudPayload(cloud).display_name, 'New', 'the table is corrected, never the other way');
+  assert.equal(cloudPayload(cloud).country, 'BR');
+  assert.equal(cloudPayload(cloud).birth_year, 1986);
+  assert.equal(PS.withProfileMeta({ id: U, user_metadata: server.meta }, { row: PS.readProfileRow(db, U), ready: true }).user_metadata.display_name, 'New');
 });
