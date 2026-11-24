@@ -346,12 +346,12 @@ const rows=(o)=>`<table>
   <tr><td>Doses tomadas seguidas, sem falha, até a data do relatório<small>${o.since}</small></td><td class="n">${o.streak}</td></tr>
   <tr><td>Doses restantes no frasco atual<small>conta do app a partir das doses registradas</small></td><td class="n">${o.vial}</td></tr>
 </table>`;
-const top=(p)=>`<div class="top"><h4>Relatório de adesão</h4><span>Gerado pelo aplicativo DoseTrace · Página ${p} de 2</span></div>`;
+const pageTop=(p)=>`<div class="top"><h4>Relatório de adesão</h4><span>Gerado pelo aplicativo DoseTrace · Página ${p} de 2</span></div>`;
 const disc=`<div class="disc"><span>O DoseTrace não avalia se a adesão é adequada. Este é um resumo de acompanhamento de bem-estar gerado pelo usuário. Não constitui aconselhamento médico nem registro clínico.</span><span style="white-space:nowrap">Gerado em 24/11/2026 às 09:15</span></div>`;
 
 const A4 = `<div class="a4stack">
 <div class="a4">
-  ${top(1)}
+  ${pageTop(1)}
   <div class="about"><b>O que é este relatório.</b> ${ABOUT}</div>
   <div class="meta"><b>Nome</b><span>Marina Costa Silva</span><b>Gerado em</b><span>24/11/2026 às 09:15</span>
     <b>Período</b><span>26/10/2026 a 24/11/2026 <span class="lab2">(últimos 30 dias, até a hora da geração)</span></span><b>Protocolos</b><span>2 (nenhum encerrado)</span></div>
@@ -381,7 +381,7 @@ const A4 = `<div class="a4stack">
   ${disc}
 </div>
 <div class="a4">
-  ${top(2)}
+  ${pageTop(2)}
   <div class="meta"><b>Nome</b><span>Marina Costa Silva</span><b>Período</b><span>26/10/2026 a 24/11/2026</span></div>
   <div class="how"><b>Como ler este relatório</b>
     <dl>
