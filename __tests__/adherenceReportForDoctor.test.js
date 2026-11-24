@@ -225,6 +225,15 @@ test('AR-15: the PDF page is A4 paper, escapes every typed value, a table per pr
   assert.match(html, /background:\s*#fff/i);
 });
 
+// Simulator 2026-11-24: the second page header sat BEFORE the page break, so "Como ler" opened its page with no
+// header. The break is on a block that holds the header, "Como ler" and the closing lines.
+test('AR-15: "Como ler" starts its own page WITH the page header', () => {
+  const { html } = build(model());
+  assert.match(html, /\.howpage \{ page-break-before: always; \}/);
+  assert.match(html, /<div class="howpage"><div class="top">[\s\S]*?class="how"[\s\S]*?class="disc"[\s\S]*?<\/div>\s*<\/body>/);
+  assert.doesNotMatch(html, /\.how \{[^}]*page-break-before/);
+});
+
 test('AR-22: one named place for per-protocol extra sections — empty changes nothing, a section lands after the protocol', () => {
   const { buildAdherenceReport, NO_EXTRA_SECTIONS } = require('../lib/adherenceReportDoc');
   assert.deepEqual(NO_EXTRA_SECTIONS({ id: 1 }), []);
