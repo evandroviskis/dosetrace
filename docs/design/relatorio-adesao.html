@@ -1,0 +1,418 @@
+<title>Relatório de adesão</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: the report in three forms side by side — the app's preview of today's text, the proposed text
+   (same preview), and the proposed A4 PDF page (paper, always white). Light row, then dark row (phones only).
+   Phone tokens copied from lib/theme.js; the preview is SettingsScreen's report modal (reportPaper / reportText). */
+:root{
+  --page:#F1F2EF;--pfg:#15171A;--pmut:#5B6066;--pline:#D5D8D2;--rec:#17623F;
+  --sans:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;--rec:#62C597;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;--rec:#62C597;color-scheme:dark}
+.lt{--ground:#DDE0DB;--raised:#FFFFFF;--well:#EEF0EC;--line:#C3C7C0;--ink:#111315;--ink2:#454A4F;--ink3:#53585D;--act:#111315;--onAct:#FFFFFF}
+.dk{--ground:#121416;--raised:#282B30;--well:#1D2024;--line:#3C4147;--ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--act:#EEEFEB;--onAct:#121416}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--pfg);font-family:var(--sans);margin:0;
+  padding-block:28px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:24px;margin:0 0 8px;text-wrap:balance;letter-spacing:-.01em}
+p.lead{color:var(--pmut);max-width:76ch;margin:0 0 8px;line-height:1.5;font-size:15px}
+h2{font-size:19px;margin:36px 0 6px}
+h3{font-size:13px;font-weight:600;color:var(--pmut);margin:18px 0 10px;text-transform:uppercase;letter-spacing:.06em}
+.rec{font-size:11px;font-weight:700;color:var(--rec);border:1px solid var(--rec);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle;letter-spacing:.04em;white-space:nowrap}
+.row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0;max-width:100%}
+.cap{font-size:13px;color:var(--pmut);line-height:1.4;min-height:54px;max-width:300px}
+.cap.w{max-width:520px}
+.cap b{color:var(--pfg);font-weight:600}
+
+/* phone: the report preview modal */
+.ph{width:300px;max-width:100%;height:720px;background:var(--ground);border-radius:30px;border:1px solid var(--pline);overflow:hidden;color:var(--ink);position:relative;display:flex;flex-direction:column}
+.scr{padding:14px 13px 70px;flex:1;min-height:0;overflow:hidden;position:relative}
+.scr::after{content:"";position:absolute;left:0;right:0;bottom:64px;height:30px;background:linear-gradient(transparent,var(--ground))}
+.mnav{display:flex;justify-content:space-between;align-items:center;min-height:36px;padding:0 2px}
+.mnav span{font-size:13px;min-width:46px}.mnav b{font-size:13.5px;font-weight:600}
+.intro{font-size:12px;color:var(--ink2);line-height:1.4;margin:8px 2px 10px}
+.paper{background:var(--well);border-radius:11px;padding:12px;font-family:var(--mono);font-weight:500;font-size:9.3px;line-height:1.55;white-space:pre-wrap;color:var(--ink)}
+.foot{position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--ground);z-index:1}
+.share{position:absolute;left:13px;right:13px;bottom:14px;min-height:41px;border-radius:21px;background:var(--act);color:var(--onAct);display:grid;place-items:center;font-size:13.5px;font-weight:700;z-index:2}
+
+/* A4 page (paper: white in both themes, print colours) */
+.a4{width:520px;max-width:100%;aspect-ratio:210/297;background:#FFFFFF;color:#111315;border:1px solid var(--pline);box-shadow:0 2px 14px rgba(0,0,0,.12);
+  padding:24px 32px;font-family:var(--sans);font-size:9px;line-height:1.4;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+.a4 .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1.5px solid #111315;padding-bottom:7px}
+.a4 .top h4{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.a4 .top span{font-size:8.5px;color:#454A4F}
+.a4 .meta{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 10px;font-size:8.6px}
+.a4 .meta b{font-weight:600;color:#454A4F}
+.a4 .sum{display:flex;gap:10px;background:#F2F3F0;border-radius:5px;padding:8px 10px;align-items:center}
+.a4 .sum .big{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.a4 .sum .tx{font-size:8.6px;color:#2C3034;line-height:1.4}
+.a4 .pr{border:1px solid #C9CCC6;border-radius:5px;overflow:hidden}
+.a4 .pr .ph4{display:flex;justify-content:space-between;align-items:baseline;background:#F2F3F0;padding:5px 9px;border-bottom:1px solid #C9CCC6}
+.a4 .pr .ph4 b{font-size:10.5px}.a4 .pr .ph4 span{font-size:8.5px;color:#454A4F}
+.a4 .pr .body{display:grid;grid-template-columns:1.15fr 1fr;gap:0 14px;padding:6px 9px 7px}
+.a4 table{width:100%;border-collapse:collapse;font-size:8.6px}
+.a4 td{padding:2.2px 0;border-bottom:1px solid #E3E5E0;vertical-align:top}
+.a4 tr:last-child td{border-bottom:0}
+.a4 td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;padding-left:8px}
+.a4 td small{display:block;color:#5B6064;font-size:7.6px;font-weight:400}
+.a4 .sub{font-size:7.8px;font-weight:700;color:#454A4F;text-transform:uppercase;letter-spacing:.05em;margin:1px 0 3px}
+.a4 .obs{margin:0 0 4px}.a4 .obs q{font-style:normal;font-weight:500;quotes:none}.a4 .obs div{color:#5B6064;font-size:7.8px}
+.a4 .how{border:1px solid #C9CCC6;border-radius:5px;padding:7px 10px;font-size:8px;line-height:1.45}
+.a4 .how b{font-size:8.6px}
+.a4 .how dl{display:grid;grid-template-columns:auto 1fr;gap:1.5px 8px;margin:4px 0 0}
+.a4 .how dt{font-weight:600}.a4 .how dd{margin:0;color:#2C3034}
+.a4 .disc{margin-top:auto;border-top:1px solid #C9CCC6;padding-top:6px;font-size:7.8px;color:#454A4F;display:flex;justify-content:space-between;gap:12px}
+.paperonly{width:520px;max-width:100%;border:1px dashed var(--pline);border-radius:14px;padding:16px;color:var(--pmut);font-size:13px;line-height:1.45}
+
+.notes{max-width:80ch;color:var(--pmut);font-size:14.5px;line-height:1.55;margin-top:16px}
+.notes li{margin-bottom:7px}.notes b{color:var(--pfg)}
+table.terms{border-collapse:collapse;max-width:80ch;margin-top:10px;font-size:14px}
+table.terms th,table.terms td{border-bottom:1px solid var(--pline);padding:7px 10px 7px 0;text-align:left;vertical-align:top;color:var(--pmut)}
+table.terms th{color:var(--pfg);font-weight:600}
+table.terms td:first-child{white-space:nowrap;color:var(--pfg)}
+.ask{font-weight:600;font-size:16px;margin-top:22px;max-width:80ch}
+.ask ol{font-weight:500;font-size:15px;line-height:1.55}
+</style>
+<style>
+.a4stack{display:flex;flex-direction:column;gap:14px}
+.a4>*{flex-shrink:0}
+/* Editar perfil (SettingsScreen modal / editSection / editField / editLabel / editHint / editInput) */
+.ep{background:var(--raised);height:100%;display:flex;flex-direction:column}
+.ep .nav2{display:flex;justify-content:space-between;align-items:center;min-height:42px;padding:6px 15px 0}
+.ep .nav2 span{font-size:13px}.ep .nav2 b{font-size:13px;font-weight:600}
+.ep .bd{padding:4px 15px}
+.ep .sec{font-size:17px;font-weight:600;letter-spacing:-.15px;margin-top:4px}
+.ep .fld{margin-top:14px}
+.ep .lbl{font-size:10px;line-height:14px;color:var(--ink2);margin:0 3px 7px}
+.ep .hint{font-size:10px;line-height:14px;color:var(--ink2);margin:6px 3px 0}
+.ep .inp{min-height:39px;border-radius:11px;padding:0 11px;display:flex;align-items:center;font-size:13px;color:var(--ink);background:var(--raised);border:1px solid var(--line)}
+.ep .inp.ph0{color:var(--ink3)}
+.ep .inp.on{border:1.5px solid var(--ink)}
+.ep .mg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ep .mg span{min-height:31px;border-radius:16px;border:1px solid var(--line);display:grid;place-items:center;font-size:11.5px;color:var(--ink2)}
+.ep .mg span.on{border:1.5px solid var(--ink);color:var(--ink);font-weight:600}
+.ep .new{box-shadow:0 0 0 2px var(--data);border-radius:13px;padding:6px;margin:8px -6px 0}
+.dk .ep .new,.lt .ep .new{--data:var(--dataT)}
+.lt{--dataT:#2350D8}.dk{--dataT:#8AA8FF}
+/* Settings behind the sheet + DTSheet (ProtocolParts sheetStyles) */
+.st{padding:14px 13px}
+.st .h{font-size:26px;font-weight:700;letter-spacing:-.5px;margin:6px 3px 14px}
+.st .grp{background:var(--raised);border-radius:17px;padding:0 12px}
+.st .r{min-height:46px;display:flex;flex-direction:column;justify-content:center;padding:8px 0;border-top:1px solid var(--line)}
+.st .r:first-child{border-top:0}
+.st .r b{font-size:13px;font-weight:500}.st .r span{font-size:10.5px;color:var(--ink2);margin-top:2px}
+.scrimC{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;padding:12px;z-index:3}
+.dts{background:var(--raised);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:11px;width:100%}
+.dts .ic{width:37px;height:37px;border-radius:50%;background:var(--well);display:grid;place-items:center}
+.dts .ic svg{width:19px;height:19px;color:var(--ink)}
+.dts .t{font-size:17px;font-weight:700;line-height:1.27}
+.dts .b{font-size:13px;line-height:1.35;color:var(--ink2)}
+.dts .hn{font-size:10px;line-height:1.4;color:var(--ink2)}
+.dts .stack{display:flex;flex-direction:column;gap:6px}
+.dts .btn{min-height:36px;border-radius:20px;display:grid;place-items:center;font-size:12px;font-weight:700}
+.dts .btn.p{background:var(--act);color:var(--onAct)}.dts .btn.s{background:var(--well);color:var(--ink)}
+.dts .inp{min-height:39px;border-radius:11px;padding:0 11px;display:flex;align-items:center;font-size:13px;color:var(--ink);border:1.5px solid var(--ink)}
+.caret2{display:inline-block;width:1.5px;height:14px;background:var(--ink);margin-left:1px}
+/* report header snippets */
+.hdrs{display:flex;gap:20px;flex-wrap:wrap}
+.hdr{width:520px;max-width:100%;background:#FFFFFF;color:#111315;border:1px solid var(--pline);padding:18px 24px;font-family:var(--sans);font-size:9px;line-height:1.45;display:flex;flex-direction:column;gap:7px}
+.hdr .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1.5px solid #111315;padding-bottom:6px}
+.hdr .top h4{margin:0;font-size:15px}.hdr .top span{font-size:8px;color:#454A4F}
+.hdr .meta{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 10px;font-size:8.6px}
+.hdr .meta b{font-weight:600;color:#454A4F}
+.txthdr{width:300px;max-width:100%;background:#EEF0EC;color:#111315;border-radius:11px;padding:12px;font-family:var(--mono);font-weight:500;font-size:9.3px;line-height:1.55;white-space:pre-wrap}
+.box2{border:1px solid var(--pline);border-radius:14px;padding:14px 18px;max-width:80ch;margin-top:14px}
+.box2 p{margin:0 0 8px;font-size:14.5px;line-height:1.55;color:var(--pmut)}.box2 p:last-child{margin:0}.box2 b{color:var(--pfg)}
+.box2 ul{margin:4px 0 8px;padding-left:20px;color:var(--pmut);font-size:14.5px;line-height:1.55}
+.a4 .about{border-left:3px solid #111315;padding:3px 0 3px 9px;font-size:8.6px;line-height:1.5;color:#2C3034}
+.a4 .about b{color:#111315}
+.a4 .sum{flex-direction:column;align-items:stretch;gap:4px}
+.a4 .sum .row1{display:flex;gap:10px;align-items:center}
+.a4 .sumt td{border-bottom:1px solid #E1E3DE}
+.a4 .lab2{font-size:7.6px;color:#5B6064}
+.a4 .noint{font-size:8px;color:#454A4F;font-style:italic}
+</style>
+
+<div class="wrap">
+<h1>Relatório de adesão: claro para um médico que nunca viu o app</h1>
+<p class="lead">O relatório (Ajustes › Relatório de adesão) vai para uma terceira pessoa, em geral o médico, que pode não saber o que é o DoseTrace, de onde veio o relatório nem o que significam as palavras do app. Hoje o texto usa só palavras do app ("Puladas", "Perdidas", "Sequência atual") sem explicar nada.</p>
+<p class="lead">As duas propostas usam os mesmos números de hoje, calculados do mesmo jeito. Muda como cada linha é escrita: cada número vem numa frase que se explica sozinha, em terceira pessoa (quem lê não é quem registrou), o relatório diz no alto o que é e de onde vem, e "Como ler este relatório" define cada termo uma vez. A segunda proposta é o mesmo conteúdo numa página A4 em PDF. A prioridade é a clareza para o médico, mesmo que fique mais longo.</p>
+<p class="lead">Exemplo: Marina, 30 dias, L-Carnitina 2 cápsulas por dia (29 tomadas, 1 que ela decidiu não tomar) e Retatrutida 2 mg a cada 7 dias (4 de 4). As marcas "Em jejum" / "Com refeição" e as observações só aparecem se o desenho da marca na dose (dose-jejum-refeicao-treino.html) for aprovado.</p>
+
+<div id="out"></div>
+
+<h2>O nome no relatório</h2>
+<p class="lead">O nome do perfil pode ser um apelido ("o brabo da favela"), e o relatório que vai para o médico nunca pode levar o apelido. Por isso o perfil passa a ter dois campos: "Como você quer ser chamado" (o de hoje, que aparece no app) e "Nome completo" (novo, opcional, usado só nos relatórios). Sem nome completo, o app avisa antes de gerar e o relatório sai sem nenhuma linha de nome.</p>
+<div id="nm"></div>
+
+<div class="box2">
+<p><b>Onde o nome fica hoje.</b> Em display_name, dentro dos dados da conta no Supabase (user_metadata), junto com todo o perfil (sexo, nascimento, país, objetivos). Não fica nas tabelas sincronizadas do celular; vale em qualquer aparelho porque está no servidor da conta. É gravado pelo Editar perfil, pela abertura e pelo login com Apple ou Google, que só preenchem um nome vazio (lib/profileName.js).</p>
+<p><b>O que muda nos dados.</b> Uma chave nova no mesmo lugar do perfil: <b>report_name</b> (o nome completo). Não pode se chamar "full_name": o login com Google já grava o nome da conta Google nessa chave sozinho. Não precisa de migração no servidor. O que já existe não muda: o display_name de hoje continua sendo "Como você quer ser chamado", e o "Nome completo" começa vazio para todos. Nada é copiado de um para o outro (o nome de hoje pode ser apelido), e o nome do Apple ou do Google também não preenche o nome completo sozinho. Nada é apagado.</p>
+<p><b>Gravar sem perder nada.</b> O Editar perfil e a folha "Adicionar meu nome" mandam só as chaves do perfil, que o Supabase junta às que já estão lá; nunca reescrevem o perfil inteiro. O nome completo só fica vazio quando a própria pessoa apaga o campo. A regra do CLAUDE.md pede que dado digitado pela pessoa fique numa tabela sincronizada, não só em user_metadata, e o perfil inteiro (este campo incluído) está fora dela hoje. Levar o perfil para uma tabela sincronizada é uma mudança à parte, que eu recomendo registrar e fazer separada desta.</p>
+<p><b>Onde um nome é impresso hoje</b> (todos passam a usar só o nome completo, ou nenhum):</p>
+<ul>
+<li><b>Relatório de adesão</b> (SettingsScreen.js:812): hoje usa o display_name, ou o <b>e-mail</b> quando não há nome. Passa a usar o nome completo; sem ele, não leva nome nem e-mail.</li>
+<li><b>Exames e vacinas, PDF e CSV</b> (Meu corpo › Exportar; lib/exportRecords.js): hoje não leva nome. Recomendo o nome completo no cabeçalho do PDF, com o mesmo aviso antes, porque vai para o médico do mesmo jeito.</li>
+<li><b>Baixar meus dados</b> (lib/accountActions.js, lib/exportFile.js profileForExport): é a cópia completa dos dados da própria pessoa (o direito de acesso). Leva os dois campos, cada um com o seu nome, o e-mail e o que o Google gravou. Não é um relatório para terceiros, então fica assim.</li>
+<li>Nenhuma notificação, mensagem da equipe ou função do servidor imprime o nome.</li>
+</ul>
+<p><b>Os 6 idiomas</b> recebem os dois campos, o texto de ajuda e a folha, escritos de forma natural em cada um.</p>
+</div>
+
+<h2>Cada linha: hoje e no relatório proposto</h2>
+<table class="terms">
+<tr><th>Hoje</th><th>No relatório proposto</th><th>De onde vem (o mesmo cálculo de hoje)</th></tr>
+<tr><td>(não existe)</td><td>"Este relatório foi gerado pelo aplicativo DoseTrace, um diário pessoal…" (o bloco do alto)</td><td>Diz o que é o relatório, que a própria pessoa registra tudo, que o app não mede, não verifica e não interpreta, e que as doses previstas seguem o horário que ela configurou.</td></tr>
+<tr><td>Usuário</td><td>Nome</td><td>O nome do perfil (ou o e-mail, se não houver nome).</td></tr>
+<tr><td>Período: … (30 dias)</td><td>Período: 26/10/2026 a 24/11/2026 (últimos 30 dias, até a hora em que o relatório foi gerado)</td><td>Da meia-noite de 29 dias atrás até a hora da geração, igual ao anel de 30 dias do Hoje.</td></tr>
+<tr><td>Gerado pelo DoseTrace em 24 de novembro de 2026 (no fim)</td><td>Gerado em 24/11/2026 às 09:15 (no alto, e no rodapé)</td><td>A hora é nova; hoje só sai a data.</td></tr>
+<tr><td>(não aparece)</td><td>Doses previstas no período, pelo horário que a pessoa configurou: 30</td><td>Hoje o número é calculado, mas só a porcentagem aparece.</td></tr>
+<tr><td>Concluídas: 29</td><td>Doses registradas como tomadas: 29</td><td>"Dose concluída" no app.</td></tr>
+<tr><td>Puladas: 1</td><td>Doses que a pessoa marcou como não tomadas (decidiu não tomar): 1</td><td>"Pular dose" / "Dose pulada" no app.</td></tr>
+<tr><td>Perdidas: 0</td><td>Doses previstas sem nenhum registro (não se sabe se foram tomadas): 0</td><td>"Dose perdida" no app: o horário passou e nada foi marcado.</td></tr>
+<tr><td>Adesão: 97%</td><td>Adesão: 97%. Doses registradas como tomadas ÷ doses previstas no período (29 de 30).</td><td>lib/adherenceReport. Uma dose a mais, fora do previsto, não passa de 100%.</td></tr>
+<tr><td>Sequência atual: 12 doses sem falhar</td><td>Doses tomadas seguidas, sem falha, até a data do relatório: 12 (desde 13/11)</td><td>lib/doseStreak, contando para trás até 1 ano (por isso pode começar antes do período); a dose de hoje ainda não tomada não interrompe. O dia de início é novo: hoje o app só conta.</td></tr>
+<tr><td>Frasco: 54 doses restantes</td><td>Doses restantes no frasco atual, pela conta do app a partir das doses registradas: 54</td><td>A conta do frasco que o app já faz.</td></tr>
+<tr><td>Protocolos ativos: 2 · Total de doses registradas: 34</td><td>O resumo: "34 doses previstas; 33 registradas como tomadas; 1 marcada como não tomada; 0 sem nenhum registro."</td><td>As mesmas somas. Hoje "Protocolos ativos" não contava um protocolo encerrado que o relatório lista ("· Encerrado em …"); a proposta conta os listados e diz quantos estão encerrados.</td></tr>
+<tr><td>(proposta da marca)</td><td>Doses registradas como tomadas em jejum (marcado pela pessoa): 27 de 29</td><td>Só a contagem do que ela marcou. Sem "Sem marca".</td></tr>
+<tr><td>(proposta da marca)</td><td>Observações escritas pela pessoa: cada uma numa linha, as datas na linha de baixo</td><td>Iguais aparecem uma vez, com o número de doses e de quando a quando; uma diferente aparece com o dia e a hora da dose.</td></tr>
+<tr><td>* Sem sincronização desde {data}… / Sem registro desde {data}: {n}</td><td>* O celular da pessoa não sincroniza desde {data}: as doses previstas desde então ainda não estão contadas como "sem nenhum registro", então a adesão pode aparecer maior do que é. · Doses ainda não contadas por isso: {n}</td><td>O mesmo aviso de hoje (A-181), em terceira pessoa. "Sem registro desde" muda de nome para não se confundir com as doses sem nenhum registro. A linha dos períodos de mais de 14 dias sem sincronizar continua, no mesmo tom.</td></tr>
+</table>
+
+<h2>Como funcionaria</h2>
+<ol class="notes">
+<li><b>Só no relatório.</b> Dentro do app as palavras continuam as de hoje ("Dose concluída", "Dose pulada", "Dose perdida", "Pular dose"). O relatório usa frases próprias porque quem o lê não conhece o app (decisão do senhor em 24/11).</li>
+<li><b>Os números não mudam.</b> Vêm do mesmo cálculo de hoje (lib/adherenceReport, lib/doseStreak, o frasco). Passam a aparecer as doses previstas, que hoje já são calculadas, o dia de início das doses seguidas e a hora da geração.</li>
+<li><b>Nada é interpretado.</b> Nenhuma frase diz se a adesão é boa ou ruim, nenhuma cor de alerta, nenhum conselho. Fica escrito: "O DoseTrace não avalia se a adesão é adequada." e o aviso de hoje: "Este é um resumo de acompanhamento de bem-estar gerado pelo usuário. Não constitui aconselhamento médico nem registro clínico."</li>
+<li><b>PDF:</b> o app já gera PDF com o expo-print, mas só para os exames e as vacinas (Meu corpo › Exportar, que é Premium). O relatório de adesão hoje é só texto (compartilhado como mensagem) e é grátis. O PDF dele seria montado do mesmo jeito (página HTML → PDF), sem build nativo, nas versões que já têm o expo-print.</li>
+<li><b>Na tela do relatório</b>, a prévia continua mostrando exatamente o que vai ser enviado. Com o PDF, o botão vira "Compartilhar PDF" e aparece "Compartilhar como texto" embaixo, para quem manda por mensagem.</li>
+<li><b>Os 6 idiomas</b> recebem o mesmo tratamento, escritos de forma natural em cada um e no mesmo tom neutro, em terceira pessoa.</li>
+</ol>
+
+<div class="ask">Perguntas ao senhor:
+<ol>
+<li>Texto, PDF ou os dois (PDF como principal e o texto como opção)? Minha recomendação: os dois.</li>
+<li>O PDF do relatório de adesão fica grátis, como o texto de hoje, ou Premium, como o PDF dos exames?</li>
+<li>O PDF dos exames e vacinas também passa a levar o nome completo no cabeçalho (minha recomendação), ou continua sem nome?</li>
+</ol></div>
+</div>
+
+<script>
+const TODAY =
+`RELATÓRIO DE ADESÃO DOSETRACE
+────────────────────────────────────────
+Usuário: Marina Costa
+Período: 26 de out. – 24 de nov. de 2026 (30 dias)
+Adesão geral: 97%
+Protocolos ativos: 2
+Total de doses registradas: 34
+────────────────────────────────────────
+
+L-Carnitina
+  Dose: 2 cápsulas · Diariamente
+  Concluídas: 29 · Puladas: 1 · Perdidas: 0 · Adesão: 97%
+  Sequência atual: 12 doses sem falhar
+  Frasco: 54 doses restantes
+
+Retatrutida
+  Dose: 2 mg · A cada 7 dias
+  Concluídas: 4 · Puladas: 0 · Perdidas: 0 · Adesão: 100%
+  Sequência atual: 6 doses sem falhar
+  Frasco: 2 doses restantes
+
+────────────────────────────────────────
+Gerado pelo DoseTrace em 24 de novembro de 2026
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário.
+Não constitui aconselhamento médico nem registro clínico.`;
+
+const ABOUT='Este relatório foi gerado pelo aplicativo DoseTrace, um diário pessoal em que a própria pessoa registra as doses que toma, marca se foram em jejum ou com refeição e escreve observações. O aplicativo não mede, não verifica e não interpreta nada: os números abaixo são contagens desses registros. As doses previstas seguem o horário que a própria pessoa configurou no aplicativo.';
+
+const PROP =
+`RELATÓRIO DE ADESÃO
+
+${ABOUT}
+
+Nome: Marina Costa Silva
+Período: 26/10/2026 a 24/11/2026 (últimos 30 dias, até a hora em que o relatório foi gerado)
+Gerado em: 24/11/2026 às 09:15
+
+RESUMO
+Protocolos neste relatório: 2 (nenhum encerrado)
+Adesão geral: 97%
+Doses registradas como tomadas ÷ doses previstas no período: 33 de 34.
+34 doses previstas; 33 registradas como tomadas; 1 marcada como não tomada; 0 sem nenhum registro.
+
+────────────────────────────
+L-CARNITINA
+Dose configurada: 2 cápsulas, diariamente
+
+Doses previstas no período, pelo horário que a pessoa configurou: 30
+Doses registradas como tomadas: 29
+Doses que a pessoa marcou como não tomadas (decidiu não tomar): 1
+Doses previstas sem nenhum registro (não se sabe se foram tomadas): 0
+Adesão: 97%. Doses registradas como tomadas ÷ doses previstas no período (29 de 30).
+Doses tomadas seguidas, sem falha, até a data do relatório: 12 (desde 13/11)
+Doses restantes no frasco atual, pela conta do app a partir das doses registradas: 54
+
+Doses registradas como tomadas em jejum (marcado pela pessoa): 27 de 29
+
+Observações escritas pela pessoa:
+"Antes da yoga"
+   em 25 doses, de 26/10 a 24/11
+"Acordei tarde, tomei às 10:00"
+   na dose de 23/11, às 10:02
+
+────────────────────────────
+RETATRUTIDA
+Dose configurada: 2 mg, a cada 7 dias
+
+Doses previstas no período, pelo horário que a pessoa configurou: 4
+Doses registradas como tomadas: 4
+Doses que a pessoa marcou como não tomadas (decidiu não tomar): 0
+Doses previstas sem nenhum registro (não se sabe se foram tomadas): 0
+Adesão: 100%. Doses registradas como tomadas ÷ doses previstas no período (4 de 4).
+Doses tomadas seguidas, sem falha, até a data do relatório: 6 (desde 12/10, antes do período)
+Doses restantes no frasco atual, pela conta do app a partir das doses registradas: 2
+
+Doses registradas como tomadas com refeição (marcado pela pessoa): 4 de 4
+
+────────────────────────────
+COMO LER ESTE RELATÓRIO
+Dose prevista: dose que o horário configurado pela pessoa programou para o período.
+Registrada como tomada: a pessoa marcou no aplicativo que tomou a dose.
+Marcada como não tomada: a pessoa marcou no aplicativo que decidiu não tomar aquela dose.
+Sem nenhum registro: o horário da dose passou e nada foi marcado; não se sabe se foi tomada.
+Adesão: doses registradas como tomadas ÷ doses previstas no período. Uma dose a mais, fora do previsto, não passa de 100%.
+Doses tomadas seguidas: doses registradas como tomadas em sequência, contando para trás a partir da data do relatório, sem nenhuma dose prevista sem registro ou marcada como não tomada; pode começar antes do período. A dose do dia do relatório ainda não tomada não interrompe a contagem.
+Doses restantes no frasco: conta do aplicativo a partir das doses registradas, não uma medição.
+Em jejum / com refeição e observações: escritos pela própria pessoa.
+* (asterisco): o celular da pessoa ficou sem sincronizar; as doses previstas desses dias ainda não estão contadas, e a adesão pode aparecer maior do que é.
+
+O DoseTrace não avalia se a adesão é adequada.
+Este é um resumo de acompanhamento de bem-estar gerado pelo usuário. Não constitui aconselhamento médico nem registro clínico.
+Gerado pelo DoseTrace em 24/11/2026 às 09:15.`;
+
+const phone=(txt)=>`<div class="ph"><div class="scr"><div class="mnav"><span>Cancelar</span><b>Relatório de adesão</b><span></span></div>
+  <div class="intro">É exatamente isto que o seu profissional de saúde vai receber.</div>
+  <div class="paper">${txt}</div></div><div class="foot"></div><div class="share">Compartilhar</div></div>`;
+
+const rows=(o)=>`<table>
+  <tr><td>Doses previstas no período<small>pelo horário que a pessoa configurou</small></td><td class="n">${o.due}</td></tr>
+  <tr><td>Doses registradas como tomadas</td><td class="n">${o.taken}</td></tr>
+  <tr><td>Doses que a pessoa marcou como não tomadas<small>decidiu não tomar</small></td><td class="n">${o.skip}</td></tr>
+  <tr><td>Doses previstas sem nenhum registro<small>não se sabe se foram tomadas</small></td><td class="n">${o.miss}</td></tr>
+  <tr><td>Adesão<small>doses registradas como tomadas ÷ doses previstas (${o.taken} de ${o.due})</small></td><td class="n">${o.pct}</td></tr>
+  <tr><td>Doses tomadas seguidas, sem falha, até a data do relatório<small>${o.since}</small></td><td class="n">${o.streak}</td></tr>
+  <tr><td>Doses restantes no frasco atual<small>conta do app a partir das doses registradas</small></td><td class="n">${o.vial}</td></tr>
+</table>`;
+const top=(p)=>`<div class="top"><h4>Relatório de adesão</h4><span>Gerado pelo aplicativo DoseTrace · Página ${p} de 2</span></div>`;
+const disc=`<div class="disc"><span>O DoseTrace não avalia se a adesão é adequada. Este é um resumo de acompanhamento de bem-estar gerado pelo usuário. Não constitui aconselhamento médico nem registro clínico.</span><span style="white-space:nowrap">Gerado em 24/11/2026 às 09:15</span></div>`;
+
+const A4 = `<div class="a4stack">
+<div class="a4">
+  ${top(1)}
+  <div class="about"><b>O que é este relatório.</b> ${ABOUT}</div>
+  <div class="meta"><b>Nome</b><span>Marina Costa Silva</span><b>Gerado em</b><span>24/11/2026 às 09:15</span>
+    <b>Período</b><span>26/10/2026 a 24/11/2026 <span class="lab2">(últimos 30 dias, até a hora da geração)</span></span><b>Protocolos</b><span>2 (nenhum encerrado)</span></div>
+  <div class="sum"><div class="row1"><div class="big">97%</div><div class="tx"><b>Adesão geral:</b> doses registradas como tomadas ÷ doses previstas no período (33 de 34).</div></div>
+    <div class="tx">34 doses previstas · 33 registradas como tomadas · 1 marcada como não tomada · 0 sem nenhum registro</div></div>
+
+  <div class="pr"><div class="ph4"><b>L-Carnitina</b><span>dose configurada: 2 cápsulas, diariamente</span></div>
+    <div class="body">
+      ${rows({due:30,taken:29,skip:1,miss:0,pct:'97%',streak:12,since:'desde 13/11',vial:54})}
+      <div>
+        <div class="sub">Marcado pela pessoa</div>
+        <div class="obs">Doses registradas como tomadas em jejum: 27 de 29</div>
+        <div class="sub">Observações escritas pela pessoa</div>
+        <div class="obs"><q>"Antes da yoga"</q><div>em 25 doses, de 26/10 a 24/11</div></div>
+        <div class="obs"><q>"Acordei tarde, tomei às 10:00"</q><div>na dose de 23/11, às 10:02</div></div>
+      </div>
+    </div></div>
+  <div class="pr"><div class="ph4"><b>Retatrutida</b><span>dose configurada: 2 mg, a cada 7 dias</span></div>
+    <div class="body">
+      ${rows({due:4,taken:4,skip:0,miss:0,pct:'100%',streak:6,since:'desde 12/10, antes do período',vial:2})}
+      <div>
+        <div class="sub">Marcado pela pessoa</div>
+        <div class="obs">Doses registradas como tomadas com refeição: 4 de 4</div>
+      </div>
+    </div></div>
+
+  ${disc}
+</div>
+<div class="a4">
+  ${top(2)}
+  <div class="meta"><b>Nome</b><span>Marina Costa Silva</span><b>Período</b><span>26/10/2026 a 24/11/2026</span></div>
+  <div class="how"><b>Como ler este relatório</b>
+    <dl>
+      <dt>Dose prevista</dt><dd>Dose que o horário configurado pela pessoa no aplicativo programou para o período.</dd>
+      <dt>Registrada como tomada</dt><dd>A pessoa marcou no aplicativo que tomou a dose.</dd>
+      <dt>Marcada como não tomada</dt><dd>A pessoa marcou no aplicativo que decidiu não tomar aquela dose.</dd>
+      <dt>Sem nenhum registro</dt><dd>O horário da dose passou e nada foi marcado; não se sabe se foi tomada.</dd>
+      <dt>Adesão</dt><dd>Doses registradas como tomadas ÷ doses previstas no período. Uma dose a mais, fora do previsto, não passa de 100%.</dd>
+      <dt>Doses tomadas seguidas</dt><dd>Doses registradas como tomadas em sequência, contando para trás a partir da data do relatório, sem nenhuma dose prevista sem registro ou marcada como não tomada; pode começar antes do período. A dose do dia do relatório ainda não tomada não interrompe a contagem.</dd>
+      <dt>Restantes no frasco</dt><dd>Conta do aplicativo a partir das doses registradas, não uma medição.</dd>
+      <dt>Em jejum / com refeição</dt><dd>Marcado pela própria pessoa em cada dose, quando quis.</dd>
+      <dt>Observações</dt><dd>Texto escrito pela própria pessoa, reproduzido como foi escrito.</dd>
+      <dt>* (asterisco)</dt><dd>O celular da pessoa ficou sem sincronizar: as doses previstas desses dias ainda não estão contadas, e a adesão pode aparecer maior do que é.</dd>
+    </dl></div>
+  ${disc}
+</div>
+</div>`;
+
+let h='';
+h+=`<h3>Tema claro</h3><div class="row lt">
+  <div class="col"><div class="cap"><b>App hoje</b>: o texto exato de hoje (as mesmas frases do app), na prévia de Ajustes.</div>${phone(TODAY)}</div>
+  <div class="col"><div class="cap"><b>Proposta: texto</b>: diz no alto o que é, cada número numa frase que se explica sozinha, em terceira pessoa, e "Como ler" no fim.</div>${phone(PROP)}</div>
+  <div class="col"><div class="cap w"><b>Proposta: PDF A4</b> <span class="rec">MINHA RECOMENDAÇÃO, JUNTO COM O TEXTO</span><br>Duas páginas: o que é o relatório, nome, período, data e hora, resumo, uma tabela por protocolo, o que a pessoa marcou e escreveu, "Como ler este relatório" e os avisos.</div>${A4}</div>
+</div>`;
+h+=`<h3>Tema escuro</h3><div class="row dk">
+  <div class="col"><div class="cap"><b>App hoje</b></div>${phone(TODAY)}</div>
+  <div class="col"><div class="cap"><b>Proposta: texto</b></div>${phone(PROP)}</div>
+  <div class="col"><div class="cap w"><b>Proposta: PDF A4</b></div><div class="paperonly">O PDF é papel: sai branco, igual nos dois temas, e é assim que o médico o vê e imprime. Só a prévia dentro do app segue o tema.</div></div>
+</div>`;
+document.getElementById('out').innerHTML=h;
+
+const MON=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const months=()=>'<div class="mg">'+MON.map((m,i)=>'<span'+(i===4?' class="on"':'')+'>'+m+'</span>').join('')+'</div>';
+const epHead='<div class="nav2"><span>Cancelar</span><b>Editar perfil</b><b>Salvar</b></div>';
+const epToday=()=>'<div class="ph"><div class="ep">'+epHead+'<div class="bd"><div class="sec">Sobre você</div>'+
+  '<div class="fld"><div class="lbl">Seu nome</div><div class="inp">O brabo da favela</div></div>'+
+  '<div class="fld"><div class="lbl">Mês de nascimento</div>'+months()+'</div></div></div></div>';
+const epNew=()=>'<div class="ph"><div class="ep">'+epHead+'<div class="bd"><div class="sec">Sobre você</div>'+
+  '<div class="fld"><div class="lbl">Como você quer ser chamado</div><div class="inp">O brabo da favela</div><div class="hint">Aparece no app.</div></div>'+
+  '<div class="fld new"><div class="lbl">Nome completo</div><div class="inp ph0">Ex.: Marina Costa Silva</div><div class="hint">Opcional. Aparece só nos relatórios que você exportar para enviar a alguém, como o Relatório de adesão. Nunca aparece no app.</div></div>'+
+  '<div class="fld"><div class="lbl">Mês de nascimento</div>'+months()+'</div></div></div></div>';
+const settingsBg='<div class="st"><div class="h">Ajustes</div><div class="grp"><div class="r"><b>Editar perfil</b><span>O brabo da favela</span></div><div class="r"><b>Relatório de adesão</b><span>Compartilhe um resumo de 30 dias com seu profissional de saúde</span></div><div class="r"><b>Baixar meus dados</b></div></div></div>';
+const icDoc='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2.5h7l3.5 3.5v11.5h-10.5z"/><path d="M12 2.5V6h3.5M8 10.5h5M8 13.5h3.5"/></svg>';
+const ask=()=>'<div class="ph">'+settingsBg+'<div class="scrimC"><div class="dts"><div class="ic">'+icDoc+'</div><div class="t">O relatório vai sem o seu nome</div>'+
+  '<div class="b">Você ainda não informou o seu nome completo. O nome que aparece no app nunca entra no relatório. Para quem receber saber de quem é, adicione o seu nome completo.</div>'+
+  '<div class="stack"><div class="btn p">Adicionar meu nome</div><div class="btn s">Gerar sem nome</div></div></div></div></div>';
+const add=()=>'<div class="ph">'+settingsBg+'<div class="scrimC"><div class="dts"><div class="t">Seu nome completo</div>'+
+  '<div class="inp">Marina Costa Silva<span class="caret2"></span></div><div class="hn">Fica salvo no seu perfil e aparece só nos relatórios que você exportar. Você pode mudar em Editar perfil.</div>'+
+  '<div class="stack"><div class="btn p">Gerar relatório</div><div class="btn s">Voltar</div></div></div></div></div>';
+let n='';
+for(const [cls,label] of [['lt','Tema claro'],['dk','Tema escuro']]){
+  n+='<h3>'+label+'</h3><div class="row '+cls+'">'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Editar perfil hoje</b>: um campo só, "Seu nome", que vai para o relatório.':'<b>Editar perfil hoje</b>')+'</div>'+epToday()+'</div>'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Proposta</b>: "Como você quer ser chamado" (o mesmo valor de hoje) e "Nome completo", novo e vazio (contorno azul só neste desenho).':'<b>Proposta</b>')+'</div>'+epNew()+'</div>'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>Antes de gerar</b>, sem nome completo: a folha avisa e oferece as duas saídas.':'<b>Antes de gerar</b>')+'</div>'+ask()+'</div>'+
+   '<div class="col"><div class="cap">'+(cls==='lt'?'<b>"Adicionar meu nome"</b>: o campo, e o relatório é gerado em seguida. "Voltar" volta à folha anterior.':'<b>"Adicionar meu nome"</b>')+'</div>'+add()+'</div>'+
+  '</div>';
+}
+const hdrTop='<div class="top"><h4>Relatório de adesão</h4><span>Gerado pelo aplicativo DoseTrace · Página 1 de 2</span></div>';
+n+='<h3>O cabeçalho do relatório, com e sem o nome completo</h3><div class="hdrs">'+
+  '<div class="col"><div class="cap w"><b>PDF, com nome completo</b></div><div class="hdr">'+hdrTop+'<div class="meta"><b>Nome</b><span>Marina Costa Silva</span><b>Gerado em</b><span>24/11/2026 às 09:15</span><b>Período</b><span>26/10/2026 a 24/11/2026</span><b>Protocolos</b><span>2 (nenhum encerrado)</span></div></div></div>'+
+  '<div class="col"><div class="cap w"><b>PDF, sem nome completo</b>: a linha "Nome" some; nunca o apelido, nunca o e-mail.</div><div class="hdr">'+hdrTop+'<div class="meta"><b>Gerado em</b><span>24/11/2026 às 09:15</span><b>Período</b><span>26/10/2026 a 24/11/2026</span><b>Protocolos</b><span>2 (nenhum encerrado)</span><span></span><span></span></div></div></div>'+
+  '<div class="col"><div class="cap"><b>Texto, com nome completo</b></div><div class="txthdr">RELATÓRIO DE ADESÃO\n\n(o que é este relatório…)\n\nNome: Marina Costa Silva\nPeríodo: 26/10/2026 a 24/11/2026\nGerado em: 24/11/2026 às 09:15</div></div>'+
+  '<div class="col"><div class="cap"><b>Texto, sem nome completo</b></div><div class="txthdr">RELATÓRIO DE ADESÃO\n\n(o que é este relatório…)\n\nPeríodo: 26/10/2026 a 24/11/2026\nGerado em: 24/11/2026 às 09:15</div></div>'+
+ '</div>';
+document.getElementById('nm').innerHTML=n;
+</script>
