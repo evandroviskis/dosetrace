@@ -100,9 +100,29 @@ test('PS-1: account_profile is a synced table like the others (local table, engi
   assert.match(read('supabase/functions/delete-user/index.ts'), /'lab_prefs',\n\s+'account_profile',/, 'account deletion names it');
   assert.ok(require('../lib/exportTables').exportTableNames(core.TABLES).includes(T), 'Export my data covers it');
   assert.match(read('lib/sync.js'), /if \(table === 'calc_inputs' \|\| table === 'account_profile'\) \{\n\s+return await supabase\.from\(table\)\.upsert\(payload, \{ onConflict: 'user_id', ignoreDuplicates: true \}\)/, 'one row per account: a racing first insert never replaces the row');
+});
+
+test('PS-1b (Gate B F1): while user_metadata is the mirror, a profile row waiting to go up is never "unsent / at risk" — not in the sign-out count, the DV-242 cross-account count, the A-119 takeover summary; no sheet, a silent discard', async () => {
+  const db = H.makeDb();
   PS.recordProfileWrite(db, U, { display_name: 'Sam' }, { ready: true, meta: {}, now: now() });
+  assert.equal(rows(db)[0].sync_status, 'pending', 'the row does wait to be sent');
+  assert.ok(!core.UNSENT_TABLES.includes(T), 'not an at-risk table while the mirror exists');
+  assert.deepEqual(core.UNSENT_TABLES, core.TABLES.filter((t) => t !== T));
   const s = summarizeUnsent(db, [U]);
-  assert.equal(s.byKind.profile, 1, 'a profile change not sent yet counts as "profile" in the sign-out count');
+  assert.equal(s.count, 0);
+  assert.equal(s.byKind.profile, undefined, 'no double count with the kept 18+ / profile answer (lib/pendingGate keptGateCount)');
+  const { pendingForSignOut, unsyncedCount } = require('../lib/recoveryFlow');
+  assert.equal(pendingForSignOut({ db, localOwnerId: U, sessionUserId: U, tables: core.UNSENT_TABLES, getPending: core.getPendingChanges }), 0, 'the deliberate sign-out is not blocked');
+  const { crossAccountDecision } = require('../lib/accountGuard');
+  assert.deepEqual(crossAccountDecision({ localOwnerId: U, sessionUserId: 'user-2', countPending: (id) => unsyncedCount(db, id, core.UNSENT_TABLES, core.getPendingChanges) }), { action: 'discard', pending: 0 }, 'another account signs in: silent discard, no sheet');
+  const cloud = H.makeCloud();
+  const rb = await core.rebuildFromCloud(db, cloud, U, { keep: { seq: null } });
+  assert.equal(rb.ok, true);
+  assert.equal(rb.discarded.count, 0, 'the takeover never announces a profile change as discarded');
+  // The app's call sites use the same list.
+  assert.match(read('App.js'), /countPending: \(id\) => unsyncedCount\(getDB\(\), id, UNSENT_TABLES, getPendingChanges\),/);
+  assert.match(read('lib/accountActions.js'), /pendingForSignOut\(\{ db: getDB\(\), localOwnerId: getLocalDataUserId\(\), sessionUserId, tables: UNSENT_TABLES, getPending: getPendingChanges \}\)/);
+  assert.match(read('screens/TodayScreen.js'), /unsyncedCount\(getDB\(\), getLocalDataUserId\(\), UNSENT_TABLES, getPendingChanges\)/);
 });
 
 test('PS-2: the Supabase migration FILE (NOT applied): table, own-row RLS, updated_at, A-119 guard, backfill that never overwrites the table, trigger from auth.users that never breaks a sign-in', () => {
@@ -130,6 +150,22 @@ test('PS-2: the Supabase migration FILE (NOT applied): table, own-row RLS, updat
   assert.match(sql, /set payload = public\.account_profile\.payload \|\| excluded\.payload/);
   assert.match(sql, /exception when others then\n\s+raise warning/);
   assert.match(sql, /notify pgrst, 'reload schema';/);
+  // Gate B F3: (a) the trigger exists BEFORE the backfill reads auth.users (its lock holds every metadata
+  // write until the commit, so none can fall between the backfill's read and the trigger).
+  assert.ok(sql.indexOf('create trigger dt_profile_from_auth') < sql.indexOf('insert into public.account_profile (user_id, payload)\nselect'), 'trigger first, then backfill');
+  // (b) nothing that can fail runs in DECLARE (outside the exception block).
+  const fn = sql.slice(sql.indexOf('create or replace function public.dt_profile_from_auth()'), sql.indexOf('revoke all on function public.dt_profile_from_auth()'));
+  const decl = fn.slice(fn.indexOf('declare'), fn.indexOf('\nbegin'));
+  assert.doesNotMatch(decl, /:=/, 'no computed default in DECLARE');
+  assert.match(fn, /\nbegin\n\s+v_new := public\.dt_profile_keys\(new\.raw_user_meta_data\);/);
+  // (c) drift is observable: a failed copy leaves a row (best effort, never failing the auth write).
+  assert.match(sql, /create table if not exists public\.account_profile_copy_errors \(/);
+  assert.match(sql, /alter table public\.account_profile_copy_errors enable row level security;/);
+  assert.match(fn, /insert into public\.account_profile_copy_errors \(user_id, sqlstate, message\)/);
+  // (d) the header says to diff the live dt_pre_request before applying.
+  assert.match(sql, /pg_get_functiondef\('public\.dt_pre_request'::regproc\)/);
+  // NIT: the unique user_id is the only index needed (one row per account).
+  assert.doesNotMatch(sql, /account_profile_user_updated_idx/);
 });
 
 test('PS-3: every key moves except the provider claims, the mirrors of other synced tables and the migration markers — the same list in the app and in the SQL', () => {
@@ -170,8 +206,8 @@ test('PS-4: reads — after this phone read the cloud table, the profile comes f
   assert.match(sb, /if \(storedSessionOnly\(\)\) return withProfileView\(await readStoredUser\(\)\);/);
   assert.match(sb, /return withProfileView\(session\?\.user \|\| null\);/);
   const app = read('App.js');
-  assert.match(app, /const gateUser = session \? withPendingAnswer\(withProfile\(session\.user\), gateAnswer\.pending\) : null;/);
-  assert.match(app, /!gateAnswer\.ready && gated\(withProfile\(session\.user\)\)/);
+  assert.match(app, /const profiledUser = session \? withProfile\(session\.user\) : null;\n\s+const gateUser = session \? withPendingAnswer\(profiledUser, gateAnswer\.pending\) : null;/);
+  assert.match(app, /!gateAnswer\.ready && gated\(profiledUser\)/);
 });
 
 test('PS-5: a missing row is never an empty profile — user_metadata is shown and the row is created from it, merge-only (a key the row has, a cleared value included, is never overwritten)', () => {
@@ -433,5 +469,29 @@ test('PS-15: a profile write before the account guard ran (the Apple / Google na
   assert.equal(PS.phoneHoldsOtherAccount(() => { throw new Error('read failed'); }, 'user-B'), true, 'never written next to data whose owner is unknown');
   const src = read('lib/profile.js');
   assert.match(src, /export function ensureProfileCopy\(user\) \{[\s\S]*?if \(phoneHoldsOtherAccount\(getLocalDataUserId, user\.id\)\) return 'empty';[\s\S]*?ensureProfileRow\(/);
-  assert.match(src, /export function noteProfileWrite\(user, data\) \{[\s\S]*?if \(phoneHoldsOtherAccount\(getLocalDataUserId, user\.id\)\) return;[\s\S]*?recordProfileWrite\(/);
+  assert.match(src, /export function noteProfileWrite\(user, data, sessionUserId\) \{[\s\S]*?noteWrite\(db, user, data, \{ sessionUserId, localOwner: getLocalDataUserId,/);
+  const db = H.makeDb();
+  H.seedLocalProtocol(db, 'user-A', { name: 'A protocol' });
+  const owner = () => db.getFirstSync('SELECT user_id FROM protocols LIMIT 1').user_id;
+  assert.equal(PS.noteWrite(db, { id: 'user-B', user_metadata: {} }, { display_name: 'B' }, { sessionUserId: 'user-B', localOwner: owner, ready: false, now: now() }), false);
+  assert.equal(db.getAllSync(`SELECT * FROM ${T}`).length, 0, 'no row next to the other account\'s data');
+});
+
+test('PS-16 (Gate B F2): a metadata write whose answer lands after the intended sign-out (or after another account signed in) never puts the profile back on the phone', async () => {
+  const S = require('../lib/signedOut');
+  const db = H.makeDb();
+  const user = { id: U, user_metadata: { ...META } };
+  assert.equal(PS.noteWrite(db, user, { country: 'PT' }, { sessionUserId: U, localOwner: () => U, ready: false, now: now() }), true, 'signed in: written');
+  assert.equal(rows(db).length, 1);
+  // Sign out: the wipe runs; the session user becomes null (App.js noteSessionUser on SIGNED_OUT).
+  const d = { stopSyncEngine() {}, clearLocalDatabase() { db.execSync(`DELETE FROM ${T};`); }, waitForSyncIdle: async () => {}, runExclusive: async (fn) => fn() };
+  await S.afterSignedOut(true, d);
+  assert.equal(rows(db).length, 0);
+  // The Edit profile save sent just before Sign out answers now.
+  assert.equal(PS.noteWrite(db, user, { display_name: 'late' }, { sessionUserId: null, localOwner: () => null, ready: false, now: now() }), false);
+  assert.equal(rows(db).length, 0, 'nothing back on disk after the wipe');
+  assert.equal(PS.noteWrite(db, user, { display_name: 'late' }, { sessionUserId: 'user-2', localOwner: () => null, ready: false, now: now() }), false, 'another account is signed in now');
+  assert.equal(db.getAllSync(`SELECT * FROM ${T}`).length, 0);
+  // lib/supabase passes the user App.js last saw (knownUser_, set synchronously on every auth event).
+  assert.match(read('lib/supabase.js'), /function noteProfileWriteLazy\(user, data\) \{\n\s+require\('\.\/profile'\)\.noteProfileWrite\(user, data, knownUser_ \? knownUser_\.id : null\);\n\}/);
 });

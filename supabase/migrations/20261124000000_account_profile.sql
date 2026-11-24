@@ -24,13 +24,22 @@
 --   4. Transition while 1.3.0 / 1.3.1 are in the stores (they read and write only user_metadata): a
 --      trigger on auth.users copies the profile keys that CHANGED in each metadata write (an old
 --      version's, the new app's mirror, a sign-up) into the row, merged over it (a metadata change is
---      the newest value of that key). It never fails a sign-up or a sign-in: any error is a warning.
+--      the newest value of that key). It never fails a sign-up or a sign-in: any error is a warning
+--      plus one row in public.account_profile_copy_errors (service role only). It is created BEFORE
+--      the backfill runs, so no metadata write can fall between the two.
 --      Removed in the later cleanup, once no store version older than this one is in use.
+--
+-- BEFORE APPLYING (Gate B F3 d): the A-119 block at the end REPLACES public.dt_pre_request with the body of
+-- 20261026000000_lab_prefs.sql lines 78-91 plus account_profile. Diff the live one first, read-only:
+--   select pg_get_functiondef('public.dt_pre_request'::regproc);
+-- against that body; if production has anything more (a table or a rule added since), add it here first.
+-- The unique user_id is the only index needed (one row per account).
 --
 -- Depends on public.set_updated_at() (production; used by calc_inputs / lab_prefs).
 -- ROLLBACK (only before any phone wrote here; the rows are user data — user_metadata still has every
 -- value, so nothing is lost):
 --   drop trigger if exists dt_profile_from_auth on auth.users;
+--   drop table if exists public.account_profile_copy_errors;
 --   drop function if exists public.dt_profile_from_auth();
 --   drop table if exists public.account_profile;
 --   drop function if exists public.dt_profile_keys(jsonb);
@@ -45,7 +54,6 @@ create table if not exists public.account_profile (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index if not exists account_profile_user_updated_idx on public.account_profile (user_id, updated_at, id);
 
 alter table public.account_profile enable row level security;
 
@@ -72,22 +80,33 @@ returns jsonb language sql immutable set search_path = public, pg_temp as $$
 $$;
 revoke all on function public.dt_profile_keys(jsonb) from public, anon, authenticated;
 
--- 3. Backfill (re-runnable; the table's own keys win).
-insert into public.account_profile (user_id, payload)
-select u.id, public.dt_profile_keys(u.raw_user_meta_data)
-from auth.users u
-on conflict (user_id) do update
-  set payload = excluded.payload || public.account_profile.payload
-  where (excluded.payload || public.account_profile.payload) is distinct from public.account_profile.payload;
+-- Drift made visible (Gate B F3 c): a copy the trigger could not make leaves one row here (who, the error,
+-- when) besides the warning; the app's own push then fills the row (lib/profileStore, fill-only). Read by
+-- the service role only (RLS on, no policies, no grants): select * from public.account_profile_copy_errors.
+create table if not exists public.account_profile_copy_errors (
+  id bigserial primary key,
+  user_id uuid,
+  sqlstate text,
+  message text,
+  at timestamptz not null default now()
+);
+alter table public.account_profile_copy_errors enable row level security;
+revoke all on table public.account_profile_copy_errors from public, anon, authenticated;
 
--- 4. The transition trigger: the profile keys that changed in this metadata write, merged over the row.
+-- 4. The transition trigger, created BEFORE the backfill (Gate B F3 a): create trigger takes a SHARE ROW
+-- EXCLUSIVE lock on auth.users that this transaction holds until commit, so no metadata write can land
+-- between the backfill's read and the trigger — a write waits, then the trigger copies it. The profile
+-- keys that changed in this metadata write, merged over the row. Everything that can fail runs inside the
+-- exception block (Gate B F3 b): an error never fails a sign-up, a sign-in or an updateUser.
 create or replace function public.dt_profile_from_auth()
 returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
 declare
-  v_new jsonb := public.dt_profile_keys(new.raw_user_meta_data);
-  v_old jsonb := case when tg_op = 'UPDATE' then public.dt_profile_keys(old.raw_user_meta_data) else '{}'::jsonb end;
+  v_new jsonb;
+  v_old jsonb;
   v_changed jsonb;
 begin
+  v_new := public.dt_profile_keys(new.raw_user_meta_data);
+  v_old := case when tg_op = 'UPDATE' then public.dt_profile_keys(old.raw_user_meta_data) else '{}'::jsonb end;
   select coalesce(jsonb_object_agg(n.key, n.value), '{}'::jsonb) into v_changed
   from jsonb_each(v_new) n
   where (v_old -> n.key) is distinct from n.value;
@@ -98,6 +117,11 @@ begin
   return new;
 exception when others then
   raise warning 'dt_profile_from_auth: % (%)', sqlerrm, sqlstate;
+  begin
+    insert into public.account_profile_copy_errors (user_id, sqlstate, message) values (new.id, sqlstate, left(sqlerrm, 500));
+  exception when others then
+    null; -- recording the error is best effort too: the auth write always goes on
+  end;
   return new;
 end;
 $$;
@@ -107,6 +131,14 @@ drop trigger if exists dt_profile_from_auth on auth.users;
 create trigger dt_profile_from_auth
   after insert or update of raw_user_meta_data on auth.users
   for each row execute function public.dt_profile_from_auth();
+
+-- 3. Backfill (re-runnable; the table's own keys win — a value the trigger just wrote included).
+insert into public.account_profile (user_id, payload)
+select u.id, public.dt_profile_keys(u.raw_user_meta_data)
+from auth.users u
+on conflict (user_id) do update
+  set payload = excluded.payload || public.account_profile.payload
+  where (excluded.payload || public.account_profile.payload) is distinct from public.account_profile.payload;
 
 -- A-119 device guard (20261021010000_one_active_device.sql), only when it is installed: the
 -- statement-level write guard, and the pre-request check of reads and writes (the body of

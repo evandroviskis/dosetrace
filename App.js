@@ -20,7 +20,7 @@ import { clearTeamMessages } from './lib/teamMessages';
 import { clearExportFile } from './lib/exportFile';
 import { clearAccountKeys } from './lib/accountKeys';
 import AccountLanguageSync from './components/AccountLanguageSync';
-import { TABLES, getPendingChanges } from './lib/syncCore';
+import { UNSENT_TABLES, getPendingChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { consumeExplicitSignIn, beginExplicitSignIn, endExplicitSignIn } from './lib/explicitSignIn';
 import { deviceFlow, deviceGate, subscribeDevice, readDeviceState, continueAfterVerdict, checkAccountGoneFor } from './lib/deviceRuntime';
@@ -331,7 +331,9 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   const gateAnswer = usePendingGate(session && session.user ? session.user.id : null);
   const gateToast = useGateToast(t);
   // Profile synced (PS-4): the account_profile table laid over user_metadata (lib/profile).
-  const gateUser = session ? withPendingAnswer(withProfile(session.user), gateAnswer.pending) : null;
+  // Read once per render (Gate B nit).
+  const profiledUser = session ? withProfile(session.user) : null;
+  const gateUser = session ? withPendingAnswer(profiledUser, gateAnswer.pending) : null;
   const gated = (u) => !isProfileComplete(u) || needsAdultConfirmation(u && u.user_metadata);
 
   // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed
@@ -463,7 +465,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
           // DV-242: the local data still belongs to another account — an empty screen (the boot
           // ground) under the sheet, so this account never sees it; nothing syncs meanwhile.
           <Stack.Screen name="AccountHold" component={BootEmpty} />
-        ) : !gateAnswer.ready && gated(withProfile(session.user)) ? (
+        ) : !gateAnswer.ready && gated(profiledUser) ? (
           // DV-114: the phone's pending answer is not read yet (a moment at start) — the empty ground,
           // so a gate it already answered never flashes.
           <Stack.Screen name="GateWait" component={BootEmpty} />
@@ -655,7 +657,7 @@ export default function App() {
   // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).
   const guardDeps = () => ({
     getLocalOwner: () => getLocalDataUserId(),
-    countPending: (id) => unsyncedCount(getDB(), id, TABLES, getPendingChanges),
+    countPending: (id) => unsyncedCount(getDB(), id, UNSENT_TABLES, getPendingChanges),
     readOwnerLabel: () => AsyncStorage.getItem(OWNER_KEY),
     rememberOwner: (u) => AsyncStorage.setItem(OWNER_KEY, JSON.stringify({ id: u.id, email: u.email || null })),
     forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY),
