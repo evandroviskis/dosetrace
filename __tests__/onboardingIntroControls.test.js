@@ -211,7 +211,7 @@ test('Android back on the video = Voltar; on the opening the flow steps back as 
   const bh = onb.slice(onb.indexOf("BackHandler.addEventListener('hardwareBackPress'"), onb.indexOf('return () => sub.remove();'));
   assert.match(bh, /if \(cur === 'intro' && introBack\.current && introBack\.current\(\)\) return true;/);
   assert.ok(bh.indexOf("cur === 'intro'") < bh.indexOf('if (step > 0) { back(); return true; }'), 'the video handles it first');
-  assert.match(onb, /<OnboardingIntro onDone=\{next\} atEnd=\{introAtEnd\.current\} backRef=\{introBack\} \/>/);
+  assert.match(onb, /<OnboardingIntro onDone=\{next\} atEnd=\{introAtEnd\.current\} backRef=\{introBack\} onLanguage=\{\(\) => setShowLang\(true\)\} \/>/);
   assert.match(onb, /introAtEnd\.current = p === 'intro';/, 'Back from the step after the video opens it complete, never restarts it');
   const intro = code('components/OnboardingIntro.js');
   assert.match(intro, /introStart\(\{ reduced, atEnd \}\)/);

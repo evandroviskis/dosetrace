@@ -229,7 +229,7 @@ test('OB-27: motion on the UI thread — one clock, transform / opacity / dashof
 test('OB-27: the flow shows the video full screen on the intro step and Start goes on', () => {
   const onb = read('screens/OnboardingFlowScreen.js');
   assert.match(onb, /import OnboardingIntro from '\.\.\/components\/OnboardingIntro';/);
-  assert.match(onb, /cur === 'intro' \? \(\s*<OnboardingIntro onDone=\{next\} atEnd=\{introAtEnd\.current\} backRef=\{introBack\} \/>/);
+  assert.match(onb, /cur === 'intro' \? \(\s*<OnboardingIntro onDone=\{next\} atEnd=\{introAtEnd\.current\} backRef=\{introBack\} onLanguage=\{\(\) => setShowLang\(true\)\} \/>/);
   assert.doesNotMatch(onb, /OnboardingFeature\b|isFeature|featureKind|FEATURE_STEPS/);
   assert.match(onb, /\(step > 0 \|\| signedIn\) && cur !== 'intro' &&/, 'the flow top bar is hidden on the video');
   assert.match(onb, /\{cur !== 'intro' && \(\s*<View style=\{\[s\.footer/, 'the flow footer is hidden on the video');

@@ -14,7 +14,7 @@ const { translations: T } = require('../i18n/translations.js');
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 
 test('OB-1: the screen renders every step of the signed order and the old features list is gone', () => {
-  assert.match(ONB, /cur === 'intro' \? \(\s*<OnboardingIntro onDone=\{next\} atEnd=\{introAtEnd\.current\} backRef=\{introBack\} \/>/, 'OB-27: the intro video');
+  assert.match(ONB, /cur === 'intro' \? \(\s*<OnboardingIntro onDone=\{next\} atEnd=\{introAtEnd\.current\} backRef=\{introBack\} onLanguage=\{\(\) => setShowLang\(true\)\} \/>/, 'OB-27: the intro video');
   assert.doesNotMatch(ONB, /OnboardingFeature\b/, 'the five feature screens are gone');
   for (const s of ["cur === 'help'", "cur === 'goal'", "cur === 'consent'", "cur === 'tracking'", 'isProtocolStep', "cur === 'about'", "cur === 'reminders'"]) assert.ok(ONB.includes(s), s);
   assert.doesNotMatch(ONB, /ob_features_title|ob_feat1_t|AccumulationHero/, 'the single "Feito para o seu protocolo" screen is removed');

@@ -40,6 +40,7 @@ import { MONTHS_SHORT, formatDate } from '../lib/localeFormat';
 import { MONO } from '../lib/fonts';
 import { syringeParts, SYR_VIEW } from '../lib/syringeGeometry';
 import SyringeScale from '../screens/components/SyringeScale';
+import FeatureIcon from './FeatureIcon';
 import { eInOutCubic } from './motion';
 import { demoDec } from './previewFx';
 import {
@@ -567,9 +568,12 @@ function StoryBar({ clock, b, reduced, s }) {
   );
 }
 
-export default function OnboardingIntro({ onDone, atEnd, backRef }) {
+export default function OnboardingIntro({ onDone, atEnd, backRef, onLanguage }) {
   const { colors: c } = useTheme();
-  const { t, language, timeFormat } = useLanguage();
+  const { t, language, timeFormat, LANGUAGES } = useLanguage();
+  // The language chip (founder 2026-11-24): its own name, from the app list. Changing it re-renders
+  // the texts only; the clock and the scene stay where they are.
+  const langName = ((LANGUAGES || []).find((l) => l.code === language) || {}).native || String(language).toUpperCase();
   const s = useMemo(() => makeStyles(c), [c]);
   const reduceMotion = useReducedMotion();
   const [reader, setReader] = useState(false);
@@ -677,6 +681,15 @@ export default function OnboardingIntro({ onDone, atEnd, backRef }) {
           <View pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             {STORY_BARS.map((k, b) => <StoryBar key={k} clock={clock} b={b} reduced={reduced} s={s} />)}
           </View>
+          {onLanguage ? (
+            <Pressable onPress={onLanguage} style={({ pressed }) => [s.langChip, pressed && s.pressedQuiet]} hitSlop={6} accessibilityRole="button" accessibilityLabel={`${t('settings_language')}: ${langName}`}>
+              <FeatureIcon name="globe" size={18} color={c.ink} />
+              <Tx style={s.langChipText} numberOfLines={1}>{langName}</Tx>
+              <Svg width={9} height={5} viewBox="0 0 9 5">
+                <Path d="M0.5 0.5 L4.5 4.5 L8.5 0.5" fill="none" stroke={c.ink2} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </Pressable>
+          ) : null}
           {ctl.skip ? (
             <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(160)} style={s.skipWrap}>
               <Pressable onPress={skip} style={({ pressed }) => [s.skip, pressed && s.pressedQuiet]} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('ob_skip')}>
@@ -715,6 +728,9 @@ const makeStyles = (c) => StyleSheet.create({
   bar: { position: 'absolute', top: y(58), width: BAR_W, height: 4, borderRadius: 2, backgroundColor: c.line, overflow: 'hidden' },
   barFill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 2, backgroundColor: c.ink },
   skipWrap: { position: 'absolute', right: 16, top: y(70) },
+  // the language chip (founder 2026-11-24): top left, next to Pular; opens the app's language sheet
+  langChip: { position: 'absolute', left: 24, top: y(72), height: 34, maxWidth: 200, borderRadius: 17, paddingLeft: 10, paddingRight: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.raised },
+  langChipText: { fontSize: 13.5, lineHeight: 18, fontWeight: '600', color: c.ink, marginRight: 2, flexShrink: 1 },
   skip: { minHeight: 36, minWidth: 44, paddingHorizontal: 8, alignItems: 'flex-end', justifyContent: 'center' },
   skipText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   title: { position: 'absolute', left: 24, top: y(133), width: 342, fontSize: 28, lineHeight: 34, fontWeight: '600', letterSpacing: -0.56, color: c.ink },

@@ -75,12 +75,11 @@ function ProgressDash({ on, s }) {
   );
 }
 
-// Drawn monoline chevron (back / open / dropdown) — never a font glyph.
-const CHEVRON_PATHS = { left: 'M8 2 L2 8 L8 14', right: 'M2 2 L8 8 L2 14', down: 'M2 2 L8 8 L14 2' };
+// Drawn monoline chevron (back / open) — never a font glyph.
+const CHEVRON_PATHS = { left: 'M8 2 L2 8 L8 14', right: 'M2 2 L8 8 L2 14' };
 function Chevron({ dir, color }) {
-  const down = dir === 'down';
   return (
-    <Svg width={down ? 13 : 11} height={down ? 8 : 18} viewBox={down ? '0 0 16 10' : '0 0 10 16'}>
+    <Svg width={11} height={18} viewBox="0 0 10 16">
       <Path d={CHEVRON_PATHS[dir]} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
@@ -421,7 +420,7 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
         {/* RS-8: Android, after "Turn on notifications" — the conversation for the phone items only;
             its last chip ("Continuar" / "Configurar depois") and "Agora não" go on exactly as before. */}
         {cur === 'intro' ? (
-          <OnboardingIntro onDone={next} atEnd={introAtEnd.current} backRef={introBack} />
+          <OnboardingIntro onDone={next} atEnd={introAtEnd.current} backRef={introBack} onLanguage={() => setShowLang(true)} />
         ) : cur === 'reminders' && showSetup ? (
           <ReminderConversation mode="onboarding" onContinue={() => toAuth('create')} />
         ) : (
@@ -429,17 +428,29 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
 
           {cur === 'splash' && (
             <View style={s.splashWrap}>
-              <View style={s.langRow}>
-                <TouchableOpacity style={s.langPill} onPress={() => setShowLang(true)} accessibilityRole="button" accessibilityLabel={t('settings_language')}>
-                  <Text style={s.langPillText}>{String(language).toUpperCase()}</Text>
-                  <Chevron dir="down" color={colors.ink2} />
-                </TouchableOpacity>
-              </View>
               <View style={s.splashHead}>
                 {/* The droplet app icon (founder 2026-09-07, Q1 = B) — its own artwork, fixed brand colours. */}
                 <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
                 <Text style={s.brand}>DoseTrace</Text>
                 <Text style={s.phrase}>{t('ob_phrase')}</Text>
+              </View>
+              {/* Founder 2026-11-24 (option B): the six languages, each in its own language, one tap
+                  switches — someone who does not read English finds "Português" without reading a word. */}
+              <View style={s.langChips} accessibilityRole="radiogroup" accessibilityLabel={t('settings_language')}>
+                <View style={s.langChipHead}>
+                  <FeatureIcon name="globe" size={18} color={colors.ink2} />
+                  <Text style={s.langChipHeadText}>{t('settings_language')}</Text>
+                </View>
+                <View style={s.langChipList}>
+                  {(LANGUAGES || []).map((l) => {
+                    const on = language === l.code;
+                    return (
+                      <TouchableOpacity key={l.code} style={[s.langChip, on && s.langChipOn]} onPress={() => setLanguage(l.code)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={l.native}>
+                        <Text style={[s.langChipText, on && s.langChipTextOn]}>{l.native}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             </View>
           )}
@@ -813,10 +824,16 @@ function makeStyles(colors) {
 
     // Splash (prototype: the block starts 90 pt under the language pill, not centred)
     splashWrap: { flex: 1 },
-    langRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-    langPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, flexDirection: 'row', alignItems: 'center', gap: 6 },
-    langPillText: { fontSize: 13, color: c.ink2 },
-    splashHead: { alignItems: 'center', gap: 14, paddingTop: 90 },
+    splashHead: { alignItems: 'center', gap: 14, paddingTop: 114 }, // picture 2026-11-24: the 44 pt top row (no pill now) + 70
+    // the six language chips under the phrase (picture option B)
+    langChips: { marginTop: 34, alignItems: 'center', gap: 10 },
+    langChipHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    langChipHeadText: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+    langChipList: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, maxWidth: 330 },
+    langChip: { minHeight: 40, borderRadius: 20, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+    langChipOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised },
+    langChipText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+    langChipTextOn: { color: c.ink, fontWeight: '600' },
     logo: { width: 112, height: 112 },
     logoSm: { width: 84, height: 84 },
     brand: { fontSize: 42, lineHeight: 48, fontWeight: '700', color: c.ink, letterSpacing: -0.84 },

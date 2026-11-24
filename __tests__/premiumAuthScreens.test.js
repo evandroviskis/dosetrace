@@ -171,7 +171,8 @@ test('PA-30 / PA-40: the 8 steps; both buttons of "Never miss a dose" go to Crea
 
 test('PA-31: the welcome screen shows the droplet app icon near the top (prototype position), not the blue square', () => {
   assert.match(ONB, /require\('\.\.\/assets\/adaptive-icon\.png'\)\} style=\{s\.logo\}/);
-  assert.match(ONB, /splashHead: \{ alignItems: 'center', gap: 14, paddingTop: 90 \}/);
+  // 2026-11-24 picture (language option B): the old 36 pt pill row is gone, so 44 pt top row + 70
+  assert.match(ONB, /splashHead: \{ alignItems: 'center', gap: 14, paddingTop: 114 \}/);
   assert.doesNotMatch(ONB, /applogo/);
 });
 
