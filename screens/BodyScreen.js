@@ -19,7 +19,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, getCachedUser } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { usePremiumUpdates } from '../lib/usePremium';
-import { formatDate as localeDate, MONTHS_SHORT } from '../lib/localeFormat';
+import { formatDate as localeDate, MONTHS_SHORT, labelColon } from '../lib/localeFormat';
+import { getReportName, saveReportName } from '../lib/profileName';
+import { reportNameSheet } from '../lib/reportNameSheet';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { getBiomarkers, insertBiomarkers, addBiomarkerToReport, updateBiomarker, deleteBiomarker, deleteBiomarkerReport, moveBiomarkerReport, getAllDataForExport, getVaccines, getLogsSince } from '../lib/database';
@@ -560,6 +562,8 @@ export default function BodyScreen({ navigation, route }) {
     navigation.navigate('Log', { filter: 'Missed' }); // UP-34: the usual filter, "Perdidas"
   }
 
+  // A sheet shown once a closing picker / bottom sheet has gone (iOS presents one popup at a time).
+  function sheetAfterPicker(cfg) { setTimeout(() => setSheet(cfg), 450); }
   function notice(cfg, afterPicker) {
     const withOk = { ...cfg, icon: cfg.icon === undefined ? 'warning' : cfg.icon, buttons: [{ label: t('ok'), kind: 'primary' }] };
     if (afterPicker) setTimeout(() => setSheet(withOk), 450);
@@ -992,6 +996,23 @@ export default function BodyScreen({ navigation, route }) {
       return;
     }
     setExportModalOpen(false);
+    // AR-20 (docs/specs/adherence-report.md, founder 2026-11-24): the PDF goes to a doctor like the adherence
+    // report, so it carries the full name in its header — never the nickname. With none, the same sheet first
+    // (add it, saved to the profile, or make it without a name line). The CSV does not change.
+    if (kind === 'pdf') {
+      const full = getReportName(await getCachedUser());
+      if (!full) {
+        // After the export sheet has closed (the same wait as notice(cfg, afterPicker)): never two at once.
+        sheetAfterPicker(reportNameSheet({ t, show: setSheet, onGenerate: (name) => { runExport(kind, name); }, onSave: (name) => saveReportName(name) }));
+        return;
+      }
+      await runExport(kind, full);
+      return;
+    }
+    await runExport(kind, null);
+  }
+
+  async function runExport(kind, reportName) {
     setExporting(true);
     try {
       const user = await getCachedUser();
@@ -1026,6 +1047,7 @@ export default function BodyScreen({ navigation, route }) {
           title: t('export_title'),
           exportedOn: `${t('export_exported_prefix')} ${dateStr}`,
           disclaimer: t('export_disclaimer'),
+          nameLine: reportName ? `${t('report_name_label')}${labelColon(language)} ${reportName}` : null, // AR-20
           ...selection,
         });
         // Confirm the native module exists BEFORE requiring expo-print, whose

@@ -28,9 +28,11 @@ test('A-172: the wipe list covers every shared health file, in the cache and the
   const paths = ef.exportFilePaths(FS).sort();
   assert.deepEqual(paths, [
     'file:///cache/Print/',
+    'file:///cache/dosetrace_adherence_report.pdf', // AR-15: the adherence report's PDF (2026-11-24)
     'file:///cache/dosetrace_export.json',
     'file:///cache/dosetrace_records.csv',
     'file:///cache/dosetrace_records.pdf',
+    'file:///docs/dosetrace_adherence_report.pdf',
     'file:///docs/dosetrace_export.json',
     'file:///docs/dosetrace_records.csv',
     'file:///docs/dosetrace_records.pdf',

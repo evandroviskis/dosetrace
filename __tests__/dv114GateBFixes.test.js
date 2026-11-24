@@ -215,14 +215,16 @@ test('Gate B 2: the profile is read with the kept answer laid over it wherever i
   const st = read('screens/SettingsScreen.js');
   const load = st.slice(st.indexOf('async function loadUser(user)'), st.indexOf('// A-169 review (2026-10-26): the card is tappable'));
   assert.match(load, /const pm = profileMeta\(user\) \|\| \{\};/);
-  for (const f of ['display_name', 'gender', 'country', 'primary_goal', 'has_provider']) assert.match(load, new RegExp(`pm\\.${f}`), f);
+  for (const f of ['gender', 'country', 'primary_goal', 'has_provider']) assert.match(load, new RegExp(`pm\\.${f}`), f);
+  // AR-18 (2026-11-24): the two names through lib/profileName, from the same profile with the kept answer laid over it.
+  assert.match(load, /const named = profileUser\(user\);\s*setDisplayName\(getNickname\(named\)\);/);
   assert.match(load, /birthMonthIndex\(pm\.birth_month\)/);
   assert.match(load, /setBirthYear\(pm\.birth_year \?\? null\)/);
   assert.match(load, /activitySourceKey\(pm, /);
   // Settings' save: the saved keys leave the kept answer (newer wins).
   assert.match(st, /const res = await supabase\.auth\.updateUser\(\{ data: profileData \}\);\s*if \(res && res\.error\) throw res\.error;\s*await forgetKeptKeys\(user && user\.id, Object\.keys\(profileData\)\)/);
   // Today's greeting, the body map and its explainer, the calculator, Journey's tile.
-  assert.match(read('screens/TodayScreen.js'), /const name = profileMeta\(user\)\?\.display_name;/);
+  assert.match(read('screens/TodayScreen.js'), /const name = getNickname\(profileUser\(user\)\);/); // AR-18: through lib/profileName
   assert.match(read('screens/components/BodyMapModal.js'), /figureSex\(profileMeta\(user\)\)/);
   assert.match(read('components/FeatureExplainers.js'), /figureSex\(profileMeta\(u\)\)/);
   const calc = read('screens/components/CalculatorSection.js');
@@ -242,5 +244,5 @@ test('Gate B re-review: the Settings profile save sends a kept answer before its
   const flush = save.indexOf('await flushPendingGate()');
   const write = save.indexOf('await supabase.auth.updateUser({ data: profileData })');
   assert.ok(flush > 0 && write > flush, 'flush awaited before the profile write');
-  assert.match(src, /import \{ profileMeta, forgetKeptKeys, flushPendingGate \} from '\.\.\/lib\/pendingGateStore';/);
+  assert.match(src, /import \{ profileMeta, profileUser, forgetKeptKeys, flushPendingGate \} from '\.\.\/lib\/pendingGateStore';/);
 });

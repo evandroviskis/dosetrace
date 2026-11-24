@@ -24,7 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { supabase, getCachedUser, peekCachedUser } from '../lib/supabase';
-import { profileMeta, forgetKeptKeys, flushPendingGate } from '../lib/pendingGateStore';
+import { profileMeta, profileUser, forgetKeptKeys, flushPendingGate } from '../lib/pendingGateStore';
 import { getPremiumSnapshot } from '../lib/premiumState';
 import { firstProfile, profileCardView } from '../lib/profileCardFirst';
 import { whenAllSettled, deferred } from '../lib/firstLoad';
@@ -70,10 +70,10 @@ import { pluralKey } from '../lib/plural';
 import { PROFILE_ACTIVITY, normalizeActivityLevel, legacyActivity, activitySourceKey } from '../lib/activityLevels';
 import { getCalcInputs } from '../lib/realityCheck';
 import { activityParts } from '../lib/progressFormat';
-import { adherenceStats, fillPercent } from '../lib/adherenceReport';
+import { adherenceStats } from '../lib/adherenceReport';
 import { monthStart, slotCounts } from '../lib/adherenceRings';
 import { protocolFrequencyText } from '../lib/schedule';
-import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
+import { reportStreakRuns, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/doseStreak';
 import { createBusyGuard } from '../lib/busyGuard';
 import { runSignOut } from '../lib/settingsSignOut';
 import { scanMissedDoses, unsyncedState, unrecordedGapsWithMisses } from '../lib/doseActions';
@@ -91,7 +91,12 @@ import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages'
 import { useTeamMessages } from '../lib/useTeamMessages';
 import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
 import { supplyState } from '../lib/supplyLow';
-import { birthMonthIndex } from '../lib/profileName';
+import { birthMonthIndex, getNickname, getReportName, nicknameFields, reportNameFields, saveReportName, nicknameFollows, nicknameAfterFullName } from '../lib/profileName';
+import { buildAdherenceReport } from '../lib/adherenceReportDoc';
+import { reportNameSheet } from '../lib/reportNameSheet';
+import { hasNativeModule } from '../lib/nativeModule';
+import { removeExportFiles, moveIntoSharedFile, ADHERENCE_PDF_NAME } from '../lib/exportFile';
+import * as FileSystem from 'expo-file-system/legacy';
 import { sexChangeNoteShown } from '../lib/sexAtBirth';
 
 // A-123: the report's Missed scan waits for the session's first sync result at most this long, then
@@ -295,6 +300,20 @@ export default function SettingsScreen({ navigation }) {
   const [profileLoaded] = useState(deferred);
   // Profile fields
   const [displayName, setDisplayName] = useState(first.displayName);
+  // AR-17/AR-18: the optional full name (reports only) and the value it was loaded with — Save sends it only
+  // when the person changed it (lib/profileName reportNameFields), so it is never cleared by mistake.
+  const [reportName, setReportName] = useState('');
+  const loadedReportName = useRef('');
+  // AR-17b: an empty nickname follows the full name typed (first name) until she edits it herself.
+  const nicknameFollowsRef = useRef(false);
+  function onFullNameChange(v) {
+    setReportName(v);
+    setDisplayName((nick) => nicknameAfterFullName({ following: nicknameFollowsRef.current, nickname: nick, fullName: v }));
+  }
+  function onNicknameChange(v) {
+    nicknameFollowsRef.current = false; // she wrote or erased it: never follow again in this edit
+    setDisplayName(v);
+  }
   const [gender, setGender] = useState('');
   const [birthMonth, setBirthMonth] = useState(null);
   const [birthYear, setBirthYear] = useState(null);
@@ -311,6 +330,7 @@ export default function SettingsScreen({ navigation }) {
   const countryLift = useKeyboardLift(null, Platform.OS === 'android' && showCountryPicker);
   const profileNameRef = useRef(null);
   const profileYearRef = useRef(null);
+  const profileFullNameRef = useRef(null); // AR-17
   const [countrySearch, setCountrySearch] = useState('');
   // DoseTrace sheets instead of native alerts (decisions: "DoseTrace sheets replace native iOS
   // alerts everywhere"). `sheet` sits on the screen; `editSheet` is presented from inside the
@@ -330,6 +350,10 @@ export default function SettingsScreen({ navigation }) {
   if (reportPreview) lastReport.current = reportPreview;
   const reportShown = reportPreview || lastReport.current;
   const pendingShare = useRef(null);
+  // AR-15/AR-19: the open report's A4 page and the name it was made with (Sync now rebuilds with it).
+  const reportHtmlRef = useRef('');
+  const reportNameRef = useRef(null);
+  const [makingPdf, setMakingPdf] = useState(false);
   const tornDown = useRef(false);
   const notice = (title, body, icon) => setSheet({ icon, title, body, buttons: [{ label: t('ok'), kind: 'primary' }] });
   // DV-233: the warning triangle and a title that says what happened (lib/errorSheet kinds).
@@ -563,7 +587,12 @@ export default function SettingsScreen({ navigation }) {
       const pm = profileMeta(user) || {};
       const activity = activitySourceKey(pm, await getCalcInputs().catch(() => null));
       if (editProfileOpen.current) return;
-      setDisplayName(pm.display_name || '');
+      // The two names through lib/profileName only (feat/profile-synced moves their storage underneath).
+      const named = profileUser(user);
+      setDisplayName(getNickname(named));
+      nicknameFollowsRef.current = nicknameFollows(getNickname(named)); // an existing nickname is never rewritten
+      loadedReportName.current = getReportName(named);
+      setReportName(loadedReportName.current);
       setGender(pm.gender || '');
       setBirthMonth(birthMonthIndex(pm.birth_month)); // stored 1-based → 0-11; an old 0 = January
       // Founder 2026-10-31: an old 0-based January is rewritten as 1 (merge write, outside the auth callback).
@@ -675,7 +704,7 @@ export default function SettingsScreen({ navigation }) {
     // so saving an incomplete profile would re-gate the user out of the app on the
     // next launch. Block the save and name the gaps instead of writing nulls.
     const missing = [];
-    if (!displayName.trim()) missing.push(t('profile_name'));
+    if (!displayName.trim()) missing.push(t('profile_nickname'));
     if (birthMonth == null) missing.push(t('profile_birth_month'));
     if (birthYear == null) missing.push(t('profile_birth_year'));
     if (!gender) missing.push(t('profile_sex'));
@@ -694,7 +723,9 @@ export default function SettingsScreen({ navigation }) {
       // DV-008 / DL-56: updateUser RESOLVES { error } when the save is refused (offline): that
       // is a failure too — Edit profile stays open with the typed values and the error sheet shows.
       const profileData = {
-          display_name: displayName.trim() || null,
+          // The nickname, and the full name only when changed (merge write; lib/profileName).
+          ...nicknameFields(displayName),
+          ...reportNameFields(reportName, loadedReportName.current),
           gender: gender || null,
           birth_month: birthMonth != null ? birthMonth + 1 : null, // store 1-based (matches onboarding)
           birth_year: birthYear,
@@ -738,8 +769,27 @@ export default function SettingsScreen({ navigation }) {
     setExporting(false);
   }
 
+  // docs/specs/adherence-report.md (picture relatorio-adesao.html, founder 2026-11-24): the report goes to a
+  // third person, so it never carries the nickname or the e-mail — only the full name (lib/profileName). With
+  // no full name, the sheet first (AR-19): add it (saved to the profile, then the report) or make it without.
   async function handleAdherenceReport() {
     if (!user) return;
+    if ((getHistoryProtocols(user.id) || []).length === 0) { notice(t('settings_report_title'), t('settings_report_empty')); return; }
+    const fullName = getReportName(user);
+    if (fullName) { await makeAdherenceReport(fullName); return; }
+    setSheet(reportNameSheet({
+      t,
+      show: setSheet,
+      onGenerate: (name) => { makeAdherenceReport(name); },
+      onSave: async (name) => { const r = await saveReportName(name); if (r.ok) fetchUser(); return r; },
+    }));
+  }
+
+  // The report itself (reportName: the full name, or null for no name line). Sync now rebuilds it with the
+  // same name (reportNameRef), never asking again.
+  async function makeAdherenceReport(reportName) {
+    if (!user) return;
+    reportNameRef.current = reportName || null;
     setExporting(true);
     try {
       const now = new Date();
@@ -758,7 +808,7 @@ export default function SettingsScreen({ navigation }) {
       const protocols = reportProtocols(history, logs, thirtyDaysAgo.getTime(), now.getTime(), slotCounts(history, logs, thirtyDaysAgo.getTime(), now.getTime()));
       const vials = getLocalVials(user.id) || [];
       // A-181 (founder 2026-10-26, option B): doses the A-177 rule still holds back are not counted as
-      // missed yet — the report says so (asterisks, a line, "No record since" per protocol), and every
+      // missed yet — the report says so (asterisks, a line, the count per protocol), and every
       // gap of more than 14 days without a sync stays written while it falls in these 30 days.
       // Code review 2026-10-26: unsyncNotice, never "notice" (that name is this screen's sheet helper);
       // a gap only when the scan would have written a miss in it; no sync ever → the wording with no date.
@@ -770,7 +820,6 @@ export default function SettingsScreen({ navigation }) {
       const stats = adherenceStats({ protocols, logs, sinceMs: thirtyDaysAgo.getTime(), nowMs: now.getTime(), held: heldIn });
       const gaps = await unrecordedGapsWithMisses(reportGaps(await readUnrecordedGaps(AsyncStorage, user.id, now.getTime()), thirtyDaysAgo.getTime(), now.getTime()));
       const unsyncSinceMs = unsyncNotice ? unsyncNotice.sinceMs : null;
-      const sinceText = (fmt) => formatDate(new Date(unsyncSinceMs), language, fmt) || '';
 
       if (protocols.length === 0) {
         notice(t('settings_report_title'), t('settings_report_empty'));
@@ -779,67 +828,38 @@ export default function SettingsScreen({ navigation }) {
       }
 
       // DV-032 (DL-02): each protocol's streak is its card's — doses in a row over a year (lib/doseStreak);
-      // A-30: doses logged in the app only.
+      // A-30: doses logged in the app only. AR-10: with the day the run starts.
       const yearAgo = new Date(now.getTime() - STREAK_LOOKBACK_DAYS * 86400000);
-      const streaks = reportStreaks(protocols, loggedOnly(getTakenLogsSince(user.id, yearAgo.toISOString()) || [], protocols), now);
+      const streaks = reportStreakRuns(protocols, loggedOnly(getTakenLogsSince(user.id, yearAgo.toISOString()) || [], protocols), now);
 
-      // Build per-protocol stats
-      const protocolStats = protocols.map(p => {
-        const { taken, skipped, missed, adherence } = stats.perProtocol.find(r => r.id === p.id);
-        const streak = streaks[p.id] || 0;
-
-        const vial = vials.find(v => v.protocol_id === p.id);
-
-        return {
-          // An ended protocol says so ("BPC-157 · Ended 20 Sep").
-          name: isEnded(p) ? `${protocolDisplayName(p, t)} · ${t('protocols_ended_on').replace('{date}', formatDate(new Date(p.ended_at || p.updated_at), language, 'dayMonth') || '')}` : protocolDisplayName(p, t), // A-134: as on Today
-          dose: `${p.dose ? decimalText(p.dose, language) : '—'}\u00A0${unitText(p.dose_unit || '', language)}`,
-          frequency: protocolFrequencyText(p, t),
-          taken,
-          skipped,
-          missed,
-          adherence,
-          unrecorded: heldIn[p.id] || 0,
-          streak,
-          vialRemaining: vial ? supplyState(vial, p).remaining : null, // DV-017: the one supply owner
-        };
-      });
-
-      // Overall adherence
-      const totalAll = stats.overall.total;
-
-      // Build report text
-      const userName = user.user_metadata?.display_name || user.email;
-      // In the app language, never the device locale (founder 2026-10-02).
-      const dateRange = `${formatDate(thirtyDaysAgo, language, 'dayMonth')} – ${formatDate(now, language, 'dayMonthYear')}`;
-
-      let report = `${t('report_header')}\n`;
-      report += `${'─'.repeat(40)}\n`;
-      report += `${t('report_user').replace('{name}', userName)}\n`;
-      report += `${t('report_period').replace('{range}', dateRange)}\n`;
-      report += `${fillPercent(t('report_overall'), stats.overall.adherence)}${unsyncNotice || gaps.length ? '*' : ''}\n`;
-      if (unsyncNotice) report += `${unsyncNotice.never ? t('report_unsynced_never') : t('report_unsynced').replace('{date}', sinceText('dayMonthYear'))}\n`;
-      for (const g of gaps) report += `${t('report_gap').replace('{from}', formatDate(new Date(g.fromMs), language, 'dayMonth') || '').replace('{to}', formatDate(new Date(g.toMs - 1), language, 'dayMonth') || '')}\n`;
-      report += `${t('report_active_protocols').replace('{count}', protocols.filter((p) => !isEnded(p)).length)}\n`;
-      report += `${t('report_total_logged').replace('{count}', totalAll)}\n`;
-      report += `${'─'.repeat(40)}\n\n`;
-
-      protocolStats.forEach(ps => {
-        report += `${ps.name}\n`;
-        report += `  ${t('report_dose_line').replace('{dose}', ps.dose).replace('{frequency}', ps.frequency)}\n`;
-        report += `  ${fillPercent(t('report_outcome_line').replace('{taken}', ps.taken).replace('{skipped}', ps.skipped).replace('{missed}', ps.missed), ps.adherence)}${ps.unrecorded > 0 ? '*' : ''}\n`;
-        if (ps.unrecorded > 0) report += `  ${(unsyncNotice.never ? t('report_unrecorded_never') : t('report_unrecorded').replace('{date}', sinceText('dayMonth'))).replace('{n}', ps.unrecorded)}\n`;
-        report += `  ${t(pluralKey('report_streak_line', ps.streak, language)).replace('{count}', ps.streak)}\n`;
-        if (ps.vialRemaining !== null) {
-          report += `  ${t(pluralKey('report_vial_line', ps.vialRemaining, language)).replace('{count}', ps.vialRemaining)}\n`;
-        }
-        report += `\n`;
-      });
-
-      report += `${'─'.repeat(40)}\n`;
-      report += `${t('report_generated').replace('{date}', formatDate(now, language, 'long'))}\n`;
-      report += `${t('report_footer_1')}\n`;
-      report += `${t('report_footer_2')}\n`;
+      // The model the report is written from (lib/adherenceReportDoc): the same numbers as before.
+      const model = {
+        reportName: reportName || null,
+        sinceMs: thirtyDaysAgo.getTime(),
+        nowMs: now.getTime(),
+        overall: stats.overall,
+        protocols: protocols.map((p) => {
+          const row = stats.perProtocol.find((r) => r.id === p.id);
+          const run = streaks[p.id] || { count: 0, sinceMs: null };
+          const vial = vials.find((v) => v.protocol_id === p.id);
+          return {
+            id: p.id,
+            name: protocolDisplayName(p, t), // A-134: as on Today
+            endedAtMs: isEnded(p) ? new Date(p.ended_at || p.updated_at).getTime() : null, // "· Encerrado em 20 de set."
+            dose: `${p.dose ? decimalText(p.dose, language) : '—'} ${unitText(p.dose_unit || '', language)}`,
+            frequency: protocolFrequencyText(p, t),
+            due: row.due, counted: row.counted, taken: row.taken, skipped: row.skipped, missed: row.missed, adherence: row.adherence,
+            unrecorded: heldIn[p.id] || 0,
+            streak: run.count, streakSinceMs: run.sinceMs,
+            vialRemaining: vial ? supplyState(vial, p).remaining : null, // DV-017: the one supply owner
+          };
+        }),
+        unsync: unsyncNotice ? { never: !!unsyncNotice.never, sinceMs: unsyncSinceMs } : null,
+        gaps,
+      };
+      // In the app language and clock, never the device locale (founder 2026-10-02).
+      const { text: report, html } = buildAdherenceReport(model, { t, language, timeFormat });
+      reportHtmlRef.current = html;
 
       // Shown first, exactly as it will be sent (Settings part 3); Share opens the system sheet.
       setReportUnsync(unsyncNotice ? { sinceMs: unsyncSinceMs, never: unsyncNotice.never } : null);
@@ -851,17 +871,42 @@ export default function SettingsScreen({ navigation }) {
   }
 
   // A-181: Sync now above the paper — a full pass, then the report is built again (its scan writes the
-  // misses the pull now proves).
+  // misses the pull now proves), with the same name.
   async function reportSyncNow() {
     if (reportSyncing) return;
     setReportSyncing(true);
     try { await forceSync(); } catch { /* the notice stays */ }
-    if (reportOpenRef.current) await handleAdherenceReport();
+    if (reportOpenRef.current) await makeAdherenceReport(reportNameRef.current);
     setReportSyncing(false);
   }
 
-  // The system share sheet opens only after the preview page has closed (iOS cannot present it
-  // over a page sheet). iOS reports the end through onDismiss; elsewhere a short timer.
+  // AR-15: Share PDF (the main button) — the same report as an A4 page (HTML → expo-print, the path of
+  // My Body's export), a fixed name in the cache folder (lib/exportFile: the next export and the wipes remove
+  // it). The file is made while the page is open; the share sheet opens after it closed (as for the text).
+  async function shareReportPdf() {
+    if (reportSyncing || makingPdf) return;
+    const html = reportHtmlRef.current;
+    if (!html) return;
+    // Confirm the native module exists BEFORE requiring expo-print (a build without it says so).
+    if (!hasNativeModule('ExpoPrint')) { errorSheet(t('export_needs_build'), 'version'); return; }
+    setMakingPdf(true);
+    try {
+      await removeExportFiles(FileSystem);
+      const Print = require('expo-print');
+      const res = await Print.printToFileAsync({ html: html, width: 595, height: 842 }); // A4 in points
+      const uri = await moveIntoSharedFile(FileSystem, res.uri, ADHERENCE_PDF_NAME);
+      pendingShare.current = { pdf: uri };
+      setReportPreview(null);
+      if (Platform.OS !== 'ios') setTimeout(runPendingShare, 0);
+      else setTimeout(runPendingShare, 900); // fallback if onDismiss never comes
+    } catch (e) {
+      errorSheet(t('export_error'), 'file');
+    }
+    setMakingPdf(false);
+  }
+
+  // AR-16: Share as text (the second button). The system share sheet opens only after the preview page has
+  // closed (iOS cannot present it over a page sheet). iOS reports the end through onDismiss; elsewhere a short timer.
   function shareReport() {
     pendingShare.current = reportPreview;
     setReportPreview(null);
@@ -869,10 +914,17 @@ export default function SettingsScreen({ navigation }) {
     else setTimeout(runPendingShare, 900); // fallback if onDismiss never comes
   }
   function runPendingShare() {
-    const message = pendingShare.current;
+    const pending = pendingShare.current;
     pendingShare.current = null;
-    if (!message) return;
-    Share.share({ message, title: t('settings_report_title') }).catch(() => {});
+    if (!pending) return;
+    if (typeof pending === 'object' && pending.pdf) {
+      const Sharing = require('expo-sharing');
+      Sharing.isAvailableAsync()
+        .then((ok) => (ok ? Sharing.shareAsync(pending.pdf, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: t('settings_report_title') }) : null))
+        .catch(() => {});
+      return;
+    }
+    Share.share({ message: pending, title: t('settings_report_title') }).catch(() => {});
   }
 
   // Gate B F4: one sign-out at a time; the row shows a spinner while it runs.
@@ -1660,8 +1712,13 @@ export default function SettingsScreen({ navigation }) {
             <View style={{ height: 24 }} />
           </ScrollView>
           <View style={s.reportFoot}>
-            <TouchableOpacity style={[s.premiumBtn, reportSyncing && { opacity: 0.5 }]} onPress={shareReport} disabled={reportSyncing} accessibilityRole="button" accessibilityState={{ disabled: reportSyncing }}>
-              <Text style={s.premiumBtnText}>{t('settings_report_share')}</Text>
+            {/* AR-15/AR-16: the A4 PDF first, the text as the second option (both free). */}
+            <TouchableOpacity style={[s.premiumBtn, s.reportPdfBtn, (reportSyncing || makingPdf) && { opacity: 0.5 }]} onPress={shareReportPdf} disabled={reportSyncing || makingPdf} accessibilityRole="button" accessibilityState={{ disabled: reportSyncing || makingPdf, busy: makingPdf }}>
+              <Text style={s.premiumBtnText}>{t('report_share_pdf')}</Text>
+              {makingPdf ? <ActivityIndicator size="small" color={colors.onAct} /> : null}
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.reportTextBtn, (reportSyncing || makingPdf) && { opacity: 0.5 }]} onPress={shareReport} disabled={reportSyncing || makingPdf} accessibilityRole="button" accessibilityState={{ disabled: reportSyncing || makingPdf }}>
+              <Text style={s.reportTextBtnText}>{t('report_share_text')}</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -1767,20 +1824,44 @@ export default function SettingsScreen({ navigation }) {
             {/* ── About you ─────────────────────────────────────────── */}
             <Text style={[s.editSection, s.editSectionFirst]}>{t('profile_sec_about')}</Text>
 
+            {/* AR-17 / AR-17b (founder 2026-11-24): the optional full name first (reports only), then the
+                nickname (shown in the app, required), which follows the full name with the first name until
+                she edits it herself (lib/profileName). */}
             <View style={s.editField}>
-              <Text style={s.editLabel}>{t('profile_name')}</Text>
+              <Text style={s.editLabel}>{t('profile_report_name')}</Text>
+              <TextInput
+                ref={profileFullNameRef}
+                onFocus={() => profileLift.liftField(profileFullNameRef)}
+                {...profileLift.nextProps(profileNameRef)}
+                style={s.editInput}
+                placeholder={t('profile_report_name_placeholder')}
+                placeholderTextColor={colors.ink3}
+                value={reportName}
+                onChangeText={onFullNameChange}
+                autoCapitalize="words"
+                autoCorrect={false}
+                textContentType="name"
+                autoComplete="name"
+                accessibilityLabel={t('profile_report_name')}
+              />
+              <Text style={[s.editHint, s.editHintUnder]}>{t('profile_report_name_hint')}</Text>
+            </View>
+
+            <View style={s.editField}>
+              <Text style={s.editLabel}>{t('profile_nickname')}</Text>
               <TextInput
                 ref={profileNameRef}
                 onFocus={() => profileLift.liftField(profileNameRef)}
                 {...profileLift.nextProps(profileYearRef)}
                 style={s.editInput}
-                placeholder={t('profile_name_placeholder')}
                 placeholderTextColor={colors.ink3}
                 value={displayName}
-                onChangeText={setDisplayName}
+                onChangeText={onNicknameChange}
                 autoCapitalize="words"
                 autoCorrect={false}
+                accessibilityLabel={t('profile_nickname')}
               />
+              <Text style={[s.editHint, s.editHintUnder]}>{t('profile_nickname_hint')}</Text>
             </View>
 
             <View style={s.editField}>
@@ -2115,6 +2196,9 @@ const settingsGraduated = (c) => ({
   reportUnsyncText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
   reportSyncBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', minHeight: 24 },
   reportSyncBtnText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, textDecorationLine: 'underline' },
+  reportPdfBtn: { flexDirection: 'row', gap: 10 }, // AR-15: room for the spinner while the PDF is made
+  reportTextBtn: { minHeight: 48, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginTop: 8, backgroundColor: c.well }, // AR-16: the second option (a secondary sheet button)
+  reportTextBtnText: { color: c.ink, fontSize: 17, fontWeight: '600' },
   reportFoot: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', paddingHorizontal: 20, paddingBottom: 12 },
   sheetDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
 
@@ -2145,6 +2229,7 @@ const settingsGraduated = (c) => ({
   editField: { marginTop: 18 },
   editLabel: { fontSize: 13, lineHeight: 18, fontWeight: '400', color: c.ink2, marginBottom: 10, paddingHorizontal: 4 },
   editHint: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: -6, marginBottom: 10, paddingHorizontal: 4 },
+  editHintUnder: { marginTop: 8, marginBottom: 0 }, // AR-17: the hint under its field ("Aparece no app.")
   editHintTop: { marginTop: -8 }, // DV-113: the hint right under its section title (no field label above it)
   sexHelp: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: 10, paddingHorizontal: 4 },
   editInput: { minHeight: 50, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line },

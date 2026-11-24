@@ -16,7 +16,7 @@ const tr = mod.exports.translations;
 
 test('the report opens a preview instead of the share sheet', () => {
   const s = read('screens/SettingsScreen.js');
-  const fn = sliceBlock(s, 'async function handleAdherenceReport() {');
+  const fn = sliceBlock(s, 'async function makeAdherenceReport(reportName) {'); // 2026-11-24: the report itself (handleAdherenceReport asks for the full name first)
   assert.match(fn, /setReportPreview\(report\)/);
   assert.doesNotMatch(fn, /Share\.share\(/);
 });
@@ -31,6 +31,6 @@ test('the preview shows the line and the exact text; Share runs after it closed'
 });
 
 test('the line and the Share label in six languages', () => {
-  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(tr[l].settings_report_preview_note && tr[l].settings_report_share, l);
+  for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.ok(tr[l].settings_report_preview_note && tr[l].report_share_pdf && tr[l].report_share_text, l); // 2026-11-24: Share PDF + Share as text
   assert.equal(tr.en.settings_report_preview_note, 'This is exactly what your provider will receive.');
 });

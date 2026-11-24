@@ -120,7 +120,9 @@ test('F2: the 30-day report lists the ended protocols that have records in the w
   const s = read('screens/SettingsScreen.js');
   assert.doesNotMatch(s, /getActiveProtocols as getLocalProtocols/);
   assert.match(s, /const history = getHistoryProtocols\(user\.id\) \|\| \[\];\s*const protocols = reportProtocols\(history,/); // DV-033: + ended ones with a due dose
-  assert.match(s, /protocols_ended_on/, 'an ended protocol says so in the report');
+  // an ended protocol says so in the report (2026-11-24: Settings passes its end, lib/adherenceReportDoc writes it)
+  assert.match(s, /endedAtMs: isEnded\(p\) \?/);
+  assert.match(read('lib/adherenceReportDoc.js'), /protocols_ended_on/, 'an ended protocol says so in the report');
 });
 
 test('F4: the prompt points to Ended in My Protocols, in six languages', () => {

@@ -33,6 +33,37 @@ test('AR-18: Edit profile sends report_name only when the person changed it (nev
   assert.deepEqual(nicknameFields(' O brabo '), { display_name: 'O brabo' });
 });
 
+test('AR-17b: the nickname follows the full name with the first name — only an empty nickname, until she edits it', () => {
+  const { firstNameOf, nicknameFollows, nicknameAfterFullName } = require('../lib/profileName');
+  assert.equal(firstNameOf('Evandro Santos'), 'Evandro');
+  assert.equal(firstNameOf('  Marina   Costa Silva '), 'Marina');
+  assert.equal(firstNameOf(''), '');
+  assert.equal(firstNameOf(null), '');
+  // a new profile (no nickname yet): follows while she types the full name
+  assert.equal(nicknameFollows(''), true);
+  let following = nicknameFollows('');
+  let nick = '';
+  for (const typed of ['E', 'Evandro', 'Evandro ', 'Evandro Santos']) nick = nicknameAfterFullName({ following, nickname: nick, fullName: typed });
+  assert.equal(nick, 'Evandro');
+  // she edits the nickname herself → it stops following
+  following = false; nick = 'Vando';
+  assert.equal(nicknameAfterFullName({ following, nickname: nick, fullName: 'Evandro Santos Silva' }), 'Vando');
+  // an existing nickname is never rewritten by typing a full name
+  assert.equal(nicknameFollows('O brabo'), false);
+  assert.equal(nicknameAfterFullName({ following: nicknameFollows('O brabo'), nickname: 'O brabo', fullName: 'Evandro Santos' }), 'O brabo');
+});
+
+test('AR-17b: Edit profile wires the follow: the full-name field fills the nickname, editing the nickname stops it', () => {
+  const s = read('screens/SettingsScreen.js');
+  assert.match(s, /nicknameFollowsRef\.current = nicknameFollows\(/);
+  assert.match(s, /onChangeText=\{onFullNameChange\}/);
+  assert.match(s, /onChangeText=\{onNicknameChange\}/);
+  const full = s.slice(s.indexOf('function onFullNameChange'), s.indexOf('function onFullNameChange') + 400);
+  assert.match(full, /nicknameAfterFullName\(/);
+  const nick = s.slice(s.indexOf('function onNicknameChange'), s.indexOf('function onNicknameChange') + 300);
+  assert.match(nick, /nicknameFollowsRef\.current = false/);
+});
+
 test('AR-18/AR-19: saveReportName sends ONLY report_name (a merge write), trimmed; an empty name writes nothing', async () => {
   const { saveReportName } = require('../lib/profileName');
   const sent = [];
@@ -71,7 +102,8 @@ test('AR-17: Edit profile shows the nickname with "Aparece no app." and the opti
   const s = read('screens/SettingsScreen.js');
   const ep = s.slice(s.indexOf('{/* EDIT PROFILE MODAL */}'), s.indexOf("t('profile_birth_month')}</Text>", s.indexOf('{/* EDIT PROFILE MODAL */}')));
   for (const k of ['profile_nickname', 'profile_nickname_hint', 'profile_report_name', 'profile_report_name_placeholder', 'profile_report_name_hint']) assert.ok(ep.includes(`t('${k}')`), k);
-  assert.ok(ep.indexOf("t('profile_nickname')") < ep.indexOf("t('profile_report_name')"));
+  // Founder 2026-11-24: "Nome completo" first, then the nickname.
+  assert.ok(ep.indexOf("t('profile_report_name')") < ep.indexOf("t('profile_nickname')"), 'full name first');
   assert.equal(translations.pt.profile_nickname, 'Como você quer ser chamado ou chamada');
   assert.equal(translations.en.profile_nickname, 'What should we call you?');
   assert.equal(translations.es.profile_nickname, '¿Cómo quieres que te llamemos?');
@@ -170,5 +202,5 @@ test('AR-21: Download my data keeps both names under their own keys', () => {
 test('AR-24: the name sheet and profile strings in 6 languages; fr vous, pt formal', () => {
   const keys = ['profile_nickname', 'profile_nickname_hint', 'profile_report_name', 'profile_report_name_placeholder', 'profile_report_name_hint', 'report_name_sheet_title', 'report_name_sheet_body', 'report_name_add', 'report_name_skip', 'report_name_field_title', 'report_name_field_hint', 'report_name_generate'];
   for (const l of LANGS) for (const k of keys) assert.ok(translations[l][k], `${l}.${k}`);
-  assert.match(translations.fr.report_name_sheet_body, /vous/);
+  assert.match(translations.fr.report_name_sheet_body, /\bvous\b|\bVous\b|votre/);
 });

@@ -138,6 +138,6 @@ test('UP-29: the A-181 line and the report gap line no longer say those doses ar
   assert.doesNotMatch(TR.pt.log_unsynced_old, /não são registradas depois/);
   assert.match(TR.pt.log_unsynced_old, /o app pergunta sobre elas/);
   assert.doesNotMatch(TR.pt.report_gap, /não foram registradas/);
-  assert.match(TR.pt.report_gap, /sem registro não entram neste relatório/);
+  assert.match(TR.pt.report_gap, /sem nenhum registro não estão contadas neste relatório/); // 2026-11-24: third person, "sem nenhum registro" as the report's term
   for (const lang of ['en', 'es', 'fr', 'de', 'it']) assert.match(TR[lang].report_gap, /\{from\}[\s\S]*\{to\}/);
 });

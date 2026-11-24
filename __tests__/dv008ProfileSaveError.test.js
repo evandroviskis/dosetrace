@@ -12,6 +12,7 @@ const { loadFn } = require('./helpers/extractFn');
 const { friendlyError } = require('../lib/friendlyError');
 const { normalizeActivityLevel, legacyActivity } = require('../lib/activityLevels');
 const { errorSheet: errorSheetConfig } = require('../lib/errorSheet'); // DV-233
+const { nicknameFields, reportNameFields } = require('../lib/profileName'); // AR-18: the names go through lib/profileName
 
 const SETTINGS = 'screens/SettingsScreen.js';
 const t = (k) => k;
@@ -34,6 +35,7 @@ function profile(mode, supabase = null) {
   const out = { writes: [], editSheet: [], closedEdit: 0, closedPicker: 0, refetched: 0 };
   const save = loadFn(SETTINGS, 'async function saveProfile(', 'saveProfile', {
     t, friendlyError, normalizeActivityLevel, legacyActivity, errorSheetConfig,
+    nicknameFields, reportNameFields, reportName: '', loadedReportName: { current: '' }, // AR-18: full name untouched
     supabase: supabase || fakeSupabase(mode, out.writes),
     savingProfile: { current: false },
     // The typed values in Edit profile.

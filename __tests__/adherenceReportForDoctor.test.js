@@ -11,6 +11,8 @@ const path = require('node:path');
 const { adherenceStats } = require('../lib/adherenceReport');
 const { doseRun, reportStreakRuns, reportStreaks } = require('../lib/doseStreak');
 const { formatDate } = require('../lib/localeFormat');
+const { formatTime } = require('../lib/timeFormat');
+const CLOCK = formatTime('09:15', 'pt', '24h'); // the app's own clock text for 09:15
 const { translations } = require('../i18n/translations');
 
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
@@ -110,11 +112,11 @@ test('AR-1/AR-3/AR-4: the top says what the report is, the name, the period and 
   assert.match(text, /As doses previstas seguem o horário que a própria pessoa configurou no aplicativo\./);
   assert.ok(text.includes('Nome: Marina Costa Silva\n'));
   assert.ok(text.includes('Período: 26/10/2026 a 24/11/2026 (últimos 30 dias, até a hora em que o relatório foi gerado)\n'));
-  assert.ok(text.includes('Gerado em: 24/11/2026 às 09:15\n'));
-  assert.ok(text.includes('Gerado pelo DoseTrace em 24/11/2026 às 09:15.'));
+  assert.ok(text.includes(`Gerado em: 24/11/2026 às ${CLOCK}\n`), 'the app clock (lib/timeFormat), the 12/24 h choice');
+  assert.ok(text.includes(`Gerado pelo DoseTrace em 24/11/2026 às ${CLOCK}.`));
   // the marks / observations belong to feat/dose-observation: not promised here
   assert.doesNotMatch(text, /jejum|refeição|observaç/i);
-  for (const s of ['Relatório de adesão', 'Gerado pelo aplicativo DoseTrace', 'Marina Costa Silva', '24/11/2026 às 09:15', '26/10/2026 a 24/11/2026']) assert.ok(html.includes(s), s);
+  for (const s of ['Relatório de adesão', 'Gerado pelo aplicativo DoseTrace', 'Marina Costa Silva', `24/11/2026 às ${CLOCK}`, '26/10/2026 a 24/11/2026']) assert.ok(html.includes(s), s);
 });
 
 test('AR-2: without a full name there is no name line, in the text or the PDF', () => {
@@ -173,7 +175,7 @@ test('AR-9/AR-10/AR-11: nothing due → a dash, never a made-up %; a 0 run has n
 
 test('AR-12: the asterisk notes in the third person, the per-protocol count and the gap line', () => {
   const ps = model().protocols.map((p, i) => (i === 0 ? { ...p, unrecorded: 3 } : p));
-  const { text, html } = build(model({ protocols: ps, unsync: { never: false, sinceMs: at(11, 20).getTime() }, gaps: [{ fromMs: at(10, 27).getTime(), toMs: at(11, 12).getTime() }] }));
+  const { text, html } = build(model({ protocols: ps, unsync: { never: false, sinceMs: at(11, 20).getTime() }, gaps: [{ fromMs: at(10, 27).getTime(), toMs: at(11, 12, 0).getTime() }] }));
   assert.ok(text.includes('Adesão geral: 97%*\n'));
   assert.ok(text.includes('* O celular da pessoa não sincroniza desde 20/11/2026: as doses previstas desde então ainda não estão contadas como "sem nenhum registro", então a adesão pode aparecer maior do que é.'));
   assert.ok(text.includes('Adesão: 97%. Doses registradas como tomadas ÷ doses previstas no período (29 de 30).*\nDoses ainda não contadas por isso: 3\n'));
@@ -202,7 +204,12 @@ test('AR-14: nothing judges — no good/bad words in any language, no colour per
     const { text, html } = build(model(), l);
     assert.doesNotMatch(text, /\[\[/, `${l}: every key exists`);
     assert.doesNotMatch(text, /\b(good|bad|poor|excellent|great|low adherence|high adherence|should|recommend|bom|boa|ruim|baixa|deveria|recomend|bueno|malo|debería|bon|mauvais|devriez|gut|schlecht|solltest|buono|cattivo|dovresti)\b/i, l);
-    assert.doesNotMatch(html, /color:\s*#(c0|d0|e0|f0|ff)[0-9a-f]{2}[0-9a-f]{2}|red|green|orange/i, `${l}: no alert colour`);
+    // Only neutral greys on the paper (R = G = B within a few steps): no red / amber / green per value.
+    for (const hex of html.match(/#[0-9a-f]{6}\b/gi) || []) {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 12, `${l}: ${hex} is not a neutral grey`);
+    }
+    assert.doesNotMatch(html, /color:\s*(red|green|orange|yellow|rgb)/i, `${l}: no alert colour`);
   }
 });
 

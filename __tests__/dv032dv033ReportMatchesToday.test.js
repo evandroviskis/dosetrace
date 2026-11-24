@@ -49,16 +49,14 @@ test('DV-032/033: Settings builds the report from the shared owners, and the str
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/SettingsScreen.js'), 'utf8');
   assert.match(src, /const thirtyDaysAgo = new Date\(monthStart\(now\.getTime\(\)\)\);/);
   assert.match(src, /adherenceStats\(\{ protocols, logs, sinceMs: thirtyDaysAgo\.getTime\(\), nowMs: now\.getTime\(\), held: heldIn \}\)/);
-  assert.match(src, /const streaks = reportStreaks\(protocols, /);
+  assert.match(src, /const streaks = reportStreakRuns\(protocols, /); // AR-10: the same walk, with its start day
   assert.doesNotMatch(src, /takenDays\.has\(d\.toDateString\(\)\)/);
   const today = fs.readFileSync(path.join(__dirname, '..', 'screens/TodayScreen.js'), 'utf8');
   assert.match(today, /setProtocolStreaks\(reportStreaks\(activeProtocols, logs, new Date\(\)\)\);/);
   const { translations } = require('../i18n/translations');
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {
-    for (const k of ['report_streak_line', 'report_streak_line_one']) {
-      assert.match(translations[l][k], /\{count\}/, `${l}.${k}`);
-      assert.ok(translations[l][k].includes(translations[l][k.endsWith('_one') ? 'today_streak_doses_one' : 'today_streak_doses']), `${l}.${k} uses the card's words`);
-    }
+    // 2026-11-24 (report for a doctor): the streak line still counts DOSES ("Doses tomadas seguidas, sem falha…").
+    assert.match(translations[l].report_streak_label, /^(Doses|Dosis|Dosen|Dosi)\b/, `${l}.report_streak_label`);
   }
 });
 
