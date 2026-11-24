@@ -376,20 +376,34 @@ test('DO-11: the emergency number follows the region', () => {
   assert.deepEqual(emergencyFor(null), { number: '112', kind: 'local' });
 });
 
-test('DO-11: pt copy, oral says depois da dose, the tap opens the dialer', () => {
+// Founder 2026-11-24 (decisions page): "Não podemos sugerir o que a pessoa está sentindo. Precisamos somente
+// direcionar uma pessoa que não se sinta bem a ligar para a emergência." The line names NO symptom and is the
+// same for an oral and an injectable dose; the number rule is unchanged.
+test('DO-11: the founder copy names no symptom, the same for every dose, and the tap opens the dialer', () => {
   const { emergencyText } = OBS();
-  const br = emergencyText({ region: 'BR', oral: false, t: pt });
-  assert.equal(`${br.question} ${br.call}`, 'Falta de ar, inchaço ou tontura forte depois da aplicação? Ligue para o 192 (SAMU).');
+  const br = emergencyText({ region: 'BR', t: pt });
+  assert.equal(`${br.question} ${br.call}`, 'Não está se sentindo bem depois da dose? Em uma emergência, ligue para o 192 (SAMU).');
   assert.equal(br.tel, 'tel:192');
-  const o = emergencyText({ region: 'BR', oral: true, t: pt });
-  assert.equal(o.question, 'Falta de ar, inchaço ou tontura forte depois da dose?');
-  assert.equal(emergencyText({ region: 'JP', oral: false, t: pt }).call, 'Ligue para o 112 ou o número de emergência local.');
-  assert.equal(emergencyText({ region: 'US', oral: false, t: tFor('en') }).call, 'Call 911.');
+  assert.equal(emergencyText({ region: 'PT', t: pt }).call, 'Em uma emergência, ligue para o 112.');
+  assert.equal(emergencyText({ region: 'JP', t: pt }).call, 'Em uma emergência, ligue para o 112 ou o número de emergência local.');
+  const us = emergencyText({ region: 'US', t: tFor('en') });
+  assert.equal(`${us.question} ${us.call}`, 'Not feeling well after the dose? In an emergency, call 911.');
+  assert.equal(emergencyText({ region: 'GB', t: tFor('en') }).call, 'In an emergency, call 999.');
+  // No symptom words in any language, and no separate oral / injection sentence.
+  const SYMPTOM = /breath|swell|dizz|aire|hinch|mareo|\bar\b|incha|tontura|souffl|gonfl|vertig|Atem|Schwell|Schwindel|respir|capogir/i;
+  for (const l of LANGS) {
+    for (const k of ['dose_obs_sos_q', 'dose_obs_sos_call', 'dose_obs_sos_call_samu', 'dose_obs_sos_call_local']) assert.doesNotMatch(TR[l][k], SYMPTOM, `${l}.${k}`);
+    assert.equal(TR[l].dose_obs_sos_q_oral, undefined, `${l}: one sentence for every dose`);
+  }
+  assert.equal(TR.fr.dose_obs_sos_q, 'Vous ne vous sentez pas bien après la dose ?');
+  assert.match(TR.de.dose_obs_sos_q, /\bdu\b|\bDu\b/);
+  assert.match(TR.es.dose_obs_sos_q, /\bte\b/);
+  assert.match(TR.it.dose_obs_sos_q, /\bti\b/);
   const c = COMP();
   assert.match(c, /Linking\.openURL\(sos\.tel\)/);
   assert.match(c, /<FeatureIcon name="warning" size=\{14\} color=\{colors\.risk\} \/>/);
-  // Fixed: computed from the region and the dose type only — never from what is typed.
-  assert.match(c, /const sos = emergencyText\(\{ region, oral, t \}\);/);
+  // Fixed: computed from the phone's region only — never from what is typed.
+  assert.match(c, /const sos = emergencyText\(\{ region, t \}\);/);
 });
 
 test('DO-12: the big Concluído sits above Excluir esta dose', () => {

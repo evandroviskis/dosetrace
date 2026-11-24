@@ -5,7 +5,7 @@
 //   saved on the tap (onContext).
 // - Observation: the protocol note's field (noteWell / noteWellOn) and its Cancelar / Salvar; the typed text
 //   lives in lib/draftStore (A-77) until Salvar, Cancelar or the sheet closes (LogScreen flushNote saves it).
-// - The emergency line is fixed: from the phone's region and the dose type only, never from the text.
+// - The emergency line is fixed: from the phone's region only, never from the text; it names no symptom.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import * as Localization from 'expo-localization';
@@ -43,9 +43,9 @@ export default function DoseObservation({ log, protocol, name, onContext, onSave
   function saveNote() { onSaveNote(text); }
   function cancelNote() { clearDraft(key); setText(log.dose_note || ''); }
 
-  const oral = (log.protocols && log.protocols.type) === 'oral';
+  // The emergency line names no symptom and is the same for every dose (founder 2026-11-24).
   const region = useMemo(() => deviceRegion(), []);
-  const sos = emergencyText({ region, oral, t });
+  const sos = emergencyText({ region, t });
   const repeatOn = !!repeatOf(protocol);
 
   return (
