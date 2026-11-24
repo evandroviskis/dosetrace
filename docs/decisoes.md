@@ -39,7 +39,7 @@ O painel mostra cada imagem por um link assinado de 10 minutos. Prefira PNG (cla
 ```sql
 select id, area, kind, title, status, choice, note, decided_at
   from public.founder_decisions
- where status <> 'pendente' and executed_at is null
+ where status in ('aprovado', 'recusado', 'ajustar') and executed_at is null  -- nunca status <> 'pendente': pegaria 'depois' (Vou fazer depois, em desenho, sort 76) e 'alterando'
  order by decided_at;
 ```
 
@@ -52,7 +52,7 @@ Grupos no painel (Evandro, 2026-11-24): **Pendentes** (`pendente`) · **Alteraç
 ```sql
 update public.founder_decisions
    set executed_at = now(), executed_note = 'O que foi feito, onde (commit/branch/build) e como foi verificado.'
- where id = '<id>' and status <> 'pendente' and executed_at is null;
+ where id = '<id>' and status in ('aprovado', 'recusado', 'ajustar') and executed_at is null;
 ```
 
 Executada fica só leitura no painel (ele vê "Executado em … — nota").
