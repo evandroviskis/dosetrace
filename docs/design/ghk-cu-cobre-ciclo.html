@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cobre por ciclo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Picture page (not the app): follows the viewer's theme. The phones carry the app tokens of lib/theme.js. */
+:root{ --page:#F1F2EF; --pfg:#15171A; --pmut:#5B6066; --pline:#D5D8D2; --pbox:#FFFFFF; --hl:#2350D8; color-scheme:light; }
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){ --page:#0C0D0F; --pfg:#ECEDEF; --pmut:#9AA0A8; --pline:#2A2E33; --pbox:#17191C; --hl:#8AA8FF; color-scheme:dark; } }
+:root[data-theme="dark"]{ --page:#0C0D0F; --pfg:#ECEDEF; --pmut:#9AA0A8; --pline:#2A2E33; --pbox:#17191C; --hl:#8AA8FF; color-scheme:dark; }
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--page); color:var(--pfg); font:15px/1.5 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+  padding-block:28px 56px; padding-inline:16px; }
+h1{ font-family:"Geist",-apple-system,sans-serif; font-size:24px; margin:0 0 8px; text-wrap:balance; }
+p.lead{ color:var(--pmut); max-width:72ch; margin:0 0 10px; }
+h2{ font-size:14px; font-weight:600; color:var(--pmut); margin:34px 0 12px; }
+.box{ background:var(--pbox); border:1px solid var(--pline); border-radius:16px; padding:16px 18px; max-width:980px; margin:14px 0; }
+.box h3{ font-size:15px; margin:0 0 8px; }
+.box p{ margin:0 0 8px; color:var(--pfg); }
+.box p.m{ color:var(--pmut); font-size:13.5px; }
+.tbl{ width:100%; border-collapse:collapse; font-size:13.5px; margin:6px 0 10px; }
+.tbl th,.tbl td{ text-align:left; padding:7px 8px; border-top:1px solid var(--pline); vertical-align:top; }
+.tbl th{ color:var(--pmut); font-weight:600; border-top:0; }
+.tbl td.n{ font-family:"Geist Mono",ui-monospace,monospace; white-space:nowrap; }
+.tblwrap{ overflow-x:auto; }
+a{ color:var(--hl); }
+.row{ display:flex; gap:22px; flex-wrap:wrap; align-items:flex-start; }
+.col{ display:flex; flex-direction:column; gap:10px; width:304px; max-width:100%; min-width:0; }
+.cap{ font-size:13.5px; color:var(--pmut); line-height:1.45; min-height:120px; }
+.cap b{ color:var(--pfg); }
+.mini-l{ font-size:12px; color:var(--pmut); margin:0 0 -4px; }
+.pick{ font-weight:600; color:var(--pfg); }
+
+/* ---------- app tokens (lib/theme.js, copied) ---------- */
+.lt{ --ground:#DDE0DB; --raised:#FFFFFF; --well:#EEF0EC; --line:#C3C7C0; --tick:#71766F;
+  --ink:#111315; --ink2:#454A4F; --ink3:#53585D; --onInk:#FFFFFF; --data:#2350D8; --onData:#FFFFFF;
+  --act:#111315; --onAct:#FFFFFF; --risk:#9E1F19; --scrim:rgba(0,0,0,0.45); --dot:#2F6FB0; --hlA:#2350D8; }
+.dk{ --ground:#121416; --raised:#282B30; --well:#1D2024; --line:#3C4147; --tick:#747A7F;
+  --ink:#EEEFEB; --ink2:#B5B9B4; --ink3:#9A9F9A; --onInk:#121416; --data:#8AA8FF; --onData:#0F1114;
+  --act:#EEEFEB; --onAct:#121416; --risk:#F08A80; --scrim:rgba(0,0,0,0.45); --dot:#6FA6DE; --hlA:#8AA8FF; }
+
+/* ---------- phone: real point sizes of screens/ProtocolsScreen.js, drawn at 78% ---------- */
+.ph{ zoom:.78; width:390px; height:844px; border-radius:46px; overflow:hidden; position:relative; flex:none;
+  background:var(--ground); color:var(--ink); border:1px solid var(--line);
+  font-family:-apple-system, system-ui, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing:antialiased; }
+.ph.tall{ height:auto; min-height:844px; padding-bottom:34px; }
+.ph.short{ height:auto; border-radius:26px; padding:14px 16px; }
+.sb{ height:54px; display:flex; align-items:center; padding:0 34px; font-size:17px; font-weight:600; }
+.nav{ display:flex; align-items:center; justify-content:space-between; min-height:44px; padding:6px 18px 0; margin-bottom:14px; gap:12px; background:var(--ground); position:relative; z-index:2; }
+.back{ display:flex; align-items:center; gap:6px; font-size:17px; min-height:44px; }
+.back svg{ transform:scaleX(-1); }
+.addBtn{ min-height:40px; border-radius:20px; background:var(--act); color:var(--onAct); padding:0 16px; display:flex; align-items:center; font-size:15px; font-weight:700; }
+.fade{ position:absolute; left:0; right:0; top:118px; height:22px; background:linear-gradient(var(--ground),transparent); z-index:1; }
+.scroll{ padding:0 16px; display:flex; flex-direction:column; gap:14px; }
+.secth{ padding:0 4px; font-size:15px; font-weight:600; color:var(--ink2); }
+.blkD{ display:flex; flex-direction:column; gap:10px; }
+.next{ margin-top:12px; }
+.hobj{ background:var(--raised); border-radius:26px; padding:18px; display:flex; flex-direction:column; gap:10px; }
+.vialHead{ font-size:17px; font-weight:600; font-variant-numeric:tabular-nums; }
+.vialSub{ font-size:15px; color:var(--ink2); font-variant-numeric:tabular-nums; }
+.vbtns{ display:flex; gap:10px; }
+.obtn2{ min-height:50px; border-radius:25px; background:var(--well); display:flex; align-items:center; justify-content:center; gap:8px; font-size:17px; font-weight:700; color:var(--ink); flex:1; }
+.rows{ background:var(--raised); border-radius:22px; padding:0 16px; }
+.rw{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; min-height:50px; padding:13px 0; }
+.rw.tap{ align-items:center; }
+.rw + .rw, .sep{ border-top:1px solid var(--line); }
+.rw.withNote{ min-height:0; padding-bottom:4px; }
+.rwKey{ font-size:17px; color:var(--ink2); flex-shrink:1; }
+.rwVal{ font-size:17px; font-weight:600; color:var(--ink); text-align:right; flex-shrink:0; max-width:60%; }
+.mono{ font-family:"Geist Mono",ui-monospace,monospace; font-weight:500; }
+.muted{ font-weight:400; color:var(--ink2); }
+.tapEnd{ display:flex; align-items:center; gap:8px; flex-shrink:0; max-width:60%; }
+.tapEnd .rwVal{ max-width:100%; flex-shrink:1; }
+.mark{ color:var(--ink2); font-weight:500; }
+.calcNote{ font-size:13px; line-height:18px; color:var(--ink3); font-variant-numeric:tabular-nums; padding-bottom:12px; }
+/* CollapsibleSection (components/CollapsibleSection.js) */
+.cs{ background:var(--raised); border-radius:22px; overflow:hidden; }
+.cs-h{ display:flex; align-items:center; gap:12px; min-height:56px; padding-left:16px; }
+.cs-t{ flex:1; display:flex; flex-direction:column; gap:2px; padding:12px 0; }
+.cs-title{ font-size:17px; font-weight:600; color:var(--ink); }
+.cs-sum{ font-size:14px; color:var(--ink2); font-variant-numeric:tabular-nums; }
+.cs-chev{ padding:0 16px 0 4px; display:flex; align-items:center; align-self:stretch; }
+.cs-b{ border-top:1px solid var(--line); }
+.cs-b .rows{ border-radius:0; }
+.why{ border-top:1px solid var(--line); padding:12px 16px 16px; display:flex; flex-direction:column; gap:6px; }
+.why-h{ font-size:13px; line-height:18px; font-weight:600; color:var(--ink2); }
+.why-p{ font-size:13px; line-height:18px; color:var(--ink3); margin:0; }
+.endRow{ background:var(--raised); border-radius:22px; min-height:56px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; color:var(--risk); }
+.danger{ min-height:50px; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:600; color:var(--risk); }
+.hl{ outline:2.5px dashed var(--hlA); outline-offset:4px; }
+/* DTActionSheet (screens/components/ProtocolParts.js) */
+.scrim{ position:absolute; inset:0; background:var(--scrim); z-index:5; display:flex; flex-direction:column; justify-content:flex-end; padding:8px 8px 30px; }
+.actWrap{ display:flex; flex-direction:column; gap:8px; }
+.actGroup{ background:var(--raised); border-radius:18px; overflow:hidden; }
+.actHead{ padding:14px 18px; display:flex; flex-direction:column; gap:2px; text-align:center; }
+.actHeading{ font-size:13px; line-height:18px; font-weight:600; color:var(--ink); }
+.actTitle{ font-size:13px; line-height:18px; color:var(--ink2); }
+.actOpt{ min-height:56px; display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--ink); border-top:1px solid var(--line); text-align:center; padding:0 12px; }
+.actGroup.cancel .actOpt{ border-top:0; font-weight:700; }
+</style>
+</head>
+<body>
+<h1>Cobre acumulado no ciclo do GHK-Cu</h1>
+<p class="lead">Ideia aprovada em 11/11 ("Ok para as duas ideias"): a página de um protocolo de GHK-Cu soma o cobre das doses que a pessoa marcou como concluídas no ciclo. Mostra só a conta e como ela é feita, sem dizer se a quantidade é muita ou pouca, sem limites e sem faixas de referência. Exemplo: GHK-Cu 2 mg por dose, frasco de 50 mg, ciclo iniciado em 3 de nov., 18 doses concluídas até hoje (24 de nov.). A linha azul tracejada marca o que muda.</p>
+
+<div class="box">
+  <h3>Como a conta é feita</h3>
+  <p>Cobre = soma do GHK-Cu das doses concluídas × a parte do peso que é cobre. Exemplo: 18 doses × 2 mg = 36 mg de GHK-Cu; 36 mg × 15,8% = <b>5,69 mg de cobre</b> (0,32 mg por dose).</p>
+  <p>O percentual sai da fórmula de cada forma, com cobre = 63,546 g/mol:</p>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>Forma escrita no rótulo</th><th>Fórmula</th><th>g/mol</th><th>Cobre</th></tr>
+    <tr><td>GHK-Cu (complexo 1:1, um cobre por GHK). É o que a maioria dos certificados dos frascos traz (401,9 a 403,9 g/mol)</td><td class="n">C14H22CuN6O4</td><td class="n">401,9</td><td class="n">15,8%</td></tr>
+    <tr><td>GHK-Cu acetato (o complexo com uma molécula de acetato)</td><td class="n">C14H22CuN6O4·C2H4O2</td><td class="n">462,0</td><td class="n">13,8%</td></tr>
+    <tr><td>Acetato de prezatida de cobre (dois GHK por cobre, o nome farmacêutico)</td><td class="n">C32H54CuN12O12</td><td class="n">862,4</td><td class="n">7,4%</td></tr>
+    <tr><td>GHK sem cobre (referência)</td><td class="n">C14H24N6O4</td><td class="n">340,4</td><td class="n">0%</td></tr>
+  </table></div>
+  <p class="m">Fontes: NCATS / GSRS (GHK 340,38 g/mol; acetato de prezatida de cobre 862,39 g/mol), <a href="https://drugs.ncats.io/substance/A3LEI4P1NB">drugs.ncats.io</a>; Cayman Chemical, item 28259, "GHK-Cu (acetate)" C14H22CuN6O4 • C2H4O2, <a href="https://www.caymanchem.com/product/28259">caymanchem.com</a>; complexo C14H22CuN6O4, 401,91 g/mol, <a href="https://en.wikipedia.org/wiki/Copper_peptide_GHK-Cu">Copper peptide GHK-Cu</a> e certificados de análise de fornecedores. As contas de peso foram refeitas com os pesos atômicos padrão. O percentual muda com a forma (de 15,8% a 7,4%, metade), e por isso existem as duas opções abaixo.</p>
+</div>
+
+<div class="box">
+  <h3>O que é "ciclo" (como o app já funciona)</h3>
+  <p>Ciclo = uma rodada do protocolo: começa na data de início dele e vai até ele ser encerrado. "Retomar" um protocolo encerrado já cria uma rodada nova que começa hoje (o próprio app avisa: "Um novo ciclo começa hoje; o ciclo anterior fica no histórico"). Então a soma volta a zero ao retomar, e a rodada anterior guarda a soma dela na sua página em Encerrados (título "Cobre no ciclo", só leitura). "Continuar" depois de "Ciclo concluído" mantém o mesmo ciclo.</p>
+  <p class="m">Entram só as doses marcadas como concluídas nessa rodada, cada uma com a quantidade gravada nela (uma dose alterada com "Alterar dose" conta com o valor novo). Doses puladas ou perdidas não entram. O passado estimado de antes do cadastro (resposta "Sim" à pergunta da data de início) não é registro de dose e também não entra. Doses em mcg são convertidas e a soma é mostrada em mg.</p>
+</div>
+
+<div id="out"></div>
+
+<div class="box">
+  <h3>Minha escolha: B</h3>
+  <p>Para quem tem o frasco mais comum, o número é igual nas duas opções. Para quem tem um frasco com acetato no rótulo, a B mostra o número certo, enquanto a A só avisa que a conta dá mais do que o real. Isso segue o "o mais próximo da realidade possível, não brincar com os números" (11/11). O custo da B: um campo novo salvo no protocolo e sincronizado, ou seja, uma migração no Supabase.</p>
+  <h3>Perguntas que só você pode responder</h3>
+  <p>1. A ou B?</p>
+  <p>2. Misturas que têm GHK-Cu (GLOW, KLOW): somar o cobre delas também? A quantidade de GHK-Cu numa mistura vem da receita comum (50 mg de 80 mg no KLOW), que muda de fornecedor para fornecedor, e o app nunca lê o rótulo da mistura. Minha sugestão: por ora, só protocolos de GHK-Cu puro.</p>
+</div>
+
+<script>
+(function(){
+  const chevR = (col) => `<svg width="9" height="15" viewBox="0 0 10 16"><path d="M2 2l6 6-6 6" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const fold = (open) => `<svg width="15" height="9" viewBox="0 0 16 10"><path d="${open ? 'M2 8l6-6 6 6' : 'M2 2l6 6 6-6'}" fill="none" stroke="var(--ink3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const repeat = `<svg width="18" height="18" viewBox="0 0 1024 1024" fill="none" stroke="var(--ink)" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"><path d="M336 424 H616 A120 120 0 0 1 616 664"/><path d="M556 604 L616 664 L676 604"/><path d="M688 600 H408 A120 120 0 0 1 408 360"/><path d="M468 420 L408 360 L348 420"/></svg>`;
+  const cells = () => { // 25 doses in the vial, 7 left (filled in data), as VialCells
+    const total = 25, left = 7, W = 318, pitch = W / total, w = pitch - 2.6; let r = '';
+    for (let k = 0; k < total; k++) { const f = k < left; r += `<rect x="${(k * pitch + .5).toFixed(2)}" y="0.5" width="${w.toFixed(2)}" height="9" rx="2" fill="${f ? 'var(--data)' : 'none'}" stroke="${f ? 'var(--data)' : 'var(--tick)'}" stroke-width="1"/>`; }
+    return `<svg width="${W + 1}" height="10">${r}</svg>`;
+  };
+  const top = () => `<div class="sb">9:41</div>
+    <div class="nav"><div class="back">${chevR('var(--ink)')}<span>Protocolos</span></div><div class="addBtn">Editar</div></div>
+    <div class="fade"></div>`;
+  const vial = `<div class="blkD"><div class="secth">Frasco</div><div class="hobj">${cells()}
+      <div class="vialHead">7 de 25 doses restantes</div>
+      <div class="vialSub">Reconstituído 3 de nov. · 9 dias restantes</div>
+      <div class="vbtns"><div class="obtn2">Editar frasco</div><div class="obtn2">${repeat}Novo frasco</div></div></div></div>`;
+  const schedule = `<div class="blkD next"><div class="secth">Horários e lembretes</div><div class="rows">
+      <div class="rw"><span class="rwKey">Frequência</span><span class="rwVal">Todo dia</span></div>
+      <div class="rw"><span class="rwKey">Lembrete</span><span class="rwVal mono">21:00</span></div>
+      <div class="rw tap"><span class="rwKey">Termina em</span><span class="tapEnd"><span class="rwVal muted">Sem data</span>${chevR('var(--tick)')}</span></div>
+    </div></div>`;
+  const remind = `<div class="obtn2" style="flex:none">+ Lembrete</div>`;
+  const doseDet = `<div class="cs next"><div class="cs-h"><div class="cs-t"><span class="cs-title">Detalhes da dose</span><span class="cs-sum">2 mg</span></div><div class="cs-chev">${fold(false)}</div></div></div>`;
+  const notes = `<div class="cs next"><div class="cs-h"><div class="cs-t"><span class="cs-title">Notas</span><span class="cs-sum">Nenhuma nota</span></div><div class="cs-chev">${fold(false)}</div></div></div>`;
+  const tail = `<div class="endRow">Encerrar protocolo</div><div class="danger">Excluir protocolo</div>`;
+  const copperClosed = (hl) => `<div class="cs next${hl ? ' hl' : ''}"><div class="cs-h"><div class="cs-t"><span class="cs-title">Cobre neste ciclo</span><span class="cs-sum">5,69 mg · 18 doses</span></div><div class="cs-chev">${fold(false)}</div></div></div>`;
+  const disclaimer = `<p class="why-p">É aritmética a partir do que você registrou; o DoseTrace não avalia a quantidade.</p>`;
+  const copperOpen = (opt) => `<div class="cs next hl"><div class="cs-h"><div class="cs-t"><span class="cs-title">Cobre neste ciclo</span><span class="cs-sum">5,69 mg · 18 doses</span></div><div class="cs-chev">${fold(true)}</div></div>
+    <div class="cs-b"><div class="rows">
+      <div class="rw"><span class="rwKey">Início do ciclo</span><span class="rwVal">3 de nov.</span></div>
+      <div class="rw"><span class="rwKey">Doses concluídas</span><span class="rwVal mono">18</span></div>
+      <div class="rw"><span class="rwKey">GHK-Cu nas doses</span><span class="rwVal mono">36&nbsp;mg</span></div>
+      ${opt === 'B' ? `<div class="rw tap"><span class="rwKey">Forma no rótulo</span><span class="tapEnd"><span class="rwVal">Complexo GHK-Cu</span>${chevR('var(--tick)')}</span></div>` : ''}
+      <div class="sep"><div class="rw withNote"><span class="rwKey">Cobre elementar</span><span class="rwVal mono">5,69&nbsp;mg<span class="mark">*</span></span></div>
+      <div class="calcNote">36 mg × 15,8% = 5,69 mg</div></div>
+    </div>
+    <div class="why"><span class="why-h">Como é calculado</span>
+      ${opt === 'B'
+        ? `<p class="why-p">Soma das doses marcadas como concluídas desde o início deste ciclo, cada uma com a quantidade registrada nela; doses puladas ou perdidas não entram. O percentual de cobre vem da forma escrita no rótulo: no complexo GHK-Cu (C14H22CuN6O4, 401,9 g/mol), o átomo de cobre (63,55 g/mol) é 15,8% do peso. Ao retomar o protocolo, um novo ciclo começa do zero.</p>`
+        : `<p class="why-p">Soma das doses marcadas como concluídas desde o início deste ciclo, cada uma com a quantidade registrada nela; doses puladas ou perdidas não entram. O cobre é 15,8% do peso do GHK-Cu: o complexo (C14H22CuN6O4, 401,9 g/mol) tem um átomo de cobre (63,55 g/mol). Se o rótulo indicar outra forma, como acetato, a parte de cobre é menor. Ao retomar o protocolo, um novo ciclo começa do zero.</p>`}
+      ${disclaimer}
+    </div></div></div>`;
+
+  const today = (th) => `<div class="ph tall ${th}">${top()}<div class="scroll">${vial}${schedule}${remind}${doseDet}${notes}${tail}</div></div>`;
+  const optPhone = (th, opt) => `<div class="ph tall ${th}">${top()}<div class="scroll">${remind}${doseDet}${copperOpen(opt)}${notes}${tail}</div></div>`;
+  const miniClosed = (th) => `<p class="mini-l">Como chega (fechada, a cada visita):</p><div class="ph short ${th}">${copperClosed(true).replace(' next', '')}</div>`;
+  const sheetPhone = (th) => `<p class="mini-l">Ao tocar em "Forma no rótulo":</p><div class="ph ${th}">${top()}<div class="scroll">${remind}${doseDet}${copperOpen('B')}</div>
+    <div class="scrim"><div class="actWrap">
+      <div class="actGroup hl"><div class="actHead"><span class="actHeading">Forma no rótulo</span><span class="actTitle">Escolha a forma escrita no rótulo do frasco. Ela muda só o percentual de cobre da conta.</span></div>
+        <div class="actOpt">Complexo GHK-Cu · 15,8%</div>
+        <div class="actOpt">GHK-Cu acetato · 13,8%</div>
+        <div class="actOpt">Acetato de prezatida de cobre · 7,4%</div></div>
+      <div class="actGroup cancel"><div class="actOpt">Cancelar</div></div>
+    </div></div></div>`;
+
+  const capToday = `<div class="cap"><b>App hoje</b><br>A página do GHK-Cu (rolada até o fim) não soma nada: a quantidade de cobre não aparece em lugar nenhum. As seções secundárias chegam fechadas.</div>`;
+  const capA = `<div class="cap"><b>Opção A · percentual fixo</b><br>Seção nova "Cobre neste ciclo", entre "Detalhes da dose" e "Notas". Chega fechada, com a soma no resumo. Aberta: início do ciclo, doses concluídas, GHK-Cu somado e o cobre, com a conta embaixo. Usa sempre 15,8% (o complexo, a forma mais comum); o texto avisa que outra forma, como acetato, dá menos cobre.</div>`;
+  const capB = `<div class="cap"><b>Opção B · forma escolhida</b><br>Igual à A, com uma linha a mais: "Forma no rótulo", que já vem no complexo GHK-Cu (15,8%). Quem tiver no rótulo acetato (13,8%) ou acetato de prezatida de cobre (7,4%) troca ali, e a conta é refeita. Exige um campo novo no protocolo, sincronizado.</div>`;
+
+  const block = (th, label) => `<h2>${label}</h2><div class="row">
+    <div class="col">${capToday}${today(th)}</div>
+    <div class="col">${capA}${miniClosed(th)}${optPhone(th, 'A')}</div>
+    <div class="col">${capB}${miniClosed(th)}${optPhone(th, 'B')}${sheetPhone(th)}</div>
+  </div>`;
+  document.getElementById('out').innerHTML = block('lt', 'Tema claro') + block('dk', 'Tema escuro');
+})();
+</script>
+</body>
+</html>
