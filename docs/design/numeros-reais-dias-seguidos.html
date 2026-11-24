@@ -1,0 +1,349 @@
+<title>Dias com comida</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one block per moment; each block has a light row and a dark row of phones (App hoje | Proposta). The page follows the viewer's theme. */
+:root{
+  --page:#F1F2EF;--pfg:#15171A;--pmut:#5B6066;--pline:#D5D8D2;--pcard:#FFFFFF;
+  /* app tokens, light (lib/theme.js LIGHT) */
+  --g:#DDE0DB;--r:#FFFFFF;--w:#EEF0EC;--ln:#C3C7C0;--tick:#71766F;
+  --ink:#111315;--ink2:#454A4F;--ink3:#53585D;--data:#2350D8;--onData:#FFFFFF;
+  --act:#111315;--onAct:#FFFFFF;--scrim:rgba(0,0,0,0.45);
+  --sans:"Geist",-apple-system,"Segoe UI",Roboto,sans-serif;--mono:"Geist Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;--pcard:#16181B;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0C0D0F;--pfg:#ECEDEF;--pmut:#9AA0A8;--pline:#2A2E33;--pcard:#16181B;color-scheme:dark}
+/* app tokens, dark (lib/theme.js DARK) */
+.dk{--g:#121416;--r:#282B30;--w:#1D2024;--ln:#3C4147;--tick:#747A7F;
+  --ink:#EEEFEB;--ink2:#B5B9B4;--ink3:#9A9F9A;--data:#8AA8FF;--onData:#0F1114;--act:#EEEFEB;--onAct:#121416}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--pfg);font-family:var(--sans);margin:0;
+  padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:24px;margin:0 0 8px;text-wrap:balance}
+p.lead{color:var(--pmut);max-width:72ch;margin:0 0 8px;line-height:1.5;font-size:15px}
+.part{font-size:21px;font-weight:700;margin:48px 0 0;padding-top:16px;border-top:1px solid var(--pline)}
+h2{font-size:17px;font-weight:650;margin:28px 0 4px}
+h3{font-size:12px;font-weight:600;color:var(--pmut);margin:16px 0 10px;text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0;width:300px;max-width:100%}
+.cap{font-size:13px;color:var(--pmut);line-height:1.4;min-height:36px}
+.cap b{color:var(--pfg);font-weight:600}
+
+/* phone */
+.ph{width:100%;background:var(--g);border-radius:30px;border:1px solid var(--pline);position:relative;overflow:hidden;
+  padding:20px 14px 18px;color:var(--ink);display:flex;flex-direction:column;gap:12px;font-family:var(--sans)}
+.ttl{font-size:24px;font-weight:700;letter-spacing:-.01em;line-height:1.15;margin:2px 4px 0}
+.stub{background:var(--r);border-radius:20px;padding:12px 16px;display:flex;justify-content:space-between;align-items:baseline;opacity:.55}
+.stub .l{font-size:13px;color:var(--ink2)}.stub .v{font-family:var(--mono);font-size:15px}
+.card{background:var(--r);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.hd{display:flex;align-items:center;gap:8px}
+.hd svg{width:22px;height:22px;color:var(--ink2);flex:none}
+.hd .t{font-size:17px;font-weight:650;flex:1}
+.body{font-size:14.5px;line-height:1.38;color:var(--ink)}
+.strong{font-weight:650}
+.sec2{font-size:13px;line-height:1.4;color:var(--ink2);font-variant-numeric:tabular-nums}
+.foot2{font-size:12px;line-height:1.4;color:var(--ink3)}
+.mono{font-family:var(--mono)}
+.link{font-size:13px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.links{display:flex;gap:18px;flex-wrap:wrap}
+.links .risk{color:var(--ink2);text-decoration:underline;text-underline-offset:3px;font-size:13px}
+.fold{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--ln);padding-top:10px;font-size:14px}
+.fold .chev{width:8px;height:8px;border-right:1.6px solid var(--ink3);border-bottom:1.6px solid var(--ink3);transform:rotate(-45deg);margin-right:4px}
+.fold .s{font-size:12px;color:var(--ink3);margin-right:8px;white-space:nowrap}
+.btnP{min-height:44px;border-radius:22px;background:var(--act);color:var(--onAct);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;padding:0 16px}
+.btnO{min-height:44px;border-radius:22px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14.5px;color:var(--ink)}
+.new{outline:2px dashed var(--data);outline-offset:3px;border-radius:12px}
+.blk{background:var(--w);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.blk .k{font-size:13px;color:var(--ink2);line-height:1.38}
+.blk .k b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
+/* 21-day calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .h{font-size:10px;color:var(--ink3);text-align:center}
+.cal .h.we{color:var(--ink);font-weight:650}
+.cal .d{height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--ink3)}
+.d.lg{background:var(--data);color:var(--onData);font-weight:600}
+.d.em{border:1.5px solid var(--ink3);color:var(--ink)}
+.d.td{border:1.5px dashed var(--data);color:var(--ink);font-weight:600}
+.d.fu{background:var(--r);color:var(--ink3)}
+.d.out{visibility:hidden}
+.d.pick{border:2px solid var(--ink);font-weight:700}
+.calkey{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10.5px;color:var(--ink3)}
+.calkey span{display:inline-flex;align-items:center;gap:4px}
+.calkey i{display:inline-block;width:10px;height:10px;border-radius:3px}
+/* number rows */
+.nums{display:flex;flex-direction:column;border-radius:14px;background:var(--w);padding:4px 12px}
+.nr{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--ln);align-items:baseline}
+.nr:first-child{border-top:0}
+.nr .l{font-size:12.5px;color:var(--ink2);line-height:1.3;flex:1}
+.nr .v{font-family:var(--mono);font-size:13px;text-align:right;white-space:nowrap}
+.nr .v small{display:block;font-family:var(--sans);font-size:10.5px;color:var(--ink3);white-space:normal}
+.nf{font-size:16px;font-weight:700}
+.lh{font-size:13px;font-weight:650;margin-top:2px}
+ul.rs{margin:0;padding-left:18px;font-size:13px;line-height:1.45;color:var(--ink2)}
+ul.rs li{margin:2px 0}
+/* sheet */
+.dim{opacity:.35;display:flex;flex-direction:column;gap:12px}
+.scrim{position:absolute;inset:0;background:var(--scrim)}
+.sheet{position:relative;margin:-150px -14px -18px;background:var(--r);border-radius:24px 24px 0 0;padding:10px 16px 20px;display:flex;flex-direction:column;gap:10px;z-index:1}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--ln);align-self:center;margin-bottom:4px}
+
+/* legend */
+.note{max-width:78ch;color:var(--pmut);font-size:14.5px;line-height:1.55;margin-top:12px}
+.note li{margin-bottom:7px}.note b{color:var(--pfg)}
+.tw{overflow-x:auto;margin-top:12px;border:1px solid var(--pline);border-radius:12px;background:var(--pcard)}
+table{border-collapse:collapse;font-size:12.5px;min-width:1200px;width:100%}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--pline);line-height:1.4}
+th{font-weight:600;color:var(--pmut);border-top:0;font-size:12px}
+td.k{font-family:var(--mono);font-size:11px;color:var(--pmut);white-space:nowrap}
+tr.sep td{background:var(--page);font-weight:600;color:var(--pfg);font-family:var(--sans);font-size:12.5px}
+</style>
+
+<h1>Seus números reais: dias com comida e "os números não fecham"</h1>
+<p class="lead">Duas mudanças. <b>A</b>: a medição deixa de pedir 7 dias seguidos. Conta todo dia com comida registrada dentro dos 21 dias, faz a média só desses dias e fica pronta com pelo menos 7 dias, sendo pelo menos 1 sábado ou domingo. <b>B</b>: quando o resultado sai, o app compara o que foi registrado com o que a balança mostrou e, se a diferença for grande, mostra os números lado a lado e diz, com essas palavras, que os números não fecham.</p>
+<p class="lead">Pesos e calorias são de exemplo. As linhas novas estão marcadas com contorno tracejado azul (só no desenho). As datas aparecem como o cartão já as escreve ("22 de nov.").</p>
+
+<div id="out"></div>
+
+<div class="part">Como funciona</div>
+<h2>A · Dias com comida registrada</h2>
+<div class="note"><ul>
+<li><b>O que conta:</b> cada dia da medição com comida registrada (ou fechado com "Não comi nada"), seguidos ou não. A média é a soma desses dias dividida pelo número deles. Um dia sem registro fica de fora: nunca entra como zero, nunca é inventado.</li>
+<li><b>Quando fica pronto:</b> com a pesagem final feita e pelo menos 7 dias registrados, sendo pelo menos 1 sábado ou domingo (o fim de semana costuma ser diferente dos outros dias). O cartão diz isso numa linha: "Dias com comida registrada: 6 de 21 (mínimo 7, com pelo menos 1 de fim de semana)". Com 7 ou mais dias e nenhum de fim de semana, aparece também "Falta um sábado ou domingo com comida registrada".</li>
+<li><b>Quais dias:</b> só os dias da medição, do início até a pesagem final, porque a conta compara a comida com a mudança de peso desse mesmo período. Depois da pesagem final, um dia novo não entra; os dias que faltaram ainda podem ser registrados dentro do prazo de 7 dias. Hoje entra quando o dia é fechado com "Por hoje é só".</li>
+<li><b>Dia que faltou:</b> o cartão mostra o dia sem registro mais recente que ainda está no prazo, com "Registrar {dia}" (abre o chat de comida já nesse dia, com o aviso que o app já usa: "Registrando para dom., 22 de nov.") e "Você pode registrar esse dia até {dia + 7}". Se o que falta é o fim de semana, mostra o sábado ou domingo sem registro mais recente. Fora do prazo, nada de botão.</li>
+<li><b>O calendário</b> mostra os 21 dias em semanas de segunda a domingo: azul tem comida, contorno é um dia sem registro, tracejado é hoje (ainda aberto), cinza é o que ainda vem. São só os registros da pessoa, sem julgamento.</li>
+<li><b>No resultado:</b> "Com base no seu registro de comida: média de 14 dias registrados de 21". O resultado é calculado e guardado na hora, como hoje; um dia registrado depois disso não muda um resultado já guardado.</li>
+<li><b>A conta dele (24 de nov.):</b> 16 a 21 e 23 de nov. são 7 dias registrados, e 21 de nov. é um sábado. Pela regra nova o resultado já sai, sem ele fazer nada (isso se esses dias estiverem dentro da medição; a data de início dele não foi conferida).</li>
+<li><b>7 dias grátis:</b> continuam fechando a conta. 7 dias de registro seguidos sempre incluem um sábado ou domingo.</li>
+</ul></div>
+
+<h2>B · Os números não fecham</h2>
+<div class="note"><ul>
+<li><b>A conta:</b> gasto medido = média registrada + (peso inicial − peso final) × 7.700 ÷ dias da medição (a mesma constante de lib/energyCalc.js, realityCheckTDEE). Peso previsto pela fórmula = (média registrada − gasto estimado pela fórmula) × dias ÷ 7.700. No exemplo, com 21 dias: 1.000 − 2.000 = −1.000 kcal/dia × 21 ÷ 7.700 = <b>−2,7 kg</b> previstos. A balança mostrou +0,2 kg. Gasto medido (só para o gatilho, nunca na tela): 1.000 − 0,2 × 7.700 ÷ 21 ≈ 930 kcal/dia. (Com 14 dias, como no exemplo do Evandro, a previsão seria −1,8 kg; a medição dura 21 dias, por isso −2,7.)</li>
+<li><b>Quando aparece (proposta):</b> nas duas condições juntas: (1) o gasto medido fica <b>abaixo de 75%</b> do estimado pela fórmula; (2) o peso que a conta previa e o da balança diferem em <b>mais de 1,5 kg</b>. Por quê: a fórmula do perfil costuma errar até uns 10% no repouso e o nível de atividade soma mais erro; por isso uns 20% de diferença ainda são normais, e 25% já passam disso. A balança pode variar 1 a 2 kg de um dia para o outro só com água e sal; abaixo de 1,5 kg a diferença pode ser só a pesagem de um dia. O exemplo passa nas duas (47% e 2,9 kg).</li>
+<li><b>Como entra no lugar do aviso atual:</b> hoje, abaixo de 1.000 kcal/dia o app mostra cal_rc_implausible ("registre o consumo com mais cuidado", "as pessoas subestimam em 20-40%") e encerra sem resultado. A proposta troca esse texto por "Os números não fecham", que mostra os números da pessoa, a conta, os motivos comuns e o profissional de saúde, sem dizer o que ela deve fazer. Abaixo de 1.000 kcal/dia, a folha aparece sempre (mesmo sem as duas condições). Sem perfil preenchido não há estimativa pela fórmula: vale só o limite de 1.000, a folha sai sem as linhas da fórmula, e a linha do profissional de saúde aparece do mesmo jeito.</li>
+<li><b>Onde aparece:</b> uma folha, uma vez só, quando a medição fecha, com o botão "Entendi"; depois, o mesmo texto fica no cartão, sem botão principal (só o link "Começar de novo"), até uma medição nova começar.</li>
+<li><b>Nunca vai para o plano:</b> nos dois lados, a medição que não fecha não gera gasto medido e o plano continua com o gasto estimado. Não há opção de "usar mesmo assim".</li>
+<li><b>Caso contrário (gasto medido muito ACIMA da fórmula):</b> também precisa de mensagem, porque um número alto demais aumentaria as calorias do plano. Proposta: gasto medido acima de 135% do estimado e diferença de peso de mais de 1,5 kg, ou acima de 5.000 kcal/dia. A margem é maior desse lado porque quem treina muito costuma ter o nível de atividade do perfil abaixo do real. Os motivos de registro são outros (itens registrados em dobro, porções menores que as registradas); os da balança são os mesmos.</li>
+<li><b>No app, só ficam internos:</b> os limites (75%, 135%, 1,5 kg), o gasto medido calculado e qualquer porcentagem. A folha e o cartão mostram só as quatro linhas dela: média registrada, estimativa pela fórmula, o que a conta previa e o que a balança mostrou.</li>
+<li><b>Na construção:</b> cal_rc_implausible e cal_rc_implausible_high são apagadas nos 6 idiomas (refazer é substituir); os casos delas passam a ser "Os números não fecham".</li>
+<li><b>Limite (Apple 1.4.1):</b> nenhum diagnóstico e nenhuma insinuação de doença, hormônio ou metabolismo; nenhum conselho sobre o que comer; nenhuma culpa ("costuma ficar de fora", nunca "você esqueceu"). Só os números da pessoa lado a lado, a conta, motivos comuns de registro e de balança, e o profissional de saúde. "Ciclo menstrual" aparece só quando o perfil diz feminino ou não diz o sexo.</li>
+<li>Cores só dos tokens do app (lib/theme.js), nos dois temas: nenhum ícone de alerta, nenhum vermelho ou âmbar, nenhum "Atenção". Nada de emoji.</li>
+</ul></div>
+
+<h2>O que mudou depois das revisões (B)</h2>
+<div class="note"><ul>
+<li><b>Sem o número do resultado</b> (≈ 930 e ≈ 3.170 kcal/dia saíram da folha, do cartão de trás e do cartão): um número que o próprio app diz que não fecha não pode parecer um resultado.</li>
+<li><b>"Não gerou um gasto medido e não muda o gasto estimado no seu plano"</b>: diz o que acontece, sem deixar dúvida de que nada entra no plano, nos dois lados.</li>
+<li><b>Linha do profissional de saúde sempre, sem condição e sem esperar</b>: a revisão clínica pediu que não dependesse de "se os registros estiverem completos" nem de outra medição; a regulatória pediu que fale dos registros, nunca do corpo.</li>
+<li><b>"Entendi" é o único botão principal</b>, na folha; no cartão "Começar de novo" virou link: a folha é para ler, não para empurrar uma medição nova.</li>
+<li><b>Bebidas alcoólicas escritas por extenso</b> ("cerveja, vinho e outras bebidas alcoólicas"), no lugar de "álcool" solto na lista.</li>
+<li><b>"Água do corpo nas primeiras semanas" saiu do caso alto</b>: soava como retenção; ficou só "Água e sal", como no caso baixo.</li>
+<li><b>Ciclo menstrual</b> continua só para perfil feminino ou sem sexo; não há linha de sintomas de alerta.</li>
+</ul></div>
+
+<h2>Textos novos nos 6 idiomas</h2>
+<div class="tw"><table>
+<thead><tr><th>chave (proposta)</th><th>pt</th><th>en</th><th>es</th><th>fr</th><th>de</th><th>it</th></tr></thead>
+<tbody id="tr"></tbody>
+</table></div>
+
+<script>
+const ICON='<svg viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3v16M7 19h8M4 7h14M4 7l-2 5a2 2 0 004 0L4 7zM18 7l-2 5a2 2 0 004 0l-2-5z"/></svg>';
+const HD=`<div class="hd">${ICON}<span class="t">Seus números reais</span></div>`;
+const bar=(w)=>`<div class="ttl">Progresso</div><div class="stub"><span class="l">Peso atual</span><span class="v">${w}</span></div>`;
+const TAIL=`<div class="link">Informar minha média de calorias por dia</div>
+  <div class="fold"><span>Seus números reais até agora</span><span class="chev"></span></div>
+  <div class="links"><span class="link">Começar de novo</span><span class="risk">Parar a medição</span></div>`;
+
+/* ---------- A: example mid-check (start Tue 10 Nov, weigh-in 1 Dec, today Tue 24 Nov) ---------- */
+function calendar(){
+  const logged=new Set([11,12,14,17,18,20]);
+  const cells=[];
+  cells.push('<div class="d out"></div>'); // Mon 9 Nov: before the check
+  for(let d=10;d<=30;d++){
+    let k=d<24?(logged.has(d)?'lg':'em'):d===24?'td':'fu';
+    if(d===23) k+=' pick';
+    cells.push(`<div class="d ${k}">${d}</div>`);
+  }
+  for(let i=0;i<6;i++) cells.push('<div class="d out"></div>');
+  const hdr=['seg','ter','qua','qui','sex','sáb','dom'].map((x,i)=>`<div class="h ${i>4?'we':''}">${x}</div>`).join('');
+  return `<div class="cal" aria-hidden="true">${hdr}${cells.join('')}</div>
+  <div class="calkey"><span><i style="background:var(--data)"></i>com comida</span><span><i style="border:1.5px solid var(--ink3)"></i>sem registro</span><span><i style="border:1.5px dashed var(--data)"></i>hoje</span><span><i style="background:var(--r)"></i>ainda vem</span></div>`;
+}
+const START1=`<div class="sec2">①&nbsp;&nbsp;<span class="mono">92,4&nbsp;kg</span> · 10 de nov.</div>`;
+function a1Today(){
+  return bar('91,8 kg')+`<div class="card">${HD}
+  <div class="body">Em andamento · pesagem em 1 de dez.</div>${START1}
+  <div class="sec2">Seus números reais precisam de 7 dias seguidos com toda a comida registrada — 0 de 7 até agora.</div>
+  ${TAIL}</div>`;
+}
+function a1Prop(){
+  return bar('91,8 kg')+`<div class="card">${HD}
+  <div class="body">Em andamento · pesagem em 1 de dez.</div>${START1}
+  <div class="blk new">
+    <div class="k">Dias com comida registrada: <b>6 de 21</b> (mínimo 7, com pelo menos 1 de fim de semana)</div>
+    ${calendar()}
+    <div class="k">O dia 23 de nov. ficou sem registro de comida.</div>
+    <div class="btnP">Registrar 23 de nov.</div>
+    <div class="foot2">Você pode registrar esse dia até 30 de nov.</div>
+    <div class="k">Hoje entra na conta quando você tocar em “Por hoje é só”.</div>
+  </div>
+  ${TAIL}</div>`;
+}
+/* ---------- A: his account, 24 Nov ---------- */
+const START2=`<div class="sec2">①&nbsp;&nbsp;<span class="mono">92,4&nbsp;kg</span> · 2 de nov.</div>`;
+function a2Today(){
+  return bar('90,1 kg')+`<div class="card">${HD}
+  <div class="body">Peso registrado — faltam 6 dias seguidos de registro de comida para o seu resultado</div>${START2}
+  <div class="sec2">Seus números reais precisam de 7 dias seguidos com toda a comida registrada — 1 de 7 até agora.</div>
+  ${TAIL}</div>`;
+}
+function a2Prop(){
+  return bar('90,1 kg')+`<div class="card">${HD}
+  <div class="body">Seu gasto diário real fica em torno de <span class="mono">2.640 kcal/dia</span>.</div>
+  <div class="foot2 new">Com base no seu registro de comida: média de 7 dias registrados de 21</div>
+  <div class="fold"><span>Histórico das suas medições</span><span style="display:flex;align-items:center"><span class="s">1 medição</span><span class="chev"></span></span></div>
+  <div class="btnO">Pesar novamente em 21 dias</div></div>`;
+}
+
+/* ---------- B: numbers don't add up (check 2 Nov – 23 Nov, 21 days, 14 logged) ---------- */
+const LOWNUMS=`<div class="nums">
+  <div class="nr"><span class="l">Média registrada</span><span class="v">1.000 kcal/dia<small>14 de 21 dias registrados</small></span></div>
+  <div class="nr"><span class="l">Estimado pela fórmula (seu perfil)</span><span class="v">≈ 2.000 kcal/dia</span></div>
+  <div class="nr"><span class="l">Pela conta, a balança mostraria</span><span class="v">cerca de −2,7 kg</span></div>
+  <div class="nr"><span class="l">A balança mostrou</span><span class="v">+0,2 kg<small>80,0 → 80,2 kg</small></span></div>
+</div>`;
+const MATH=`<div class="foot2">A conta usa cerca de 7.700 kcal por kg e supõe que os dias sem registro foram parecidos com os registrados.</div>`;
+const FORMULA=`<div class="sec2">A fórmula usa o nível de atividade do seu perfil; se ele não corresponder ao seu dia a dia, a estimativa muda.</div>`;
+const PRO=`<div class="body">Para entender essa diferença, um profissional de saúde, como um médico ou nutricionista, pode avaliar seus registros com você. Não é preciso esperar outra medição.</div>`;
+const NOTUSED=`<div class="sec2">Como os números não fecham, esta medição não gerou um gasto medido e não muda o gasto estimado no seu plano.</div>`;
+const LOWWHY=`<div class="lh">O que costuma ficar de fora de um registro de comida</div>
+  <ul class="rs"><li>Bebidas: cerveja, vinho e outras bebidas alcoólicas, sucos, refrigerante, café com açúcar</li><li>Óleo, manteiga e molhos</li><li>Beliscos entre as refeições</li><li>Porções maiores do que as registradas</li><li>Dias de fim de semana sem registro</li></ul>
+  <div class="lh">O que costuma mexer na balança</div>
+  <ul class="rs"><li>Água e sal</li><li>Ciclo menstrual</li><li>Treino nos dias anteriores</li><li>Horário da pesagem</li></ul>${FORMULA}`;
+const START3=`<div class="sec2">①&nbsp;&nbsp;<span class="mono">80,0&nbsp;kg</span> · 2 de nov.</div>`;
+function b1Today(){
+  return bar('80,2 kg')+`<div class="card">${HD}
+  <div class="body">Encerrada · sem resultado</div>${START3}
+  <div class="sec2">Esse resultado ficou baixo demais, o que quase sempre significa que o consumo diário foi maior do que o lembrado (é bem documentado que as pessoas subestimam em 20-40%). Confie na estimativa acima e registre o consumo com mais cuidado.</div>
+  <div class="sec2">Esta medição foi encerrada. Você pode começar uma nova quando quiser.</div>
+  <div class="btnP">Começar de novo</div></div>`;
+}
+function b1Sheet(){
+  return `<div class="dim">${bar('80,2 kg')}<div class="card">${HD}<div class="body">Encerrada · os números não fecham</div></div></div>
+  <div class="scrim"></div>
+  <div class="sheet new" style="margin-top:-60px"><div class="grab"></div>
+    <div class="nf">Os números não fecham</div>
+    <div class="sec2">Nesta medição (2 de nov. a 23 de nov., 21 dias):</div>
+    ${LOWNUMS}${MATH}${NOTUSED}${LOWWHY}${PRO}
+    <div class="btnP">Entendi</div>
+  </div>`;
+}
+function b1Card(){
+  return bar('80,2 kg')+`<div class="card">${HD}
+  <div class="body new">Encerrada · os números não fecham</div>${START3}
+  <div class="new" style="display:flex;flex-direction:column;gap:10px">
+    <div class="sec2">Nesta medição (2 de nov. a 23 de nov., 21 dias):</div>
+    ${LOWNUMS}${MATH}${NOTUSED}${LOWWHY}${PRO}
+  </div>
+  <div class="links"><span class="link">Começar de novo</span></div></div>`;
+}
+/* opposite case: logged 2.000, formula 2.100, 80,0 -> 76,8 kg in 21 days -> measured ≈ 3.170 (151%) */
+function b2Card(){
+  return bar('76,8 kg')+`<div class="card">${HD}
+  <div class="body new">Encerrada · os números não fecham</div>
+  <div class="sec2">①&nbsp;&nbsp;<span class="mono">80,0&nbsp;kg</span> · 2 de nov.</div>
+  <div class="new" style="display:flex;flex-direction:column;gap:10px">
+    <div class="sec2">Nesta medição (2 de nov. a 23 de nov., 21 dias):</div>
+    <div class="nums">
+      <div class="nr"><span class="l">Média registrada</span><span class="v">2.000 kcal/dia<small>12 de 21 dias registrados</small></span></div>
+      <div class="nr"><span class="l">Estimado pela fórmula (seu perfil)</span><span class="v">≈ 2.100 kcal/dia</span></div>
+      <div class="nr"><span class="l">Pela conta, a balança mostraria</span><span class="v">cerca de −0,3 kg</span></div>
+      <div class="nr"><span class="l">A balança mostrou</span><span class="v">−3,2 kg<small>80,0 → 76,8 kg</small></span></div>
+    </div>${MATH}${NOTUSED}
+    <div class="lh">O que costuma pesar a mais num registro de comida</div>
+    <ul class="rs"><li>Itens registrados em dobro</li><li>Porções menores do que as registradas</li></ul>
+    <div class="lh">O que costuma mexer na balança</div>
+    <ul class="rs"><li>Água e sal</li><li>Ciclo menstrual</li><li>Treino nos dias anteriores</li><li>Horário da pesagem</li></ul>
+    ${FORMULA}${PRO}
+  </div>
+  <div class="links"><span class="link">Começar de novo</span></div></div>`;
+}
+
+const blocks=[
+  ['A','A · Dias com comida registrada'],
+  ['A1 · Durante a medição (exemplo: dia 15 de 21, hoje 24 de nov.)',[
+    [a1Today,'<b>App hoje</b>: "0 de 7", porque ontem ficou vazio; os 6 dias registrados não aparecem'],
+    [a1Prop,'<b>Proposta</b>: quantos dias contam, o que falta, o calendário dos 21 dias, o dia que faltou com o botão e o prazo, e quando hoje entra']]],
+  ['A2 · A conta dele, 24 de nov.: 7 dias registrados (16 a 21 e 23 de nov.), com o sábado 21',[
+    [a2Today,'<b>App hoje</b>: "1 de 7", porque 22 de nov. está vazio'],
+    [a2Prop,'<b>Proposta</b>: pela regra nova, o resultado já sai, e diz de quantos dias ele vem']]],
+  ['B','B · Os números não fecham'],
+  ['B1 · Exemplo: média registrada 1.000 kcal/dia, fórmula ≈ 2.000, 21 dias, 80,0 → 80,2 kg',[
+    [b1Today,'<b>App hoje</b>: abaixo de 1.000 kcal/dia, encerra sem resultado com um texto que manda registrar com mais cuidado'],
+    [b1Sheet,'<b>Proposta</b>: a folha, uma vez só, quando a medição fecha'],
+    [b1Card,'<b>Proposta</b>: o mesmo texto fica no cartão']]],
+  ['B2 · O caso contrário: gasto medido muito acima da fórmula',[
+    [b2Card,'<b>Proposta</b>: mesma estrutura, com os motivos desse lado (média 2.000, fórmula ≈ 2.100, 80,0 → 76,8 kg)']]],
+];
+let h='';
+for(const b of blocks){
+  if(typeof b[1]==='string'){ h+=`<div class="part">${b[1]}</div>`; continue; }
+  const [title,sets]=b;
+  h+=`<h2>${title}</h2>`;
+  for(const [cls,label] of [['','Tema claro'],['dk','Tema escuro']]){
+    h+=`<h3>${label}</h3><div class="row ${cls}">`+sets.map(([f,c])=>`<div class="col"><div class="cap">${c}</div><div class="ph">${f()}</div></div>`).join('')+`</div>`;
+  }
+}
+document.getElementById('out').innerHTML=h;
+
+const T=[
+ ['A · Dias com comida registrada'],
+ ['nutri_days_count','Dias com comida registrada: {n} de {total} (mínimo 7, com pelo menos 1 de fim de semana)','Days with food logged: {n} of {total} (at least 7, including 1 weekend day)','Días con comida registrada: {n} de {total} (mínimo 7, con al menos 1 de fin de semana)',"Jours avec repas notés : {n} sur {total} (au moins 7, dont 1 jour de week-end)",'Tage mit eingetragenem Essen: {n} von {total} (mindestens 7, davon 1 Wochenendtag)','Giorni con cibo registrato: {n} di {total} (almeno 7, di cui 1 nel fine settimana)'],
+ ['nutri_days_need_weekend','Falta um sábado ou domingo com comida registrada.','A Saturday or Sunday with food logged is still missing.','Falta un sábado o domingo con comida registrada.',"Il manque encore un samedi ou un dimanche avec repas notés.",'Es fehlt noch ein Samstag oder Sonntag mit eingetragenem Essen.','Manca ancora un sabato o una domenica con cibo registrato.'],
+ ['nutri_days_window','Contam os dias da medição, de {from} a {to}.','Only the days of this check count, {from} – {to}.','Cuentan los días de la medición, del {from} al {to}.','Seuls les jours de la mesure comptent, du {from} au {to}.','Es zählen die Tage der Messung, vom {from} bis {to}.','Contano i giorni della misurazione, dal {from} al {to}.'],
+ ['nutri_days_gap','O dia {date} ficou sem registro de comida.','No food was logged on {date}.','El {date} quedó sin comida registrada.',"Aucun repas n'a été noté le {date}.",'Am {date} ist kein Essen eingetragen.','Il {date} è rimasto senza cibo registrato.'],
+ ['nutri_days_gap_marked','O dia {date} está marcado como não registrado.','{date} is marked as not recorded.','El {date} está marcado como no registrado.','Le {date} est marqué comme non noté.','Der {date} ist als nicht erfasst markiert.','Il {date} è segnato come non registrato.'],
+ ['nutri_days_gap_cta','Registrar {date}','Log {date}','Registrar el {date}','Noter le {date}','{date} eintragen','Registra il {date}'],
+ ['nutri_days_gap_until','Você pode registrar esse dia até {date}.','You can log that day until {date}.','Puedes registrar ese día hasta el {date}.',"Vous pouvez noter ce jour-là jusqu'au {date}.",'Du kannst diesen Tag bis zum {date} eintragen.','Puoi registrare quel giorno fino al {date}.'],
+ ['nutri_days_gap_last','Hoje é o último dia para registrá-lo.','Today is the last day to log it.','Hoy es el último día para registrarlo.',"Aujourd'hui est le dernier jour pour le noter.",'Heute ist der letzte Tag, an dem du ihn eintragen kannst.',"Oggi è l'ultimo giorno per registrarlo."],
+ ['nutri_days_today','Hoje entra na conta quando você tocar em “Por hoje é só”.','Today counts once you tap “That’s all for today”.','Hoy cuenta cuando toques «Eso es todo por hoy».','Aujourd’hui compte dès que vous touchez « C’est tout pour aujourd’hui ».','Heute zählt, sobald du auf „Das war alles für heute“ tippst.','Oggi conta quando tocchi «È tutto per oggi».'],
+ ['cal_rc_sb_needs_food (troca "faltam N dias seguidos")','Peso registrado · aguardando 7 dias com comida registrada','Weight logged · waiting for 7 days with food logged','Peso registrado · a la espera de 7 días con comida registrada','Poids enregistré · en attente de 7 jours avec repas notés','Gewicht eingetragen · wartet auf 7 Tage mit eingetragenem Essen','Peso registrato · in attesa di 7 giorni con cibo registrato'],
+ ['cal_rc_src_food_days','Com base no seu registro de comida: média de {n} dias registrados de {total}','From your food log: average of {n} logged days out of {total}','Según tu registro de comida: media de {n} días registrados de {total}',"D'après votre journal alimentaire : moyenne de {n} jours notés sur {total}",'Basierend auf deinem Essensprotokoll: Durchschnitt aus {n} von {total} Tagen mit Eintrag','In base al tuo diario alimentare: media di {n} giorni registrati su {total}'],
+ ['B · Os números não fecham'],
+ ['cal_rc_nf_title','Os números não fecham',"The numbers don't add up",'Los números no cuadran','Les chiffres ne concordent pas','Die Zahlen gehen nicht auf','I numeri non tornano'],
+ ['cal_rc_sb_nf','Encerrada · os números não fecham',"Closed · the numbers don't add up",'Cerrada · los números no cuadran','Terminée · les chiffres ne concordent pas','Beendet · die Zahlen gehen nicht auf','Chiusa · i numeri non tornano'],
+ ['cal_rc_nf_not_used','Como os números não fecham, esta medição não gerou um gasto medido e não muda o gasto estimado no seu plano.',"Because the numbers don't add up, this check did not produce a measured burn and does not change the estimated burn in your plan.",'Como los números no cuadran, esta medición no generó un gasto medido y no cambia el gasto estimado de tu plan.',"Comme les chiffres ne concordent pas, cette mesure n'a pas donné de dépense mesurée et ne change pas la dépense estimée de votre plan.",'Weil die Zahlen nicht aufgehen, hat diese Messung keinen gemessenen Verbrauch ergeben und ändert den geschätzten Verbrauch in deinem Plan nicht.','Poiché i numeri non tornano, questa misurazione non ha prodotto un consumo misurato e non cambia il consumo stimato del tuo piano.'],
+ ['cal_rc_nf_intro','Nesta medição ({from} a {to}, {d} dias):','In this check ({from} – {to}, {d} days):','En esta medición (del {from} al {to}, {d} días):','Pendant cette mesure (du {from} au {to}, {d} jours) :','In dieser Messung ({from} – {to}, {d} Tage):','In questa misurazione (dal {from} al {to}, {d} giorni):'],
+ ['cal_rc_nf_logged','Média registrada','Logged average','Media registrada','Moyenne notée','Eingetragener Durchschnitt','Media registrata'],
+ ['cal_rc_nf_logged_days','{n} de {d} dias registrados','{n} of {d} days logged','{n} de {d} días registrados','{n} jours notés sur {d}','{n} von {d} Tagen eingetragen','{n} giorni registrati su {d}'],
+ ['cal_rc_nf_formula','Estimado pela fórmula (seu perfil)','Formula estimate (your profile)','Estimado por la fórmula (tu perfil)','Estimation par la formule (votre profil)','Schätzung nach Formel (dein Profil)','Stima della formula (il tuo profilo)'],
+ ['cal_rc_nf_predicted','Pela conta, a balança mostraria','By the arithmetic, the scale would show','Según la cuenta, la báscula mostraría',"D'après le calcul, la balance afficherait",'Rechnerisch würde die Waage zeigen','Secondo il calcolo, la bilancia mostrerebbe'],
+ ['cal_rc_nf_about','cerca de {kg}','about {kg}','unos {kg}','environ {kg}','etwa {kg}','circa {kg}'],
+ ['cal_rc_nf_scale','A balança mostrou','The scale showed','La báscula mostró','La balance a affiché','Die Waage zeigte','La bilancia ha mostrato'],
+ ['cal_rc_nf_math','A conta usa cerca de 7.700 kcal por kg e supõe que os dias sem registro foram parecidos com os registrados.',"The arithmetic uses about 7,700 kcal per kg and assumes the days with no log were like the logged ones.",'La cuenta usa unas 7700 kcal por kg y supone que los días sin registro fueron parecidos a los registrados.','Le calcul utilise environ 7 700 kcal par kg et suppose que les jours sans saisie ressemblaient aux jours notés.','Die Rechnung nimmt etwa 7.700 kcal pro kg an und geht davon aus, dass die Tage ohne Eintrag den eingetragenen ähnlich waren.','Il calcolo usa circa 7.700 kcal per kg e presume che i giorni senza registrazione fossero simili a quelli registrati.'],
+ ['cal_rc_nf_log_head','O que costuma ficar de fora de um registro de comida','What a food log often leaves out','Lo que suele quedar fuera de un registro de comida',"Ce qu'un journal alimentaire oublie souvent",'Was in einem Essensprotokoll oft fehlt','Cosa resta spesso fuori da un diario alimentare'],
+ ['cal_rc_nf_log_drinks','Bebidas: cerveja, vinho e outras bebidas alcoólicas, sucos, refrigerante, café com açúcar','Drinks: beer, wine and other alcoholic drinks, juice, soda, coffee with sugar','Bebidas: cerveza, vino y otras bebidas alcohólicas, zumos, refrescos, café con azúcar','Boissons : bière, vin et autres boissons alcoolisées, jus, sodas, café sucré','Getränke: Bier, Wein und andere alkoholische Getränke, Säfte, Limo, Kaffee mit Zucker','Bevande: birra, vino e altre bevande alcoliche, succhi, bibite, caffè zuccherato'],
+ ['cal_rc_nf_log_oil','Óleo, manteiga e molhos','Oil, butter and sauces','Aceite, mantequilla y salsas','Huile, beurre et sauces','Öl, Butter und Soßen','Olio, burro e salse'],
+ ['cal_rc_nf_log_snacks','Beliscos entre as refeições','Snacks between meals','Picoteo entre comidas','Grignotages entre les repas','Snacks zwischen den Mahlzeiten','Spuntini tra i pasti'],
+ ['cal_rc_nf_log_portions','Porções maiores do que as registradas','Portions bigger than the ones logged','Porciones más grandes que las registradas','Portions plus grandes que celles notées','Größere Portionen als eingetragen','Porzioni più grandi di quelle registrate'],
+ ['cal_rc_nf_log_weekend','Dias de fim de semana sem registro','Weekend days with no log','Días de fin de semana sin registro','Jours de week-end sans saisie','Wochenendtage ohne Eintrag','Giorni del fine settimana senza registrazione'],
+ ['cal_rc_nf_scale_head','O que costuma mexer na balança','What often moves the scale','Lo que suele mover la báscula','Ce qui fait souvent bouger la balance','Was die Waage oft verändert','Cosa fa spesso variare la bilancia'],
+ ['cal_rc_nf_scale_water','Água e sal','Water and salt','Agua y sal','Eau et sel','Wasser und Salz','Acqua e sale'],
+ ['cal_rc_nf_scale_cycle (só feminino ou sem sexo)','Ciclo menstrual','Menstrual cycle','Ciclo menstrual','Cycle menstruel','Menstruationszyklus','Ciclo mestruale'],
+ ['cal_rc_nf_scale_training','Treino nos dias anteriores','Training in the days before','Entrenamiento de los días anteriores','Entraînement des jours précédents','Training an den Tagen davor','Allenamento nei giorni precedenti'],
+ ['cal_rc_nf_scale_time','Horário da pesagem','Time of day you weigh in','La hora del pesaje',"L'heure de la pesée",'Uhrzeit des Wiegens','Orario della pesata'],
+ ['cal_rc_nf_formula_note','A fórmula usa o nível de atividade do seu perfil; se ele não corresponder ao seu dia a dia, a estimativa muda.',"The formula uses the activity level in your profile; if it doesn't match your daily life, the estimate changes.",'La fórmula usa el nivel de actividad de tu perfil; si no se corresponde con tu día a día, la estimación cambia.',"La formule utilise le niveau d'activité de votre profil ; s'il ne correspond pas à votre quotidien, l'estimation change.",'Die Formel nutzt das Aktivitätsniveau aus deinem Profil; passt es nicht zu deinem Alltag, ändert sich die Schätzung.','La formula usa il livello di attività del tuo profilo; se non corrisponde alla tua giornata tipo, la stima cambia.'],
+ ['cal_rc_nf_pro (sempre, sem condição)','Para entender essa diferença, um profissional de saúde, como um médico ou nutricionista, pode avaliar seus registros com você. Não é preciso esperar outra medição.',"To understand this gap, a health professional, such as a doctor or dietitian, can go over your records with you. There's no need to wait for another check.",'Para entender esta diferencia, un profesional de la salud, como un médico o nutricionista, puede revisar tus registros contigo. No hace falta esperar otra medición.',"Pour comprendre cet écart, un professionnel de santé, comme un médecin ou un diététicien, peut examiner vos saisies avec vous. Inutile d'attendre une autre mesure.",'Um diesen Unterschied zu verstehen, kann eine medizinische Fachkraft, etwa eine Ärztin, ein Arzt oder eine Ernährungsfachkraft, deine Einträge mit dir durchgehen. Du musst dafür keine weitere Messung abwarten.',"Per capire questa differenza, un professionista sanitario, come un medico o un nutrizionista, può esaminare con te le tue registrazioni. Non serve aspettare un'altra misurazione."],
+ ['cal_rc_nf_ok (botão da folha)','Entendi','Got it','Entendido','Compris','Verstanden','Ho capito'],
+ ['B · Caso contrário (acima da fórmula)'],
+ ['cal_rc_nf_high_log_head','O que costuma pesar a mais num registro de comida','What often adds too much to a food log','Lo que suele sumar de más en un registro de comida',"Ce qui alourdit souvent un journal alimentaire",'Was ein Essensprotokoll oft zu hoch macht','Cosa fa spesso pesare troppo un diario alimentare'],
+ ['cal_rc_nf_high_twice','Itens registrados em dobro','Items logged twice','Alimentos registrados dos veces','Aliments notés deux fois','Doppelt eingetragene Lebensmittel','Alimenti registrati due volte'],
+ ['cal_rc_nf_high_portions','Porções menores do que as registradas','Portions smaller than the ones logged','Porciones más pequeñas que las registradas','Portions plus petites que celles notées','Kleinere Portionen als eingetragen','Porzioni più piccole di quelle registrate'],
+ ['Apagadas na construção'],
+ ['cal_rc_implausible, cal_rc_implausible_high','(apagadas)','(deleted)','(eliminadas)','(supprimées)','(gelöscht)','(eliminate)'],
+];
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+document.getElementById('tr').innerHTML=T.map(r=>r.length===1?`<tr class="sep"><td colspan="7">${esc(r[0])}</td></tr>`:`<tr><td class="k">${esc(r[0])}</td>`+r.slice(1).map(c=>`<td>${esc(c)}</td>`).join('')+`</tr>`).join('');
+</script>
