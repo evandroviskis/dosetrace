@@ -3,5 +3,5 @@
 F="$HOME/Desktop/Second Brain/dosetrace/91-decisoes-pendentes.md"
 [ -f "$F" ] || exit 0
 echo "DECISÕES PENDENTES (regra do Evandro 2026-11-24): ANTES de responder, leia a página de decisões (ArtifactData list, url https://claude.ai/artifact/GkAUg1YcjEgzWJPF5JZw5u, coleção decisions) e registre o que ele marcou; termine a resposta com a lista abaixo COMPLETA e atualizada. Arquivo: dosetrace/91-decisoes-pendentes.md"
-sed -n '/^1\./,$p' "$F"
+grep -E '^[0-9]+\. ' "$F"
 exit 0
