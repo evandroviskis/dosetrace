@@ -16,7 +16,7 @@ import { sectionsReady, skeletonPlan, layoutFromMeasure } from '../lib/todaySkel
 import { cachedTodayLayout, saveTodayLayout, loadTodayLayout } from '../lib/todayLayoutStore';
 import { SkeletonBlock, TODAY_HEADER } from './components/TodaySkeleton';
 import { firstSyncGate } from '../lib/firstSyncGate';
-import { checkAlert } from '../lib/realityCheckRules';
+import { checkAlert, todayShowsCheckAlert } from '../lib/realityCheckRules';
 import { useWindowSize } from '../lib/windowSize';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
@@ -1919,12 +1919,11 @@ export default function TodayScreen() {
       const a = rcNow ? checkAlert(rcNow.outcome, rcNow.run, rcNow) : null;
       const kind = a ? a.body : (dateDue ? 'due' : 'when');
       const body = kind === 'due' ? t('today_alert_rc_due')
-        : kind === 'needs_food' ? t(pluralKey('today_alert_rc_needs_food', a.left, language)).replace('{n}', String(a.left))
         : kind === 'locked' ? t('today_alert_rc_locked')
         : kind === 'no_result' ? t('today_alert_rc_no_result')
         : kind === 'ready' ? t('today_alert_rc_ready')
         : t('today_alert_rc_when').replace('{date}', formatDate(remind, language, 'dayMonth'));
-      list.push({
+      if (todayShowsCheckAlert(kind)) list.push({
         id: 'reality_check', iconName: 'type_glp1', due: kind !== 'when',
         title: t('today_alert_rc_title'),
         body,

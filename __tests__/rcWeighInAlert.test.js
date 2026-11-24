@@ -24,7 +24,7 @@ test('Today and the food card read the real state, never the date alone', () => 
   const today = read('screens/TodayScreen.js');
   assert.match(today, /readCheckNow\(\)/);
   assert.match(today, /checkAlert\(/);
-  assert.match(today, /today_alert_rc_needs_food/);
+  assert.doesNotMatch(today, /today_alert_rc_needs_food/); // founder 2026-11-24: not on Today
   assert.match(today, /today_alert_rc_ready/);
   const hero = read('screens/components/FoodLogHero.js');
   assert.match(hero, /nutri_hero_weighed/);
