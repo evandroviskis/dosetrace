@@ -29,33 +29,33 @@ test('OBSERVATION_SCENE is one exported constant, true on this branch (test APK)
   assert.match(code('components/OnboardingIntro.js'), /\bobs: ObservationScene\b/, 'the scene view is chosen by key, so false drops it');
 });
 
-test('OBSERVATION_SCENE false: exactly today\'s six scenes, four story bars, 32 s', () => {
+test('OBSERVATION_SCENE false: exactly the six scenes, four story bars (body 11,8 s since 2026-11-24: 35,3 s)', () => {
   const T = WITHOUT;
   assert.deepEqual(T.SCENES.map((s) => s.key), ['open', 'syringe', 'body', 'reminders', 'labs', 'end']);
-  assert.deepEqual(T.SCENES.map((s) => [s.start, s.end, s.hold]), [[0, 3500, 2900], [3500, 10000, 9400], [10000, 18500, 17900], [18500, 25000, 24400], [25000, 30500, 29900], [30500, 32000, 32000]]);
-  assert.equal(T.INTRO_END, 32000);
+  assert.deepEqual(T.SCENES.map((s) => [s.start, s.end, s.hold]), [[0, 3500, 2900], [3500, 10000, 9400], [10000, 21800, 21200], [21800, 28300, 27700], [28300, 33800, 33200], [33800, 35300, 35300]]);
+  assert.equal(T.INTRO_END, 35300);
   assert.deepEqual(T.STORY_BARS, ['syringe', 'body', 'reminders', 'labs']);
   assert.equal(T.BAR_W, 81);
   assert.deepEqual([0, 1, 2, 3].map(T.barLeft), [24, 111, 198, 285]);
-  assert.equal(T.BEATS.labs.foot, 28000, 'labs beats as before');
+  assert.equal(T.BEATS.labs.foot, 28300 + 3000, 'labs beats as before, after the longer body scene');
   assert.equal(T.BEATS.obs, undefined);
 });
 
 test('OBSERVATION_SCENE true: seven scenes, the observation between reminders and labs, five bars, as the picture', () => {
   const T = WITH;
   assert.deepEqual(T.SCENES.map((s) => s.key), ['open', 'syringe', 'body', 'reminders', 'obs', 'labs', 'end']);
-  assert.deepEqual(T.SCENES.map((s) => [s.start, s.end, s.hold]), [[0, 3500, 2900], [3500, 10000, 9400], [10000, 18500, 17900], [18500, 25000, 24400], [25000, 31500, 30900], [31500, 37000, 36400], [37000, 38500, 38500]]);
-  assert.equal(T.INTRO_END, 38500);
+  assert.deepEqual(T.SCENES.map((s) => [s.start, s.end, s.hold]), [[0, 3500, 2900], [3500, 10000, 9400], [10000, 21800, 21200], [21800, 28300, 27700], [28300, 34800, 34200], [34800, 40300, 39700], [40300, 41800, 41800]]);
+  assert.equal(T.INTRO_END, 41800);
   assert.deepEqual(T.STORY_BARS, ['syringe', 'body', 'reminders', 'obs', 'labs']);
   assert.ok(Math.abs(T.BAR_W - 63.6) < 1e-9);
   assert.deepEqual([0, 1, 2, 3, 4].map((b) => Math.round(T.barLeft(b) * 10) / 10), [24, 93.6, 163.2, 232.8, 302.4]);
-  // the picture's beats of the new scene (ms from its start at 25 s)
+  // the picture's beats of the new scene (its start: 28,3 s since the 8-week body scene)
   const O = T.BEATS.obs;
   assert.deepEqual([O.in, O.out, O.sub, O.card, O.grow, O.marks, O.note, O.acts, O.type, O.press, O.actsOut, O.report, O.reportNote],
-    [25100, 31000, 25500, 25900, [26500, 400], 26700, 26900, 27450, [27450, 1700], [29300, 200], [29700, 250], 29900, 30300]);
-  // labs and the end frame play 6.5 s later
-  assert.equal(T.BEATS.labs.foot, 28000 + 6500);
-  assert.equal(T.BEATS.end.title, 30700 + 6500);
+    [28400, 34300, 28800, 29200, [29800, 400], 30000, 30200, 30750, [30750, 1700], [32600, 200], [33000, 250], 33200, 33600]);
+  // labs and the end frame play 6.5 s later than without the scene
+  assert.equal(T.BEATS.labs.foot, WITHOUT.BEATS.labs.foot + 6500);
+  assert.equal(T.BEATS.end.title, WITHOUT.BEATS.end.title + 6500);
   for (const s of T.SCENES) for (const b of T.sceneBeats(s.key)) assert.ok(b.at >= s.start && b.at + b.dur <= s.hold, `${s.key}.${b.name} complete by the hold frame`);
 });
 
@@ -72,7 +72,7 @@ test('observation scene: Melatonin via oral_melatonin, 3 mg at 22:00, no mark ch
   assert.deepEqual(I.noteLines(note, 17), ['Antes de dormir.', '']);
   assert.deepEqual(I.noteLines(note, 20), ['Antes de dormir.', 'Sen']);
   const s = code('components/OnboardingIntro.js');
-  const scene = s.slice(s.indexOf('function ObservationScene('), s.indexOf('// ---- end observation'));
+  const scene = s.slice(s.indexOf('function ObservationScene('), s.indexOf('function LabsScene('));
   assert.ok(scene.length > 300);
   for (const k of ['obi_obs_title', 'obi_obs_sub', 'obi_obs_note', 'obi_obs_report', 'obi_obs_ph', 'dose_mark_label', 'dose_mark_fasted', 'dose_mark_meal', 'dose_note_label', 'optional', 'today_taken', 'team_msg_today_at', 'cancel', 'save', 'report_header', 'report_dose_line', 'protocols_every_day', 'report_notes_label']) assert.match(scene, new RegExp(`'${k}'`), k);
   assert.match(scene, /OBS_EXAMPLE\.nameKey/);
@@ -188,16 +188,18 @@ test('component: Voltar / Avançar row where Começar was, Pular top right, no t
   assert.deepEqual(['pt', 'en', 'es', 'fr', 'de', 'it'].map((l) => tr[l].obi_next), ['Avançar', 'Next', 'Siguiente', 'Suivant', 'Weiter', 'Avanti']);
 });
 
-test('component: Dose no corpo moved up 30 pt; the 100 mg label clear of the line across the column tops', () => {
+test('component: Dose no corpo clear of the button row; the 100 mg label clear of the line across the column tops', () => {
   const s = code('components/OnboardingIntro.js');
-  assert.match(s, /const BASE = y\(568\)/);
-  assert.match(s, /top: y\(580\)/);
-  assert.match(s, /top: y\(602\)/);
-  assert.match(s, /s\.legend, \{ top: y\(630\) \}/);
-  assert.match(s, /s\.textBlock, \{ top: y\(708\) \}/);
+  // the 2026-11-24 picture (8 weeks): base 548, day 552, sums 574, legend 600, footnote 662, caption 650
+  assert.match(s, /const BASE = y\(548\)/);
+  assert.match(s, /top: y\(552\)/);
+  assert.match(s, /top: y\(574\)/);
+  assert.match(s, /s\.legend, \{ top: y\(600\) \}/);
+  assert.match(s, /s\.textBlock, \{ top: y\(662\) \}/);
+  assert.match(s, /s\.textBlock, \{ top: y\(650\) \}/);
   // the line from the first column top rises 0.62 pt per pt; at the right edge of "100 mg" (17 pt
   // mono, ~61 pt wide) it must stay under the label's box bottom
-  assert.match(s, /top: g\.top - SUM_LIFT/);
+  assert.match(s, /top: BASE - g\.total \* MG_PX - SUM_LIFT/);
   const lift = Number((s.match(/const SUM_LIFT = (\d+)/) || [])[1]);
   const F = require('../lib/obFeatures');
   const cols = F.bodyColumns();

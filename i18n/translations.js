@@ -3258,6 +3258,12 @@ export const translations = {
     obi_end: "Everything you take. One line.",
     obi_start: "Start",
     obi_next: "Next",
+    // "Dose no corpo", part 2 (8 weeks, founder 2026-11-24).
+    obi_body_axis: "Estimated amount in the body, mg",
+    obi_body_leg_applied: "Dose taken, every week: {dose}",
+    obi_body_leg_left: "What is still left of the earlier doses",
+    obi_body_trend: "You take {dose} every week. What is left of each dose adds to the next one: after a few weeks, the estimate in the body gets close to {total}.",
+    obi_body_example: "Estimated example: {name}, half-life of {days} days.",
     // The dose-observation scene of the intro (lib/obIntro OBSERVATION_SCENE, founder 2026-11-24).
     obi_obs_title: "Note how you felt",
     obi_obs_sub: "After each dose, write down what you noticed. Take it to your doctor whenever you like.",
@@ -6623,6 +6629,12 @@ export const translations = {
     obi_end: "Todo lo que tomas, en una sola línea.",
     obi_start: "Empezar",
     obi_next: "Siguiente",
+    // "Dose no corpo", part 2 (8 weeks, founder 2026-11-24).
+    obi_body_axis: "Estimación en el cuerpo, en mg",
+    obi_body_leg_applied: "Dosis aplicada, cada semana: {dose}",
+    obi_body_leg_left: "Lo que todavía queda de las dosis anteriores",
+    obi_body_trend: "Te aplicas {dose} cada semana. Lo que queda de cada dosis se suma a la siguiente: después de algunas semanas, la estimación en el cuerpo se acerca a {total}.",
+    obi_body_example: "Ejemplo estimado: {name}, vida media de {days} días.",
     // The dose-observation scene of the intro (lib/obIntro OBSERVATION_SCENE, founder 2026-11-24).
     obi_obs_title: "Anota cómo te sentiste",
     obi_obs_sub: "Después de cada dosis, escribe lo que notaste. Llévalo a tu médico cuando quieras.",
@@ -9988,6 +10000,12 @@ export const translations = {
     obi_end: "Tudo o que você toma, numa linha só.",
     obi_start: "Começar",
     obi_next: "Avançar",
+    // "Dose no corpo", part 2 (8 weeks, founder 2026-11-24).
+    obi_body_axis: "Estimativa no corpo, em mg",
+    obi_body_leg_applied: "Dose aplicada, toda semana: {dose}",
+    obi_body_leg_left: "O que ainda resta das doses anteriores",
+    obi_body_trend: "Você aplica {dose} por semana. O que ainda resta de cada dose se soma à próxima: depois de algumas semanas, a estimativa no corpo chega perto de {total}.",
+    obi_body_example: "Exemplo estimado: {name}, meia-vida de {days} dias.",
     // The dose-observation scene of the intro (lib/obIntro OBSERVATION_SCENE, founder 2026-11-24).
     obi_obs_title: "Anote como você se sentiu",
     obi_obs_sub: "Depois de cada dose, registre o que notou. Leve ao seu médico quando quiser.",
@@ -13352,6 +13370,12 @@ export const translations = {
     obi_end: "Tout ce que vous prenez, sur une seule ligne.",
     obi_start: "Commencer",
     obi_next: "Suivant",
+    // "Dose no corpo", part 2 (8 weeks, founder 2026-11-24).
+    obi_body_axis: "Estimation dans le corps, en mg",
+    obi_body_leg_applied: "Dose prise, chaque semaine : {dose}",
+    obi_body_leg_left: "Ce qui reste des doses précédentes",
+    obi_body_trend: "Vous prenez {dose} chaque semaine. Ce qui reste de chaque dose s’ajoute à la suivante : après quelques semaines, l’estimation dans le corps approche {total}.",
+    obi_body_example: "Exemple estimé : {name}, demi-vie de {days} jours.",
     // The dose-observation scene of the intro (lib/obIntro OBSERVATION_SCENE, founder 2026-11-24).
     obi_obs_title: "Notez ce que vous avez ressenti",
     obi_obs_sub: "Après chaque dose, écrivez ce que vous avez remarqué. Montrez-le à votre médecin quand vous le souhaitez.",
@@ -16716,6 +16740,12 @@ export const translations = {
     obi_end: "Alles, was du nimmst, auf einer Linie.",
     obi_start: "Loslegen",
     obi_next: "Weiter",
+    // "Dose no corpo", part 2 (8 weeks, founder 2026-11-24).
+    obi_body_axis: "Geschätzte Menge im Körper, in mg",
+    obi_body_leg_applied: "Genommene Dosis, jede Woche: {dose}",
+    obi_body_leg_left: "Was von den früheren Dosen noch übrig ist",
+    obi_body_trend: "Du nimmst jede Woche {dose}. Was von jeder Dosis übrig ist, kommt zur nächsten dazu: Nach einigen Wochen liegt die Schätzung im Körper nahe bei {total}.",
+    obi_body_example: "Geschätztes Beispiel: {name}, Halbwertszeit {days} Tage.",
     // The dose-observation scene of the intro (lib/obIntro OBSERVATION_SCENE, founder 2026-11-24).
     obi_obs_title: "Notiere, wie du dich gefühlt hast",
     obi_obs_sub: "Schreib nach jeder Dosis auf, was dir aufgefallen ist. Zeig es deinem Arzt, wann immer du willst.",
@@ -20081,6 +20111,12 @@ export const translations = {
     obi_end: "Tutto ciò che assumi, su una sola linea.",
     obi_start: "Inizia",
     obi_next: "Avanti",
+    // "Dose no corpo", part 2 (8 weeks, founder 2026-11-24).
+    obi_body_axis: "Stima nel corpo, in mg",
+    obi_body_leg_applied: "Dose assunta, ogni settimana: {dose}",
+    obi_body_leg_left: "Ciò che resta ancora delle dosi precedenti",
+    obi_body_trend: "Assumi {dose} ogni settimana. Ciò che resta di ogni dose si somma alla successiva: dopo alcune settimane, la stima nel corpo si avvicina a {total}.",
+    obi_body_example: "Esempio stimato: {name}, emivita di {days} giorni.",
     // The dose-observation scene of the intro (lib/obIntro OBSERVATION_SCENE, founder 2026-11-24).
     obi_obs_title: "Annota cosa hai provato",
     obi_obs_sub: "Dopo ogni dose, scrivi cosa hai notato. Mostralo al tuo medico quando vuoi.",

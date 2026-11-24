@@ -29,7 +29,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, AccessibilityInfo } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, useAnimatedProps, useAnimatedReaction,
-  withTiming, cancelAnimation, Easing, useReducedMotion, FadeIn, FadeOut,
+  withTiming, cancelAnimation, Easing, useReducedMotion, FadeIn, FadeOut, interpolateColor,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import Svg, { Rect, Line, Path, Circle, Text as SvgText } from 'react-native-svg';
@@ -49,7 +49,7 @@ import {
   introStart, introNext, introBack, introSkip, introReduce, navShown, controls,
 } from '../lib/obIntro';
 import {
-  SYRINGE_EXAMPLE, syringeUnits, syringeMl, BODY_EXAMPLE, bodyColumns, LAB_EXAMPLE, LAB_MONTHS, REMINDER_EXAMPLE, OBS_EXAMPLE,
+  SYRINGE_EXAMPLE, syringeUnits, syringeMl, BODY_EXAMPLE, bodyColumns, bodySeries, bodyLimit, LAB_EXAMPLE, LAB_MONTHS, REMINDER_EXAMPLE, OBS_EXAMPLE,
 } from '../lib/obFeatures';
 import { onboardingFunnel } from '../lib/onboardingFunnelStore';
 
@@ -220,72 +220,183 @@ function SyringeScene({ clock, c, s, t, language }) {
   );
 }
 
-// ── 2. Dose in the body (OB-4): doses add up, each coloured by its age, then a line across the tops ──
-const MG_PX = 1.28; // 100 mg = 128 pt, as in the picture
-const BASE = y(568); // 30 pt higher than the 2026-11-20 picture: the footnote sat under the button row
+// ── 2. Dose in the body (OB-4, OB-32): doses add up, each coloured by its age, a line across the tops;
+// then (founder 2026-11-24) the columns narrow, Dia 21 to 49 come in and the estimate nears the
+// dashed guide (dose / (1 - 0.5^(7/7)) = 200 mg). Every number from lib/obFeatures, never typed. ──
+const MG_PX = 1.28; // part 1: 100 mg = 128 pt, as in the picture
+const MG2 = 1.05; // part 2: the 8 weeks fit under the guide
+const COL_X = [70, 175, 280];
+const COL_W = 60;
+const W2 = 26;
+function colX2(i) { 'worklet'; return 42 + 40 * i; }
+const BASE = y(548); // the 2026-11-24 picture: 50 pt higher than 2026-11-20, the axis title above
 // The column sum sits this far above the column top, clear of the line across the tops (it ran
 // through the "mg" of "100 mg").
 const SUM_LIFT = 46;
-const COL_X = [70, 175, 280];
-const COL_W = 60;
+// Where column i is when the narrowing is at P (0 = part 1, 1 = part 2); the columns of part 2 are
+// born narrow.
+function colGeo(i, P) {
+  'worklet';
+  const p = i < 3 ? P : 1;
+  return { x: i < 3 ? COL_X[i] + (colX2(i) - COL_X[i]) * P : colX2(i), w: COL_W + (W2 - COL_W) * p, mg: MG_PX + (MG2 - MG_PX) * p, p };
+}
+// One dose's leftover in a column: a childless rectangle that moves with the narrowing; the dose of
+// 7 days ago turns into the leftover tone (interpolateColor, both themes).
+function BodySeg({ clock, i, k, segs, sq, c }) {
+  const n = segs.length;
+  const mgv = segs[k].mg;
+  const below = segs.slice(0, k).reduce((a, x) => a + x.mg, 0);
+  const nextNew = k < n - 1 && segs[k + 1].age === 0;
+  const last = k === n - 1;
+  const today = segs[k].age === 0;
+  const age7 = segs[k].age === BODY_EXAMPLE.interval;
+  const [s0, sd] = sq;
+  const st = useAnimatedStyle(() => {
+    const P = EASE(clamp01((clock.get() - s0) / sd));
+    const g = colGeo(i, P);
+    const p = g.p;
+    const gap = last ? 0 : nextNew ? 2 : 2 * (1 - p);
+    const top = BASE - (below + mgv) * g.mg + gap;
+    return {
+      left: g.x, width: g.w, top, height: Math.max(0, mgv * g.mg - gap),
+      borderRadius: today || k === 0 ? 4 - 2 * p : 4 * (1 - p),
+      backgroundColor: today ? c.data : age7 ? interpolateColor(p, [0, 1], [c.data2, c.data3]) : c.data3,
+    };
+  });
+  return <Animated.View style={[{ position: 'absolute' }, st]} />;
+}
+// Part 1 words leaving as the columns narrow (the value labels a little faster than the sums).
+function FadeWithSqueeze({ clock, sq, rate, style, children }) {
+  const [s0, sd] = sq;
+  const st = useAnimatedStyle(() => ({ opacity: 1 - clamp01(EASE(clamp01((clock.get() - s0) / sd)) * rate) }));
+  return <Animated.View pointerEvents="none" style={[style, st]}>{children}</Animated.View>;
+}
+// The legend and the footnote of part 1 leave when the narrowing starts.
+function LeaveAt({ clock, at, style, children }) {
+  const st = useAnimatedStyle(() => ({ opacity: 1 - EASE(clamp01((clock.get() - at) / OUT_DUR)) }));
+  return <Animated.View pointerEvents="none" style={[style, st]}>{children}</Animated.View>;
+}
+// The line across the tops, one segment per pair of columns, its ends moving with the columns: part 1
+// draws itself (the first two segments, in one stroke); in part 2 it reaches each new top as that
+// column comes in. Animated ends of a Line, never an animated path.
+const ALine = Animated.createAnimatedComponent(Line);
+function TopLine({ clock, q, totals, part1, B, c }) {
+  const [s0, sd] = B.squeeze, [l0, ld] = B.line;
+  const colAt = q + 1 >= 3 ? B.more[q + 1 - 3] : 0;
+  const { T, L, ACC } = part1;
+  const tq = totals[q], tn = totals[q + 1];
+  const props = useAnimatedProps(() => {
+    const v = clock.get();
+    const P = EASE(clamp01((v - s0) / sd));
+    const a = colGeo(q, P), b = colGeo(q + 1, P);
+    const ax = a.x + a.w / 2, ay = BASE - tq * a.mg, bx = b.x + b.w / 2, by = BASE - tn * b.mg;
+    const lp = eInOutCubic(clamp01((v - l0) / ld));
+    let f = 0;
+    if (q < 2) f = lp <= 0 ? 0 : clamp01((lp * T - ACC[q]) / L[q]);
+    else if (lp >= 1 && v >= colAt) f = EASE(clamp01((v - colAt) / IN_DUR));
+    return { x1: ax, y1: ay, x2: ax + (bx - ax) * f, y2: ay + (by - ay) * f, strokeOpacity: f > 0 ? 1 : 0 };
+  });
+  return <ALine animatedProps={props} x1={0} y1={0} x2={0} y2={0} stroke={c.ink} strokeWidth={2} strokeLinecap="round" strokeOpacity={0} />;
+}
 function BodyScene({ clock, c, s, t }) {
   const B = BEATS.body;
-  const cols = useMemo(() => bodyColumns(), []);
-  const tone = (age) => (age === 0 ? c.data : age === BODY_EXAMPLE.interval ? c.data2 : c.data3);
+  const ex = BODY_EXAMPLE;
+  const cols = useMemo(() => bodySeries(), []);
+  const limit = useMemo(() => bodyLimit(), []);
+  const totals = useMemo(() => cols.map((g) => g.total), [cols]);
+  // part 1 geometry (P = 0): the value labels, the sums, the length of the first stroke
+  const part1 = useMemo(() => {
+    const tops = [0, 1, 2].map((i) => [COL_X[i] + COL_W / 2, BASE - cols[i].total * MG_PX]);
+    const L = [0, 1].map((q) => Math.hypot(tops[q + 1][0] - tops[q][0], tops[q + 1][1] - tops[q][1]));
+    return { T: L[0] + L[1], L, ACC: [0, L[0]] };
+  }, [cols]);
   const ink = (age) => (age === 0 ? c.onData : c.ink);
-  const geo = cols.map((col, i) => {
-    let bottom = BASE;
-    const n = col.segments.length;
-    const segs = col.segments.map((sg, k) => {
-      const hgt = sg.mg * MG_PX;
-      const gap = k < n - 1 ? 2 : 0; // a 2 pt gap between doses
-      const seg = { ...sg, top: bottom - hgt + gap, height: hgt - gap };
-      bottom -= hgt;
-      return seg;
-    });
-    return { ...col, x: COL_X[i], top: bottom, segs };
-  });
-  const LINE_TOP = y(300);
-  const line = polyline(geo.map((g) => [g.x + COL_W / 2, g.top - LINE_TOP]));
   const name = t('obi_ex_compound1');
+  const dose = `${ex.dose}${NB}${ex.unit}`;
+  const total = `${Math.round(limit)}${NB}${ex.unit}`;
+  const gy = BASE - limit * MG2;
+  const legend = (rows) => rows.map(([col, label]) => (
+    <View key={label} style={s.legendRow}>
+      <View style={[s.legendKey, { backgroundColor: col }]} />
+      <Tx style={s.legendText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Tx>
+    </View>
+  ));
+  const labels2 = (g, i) => (
+    <View style={[s.lab2, { left: colX2(i) + W2 / 2 - 20 }]}>
+      <Tx style={s.lab2Day} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{fill(t('obi_body_day'), { n: g.day })}</Tx>
+      <Tx style={s.lab2Total} numberOfLines={1}>{String(Math.round(g.total))}</Tx>
+    </View>
+  );
   return (
     <Scene clock={clock} k="body">
       <Title s={s} text={t('obi_body_title')} />
       <Enter clock={clock} at={B.sub} style={[s.textBlock, { top: y(214) }]}>
-        <Tx style={s.sub}>{t('obi_body_sub')}</Tx>
+        <Tx style={s.sub} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.85}>{t('obi_body_sub')}</Tx>
+      </Enter>
+      <Enter clock={clock} at={B.axis} dy={0} style={[s.textBlock, { top: y(270) }]}>
+        <Tx style={s.axisTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('obi_body_axis')}</Tx>
       </Enter>
       <View style={[s.baseLine, { top: BASE + 1 }]} />
-      {geo.map((g, i) => (
-        <Enter key={g.day} clock={clock} at={B.cols[i]} style={s.full}>
-          {g.segs.map((sg) => (
-            <View key={sg.age} style={[s.seg, { left: g.x, top: sg.top, height: sg.height, backgroundColor: tone(sg.age) }]}>
-              <Tx style={[s.segVal, { color: ink(sg.age) }]}>{String(Math.round(sg.mg))}</Tx>
-            </View>
-          ))}
-          <Tx style={[s.colSum, { left: g.x - 30, top: g.top - SUM_LIFT }]} numberOfLines={1}>{`${Math.round(g.total)}${NB}${BODY_EXAMPLE.unit}`}</Tx>
-          <Tx style={[s.colDay, { left: g.x - 30, top: y(580) }]} numberOfLines={1}>{fill(t('obi_body_day'), { n: g.day })}</Tx>
-          <Tx style={[s.colSumLine, { left: g.x - 30, top: y(602) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-            {i === 0 ? fill(t('obi_body_you_take'), { n: Math.round(g.total) }) : g.segs.map((sg) => String(Math.round(sg.mg))).join(' + ')}
-          </Tx>
+      <Enter clock={clock} at={B.guide[0]} dur={B.guide[1]} dy={0} style={s.full}>
+        <Svg width={CW} height={6} style={{ position: 'absolute', left: 0, top: gy - 3 }}>
+          <Line x1={40} y1={3} x2={350} y2={3} stroke={c.tick} strokeWidth={1.2} strokeDasharray={[4, 4]} />
+        </Svg>
+        <Tx style={[s.guideLabel, { top: gy - 18 }]} numberOfLines={1}>{total}</Tx>
+      </Enter>
+      {cols.map((g, i) => (
+        <Enter key={g.day} clock={clock} at={i < 3 ? B.cols[i] : B.more[i - 3]} style={s.full}>
+          {g.segments.map((sg, k) => <BodySeg key={sg.age} clock={clock} i={i} k={k} segs={g.segments} sq={B.squeeze} c={c} />)}
+          {i < 3 ? (
+            <>
+              <FadeWithSqueeze clock={clock} sq={B.squeeze} rate={2.5} style={s.full}>
+                {(() => {
+                  let bottom = BASE;
+                  return g.segments.map((sg, k) => {
+                    const h = sg.mg * MG_PX;
+                    const gap = k < g.segments.length - 1 ? 2 : 0;
+                    const top = bottom - h + gap;
+                    bottom -= h;
+                    return <Tx key={sg.age} style={[s.segVal, { left: COL_X[i], top: top + (h - gap) / 2 - 8, color: ink(sg.age) }]}>{String(Math.round(sg.mg))}</Tx>;
+                  });
+                })()}
+              </FadeWithSqueeze>
+              <FadeWithSqueeze clock={clock} sq={B.squeeze} rate={2} style={s.full}>
+                <Tx style={[s.colSum, { left: COL_X[i] - 30, top: BASE - g.total * MG_PX - SUM_LIFT }]} numberOfLines={1}>{`${Math.round(g.total)}${NB}${ex.unit}`}</Tx>
+                <Tx style={[s.colDay, { left: COL_X[i] - 30, top: y(552) }]} numberOfLines={1}>{fill(t('obi_body_day'), { n: g.day })}</Tx>
+                <Tx style={[s.colSumLine, { left: COL_X[i] - 30, top: y(574) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                  {i === 0 ? fill(t('obi_body_you_take'), { n: Math.round(g.total) }) : g.segments.map((sg) => String(Math.round(sg.mg))).join(' + ')}
+                </Tx>
+              </FadeWithSqueeze>
+            </>
+          ) : labels2(g, i)}
         </Enter>
       ))}
-      <Svg width={CW} height={BASE - LINE_TOP} style={{ position: 'absolute', left: 0, top: LINE_TOP }}>
-        <DrawLine clock={clock} at={B.line[0]} dur={B.line[1]} d={line.d} length={line.length} color={c.ink} width={2} />
+      {cols.slice(0, 3).map((g, i) => (
+        <Enter key={'l2' + g.day} clock={clock} at={B.labels2} dy={0} style={s.full}>{labels2(g, i)}</Enter>
+      ))}
+      <Svg width={CW} height={CH} style={s.full} pointerEvents="none">
+        {cols.slice(1).map((g, q) => <TopLine key={g.day} clock={clock} q={q} totals={totals} part1={part1} B={B} c={c} />)}
       </Svg>
-      <Enter clock={clock} at={B.legend} style={[s.legend, { top: y(630) }]}>
-        {[[c.data, t('obi_body_leg_today')], [c.data2, fill(t('obi_body_leg_ago'), { n: BODY_EXAMPLE.interval })], [c.data3, fill(t('obi_body_leg_ago'), { n: 2 * BODY_EXAMPLE.interval })]].map(([col, label]) => (
-          <View key={label} style={s.legendRow}>
-            <View style={[s.legendKey, { backgroundColor: col }]} />
-            <Tx style={s.legendText} numberOfLines={1}>{label}</Tx>
-          </View>
-        ))}
+      <Enter clock={clock} at={B.legend} style={[s.legend, { top: y(600) }]}>
+        <LeaveAt clock={clock} at={B.squeeze[0]} style={s.legendInner}>
+          {legend([[c.data, t('obi_body_leg_today')], [c.data2, fill(t('obi_body_leg_ago'), { n: ex.interval })], [c.data3, fill(t('obi_body_leg_ago'), { n: 2 * ex.interval })]])}
+        </LeaveAt>
       </Enter>
-      <Enter clock={clock} at={B.foot} style={[s.textBlock, { top: y(708) }]}>
-        <Tx style={[s.foot, s.bodyFoot]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.85}>{fill(t('obi_body_foot'), { name, days: BODY_EXAMPLE.halfLifeDays })}</Tx>
+      <Enter clock={clock} at={B.legend2} style={[s.legend, { top: y(600) }]}>
+        {legend([[c.data, fill(t('obi_body_leg_applied'), { dose })], [c.data3, t('obi_body_leg_left')]])}
+      </Enter>
+      <Enter clock={clock} at={B.foot} style={[s.textBlock, { top: y(662) }]}>
+        <LeaveAt clock={clock} at={B.squeeze[0]}>
+          <Tx style={[s.foot, s.bodyFoot]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.85}>{fill(t('obi_body_foot'), { name, days: ex.halfLifeDays })}</Tx>
+        </LeaveAt>
+      </Enter>
+      <Enter clock={clock} at={B.caption} style={[s.textBlock, { top: y(650) }]}>
+        <Tx style={s.foot} numberOfLines={5} adjustsFontSizeToFit minimumFontScale={0.85}>{`${fill(t('obi_body_trend'), { dose, total })} ${fill(t('obi_body_example'), { name, days: ex.halfLifeDays })}`}</Tx>
       </Enter>
     </Scene>
   );
 }
+// ---- end body
 
 // ── 3. Reminders (OB-5): a notification slides down, Taken is tapped, the dose is logged; a second
 // one slides down and Snooze is tapped ──
@@ -540,7 +651,10 @@ function sceneLabel(i, { t, language, timeFormat }) {
   }
   if (key === 'body') {
     const cols = bodyColumns().map((g) => `${fill(t('obi_body_day'), { n: g.day })}: ${g.segments.map((x) => Math.round(x.mg)).join(' + ')} = ${Math.round(g.total)}${NB}${BODY_EXAMPLE.unit}`);
-    return [t('obi_body_title'), t('obi_body_sub'), ...cols, fill(t('obi_body_foot'), { name: t('obi_ex_compound1'), days: BODY_EXAMPLE.halfLifeDays })].join('. ');
+    const ex = BODY_EXAMPLE, dose = `${ex.dose}${NB}${ex.unit}`;
+    const weeks = bodySeries().map((g) => `${fill(t('obi_body_day'), { n: g.day })}: ${Math.round(g.total)}${NB}${ex.unit}`).join(', ');
+    return [t('obi_body_title'), t('obi_body_sub'), t('obi_body_axis'), ...cols, weeks, fill(t('obi_body_leg_applied'), { dose }), t('obi_body_leg_left'),
+      fill(t('obi_body_trend'), { dose, total: `${Math.round(bodyLimit())}${NB}${ex.unit}` }), fill(t('obi_body_example'), { name: t('obi_ex_compound1'), days: ex.halfLifeDays })].join('. ');
   }
   if (key === 'reminders') {
     const ex = REMINDER_EXAMPLE;
@@ -755,8 +869,13 @@ const makeStyles = (c) => StyleSheet.create({
   drawMl: { fontSize: 14, lineHeight: 18, fontFamily: MONO['400'], color: c.ink2, textAlign: 'center' },
   // dose in body
   baseLine: { position: 'absolute', left: 40, width: 310, height: 1.5, backgroundColor: c.line },
-  seg: { position: 'absolute', width: COL_W, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  segVal: { fontSize: 13, lineHeight: 16, fontFamily: MONO['500'], fontVariant: ['tabular-nums'] },
+  segVal: { position: 'absolute', width: COL_W, fontSize: 13, lineHeight: 16, fontFamily: MONO['500'], fontVariant: ['tabular-nums'], textAlign: 'center' },
+  axisTitle: { fontSize: 12, lineHeight: 16, fontWeight: '600', color: c.ink2 },
+  guideLabel: { position: 'absolute', right: CW - 350, fontSize: 11, lineHeight: 14, fontFamily: MONO['400'], color: c.ink2, textAlign: 'right' },
+  lab2: { position: 'absolute', top: y(555), width: 40, alignItems: 'center' },
+  lab2Day: { fontSize: 10.5, lineHeight: 13, fontWeight: '600', color: c.ink2, textAlign: 'center' },
+  lab2Total: { marginTop: 5, fontSize: 11, lineHeight: 14, fontFamily: MONO['500'], color: c.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  legendInner: { gap: 6 },
   colSum: { position: 'absolute', width: COL_W + 60, fontSize: 17, lineHeight: 22, fontFamily: MONO['500'], color: c.ink, textAlign: 'center' },
   colDay: { position: 'absolute', width: COL_W + 60, fontSize: 14, lineHeight: 18, fontWeight: '600', color: c.ink2, textAlign: 'center' },
   colSumLine: { position: 'absolute', width: COL_W + 60, fontSize: 12, lineHeight: 16, fontFamily: MONO['400'], color: c.ink2, textAlign: 'center' },

@@ -71,8 +71,9 @@ test('OB-27: six scenes in the approved order and timings, about 32 s, one after
     assert.equal(X.INTRO_END, X.SCENES[X.SCENES.length - 1].end);
   }
   assert.deepEqual(T6.SCENES.map((s) => s.key), ['open', 'syringe', 'body', 'reminders', 'labs', 'end']);
-  assert.deepEqual(T6.SCENES.map((s) => s.start), [0, 3500, 10000, 18500, 25000, 30500]);
-  assert.ok(T6.INTRO_END >= 31800 && T6.INTRO_END <= 33000, `${T6.INTRO_END} ms`);
+  // the body scene is 11,8 s since 2026-11-24 (8 weeks): about 35 s in all
+  assert.deepEqual(T6.SCENES.map((s) => s.start), [0, 3500, 10000, 21800, 28300, 33800]);
+  assert.ok(T6.INTRO_END >= 35000 && T6.INTRO_END <= 36000, `${T6.INTRO_END} ms`);
   assert.deepEqual(T6.STORY_BARS, ['syringe', 'body', 'reminders', 'labs']);
 });
 
@@ -104,13 +105,14 @@ test('OB-27: scene at a time, story-bar fill, Skip to the end frame', () => {
   assert.equal(X.sceneIndexAt(0), 0);
   assert.equal(X.sceneIndexAt(3499), 0);
   assert.equal(X.sceneIndexAt(3500), 1);
-  assert.equal(X.sceneIndexAt(20000), 3);
-  assert.equal(X.sceneIndexAt(30500), 5);
+  assert.equal(X.sceneIndexAt(20000), 2);
+  assert.equal(X.sceneIndexAt(23000), 3);
+  assert.equal(X.sceneIndexAt(33800), 5);
   assert.equal(X.sceneIndexAt(99999), 5);
   // each bar fills while its own scene plays, start to hold (syringe = bar 0 … labs = bar 3)
   assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(2000, b, false)), [0, 0, 0, 0]);
   assert.equal(X.barFill(3500 + 2950, 0, false), 0.5);
-  assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(19000, b, false)).map((v) => Math.round(v * 100) / 100), [1, 1, 0.08, 0]); // 500 of 5900 ms
+  assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(22390, b, false)).map((v) => Math.round(v * 100) / 100), [1, 1, 0.1, 0]); // 590 of 5900 ms
   assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(X.INTRO_END, b, false)), [1, 1, 1, 1]);
   // Reduce Motion: a bar is full as soon as its scene shows, never a partial fill
   assert.deepEqual([0, 1, 2, 3].map((b) => X.barFill(X.SCENES[2].hold, b, true)), [1, 1, 0, 0]);
@@ -155,7 +157,7 @@ test('OB-4: the columns come from the half-life formula: 100, 50 + 100, 25 + 50 
   const s = src();
   assert.match(s, /bodyColumns\(\)/);
   for (const k of ['obi_body_title', 'obi_body_sub', 'obi_body_day', 'obi_body_you_take', 'obi_body_leg_today', 'obi_body_leg_ago', 'obi_body_foot']) assert.match(s, new RegExp(`'${k}'`), k);
-  assert.match(s, /strokeDashoffset/, 'the line draws across the tops with stroke-dashoffset');
+  assert.match(s, /<TopLine /, 'the line across the tops draws itself, segment by segment (its ends follow the narrowing columns since 2026-11-24)');
 });
 
 test('OB-4: each dose age has its own data tone, in both themes, with readable values inside', () => {
