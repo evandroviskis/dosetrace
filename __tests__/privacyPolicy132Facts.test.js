@@ -87,10 +87,10 @@ for (const l of LANGS) {
   });
 }
 
-test('no copy says "your other phones" (one device at a time) and every copy is dated October 30, 2026', () => {
+test('no copy says "your other phones" (one device at a time) and every copy is dated November 24, 2026', () => {
   for (const f of ['web/privacy-policy.html', 'docs/legal/privacy-policy-2026-10.md']) {
     const s = read(f);
     assert.doesNotMatch(s, /other phones|other devices|sync your devices/, f);
-    assert.match(s, /Last updated: October 30, 2026/, f);
+    assert.match(s, /Last updated: November 24, 2026/, f);
   }
 });

@@ -256,6 +256,6 @@ test('SK-12: book — the opening shows the same skeleton in Today\'s column; th
   assert.match(op, /edges=\{TAB_SCREEN_EDGES\}/);
   assert.match(op, /contentContainerStyle=\{hs\.centered\}/);
   const today = read('screens/TodayScreen.js');
-  assert.match(today, /<LogScreen embedded lead=\{<>\{headerEl\}\{alertsEl\}\{trackerEl\}<\/>\} refreshKey=\{logRev\} onChanged=\{afterLogChange\} popupGate=\{logPopupGate\} scrollRequest=\{logScroll\} \/>/, 'the Dose log page, with Today\'s lead (FT-1)');
+  assert.match(today, /<LogScreen embedded lead=\{<>\{headerEl\}\{alertsEl\}\{trackerEl\}<\/>\} refreshKey=\{logRev\} onChanged=\{afterLogChange\} popupGate=\{logPopupGate\} scrollRequest=\{logScroll\} openRequest=\{logOpen\} \/>/, 'the Dose log page, with Today\'s lead (FT-1)');
   assert.match(read('screens/LogScreen.js'), /\{listState === 'loading' && !lead \? \(/);
 });

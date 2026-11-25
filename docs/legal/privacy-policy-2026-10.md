@@ -1,6 +1,6 @@
 # DoseTrace — Privacy Policy
 
-Last updated: October 30, 2026
+Last updated: November 24, 2026
 
 Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. This policy explains what information the app handles, where it goes, and what you can do about it. DoseTrace is a personal journal and a calculator. It does not give medical advice.
 
@@ -10,7 +10,7 @@ Outcom ("we", "us") operates the DoseTrace mobile app for iPhone and Android. Th
 
 **Profile (needed to use the app).** Name, birth month and year, country, sex assigned at birth, your goals, activity level, what you track (peptides, hormones / TRT, GLP-1 / weight loss, oral supplements), and whether you work with a healthcare provider. The app asks for all of these before you can use it, and uses them to personalize the screens and to run its calculators. In the calculators you can also enter your height, weight, body-fat percentage, and body measurements.
 
-**Health and journal data.** The protocols you create (compounds, doses, schedules, reminder times), the doses you log (taken or skipped, the amount of each dose, the time it was scheduled and the time you took it, injection sites, and whether you changed an amount by hand; when you correct past doses, the corrected values replace the old ones), the dates of each protocol's dose changes, your vials, bottles, lab results, vaccination records, food-log entries with their estimated nutrition values, weigh-ins, "Reality check" results, and the notes you write.
+**Health and journal data.** The protocols you create (compounds, doses, schedules, reminder times), the doses you log (taken or skipped, the amount of each dose, the time it was scheduled and the time you took it, injection sites, whether you took a dose fasting or with a meal, the observation you write about a dose, and whether you changed an amount by hand; when you correct past doses, the corrected values replace the old ones), the dates of each protocol's dose changes, your vials, bottles, lab results, vaccination records, food-log entries with their estimated nutrition values, weigh-ins, "Reality check" results, and the notes you write.
 
 ## 2. Where your information is kept
 

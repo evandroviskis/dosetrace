@@ -85,6 +85,7 @@ import { reportStreaks, LOOKBACK_DAYS as STREAK_LOOKBACK_DAYS } from '../lib/dos
 import { onVialPromptRequest } from '../lib/vialPromptRequests';
 import { trackerStreak, TRACKER_LOOKBACK_DAYS } from '../lib/trackerStreak';
 import RowChevron from '../components/RowChevron';
+import { observationLine, takenToastText } from '../lib/doseObservation';
 import FoldChevron from '../components/FoldChevron';
 import { MONO } from '../lib/fonts';
 import FoodLogHero from './components/FoodLogHero';
@@ -395,6 +396,8 @@ export default function TodayScreen() {
   const rightScrollRef = useRef(null);
   // The embedded Dose log scrolls on request: 'top' (Alertas) or 'log' (the streak row: the log's title).
   const [logScroll, setLogScroll] = useState(null);
+  // DO-17: a "Doses concluídas" row tapped on the open Fold — the left page's Dose log opens its sheet.
+  const [logOpen, setLogOpen] = useState(null);
   useEffect(() => {
     if (!searchLand) return;
     if (book && searchLand.target === 'alerts') { bookSelect('log'); setLogScroll({ to: 'top', n: Date.now() }); setSearchLand(null); return; }
@@ -1007,14 +1010,15 @@ export default function TodayScreen() {
   // answered after midnight) — Undo removes both.
   function writePending(protocolId, writeOpts, extraDeleteIds = []) {
     const { toastText, ...write } = writeOpts; // the toast line is not part of the write
-    const res = recordDoseTaken(protocolId, write);
+    // DO-21: Pendentes de ontem is an entry point of "Repetir nas próximas doses".
+    const res = recordDoseTaken(protocolId, { ...write, applyRepeat: true });
     if (res && res.logId) {
       courseAskRef.current = true; // A-121 SG-17
       const timer = null; // armed by the Undo bar effect (lib/undoBar.js)
       const record = {
         logId: res.logId, flipped: res.flipped, flippedFrom: res.flippedFrom, prevLoggedAt: res.prevLoggedAt, prevInjectionSite: res.prevInjectionSite, prevOutcomeByPerson: res.prevOutcomeByPerson, protocolId, pending: true, extraDeleteIds,
         vialId: res.vialId, prevDosesTaken: res.prevVialDosesTaken, vialFinished: !!res.vialFinished,
-        oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null, text: toastText || null,
+        oralPrevUnitsTaken: res.oralPrevUnitsTaken, timer, fx: null, text: takenText(toastText, res),
       };
       setUndoData(record);
       keepUndo(record);
@@ -1097,6 +1101,20 @@ export default function TodayScreen() {
   // time, site). opts.cancelUpTo: reminders to cancel for a banner's answer (ti + 1).
   // A-38 (b): a refused tap is never silent — why nothing was written, in Today's sheet.
   // Returns true when the sheet is shown.
+  // DO-22: the Undo bar says what the repeat wrote ("Dose registrada · Em jejum · Antes da yoga"); without it,
+  // the line the take already had (null = "Dose registrada").
+  function takenText(base, res) {
+    if (!res || !res.observation) return base || null;
+    return takenToastText({ base: base || t('today_dose_logged'), applied: res.observation, t });
+  }
+
+  // DO-17: a "Doses concluídas" row opens that dose's sheet — on the open Fold in the left page's Dose log,
+  // on the phone over the Dose log (closing it comes back here).
+  function openDoseFromToday(l) {
+    if (book) { bookSelect('log'); setLogOpen({ logId: l.id, n: Date.now() }); return; }
+    navigation.navigate('Log', { openLogId: l.id });
+  }
+
   function showTakeRefused(protocol, res) {
     let fresh = null;
     try { fresh = getProtocolById(protocol.id); } catch { fresh = null; }
@@ -1116,7 +1134,9 @@ export default function TodayScreen() {
       // The ONE mark-taken path shared with the notification action (S-02):
       // never a second row for a dose already logged (e.g. from the banner), an
       // auto-Missed row is flipped, and vial/oral counts move once.
-      const res = recordDoseTaken(protocol.id, opts.write || {});
+      // DO-21: every Today take (cards, later rows, "Sim, concluí agora", the site question) is an entry point
+      // of "Repetir nas próximas doses".
+      const res = recordDoseTaken(protocol.id, { ...(opts.write || {}), applyRepeat: true });
       if (!res || !res.logId) {
         // Ended/deleted, or already logged elsewhere: show the real state and say why (A-38 b).
         actionInProgressRef.current = false;
@@ -1184,7 +1204,7 @@ export default function TodayScreen() {
         oralUnitsAdded: res.oralUnitsAdded,
         timer,
         fx,
-        text: opts.toastText || null, // Q22 = A: "Site saved · {site}" after a saved site
+        text: takenText(opts.toastText, res), // Q22 = A: "Site saved · {site}" after a saved site; DO-22: + what the repeat wrote
       };
       setUndoData(record);
       keepUndo(record); // BK-16: the dose page's Undo of this slot
@@ -2849,12 +2869,24 @@ export default function TodayScreen() {
                   const d = new Date(l.logged_at);
                   const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
                   const site = l.injection_site ? describeStored(l.injection_site, t) : null;
+                  // DO-17: the mark and the observation in one line; the row opens the dose sheet.
+                  const obs = observationLine(l, t);
+                  const prName = pr.compound_id ? t(pr.compound_id) : pr.name;
                   return (
-                    <View key={l.id} style={s.takenRow}>
+                    <TouchableOpacity key={l.id} style={s.takenRow} onPress={() => openDoseFromToday(l)} accessibilityRole="button" accessibilityLabel={[prName, formatTimeAMPM(hhmm), obs].filter(Boolean).join(', ')}>
                       <View style={[s.takenDot, { backgroundColor: displayColor(pr.color) || colors.data }]} />
-                      <Text style={s.takenName} numberOfLines={1}>{pr.compound_id ? t(pr.compound_id) : pr.name}</Text>
+                      <View style={s.takenMainCol}>
+                        <Text style={s.takenName} numberOfLines={1}>{prName}</Text>
+                        {obs ? (
+                          <View style={s.takenObs}>
+                            <FeatureIcon name="tag" size={12} color={colors.ink3} />
+                            <Text style={s.takenObsText} numberOfLines={1}>{obs}</Text>
+                          </View>
+                        ) : null}
+                      </View>
                       <Text style={s.takenWhen} numberOfLines={1}>{site ? `${formatTimeAMPM(hhmm)} · ${site}` : formatTimeAMPM(hhmm)}</Text>
-                    </View>
+                      <RowChevron color={colors.tick} />
+                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -2918,7 +2950,7 @@ export default function TodayScreen() {
   const dosePage = book ? renderDosePage() : null;
   const logRev = JSON.stringify([takenCounts, skippedCounts, undoData ? undoData.logId : null, pendingYest.length, dataRev]);
   const bookLeft = dosePage || (
-    <LogScreen embedded lead={<>{headerEl}{alertsEl}{trackerEl}</>} refreshKey={logRev} onChanged={afterLogChange} popupGate={logPopupGate} scrollRequest={logScroll} />
+    <LogScreen embedded lead={<>{headerEl}{alertsEl}{trackerEl}</>} refreshKey={logRev} onChanged={afterLogChange} popupGate={logPopupGate} scrollRequest={logScroll} openRequest={logOpen} />
   );
   // App search on the Fold (AS-18): the search is Today's right page while it is the chosen item. The
   // doses page stays mounted under it (hidden), so closing the search keeps its place, its food card
@@ -3376,7 +3408,11 @@ const todayV21Styles = (c) => ({
   takenGrow: { flex: 1 },
   takenRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line },
   takenDot: { width: 9, height: 9, borderRadius: 5, marginLeft: 6 },
-  takenName: { flex: 1, fontSize: 17, color: c.ink },
+  takenName: { fontSize: 17, color: c.ink },
+  // DO-17: the name and, under it, the mark and observation line (one line).
+  takenMainCol: { flex: 1, minWidth: 0, gap: 2 },
+  takenObs: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  takenObsText: { flex: 1, fontSize: 14, color: c.ink2 },
   takenWhen: { flexShrink: 1, fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   foldList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
   foldSep: { borderTopWidth: 1, borderTopColor: c.line },

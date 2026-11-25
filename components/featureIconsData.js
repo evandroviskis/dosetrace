@@ -268,4 +268,8 @@ export const FEATURE_ICON_XML = {
   <path d="M512 334 V342" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M512 478 V704" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`,
+  tag: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M184 552 V230 A46 46 0 0 1 230 184 H552 L846 478 A64 64 0 0 1 846 568 L568 846 A64 64 0 0 1 478 846 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M302 362 A60 60 0 1 1 422 362 A60 60 0 1 1 302 362 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
 };
