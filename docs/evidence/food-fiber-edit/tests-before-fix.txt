@@ -1,0 +1,16 @@
+node --test __tests__/foodFiberEdit.test.js, run 2026-11-24 BEFORE lib/nutrition.js and
+screens/components/FoodEntryEditor.js were changed (test first). 5 of 7 failed; the 2 that passed
+guard what already held (other numbers never touch fiber; labels exist and fit).
+
+✖ FW-12: the fix screen prefills fiber with one decimal in the app language; no fiber = empty
+✖ FW-13: fiber is read in the app language; erased = null, typed 0 = 0, untouched keeps the stored number
+✔ FW-13: editing kcal, carbs or protein never changes fiber
+✖ FW-14: changing fiber makes the item the user's and drops its pending question; the same fiber does not
+✖ FW-15: the entry card, the day total and the week average recompute from the saved items
+✖ FW-12: the fix screen is a 2x2 grid — kcal | carbs, then protein | fiber — with a decimal keyboard only for fiber
+✔ FW-16: the four labels exist in all six languages and fit half a row (German included)
+ℹ tests 7
+ℹ pass 2
+ℹ fail 5
+
+After the change: 7 of 7 pass; full npm test 4680 tests, 4677 pass, 0 fail, 2 skipped, 1 todo.

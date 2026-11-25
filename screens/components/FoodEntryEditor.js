@@ -14,6 +14,10 @@
  * Journey redesign part 23 (founder 2026-10-02, prototype foodEditor): the sheet slides up
  * from the bottom, a tap outside it cancels (as Cancel does), and each item's NAME is an
  * editable field above its kcal / carbs / protein (lib/nutrition editedItems).
+ *
+ * Fiber (founder 2026-11-24, docs/design/comida-fibra-corrigir.html option A, FW-12..FW-16): the
+ * numbers are a 2x2 grid, kcal | carbs, then protein | fiber. Fiber shows the stored number with
+ * one decimal in the app language and a decimal keyboard; empty = no fiber (a faded "—"), never 0.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -32,7 +36,7 @@ import useKeyboardLift from '../../components/useKeyboardLift';
 import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import { updateFoodLog, deleteFoodLog } from '../../lib/database';
-import { editedItems } from '../../lib/nutrition';
+import { editedItems, fiberFieldText } from '../../lib/nutrition';
 import { safeItems } from '../../lib/foodThread';
 import { localISO, localDaysAgoISO } from '../../lib/localDate';
 import { dayChoice, pickDay, stepEarlier, earlierBounds } from '../../lib/foodEntryDay';
@@ -180,9 +184,14 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
                   </TouchableOpacity>
                 </View>
                 <View style={s.fields}>
-                  <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setField(i, 'kcal', v)} onFocus={lift.liftField} />
-                  <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setField(i, 'carb_g', v)} onFocus={lift.liftField} />
-                  <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setField(i, 'protein_g', v)} onFocus={lift.liftField} />
+                  <View style={s.fieldRow}>
+                    <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setField(i, 'kcal', v)} onFocus={lift.liftField} />
+                    <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setField(i, 'carb_g', v)} onFocus={lift.liftField} />
+                  </View>
+                  <View style={s.fieldRow}>
+                    <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setField(i, 'protein_g', v)} onFocus={lift.liftField} />
+                    <EditNum s={s} colors={colors} label={t('nutri_fiber')} value={fiberFieldText(it.fiber_g, language)} onChange={(v) => setField(i, 'fiber_g', v)} decimal placeholder="—" onFocus={lift.liftField} />
+                  </View>
                 </View>
               </View>
             ))}
@@ -199,7 +208,9 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   );
 }
 
-function EditNum({ s, colors, label, value, onChange, onFocus }) {
+// kcal / carbs / protein: whole numbers on the number pad. decimal (fiber): the text as given, on the
+// decimal pad (read back with parseDecimal in the app language, lib/nutrition editedItems).
+function EditNum({ s, colors, label, value, onChange, onFocus, decimal = false, placeholder }) {
   const ref = useRef(null);
   return (
     <View style={s.num}>
@@ -208,9 +219,10 @@ function EditNum({ s, colors, label, value, onChange, onFocus }) {
         ref={ref}
         onFocus={() => { if (onFocus) onFocus(ref); }}
         style={s.input}
-        value={value == null ? '' : String(Math.round(Number(value) || 0))}
+        value={decimal ? value : value == null ? '' : String(Math.round(Number(value) || 0))}
         onChangeText={onChange}
-        keyboardType="number-pad"
+        keyboardType={decimal ? 'decimal-pad' : 'number-pad'}
+        placeholder={placeholder}
         placeholderTextColor={colors.ink3}
         accessibilityLabel={label}
       />
@@ -246,7 +258,8 @@ const makeStyles = (c) => StyleSheet.create({
   item: { gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.line },
   itemHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   del: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  fields: { flexDirection: 'row', gap: 8 },
+  fields: { gap: 10 },
+  fieldRow: { flexDirection: 'row', gap: 8 },
   num: { flex: 1, minWidth: 0, gap: 10 },
   numLabel: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
   // prototype .winp: system 17/400, tabular figures
