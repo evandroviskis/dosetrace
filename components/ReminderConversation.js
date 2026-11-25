@@ -6,7 +6,7 @@
 // the assistant's look (ProtocolAssistant: app bubbles raised, the person's in ink, chips). Every
 // sentence is a fixed app text: no AI, no network. Theme tokens only.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, AppState, AccessibilityInfo, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, AppState, AccessibilityInfo } from 'react-native';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useTheme } from '../lib/theme';
 import { MONO } from '../lib/fonts';
@@ -22,6 +22,7 @@ import { formatDate, fillDate } from '../lib/localeFormat';
 import { formatTime } from '../lib/timeFormat';
 import { pluralKey } from '../lib/plural';
 import { protocolDisplayName } from '../lib/protocolName';
+import { openSupportContact } from '../lib/supportContact';
 
 // mode: 'screen' (Settings, Today, the notification tap) | 'onboarding' (Android, phone items only).
 // resume: the item an Android screen was open on when Android closed the app (RS-4, cold return).
@@ -105,7 +106,8 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     const p = { away: false, settled: false, opened: true, settledAt: 0, activeAt: 0 };
     pending.current = p;
     // Cold return: Today brings the person back here — only this account (review 6).
-    if (mode === 'screen') saveResume(effect.item, healthRef.current && healthRef.current.userId);
+    // RN-8: a setting the app cannot read (iPhone Scheduled Summary) is no phone item to resume.
+    if (mode === 'screen' && effect.resume !== false) saveResume(effect.item, healthRef.current && healthRef.current.userId);
     let opened = false;
     try {
       // RS-3: notifications first try the system dialog; when it cannot show, DoseTrace's notification settings.
@@ -127,6 +129,8 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
     if (!effect) return;
     if (effect.type === 'close') { if (onClose) onClose(); return; }
     if (effect.type === 'continue') { if (onContinue) onContinue(); return; }
+    // RN-10: the same contact as Ajustes › Suporte › Fale conosco.
+    if (effect.type === 'contact') { openSupportContact(); return; }
     if (effect.type === 'open') { runOpen(effect); return; }
     if (effect.type === 'checked') {
       // SP-10: saved on this phone with its date.
@@ -316,8 +320,8 @@ export default function ReminderConversation({ mode = 'screen', resume = null, f
             </TouchableOpacity>
           ) : null}
         </View>
-        {/* The picture's short title; screen readers hear the screen's full name, as the door names it. */}
-        <Text style={s.headTitle} accessibilityRole="header" accessibilityLabel={t(Platform.OS === 'android' ? 'rc_setup_title' : 'settings_rc_title')}>{t('rcv_title')}</Text>
+        {/* The picture's short title; screen readers hear the row's name that opened it (RN-1). */}
+        <Text style={s.headTitle} accessibilityRole="header" accessibilityLabel={t('settings_rc_title')}>{t('rcv_title')}</Text>
         <View style={[s.headSide, s.headRight]}>
           {conv && prog.total > 0 ? <Text style={s.headCount}>{t('rcv_progress').replace('{n}', String(prog.n)).replace('{total}', String(prog.total))}</Text> : null}
         </View>

@@ -93,7 +93,8 @@ test('RS-2: items already OK are not walked — one green line each, then the fi
 test('RS-2 / RS-9: every readable item already OK → it opens straight on the summary', () => {
   const conv = C.startConversation(allOk);
   assert.equal(conv.phase, 'summary');
-  assert.deepEqual(kinds(conv), ['head', 'summary', 'schedule']);
+  // RN-5 (2026-11-24): nothing found → the test is invited after the schedule.
+  assert.deepEqual(kinds(conv), ['head', 'summary', 'schedule', 'app']);
   assert.equal(conv.messages[0].mark, true);
   // An item the app cannot read (alarms unknown) does not make it walk.
   assert.equal(C.startConversation({ ...allOk, exactAlarms: null }).phase, 'summary');
@@ -318,9 +319,10 @@ test('RS-8: onboarding — phone items only, its last chip "Continuar" (all OK) 
 // ── RS-9: the summary ──────────────────────────────────────────────────────────────────────────
 test('RS-9: the summary — every item with its state as read now, the next reminder and count, the automatic refresh, "Concluir" and the test reminder', () => {
   const conv = C.startConversation(allOk);
-  assert.equal(text(tPt, conv.messages[0]), 'Tudo certo. Seu celular está pronto.');
+  // RN-5 (founder 2026-11-24, RS-5): never claim what was not verified.
+  assert.equal(text(tPt, conv.messages[0]), 'Não encontrei nada bloqueando os lembretes neste celular.');
   assert.deepEqual(C.summaryRows(allOk).map((r) => r.id), ['notifications', 'alarms', 'battery', 'hibernation', 'refresh', 'deep_sleep']);
-  assert.deepEqual(C.chips(conv, allOk).map((c) => [c.id, c.key, !!c.primary]), [['finish', 'rcv_finish', true], ['test', 'rc_test_btn', false]]);
+  assert.deepEqual(C.chips(conv, allOk).map((c) => [c.id, c.key, !!c.primary]), [['test', 'rc_test_btn', true], ['finish', 'rcv_finish', false]]);
   assert.equal(T.pt.rcv_finish, 'Concluir');
   assert.deepEqual(C.choose(conv, 'finish', allOk).effect, { type: 'close' });
   const r = C.choose(conv, 'test', allOk);
@@ -329,7 +331,9 @@ test('RS-9: the summary — every item with its state as read now, the next remi
   assert.equal(C.testBlocked({ ...allOk, permission: 'denied' }), true);
   assert.equal(C.testBlocked({ ...allOk, scheduledCount: 0 }), false, 'an empty schedule does not stop the test');
   const sent = C.testResult(r.conv, { ok: true, blocked: false });
-  assert.equal(lastApp(sent).key, 'rc_test_sent');
+  // RN-6: sent → the green line, then the question.
+  assert.equal(sent.messages.filter((m) => m.kind === 'done').pop().key, 'rc_test_sent');
+  assert.equal(lastApp(sent).key, 'rcv_test_q');
   assert.equal(lastApp(C.testResult(r.conv, { ok: true, blocked: true })).key, 'rc_test_blocked');
   // Something still to do: the head says how many, never "Tudo certo".
   assert.equal(text(tPt, C.summaryHead({ ...allOk, batteryOptimized: true })), 'Ainda falta 1 ajuste. Você pode voltar aqui quando quiser.');
@@ -468,7 +472,7 @@ test('RS-11: bubbles read in order, chips are buttons with their labels, a new m
 // ── RS-12: texts ───────────────────────────────────────────────────────────────────────────────
 const NEW_KEYS = ['rcv_title', 'rcv_progress', 'rcv_intro_1', 'rcv_intro_2', 'rcv_intro_2_one', 'rcv_start', 'rcv_allow', 'rcv_open_setting',
   'rcv_again', 'rcv_skip', 'rcv_finish', 'rcv_retry', 'rcv_battery_open', 'rcv_deep_sleep_path', 'rcv_check_on', 'rcv_check_off', 'rcv_check_deep_sleep',
-  'rcv_all_set', 'rcv_some_left', 'rcv_some_left_one', 'rcv_next_line',
+  'rcv_none_found', 'rcv_some_left', 'rcv_some_left_one', 'rcv_next_line',
   ...['notifications', 'channel', 'alarms', 'battery', 'hibernation', 'deep_sleep', 'channel_checkin', 'channel_vial'].map((i) => `rcv_why_${i}`),
   ...['notifications', 'channel', 'alarms', 'battery', 'hibernation', 'channel_kind'].map((i) => `rcv_ok_${i}`),
   ...['notifications', 'channel', 'alarms', 'battery', 'hibernation', 'channel_kind'].map((i) => `rcv_still_${i}`),
@@ -538,7 +542,7 @@ test('the bold segments of a message (pure)', () => {
 const headKey = (h, conv) => C.summaryHead(h, conv || C.startConversation(h)).key;
 
 test('review 1: the summary head never says "All set" while something blocks or warns — the Settings row rule, on the live items', () => {
-  assert.equal(headKey(allOk), 'rcv_all_set');
+  assert.equal(headKey(allOk), 'rcv_none_found');
   // iPhone: notifications allowed but nothing scheduled although a protocol owes reminders (DV-044).
   const noneSched = { ...iphone, permission: 'granted', scheduledCount: 0, dueInWindow: 6 };
   assert.equal(R.setupRowState(noneSched).kind, 'block');
@@ -551,7 +555,7 @@ test('review 1: the summary head never says "All set" while something blocks or 
   // The Dose reminders category switched off after the screen opened: not all set, and it joins the live list.
   const conv = C.startConversation(allOk);
   const chanOff = { ...allOk, doseChannelImportance: R.IMPORTANCE_NONE };
-  assert.notEqual(C.summaryHead(chanOff, conv).key, 'rcv_all_set');
+  assert.notEqual(C.summaryHead(chanOff, conv).key, 'rcv_none_found');
   assert.ok(C.fixChips(conv, chanOff).some((x) => x.id === 'fix:channel'));
   // Only rows the app cannot read left: a neutral line, never a claim nobody read.
   const unread = { ...allOk, exactAlarms: null, manufacturer: 'Google' };
@@ -695,7 +699,7 @@ test('review2 2: while the schedule is still being checked the head is never "Al
   // The follow-up read lands: the latest head changed → it is announced; unchanged → silent.
   const conv = C.startConversation(pend);
   const done = { ...pend, syncedOnce: true, scheduledCount: 12 };
-  assert.equal(C.headChange(conv, pend, done).key, 'rcv_all_set');
+  assert.equal(C.headChange(conv, pend, done).key, 'rcv_none_found');
   assert.equal(C.headChange(conv, done, done), null);
 });
 

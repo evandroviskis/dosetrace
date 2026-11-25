@@ -117,7 +117,8 @@ test('BK-7: every group body, the profile, Premium and the version come from ONE
 test('BK-7/BK-8: the left page lists the groups, the open one outlined in ink; the right page is that group, open, under its title', () => {
   assert.match(BOOK, /SETTINGS_GROUPS\.map\(g => \{/);
   // A-163: the summary goes through groupSum (Support reads "Messages, FAQ, contact" once a team message exists).
-  assert.match(BOOK, /\{groupSum\(g\)\}/, 'each group shows its summary on the left page too');
+  // RN-4 (2026-11-24): through groupSumView, so Notificações says a block while it is not the page shown.
+  assert.match(BOOK, /\{groupSumView\(g, !on, 2\)\}/, 'each group shows its summary on the left page too');
   assert.match(BOOK, /style=\{\[s\.bookNavRow, on && s\.bookNavRowOn\]\}/);
   assert.match(BOOK, /accessibilityState=\{\{ selected: on \}\}/);
   assert.match(BOOK, /onPress=\{\(\) => select\(g\.key\)\}/);

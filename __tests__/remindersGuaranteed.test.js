@@ -99,7 +99,7 @@ test('RG-3: the native module reads the hibernation exemption (Android 11+)', ()
 test('RG-7: new text in all 6 languages; icons from the app set (no emoji)', () => {
   // RS (2026-11-05): the list's intro, "Done" and button words went with the list; the conversation's
   // texts are checked in reminderConversation.test.js.
-  const keys = ['rc_setup_title', 'rc_setup_progress', 'ob_setup_later', // A-112: "Continue later" became onboarding's "Set up later"
+  const keys = ['settings_rc_title', 'rc_setup_progress', 'ob_setup_later', // RN-1: one name for row and screen; A-112: "Continue later" became onboarding's "Set up later"
     'rc_hibernation', 'rc_hibernation_ok', 'rc_hibernation_warn', 'rcv_why_hibernation',
     'rc_refresh', 'rc_refresh_ok', 'rc_refresh_pending', 'rc_refresh_warn',
     'today_alert_stop_title', 'today_alert_stop_body', 'today_alert_stale_title', 'today_alert_stale_body'];

@@ -28,19 +28,19 @@ test('SP-1: the Settings row state — a block is risk and never "All set"; atte
   assert.equal(R.setupRowState({ ...ok, deepSleepCheckedAt: null }).kind, 'warn');
 });
 
-test('SP-1: Android Settings opens Notifications with the row (state shown); iPhone keeps "Check reminders"', () => {
+test('SP-1: Android Settings opens Notifications with the row (state shown); since RN-1 (2026-11-24) the same row on iPhone', () => {
   const s = read('screens/SettingsScreen.js');
   const body = between(s, 'function renderNotificationsBody()', 'function renderPrivacyBody()');
-  const first = body.indexOf("t('settings_setup_title')");
+  const first = body.indexOf("t('settings_rc_title')");
   assert.ok(first > 0 && first < body.indexOf("t('settings_dose_reminders')"), 'first row of Notifications');
-  assert.match(body, /Platform\.OS === 'android'/);
+  assert.match(body, /Platform\.OS === 'android' \? setupRowSub\(\)/, 'Android keeps its own status line');
   const sub = between(s, "function setupRowSub()", "\n  }\n");
   assert.match(sub, /settings_setup_all_next/);
   assert.match(sub, /settings_rc_sub_block/);
   assert.match(sub, /rc_setup_progress/);
   assert.match(body, /colors\.risk/);
   assert.match(body, /colors\.attention/);
-  assert.match(body, /t\('settings_rc_title'\)/, 'iPhone row unchanged');
+  assert.match(body, /t\(reminderBlocks > 0 \? 'settings_rc_sub_block' : 'settings_rc_sub_ok'\)/, 'iPhone status line unchanged');
   assert.match(s, /setupRowState\(h\)/);
 });
 
@@ -56,7 +56,8 @@ test('SP-2: one screen — no setup mode, no "See step by step"; Android shows t
   const c = read('components/ReminderConversation.js');
   assert.match(c, /rcv_next_line/);
   const C = require('../lib/reminderConversation');
-  assert.deepEqual(C.chips(C.startConversation(ok), ok).map((x) => x.key), ['rcv_finish', 'rc_test_btn']);
+  // RN-5 (2026-11-24): nothing found → the test is invited first.
+  assert.deepEqual(C.chips(C.startConversation(ok), ok).map((x) => x.key), ['rc_test_btn', 'rcv_finish']);
   const rows = R.setupSteps(ok, { withRefresh: true }).rows.map((r) => r.id);
   assert.deepEqual(rows, ['notifications', 'alarms', 'battery', 'hibernation', 'refresh', 'deep_sleep']);
   assert.ok(!R.setupSteps(ok).rows.some((r) => r.id === 'refresh'), 'onboarding: items only');
@@ -138,11 +139,12 @@ test('SP-7: deep sleep opens Samsung\'s Battery, falling back to the app\'s own 
 
 // ── SP-8: texts ──────────────────────────────────────────────────────────────────────────────
 test('SP-8: new text in all 6 languages', () => {
-  const keys = ['settings_setup_title', 'settings_setup_all', 'settings_setup_all_next', 'ob_setup_later', 'today_alert_battery_title', 'today_alert_battery_body'];
+  // RN-1 (2026-11-24): the row and the screen share one name, settings_rc_title, on both phones.
+  const keys = ['settings_rc_title', 'settings_setup_all', 'settings_setup_all_next', 'ob_setup_later', 'today_alert_battery_title', 'today_alert_battery_body'];
   for (const l of LANGS) for (const k of keys) assert.ok(T[l][k], `${l} ${k}`);
   for (const l of LANGS) {
     assert.ok(T[l].settings_setup_all_next.includes('{when}'), l);
-    assert.equal(T[l].settings_setup_title, T[l].rc_setup_title, `${l}: one name for the screen and its row`);
+    assert.equal(T[l].settings_setup_title, undefined, `${l}: one name for the screen and its row`);
   }
 });
 
@@ -184,9 +186,9 @@ test('council 4: with a red item the test reminder says it cannot arrive yet', (
   for (const l of LANGS) assert.ok(T[l].rc_test_blocked, l);
 });
 
-test('council 4: the Settings row icon is the feature\'s shield (warning only when blocked)', () => {
+test('council 4: the Settings row icon is the feature\'s (warning only when blocked) — since RN-1 the help icon', () => {
   const body = between(read('screens/SettingsScreen.js'), 'function renderNotificationsBody()', 'function renderPrivacyBody()');
-  assert.match(body, /setupRow && setupRow\.kind === 'block' \? 'warning' : 'shield'/);
+  assert.match(body, /rowBlocked \? 'warning' : 'help'/);
   // RS-1 (2026-11-05): the onboarding step's shield gave way to the conversation and its DoseTrace mark.
 });
 
@@ -195,8 +197,16 @@ test('council 4: the test reminder is a secondary (outlined) chip, as in the app
   assert.match(s, /chip: \{[^}]*borderWidth: 1, borderColor: c\.line[^}]*\}/);
   assert.match(s, /chipText: \{[^}]*color: c\.ink[^}]*\}/);
   const C = require('../lib/reminderConversation');
+  // RN-5 (picture 2026-11-24): when nothing blocks, the summary invites the test and it is the first,
+  // filled chip; with something left to do it stays the secondary chip.
   const test = C.chips(C.startConversation(ok), ok).find((x) => x.id === 'test');
-  assert.ok(test && !test.primary, 'secondary');
+  assert.ok(test && test.primary, 'invited: primary');
+  const left = { ...ok, batteryOptimized: true };
+  let conv = C.choose(C.startConversation(left), 'start', left).conv;
+  for (let g = 0; g < 8 && conv.phase === 'step'; g++) conv = C.choose(C.returned(C.choose(conv, 'act', left).conv, left), 'skip', left).conv;
+  assert.equal(conv.phase, 'summary');
+  const second = C.chips(conv, left).find((x) => x.id === 'test');
+  assert.ok(second && !second.primary, 'not invited: secondary');
 });
 
 test('council 4: replaced strings are gone (rebuild = replace)', () => {

@@ -169,7 +169,7 @@ test('AS-11: only what exists is listed; oral calculator; Novo / Editar frasco n
 
 test('AS-3 (founder 2026-11-04, Somente na hoje): the shortcuts show only when the search is opened from Today', () => {
   const pt = index('pt');
-  assert.deepEqual(titles(S.shortcutsFor(pt, 'Today')), ['Doses perdidas', 'Registro de doses', 'Próximas doses', 'Verificar lembretes', 'Diário de exames', 'FAQ']);
+  assert.deepEqual(titles(S.shortcutsFor(pt, 'Today')), ['Doses perdidas', 'Registro de doses', 'Próximas doses', 'A notificação não está chegando?', 'Diário de exames', 'FAQ']);
   for (const tab of ['Protocols', 'Journey', 'Body', 'Settings']) assert.deepEqual(S.shortcutsFor(pt, tab), [], tab);
   assert.deepEqual(Object.keys(S.SHORTCUTS), ['Today']);
 });

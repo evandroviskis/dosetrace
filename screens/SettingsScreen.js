@@ -56,7 +56,8 @@ import { loggedOnly } from '../lib/declared';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { syncAllNotifications, readReminderHealth, registerPushToken, askNotificationPermission, notificationsGranted } from '../lib/notifications';
 import { updateFlow } from '../lib/updateRuntime';
-import { reminderChecks, scheduleState, blockingCount, setupRowState } from '../lib/reminderHealth';
+import { reminderChecks, scheduleState, blockingCount, setupRowState, notifRowBlocked, notifCardSummary } from '../lib/reminderHealth';
+import { openSupportContact } from '../lib/supportContact';
 import { formatTime } from '../lib/timeFormat';
 import { friendlyError } from '../lib/friendlyError';
 import { errorSheet as errorSheetConfig, ERROR_ICON, errorTitle } from '../lib/errorSheet';
@@ -497,6 +498,19 @@ export default function SettingsScreen({ navigation }) {
   const teamList = useTeamMessages(user && user.id);
   const teamRow = settingsRow({ list: teamList, pending: {} });
   const groupSum = (g) => t(g.key === 'support' && teamRow ? 'settings_sum_support_msgs' : g.sumKey);
+  // RN-4 (docs/specs/reminder-not-arriving.md, founder 2026-11-24): the cards start closed, so a closed
+  // Notificações card says when something blocks reminders, in risk, by the row's own rule (RN-2).
+  const rowBlocked = notifRowBlocked({ os: Platform.OS, setupRow, reminderBlocks });
+  const groupSumView = (g, closed, lines) => {
+    const n = g.key === 'notifications' ? notifCardSummary({ closed, blocked: rowBlocked }) : null;
+    if (!n || !n.risk) return <Text style={s.setSum} numberOfLines={lines}>{groupSum(g)}</Text>;
+    return (
+      <View style={s.setSumRisk}>
+        <FeatureIcon name="warning" size={16} color={colors.risk} />
+        <Text style={[s.setSum, { flexShrink: 1, color: colors.risk }]} numberOfLines={lines}>{t(n.key)}</Text>
+      </View>
+    );
+  };
   useFocusEffect(
     useCallback(() => {
       fetchUser();
@@ -976,7 +990,7 @@ export default function SettingsScreen({ navigation }) {
   }
 
   function handleContactSupport() {
-    Linking.openURL('mailto:hello@dosetrace.io?subject=DoseTrace Support');
+    openSupportContact();
   }
 
   function handleRateApp() {
@@ -1132,26 +1146,27 @@ export default function SettingsScreen({ navigation }) {
   }
 
   function renderNotificationsBody() {
-    const setupColor = setupRow && setupRow.kind === 'block' ? colors.risk : setupRow && setupRow.kind === 'warn' ? colors.attention : null;
+    // Android keeps its block / attention colours (A-112 SP-1); iPhone colours only a block (RC-1).
+    const setupColor = Platform.OS !== 'android' ? (reminderBlocks > 0 ? colors.risk : null)
+      : setupRow && setupRow.kind === 'block' ? colors.risk : setupRow && setupRow.kind === 'warn' ? colors.attention : null;
     return (
       <>
-        {/* A-112 SP-1 (founder 2026-10-07, picture B): Android — the first row of Notifications opens
-            "Make sure your reminders arrive", with its state. */}
-        {Platform.OS === 'android' ? (
-          <TouchableOpacity style={s.row} onPress={() => navigation.navigate('ReminderCheck')} accessibilityRole="button">
-            <View style={s.rowLeft}>
-              <FeatureIcon name={setupRow && setupRow.kind === 'block' ? 'warning' : 'shield'} size={28} color={setupRow && setupRow.kind === 'block' ? colors.risk : colors.ink} />
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[s.rowLabel, { flexShrink: 1 }]}>{t('settings_setup_title')}</Text>
-                  {setupRow && setupRow.kind !== 'ok' ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: setupColor }} /> : null}
-                </View>
-                <Text style={[s.rowSub, setupColor && { color: setupColor }]}>{setupRowSub()}</Text>
+        {/* RN-1 / RN-2 (docs/specs/reminder-not-arriving.md, founder 2026-11-24 "Aprovo os três pontos"):
+            the FIRST row of Notificações on iPhone and Android, named by the person's own question, opens
+            the reminder check (A-112 SP-1 / RC-1). Its status line stays each phone's own. */}
+        <TouchableOpacity style={s.row} onPress={() => navigation.navigate('ReminderCheck')} accessibilityRole="button">
+          <View style={s.rowLeft}>
+            <FeatureIcon name={rowBlocked ? 'warning' : 'help'} size={28} color={rowBlocked ? colors.risk : colors.ink} />
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[s.rowLabel, { flexShrink: 1 }]}>{t('settings_rc_title')}</Text>
+                {Platform.OS === 'android' && setupRow && setupRow.kind !== 'ok' ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: setupColor }} /> : null}
               </View>
+              <Text style={[s.rowSub, setupColor && { color: setupColor }]}>{Platform.OS === 'android' ? setupRowSub() : t(reminderBlocks > 0 ? 'settings_rc_sub_block' : 'settings_rc_sub_ok')}</Text>
             </View>
-            <RowChevron color={colors.tick} />
-          </TouchableOpacity>
-        ) : null}
+          </View>
+          <RowChevron color={colors.tick} />
+        </TouchableOpacity>
         <View style={s.row}>
           <View style={s.rowLeft}>
             <FeatureIcon name="bell" size={28} color={colors.text} />
@@ -1259,24 +1274,6 @@ export default function SettingsScreen({ navigation }) {
             onValueChange={(v) => toggleNotificationPref('persistent_reminders', v, setPersistentReminders)}
           />
         </View>
-        {/* RC-1 (founder 2026-10-05 "1 B"): the Reminder check — iPhone. On Android the first row of
-            this section replaces it (A-112 SP-1). */}
-        {Platform.OS !== 'android' ? (
-        <TouchableOpacity
-          style={[s.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
-          onPress={() => navigation.navigate('ReminderCheck')}
-          accessibilityRole="button"
-        >
-          <View style={s.rowLeft}>
-            <FeatureIcon name={reminderBlocks > 0 ? 'warning' : 'check'} size={28} color={reminderBlocks > 0 ? colors.risk : colors.ink} />
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text style={s.rowLabel}>{t('settings_rc_title')}</Text>
-              <Text style={[s.rowSub, reminderBlocks > 0 && { color: colors.risk }]}>{t(reminderBlocks > 0 ? 'settings_rc_sub_block' : 'settings_rc_sub_ok')}</Text>
-            </View>
-          </View>
-          <RowChevron color={colors.tick} />
-        </TouchableOpacity>
-        ) : null}
       </>
     );
   }
@@ -1490,7 +1487,7 @@ export default function SettingsScreen({ navigation }) {
         >
           <View style={s.setHeadText}>
             <Text style={s.setTitle}>{t(g.labelKey)}</Text>
-            <Text style={s.setSum}>{groupSum(g)}</Text>
+            {groupSumView(g, !open)}
           </View>
           <View style={s.setChev}>
             <GroupChevron dir={open ? 'up' : 'down'} color={colors.ink} />
@@ -1585,7 +1582,7 @@ export default function SettingsScreen({ navigation }) {
                 >
                   <View style={s.setHeadText}>
                     <Text style={[s.bookNavLabel, on && s.bookNavLabelOn]} numberOfLines={2}>{t(g.labelKey)}</Text>
-                    <Text style={s.setSum} numberOfLines={2}>{groupSum(g)}</Text>
+                    {groupSumView(g, !on, 2)}
                   </View>
                   <RowChevron color={colors.tick} />
                 </TouchableOpacity>
@@ -2080,6 +2077,7 @@ const settingsGraduated = (c) => ({
   setHeadText: { flex: 1, gap: 3 },
   setTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
   setSum: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  setSumRisk: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   setChev: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.well, alignItems: 'center', justifyContent: 'center' },
   // Sign out / Delete account: their own card under the groups (prototype S-out).
   actionsCard: { marginHorizontal: 16, marginTop: 18, backgroundColor: c.raised, borderRadius: 22, overflow: 'hidden' },
