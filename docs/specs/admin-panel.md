@@ -1,6 +1,6 @@
 # Admin panel (web) — spec and checklist
 
-checklist-signed: 2026-11-24 by the founder in the admin panel Decisões tab ("Assinar 4 listas de aceitação antigas": Aprovo; option A = sign the three already live); was pending (founder brief "ADMIN PANEL SESSION — full redo", 2026-09-27; rows below await founder proof)
+checklist-signed: 2026-11-24 by the founder in the admin panel Decisões tab ("Assinar 4 listas de aceitação antigas": Aprovo; option A = sign the three already live); previously awaiting signature (founder brief "ADMIN PANEL SESSION — full redo", 2026-09-27; rows below await founder proof)
 
 **Founder decision 2026-09-27 19:53 ET (Panel #001, relayed from the app session):** the extras beyond header-only auth (UTC time windows, metric definitions and the Data sources section, versioned SQL) are **approved as part of Panel #001**. There is still no push or deploy until the founder rotates ADMIN_TOKEN in Vercel. Push and deploy then go together, followed by the live test.
 

@@ -7,7 +7,7 @@
 - journey review (2026-10-03, before building): gaps folded in as PA-12 (pending purchase), PA-16 (already Premium), PA-6 (retry, no button before eligibility), PA-41 (Finish setup never blanks hidden fields, refreshes, prefills a fresh account), PA-37 (legacy activity kept), PA-53 (stay on Create, Apple/Google named), PA-56 (honest reset wording), PA-58 (resend on not-confirmed), PA-59 (social sign-in honours the consent box), PA-63/PA-39 (Terms in both consent places), PA-66 (failed email links explained). Open founder decisions are listed at the end.
 - code: screens/PaywallScreen.js, screens/AuthScreen.js, screens/OnboardingFlowScreen.js, screens/ResetPasswordScreen.js, App.js (routing + email links), screens/SettingsScreen.js (Edit profile activity), lib/paywallPlans.js, lib/authFlow.js, lib/onboardingSteps.js, lib/activityLevels.js (pure rules), lib/purchases.js (pending purchase), lib/fonts.js + assets/fonts/ (Google Sans Medium, OFL), components/featureIconsData.js (check, alert).
 - data: nothing is dropped. The onboarding answers stay in the device stash until the account has them; the activity level is migrated on read (old key kept as activity_level_legacy when rewritten).
-- checklist-signed: 2026-11-24 by the founder in the admin panel Decisões tab ("Assinar 4 listas de aceitação antigas": Aprovo; option A = sign the three already live); was pending — design approved from pictures 2026-10-03
+- checklist-signed: 2026-11-24 by the founder in the admin panel Decisões tab ("Assinar 4 listas de aceitação antigas": Aprovo; option A = sign the three already live); previously awaiting signature — design approved from pictures 2026-10-03
 - committed-to: next build (founder "approved → next build" rule)
 
 ## Acceptance checklist
