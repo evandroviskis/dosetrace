@@ -136,8 +136,11 @@ test('OD-7: the profile / user_metadata check — refused after the verdict or w
   D.view.offline = true;
   assert.equal(await D.flow.metadataAllowed('u1'), true, 'no answer: the write itself will fail offline; never refused on a maybe');
   const s = read('lib/supabase.js');
-  assert.match(s, /supabase\.auth\.updateUser = async \(attributes, options\) => \{\n\s+if \(attributes && attributes\.data && metadataGuard\)/);
-  assert.match(s, /if \(allowed === false\) return \{ data: \{ user: null \}, error: \{ code: 'DT001'/);
+  // Gate B 2026-11-24 (profile-synced PS-24): the wrapper body moved to lib/profileWrite metadataWrite (behaviour-
+  // tested in __tests__/profileOfflineGateB.test.js); the guard is still the first step of every metadata write.
+  assert.match(s, /supabase\.auth\.updateUser = \(attributes, options\) => metadataWrite\(attributes, options, \{\n\s+guard: metadataGuard,/);
+  const pw = read('lib/profileWrite.js');
+  assert.match(pw, /if \(data && d\.guard\) \{[\s\S]*?if \(allowed === false\) return \{ data: \{ user: null \}, error: \{ code: 'DT001'/);
   // Gate B F1: a named function now (its owner check is behaviour-tested in gateBOwnerDeviceCheck).
   assert.match(read('lib/deviceRuntime.js'), /export async function metadataGuardCheck\(\) \{[\s\S]{0,300}const explicit = isExplicitSignIn\(\);[\s\S]{0,300}return deviceFlow\(\)\.metadataAllowed\(user\.id, \{ explicit \}\);\n\}\nsetMetadataGuard\(metadataGuardCheck\);/);
 });

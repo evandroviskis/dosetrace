@@ -66,7 +66,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId, getDB } from './lib/database';
 // Profile synced (docs/specs/profile-synced.md): the gates read the profile from the synced table.
-import { withProfile, ensureProfileCopy, flushProfileEdits, startProfileEditFlush } from './lib/profile';
+import { withProfile, ensureProfileCopy, flushProfileEdits, startProfileEditFlush, useDroppedProfileEdit } from './lib/profile';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
 import { isForegroundStale } from './lib/stillGoingGate';
 import { bootView, bootTabTarget, lastSignedInUser } from './lib/todaySkeleton';
@@ -401,6 +401,24 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // over everything, signed in or not; nothing is deleted. Below the latest — the invitation, at app
   // open, on the tabs only, never over another sheet (components/useUpdateNotice).
   const upd = useUpdateNotice({ session, onMain, language, navigationRef, blocked: !!(deviceSheet || linkSheet || accountSheet) });
+
+  // Gate B 2026-11-24 (docs/specs/profile-synced.md PS-26): an Edit profile edit kept on this phone that the
+  // account refused for good (not A-119, not "try later") was cleared — once, on Main, never over another
+  // sheet, the app's error sheet says so and "Edit profile" reopens it filled with what was typed.
+  const droppedEdit = useDroppedProfileEdit(session && session.user ? session.user.id : null);
+  const openEditProfileWith = (values) => {
+    const nav = navigationRef && navigationRef.current;
+    if (!nav || !values) return;
+    nav.navigate('Main', { screen: 'MainTabs', params: { screen: 'Settings', params: { search: { target: 'profile', values, n: Date.now() } } } });
+  };
+  const droppedSheet = droppedEdit.values && onMain && !deviceSheet && !linkSheet && !accountSheet && !upd.invite
+    ? errorSheet(t, 'profileEdit', t('profile_edit_refused_body'), {
+      buttons: [
+        { label: t('profile_edit_refused_later'), kind: 'secondary' },
+        { label: t('profile_edit_title'), kind: 'primary', onPress: () => openEditProfileWith(droppedEdit.values) },
+      ],
+    })
+    : null;
   // UN-8 (founder 2026-10-20): the required screen offers the Settings row "Baixar meus dados" while signed in — the
   // ONE export of Settings (lib/accountActions exportMyData), one at a time; its answer (no share
   // sheet on the phone, or an error) in a DoseTrace sheet over the screen. Nothing is deleted.
@@ -492,6 +510,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
       <DTSheet config={deviceSheet || linkSheet} onClose={deviceSheet ? closeDeviceSheet : closeLinkSheet} />
       {/* DV-242: the cross-account sheet; A-119's device sheets come before it (one locked sheet at a time). */}
       <DTSheet config={deviceSheet ? null : accountSheet} onClose={() => onAccountAskClose && onAccountAskClose()} />
+      <DTSheet config={droppedSheet} onClose={droppedEdit.forget} />
       <UpdateInviteSheet config={deviceSheet || linkSheet ? null : upd.invite} onUpdate={upd.onUpdate} onLater={upd.onLater} />
       <UpdateReadyBar visible={upd.ready} onRestart={upd.onRestart} />
     </NavigationContainer>
