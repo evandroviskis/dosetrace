@@ -182,7 +182,9 @@ test('code review #1: the report never hides the screen\'s notice() helper (the 
 
 test('code review #5: a phone that never synced never prints a made-up "since" date', () => {
   const src = read('screens/SettingsScreen.js');
-  assert.ok(src.includes("'report_unsynced_never'") && src.includes("'settings_report_unsynced_never'"));
+  // 2026-11-24: the report's own lines are written by lib/adherenceReportDoc (the notice above the paper stays here).
+  assert.ok(read('lib/adherenceReportDoc.js').includes("'report_unsynced_never'") && src.includes("'settings_report_unsynced_never'"));
+  assert.match(src, /unsync: unsyncNotice \? \{ never: !!unsyncNotice\.never, sinceMs: unsyncSinceMs \} : null/);
   assert.doesNotMatch(src, /Math\.min\(\.\.\.unsync\.held/);
 });
 
@@ -190,7 +192,9 @@ test('code review #6: Sync now rebuilds the report only while its page is open; 
   const src = read('screens/SettingsScreen.js');
   const fn = src.slice(src.indexOf('async function reportSyncNow'), src.indexOf('async function reportSyncNow') + 600);
   assert.match(fn, /reportOpenRef\.current/);
-  assert.match(src, /onPress=\{shareReport\} disabled=\{reportSyncing\}/);
+  // 2026-11-24: both share buttons (PDF, text) wait for Sync now (and for a PDF being made).
+  assert.match(src, /onPress=\{shareReport\} disabled=\{reportSyncing \|\| makingPdf\}/);
+  assert.match(src, /onPress=\{shareReportPdf\} disabled=\{reportSyncing \|\| makingPdf\}/);
 });
 
 test('code review #7: the Dose log card follows a finished sync and Today\'s changes on the Fold page', () => {
@@ -212,7 +216,10 @@ test('Dose log: the card under the title, Sync now, the extra line past 7 days a
 
 test('Report: asterisks, the explaining line, per-protocol "No record since", the gap lines, and the notice above the paper (not in the text)', () => {
   const src = read('screens/SettingsScreen.js');
-  for (const k of ['report_unsynced', 'report_unrecorded', 'report_gap', 'settings_report_unsynced', 'sync_now']) assert.ok(src.includes(`'${k}'`), k);
+  const doc = read('lib/adherenceReportDoc.js'); // 2026-11-24: the report's lines (third person) are written there
+  for (const k of ['report_unsynced', 'report_unrecorded', 'report_gap']) assert.ok(doc.includes(`'${k}'`), k);
+  for (const k of ['settings_report_unsynced', 'sync_now']) assert.ok(src.includes(`'${k}'`), k);
+  assert.doesNotMatch(doc, /settings_report_unsynced/, 'the notice above the paper never goes into the report');
   assert.match(src, /readUnrecordedGaps\(/);
   // The notice above the paper is screen state, never appended to the report string.
   assert.doesNotMatch(src, /report \+= [^\n]*settings_report_unsynced/);

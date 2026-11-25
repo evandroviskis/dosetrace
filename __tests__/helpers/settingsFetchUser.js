@@ -40,6 +40,10 @@ function settings({ getCachedUser, cap = 60 } = {}) {
     setPrimaryGoals: set('primaryGoals'), setTrackingTypes: set('trackingTypes'), activitySourceKey: (m) => (m && m.activity_level) || '',
     profileMeta: (u) => (u && u.user_metadata) || null, // DV-114 Gate B 2 (no answer kept on this phone here)
     birthMonthIndex: require('../../lib/profileName').birthMonthIndex, // founder 2026-10-31: old 0 = January
+    // AR-18: the two names are read through lib/profileName, from the profile with the kept answer laid over it.
+    profileUser: (u) => u, getNickname: require('../../lib/profileName').getNickname, getReportName: require('../../lib/profileName').getReportName,
+    nicknameFollows: require('../../lib/profileName').nicknameFollows, nicknameFollowsRef: { current: false },
+    loadedReportName: { current: '' }, setReportName: set('reportName'), setNicknameAuto: () => {},
     supabase: { auth: { updateUser: async () => ({}) } },
     getCalcInputs: async () => null, setActivityLevel: set('activityLevel'), setHasProvider: set('hasProvider'),
     setShowEditProfile: set('showEditProfile'), editProfileOpen: { current: false }, profileLoaded: deferred(),

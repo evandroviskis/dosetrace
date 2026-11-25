@@ -118,7 +118,6 @@ const OLD = [
   ["es","protocols_calc_disclaimer","valores que introdujiste: DoseTrace "],
   ["es","protocols_first_dose_hint","empiezas hoy: solo cuentan las tomas a partir de ahora. Las horas "],
   ["es","settings_delete_apple_revoke_note"," eliminado. También puedes quitar el acceso de Iniciar sesión con Apple de DoseTrace cuando quieras en la app Ajustes, en tu ID de Ap"],
-  ["es","report_header","ADHERENCIA DOSETRACE"],
   ["es","blood_dropped_sub","valor(es) no se pudie"],
   ["es","protocols_add_date","← Ya lo mezclé: añadir fec"],
   ["es","ap_door_build_sub","Cuéntale tu compues"],
@@ -299,6 +298,7 @@ const OLD = [
 ];
 
 // es.reset_switch_notbacked left with the blocked sign-out (A-119 OD-9, rebuild = replace).
+// es.report_header left with the old report text (adherence report for a doctor, 2026-11-24, rebuild = replace).
 test('the 290 grammar fixes of 2026-10-15 stay fixed (6 languages)', () => {
   const back = [];
   for (const [lang, key, old] of OLD) {

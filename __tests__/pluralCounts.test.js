@@ -22,7 +22,7 @@ const ph = (s) => (String(s).match(/\{[a-zA-Z0-9_]+\}/g) || []).sort().join(',')
 
 const KEYS = ['nutri_free_note', 'nutri_hero_today', 'notif_morning_due_private', 'today_more_later', 'today_vial_new_capacity',
   'blood_premium_markers', 'protocols_vial_days_left', 'protocols_doses_left', 'protocols_doses_capacity', 'protocols_low_supply',
-  'protocols_past_title', 'report_streak_line', 'report_vial_line', 'blood_imported_body',
+  'protocols_past_title', 'report_sum_due', 'report_sum_taken', 'report_sum_skipped', 'report_sum_missed', 'report_ended', 'blood_imported_body',
   'vax_imported_body', 'vax_imported_dropped', 'bodymap_n_selected'];
 
 test('the plural rule: French singular for 0 and 1, the others for 1 only', () => {
@@ -55,8 +55,9 @@ test('the reported cases read right with 1', () => {
   assert.equal(one('fr', 'protocols_low_supply', { n: 1 }), 'Faible · 1 restante');
   assert.equal(one('pt', 'protocols_low_supply', { n: 1 }), 'Baixo · 1 restante');
   assert.equal(one('pt', 'protocols_vial_days_left', { n: 1 }), '1 dia restante');
-  assert.equal(one('en', 'report_streak_line', { count: 1 }), 'Current streak: 1 dose without a miss');
-  assert.equal(tr.en.report_streak_line, 'Current streak: {count} doses without a miss');
+  assert.equal(one('en', 'report_sum_due', { n: 1 }), '1 scheduled dose'); // the adherence report for a doctor (2026-11-24)
+  assert.equal(one('pt', 'report_sum_skipped', { n: 1 }), '1 marcada como não tomada');
+  assert.equal(tr.pt.report_sum_skipped, '{n} marcadas como não tomadas');
   assert.equal(one('es', 'vax_imported_dropped', { count: 1 }), '1 entrada sin fecha legible se omitió.');
 });
 
@@ -70,7 +71,7 @@ test('the screens pick the singular with pluralKey', () => {
     'screens/components/NewVialPrompt.js': ['today_vial_new_capacity', 'today_new_vial_old'],
     'screens/BodyScreen.js': ['blood_premium_markers', 'blood_imported_body'],
     'screens/ProtocolsScreen.js': ['protocols_vial_days_left', 'protocols_doses_left', 'protocols_doses_capacity', 'protocols_low_supply', 'protocols_past_title'],
-    'screens/SettingsScreen.js': ['report_streak_line', 'report_vial_line'],
+    'lib/adherenceReportDoc.js': ['report_sum_due', 'report_sum_taken', 'report_sum_skipped', 'report_sum_missed', 'report_ended'], // 2026-11-24
     'screens/components/VaccinesSection.js': ['vax_imported_body', 'vax_imported_dropped'],
     'screens/components/BodyMapModal.js': ['bodymap_n_selected'],
   };

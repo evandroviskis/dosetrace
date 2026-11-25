@@ -56,7 +56,7 @@ test('(b) the streaks, the report streak and both Log counts use the logged rows
   // DV-034: the tracker streak reads a year back (since = TRACKER_LOOKBACK_DAYS ago), still logged rows only.
   assert.match(today, /loggedOnly\(getLogsSince\(user\.id, since\.toISOString\(\)\) \|\| \[\], activeProtocols\)/);
   assert.match(today, /loggedOnly\(getTakenLogsSince\(user\.id, thirtyDaysAgo\.toISOString\(\)\) \|\| \[\], activeProtocols\)/);
-  assert.match(read('screens/SettingsScreen.js'), /reportStreaks\(protocols, loggedOnly\(getTakenLogsSince\(user\.id, yearAgo\.toISOString\(\)\) \|\| \[\], protocols\), now\)/);
+  assert.match(read('screens/SettingsScreen.js'), /reportStreakRuns\(protocols, loggedOnly\(getTakenLogsSince\(user\.id, yearAgo\.toISOString\(\)\) \|\| \[\], protocols\), now\)/);
   assert.match(read('screens/ProtocolsScreen.js'), /setLogCounts\(outcomeCounts\(logs\)\)/);
   assert.match(read('screens/LogScreen.js'), /const counted = outcomeCounts\(logs\);/);
   assert.match(read('lib/protocolEnd.js'), /p\.created_at as protocol_created_at/);

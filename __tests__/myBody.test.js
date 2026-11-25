@@ -243,7 +243,8 @@ test('MB-19: the export sheet hugs its content, rows say only "N readings", and 
   const exp = fnCode(BODY, 'doExport');
   assert.match(exp, /setTimeout\(\(\) => setPreviewKey\('pdf'\), 300\);/);
   assert.match(BODY, /<DTSheet config=\{exportModalOpen \? exportSheet : null\} onClose=\{\(\) => setExportSheet\(null\)\} \/>/);
-  assert.match(exp, /notice\(\{ title: errorTitle\(t, 'file'\), body: t\('export_error'\) \}, true\)/); // DV-233
+  // AR-20 (2026-11-24): doExport asks for the full name first; the file is made in runExport.
+  assert.match(fnCode(BODY, 'runExport'), /notice\(\{ title: errorTitle\(t, 'file'\), body: t\('export_error'\) \}, true\)/); // DV-233
 });
 
 // ── Parts 16–20: the Vaccine journal ──────────────────────────────────────────────────────

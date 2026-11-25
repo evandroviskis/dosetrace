@@ -67,7 +67,10 @@ test('overall uses the same definition and the same protocols (sum of the rows a
   const { slotCounts } = require('../lib/adherenceRings');
   const s = Object.values(slotCounts(f.protocols, f.logs, SINCE, NOW));
   const overall = Math.round((100 * s.reduce((a, x) => a + x.taken, 0)) / s.reduce((a, x) => a + x.due, 0));
-  assert.deepEqual(r.overall, { taken: 6, skipped: 1, missed: 7, total: 14, adherence: overall });
+  // AR-7 (2026-11-24): the pair the % is made of travels with it (due, counted).
+  const due = s.reduce((a, x) => a + x.due, 0);
+  const counted = s.reduce((a, x) => a + Math.min(x.taken, x.due), 0);
+  assert.deepEqual(r.overall, { taken: 6, skipped: 1, missed: 7, total: 14, due, counted, adherence: overall });
   const sum = r.perProtocol.reduce((a, p) => a + p.taken + p.skipped + p.missed, 0);
   assert.equal(sum, r.overall.total);
 });
@@ -86,18 +89,21 @@ test('the Settings report uses lib/adherenceReport, scans for missed doses first
   // A-123: the scan waits for the first sync, capped so the export never hangs.
   assert.match(fn, /await scanMissedDoses\(\{ maxWaitMs: REPORT_SCAN_WAIT_MS \}\)/);
   assert.doesNotMatch(fn, /taken \/ total/, 'the old taken ÷ (taken + skipped) formula is gone');
-  assert.match(fn, /\{missed\}/);
+  // 2026-11-24 (report for a doctor): the missed count is written by lib/adherenceReportDoc from the model.
+  assert.match(fn, /missed: row\.missed/);
+  assert.match(fs.readFileSync(path.join(__dirname, '../lib/adherenceReportDoc.js'), 'utf8'), /t\('report_missed_label'\)/);
 });
 
-test('the report line names Missed in six languages', () => {
+// 2026-11-24 (founder, docs/design/relatorio-adesao.html): the report says what a missed dose IS, in a sentence a
+// doctor reads without the app ("Doses previstas sem nenhum registro"); the app's own word (Perdida) stays in the app.
+test('the report names the missed doses in six languages (scheduled, with no record at all)', () => {
   const src = fs.readFileSync(path.join(__dirname, '../i18n/translations.js'), 'utf8');
   const mod = { exports: {} };
   new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);
   const tr = mod.exports.translations;
-  const want = { en: 'Missed', es: 'Perdidas', pt: 'Perdidas', fr: 'Manquées', de: 'Verpasst', it: 'Mancate' };
+  const want = { en: 'no record at all', es: 'sin ningún registro', pt: 'sem nenhum registro', fr: 'sans aucun enregistrement', de: 'ganz ohne Eintrag', it: 'senza alcuna registrazione' };
   for (const [l, w] of Object.entries(want)) {
-    const line = tr[l].report_outcome_line;
-    assert.ok(line.includes(`${w}`) && line.includes('{missed}'), `${l}: ${line}`);
-    assert.ok(line.includes('{taken}') && line.includes('{skipped}') && line.includes('{percent}'), l);
+    assert.ok(tr[l].report_missed_label.includes(w), `${l}: ${tr[l].report_missed_label}`);
+    assert.ok(tr[l].report_sum_missed.includes(w) && tr[l].report_sum_missed.includes('{n}'), l);
   }
 });

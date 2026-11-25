@@ -101,6 +101,9 @@ const ALLOW = {
   // The wheel sheet renders caller children, and every caller passes a DTWheel only (no text
   // field, no keyboard) — checked below.
   'screens/components/ProtocolParts.js#visible': 'DTPickerSheet: wheel children only',
+  // AR-19 (2026-11-24): DTSheet can hold one field, but it is always its own Modal (with its own
+  // KeyboardAvoidingView), never a field inside the Modal around it; this Modal passes no field config.
+  'screens/components/MealTimesSheet.js#!!visible': 'holds a DTSheet (its own Modal); no field of its own',
 };
 
 test('modal keyboard guard: DTPickerSheet callers pass wheels, never a text field', () => {

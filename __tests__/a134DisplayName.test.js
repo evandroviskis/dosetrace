@@ -63,8 +63,11 @@ test('A-134 (4): the reminders themselves use the display name (dose title, vial
 test('A-134 (4b): the provider report names each protocol as Today does', () => {
   const s = read('screens/SettingsScreen.js');
   assert.match(s, /import \{ protocolDisplayName \} from '\.\.\/lib\/protocolName';/);
-  assert.match(s, /name: isEnded\(p\) \? `\$\{protocolDisplayName\(p, t\)\} · \$\{t\('protocols_ended_on'\)/);
-  assert.match(s, /` : protocolDisplayName\(p, t\),/);
+  // Adherence report for a doctor (2026-11-24): the name as Today shows it; an ended one carries its date
+  // to lib/adherenceReportDoc, which writes "· Encerrado em …" after it.
+  assert.match(s, /name: protocolDisplayName\(p, t\), \/\/ A-134: as on Today/);
+  assert.match(s, /endedAtMs: isEnded\(p\) \?/);
+  assert.match(read('lib/adherenceReportDoc.js'), /t\('protocols_ended_on'\)/);
   assert.doesNotMatch(s, /\$\{p\.name\} · /);
 });
 

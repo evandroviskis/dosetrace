@@ -3,7 +3,7 @@
 // choice), the bottom picker sheet that holds the iPhone wheel, the vial cells (one cell
 // per dose, remaining in data) and the enlarged syringe ruler. Theme tokens only.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Pressable, StyleSheet, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Pressable, StyleSheet, Platform, ScrollView, ActivityIndicator, TextInput, KeyboardAvoidingView } from 'react-native';
 import Modal from '../../components/PresenceModal';
 import Svg, { Rect, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
@@ -66,6 +66,10 @@ function useLast(config) {
 //   the team message sheet passes it (a long message in a locked sheet must never hide its button).
 // AD-100 (picture ad99-ad100-labs.html, "Mudar a data deste exame"):
 //   wheel          { columns, onChange }: the app's date wheel (DTWheel) under the text.
+// Adherence report AR-19 (docs/specs/adherence-report.md, picture relatorio-adesao.html "Seu nome completo"):
+//   input          { placeholder, defaultValue, autoCapitalize, textContentType, autoComplete }: one text field
+//                  under the text; each button's onPress then receives what was typed, and a button with
+//                  needsInput stays off (dimmed) while the field is empty. The sheet rises above the keyboard.
 // No buttons: no empty button row.
 export function DTSheet({ config, onClose, maxHeight }) {
   const { colors: c } = useTheme();
@@ -74,11 +78,16 @@ export function DTSheet({ config, onClose, maxHeight }) {
   const open = !!config;
   const shown = useLast(config);
   const after = useAfterDismiss(open);
+  // The field's text, reset to its default each time a config with a field is shown.
+  const [inputValue, setInputValue] = useState('');
+  useEffect(() => { if (config && config.input) setInputValue(config.input.defaultValue || ''); }, [config]);
   if (!shown) return null;
   const btns = shown.buttons || [];
   const stack = btns.length !== 2 || btns.some(b => String(b.label).length > 14);
   const ordered = stack && btns.length === 2 ? [btns[1], btns[0]] : btns;
-  const press = (b) => { after.queue(b.onPress); onClose(); };
+  // Only a sheet with a field hands its text to the button (every other sheet calls onPress as before).
+  const press = (b) => { after.queue(shown.input && b.onPress ? () => b.onPress(inputValue) : b.onPress); onClose(); };
+  const btnOff = (b) => !!(shown.input && b.needsInput && !String(inputValue).trim());
   const dismiss = () => { if (shown.locked) return; after.queue(shown.onDismiss); onClose(); };
   const content = (
     <>
@@ -96,6 +105,22 @@ export function DTSheet({ config, onClose, maxHeight }) {
       {shown.body ? <Text style={[s.body, shown.bodyInk && s.bodyInk]}>{shown.body}</Text> : null}
       {shown.body2 ? <Text style={[s.body, s.bodyMore]}>{shown.body2}</Text> : null}
       {shown.wheel ? <DTWheel columns={shown.wheel.columns} onChange={shown.wheel.onChange} /> : null}
+      {shown.input ? (
+        <TextInput
+          style={s.input}
+          value={inputValue}
+          onChangeText={setInputValue}
+          placeholder={shown.input.placeholder}
+          placeholderTextColor={c.ink3}
+          autoCapitalize={shown.input.autoCapitalize || 'sentences'}
+          autoCorrect={false}
+          autoComplete={shown.input.autoComplete}
+          textContentType={shown.input.textContentType}
+          autoFocus
+          returnKeyType="done"
+          accessibilityLabel={shown.title}
+        />
+      ) : null}
       {shown.hint ? <Text style={s.hint}>{shown.hint}</Text> : null}
       {shown.link ? (
         <TouchableOpacity style={s.link} onPress={() => { const fn = shown.link.onPress; if (!shown.link.keepOpen) onClose(); if (fn) fn(); }} accessibilityRole="link">
@@ -111,9 +136,11 @@ export function DTSheet({ config, onClose, maxHeight }) {
           {ordered.map((b, i) => (
             <TouchableOpacity
               key={i}
-              style={[s.btn, !stack && s.btnFlex, s[`btn_${b.kind || 'secondary'}`]]}
+              style={[s.btn, !stack && s.btnFlex, s[`btn_${b.kind || 'secondary'}`], btnOff(b) && s.btnOff]}
               onPress={() => press(b)}
+              disabled={btnOff(b)}
               accessibilityRole="button"
+              accessibilityState={{ disabled: btnOff(b) }}
             >
               <Text style={[s.btnText, s[`btnText_${b.kind || 'secondary'}`]]}>{b.label}</Text>
             </TouchableOpacity>
@@ -123,18 +150,25 @@ export function DTSheet({ config, onClose, maxHeight }) {
       {shown.note ? <Text style={s.note}>{shown.note}</Text> : null}
     </>
   );
+  const scrim = (
+    <Pressable style={[s.scrim, { paddingBottom: centerGap }]} onPress={dismiss} accessibilityRole="button" >
+      <Pressable style={[s.sheet, maxHeight ? { maxHeight } : null]} onPress={() => {}} accessibilityViewIsModal>
+        {maxHeight ? (
+          <ScrollView style={s.sheetScroll} contentContainerStyle={s.sheetScrollBody} bounces={false} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled">
+            {content}
+          </ScrollView>
+        ) : content}
+        {actions}
+      </Pressable>
+    </Pressable>
+  );
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={dismiss} onDismiss={after.onDismiss}>
-      <Pressable style={[s.scrim, { paddingBottom: centerGap }]} onPress={dismiss} accessibilityRole="button" >
-        <Pressable style={[s.sheet, maxHeight ? { maxHeight } : null]} onPress={() => {}} accessibilityViewIsModal>
-          {maxHeight ? (
-            <ScrollView style={s.sheetScroll} contentContainerStyle={s.sheetScrollBody} bounces={false} showsVerticalScrollIndicator>
-              {content}
-            </ScrollView>
-          ) : content}
-          {actions}
-        </Pressable>
-      </Pressable>
+      {/* A sheet with a field sits above the keyboard, on both platforms (Android is edge to edge: its
+          window is never resized, so the padding comes from the keyboard events, as on iPhone). */}
+      {shown.input ? (
+        <KeyboardAvoidingView style={s.kbFill} behavior="padding">{scrim}</KeyboardAvoidingView>
+      ) : scrim}
     </Modal>
   );
 }
@@ -279,6 +313,7 @@ function WheelColumn({ values, index, onPick, onInteract, s }) {
     >
       <ScrollView
         ref={ref}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         snapToInterval={ROW}
         decelerationRate="fast"
@@ -460,6 +495,10 @@ const sheetStyles = (c) => StyleSheet.create({
   btn_primary: { backgroundColor: c.act },
   btn_secondary: { backgroundColor: c.well },
   btn_danger: { backgroundColor: c.risk },
+  btnOff: { opacity: 0.35 }, // a needsInput button while its field is empty (the trash bar's "off")
+  // AR-19: the sheet's one field (the Edit profile field's look: well, line, ink)
+  input: { minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: c.line, backgroundColor: c.well, color: c.ink, fontSize: 17, paddingHorizontal: 14, paddingVertical: 10 },
+  kbFill: { flex: 1 },
   btnText: { fontSize: 15, fontWeight: '700', textAlign: 'center' },
   btnText_primary: { color: c.onAct },
   btnText_secondary: { color: c.ink },

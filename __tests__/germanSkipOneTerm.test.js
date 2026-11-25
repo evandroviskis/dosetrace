@@ -16,7 +16,7 @@ const mod = { exports: {} };
 new Function('module', 'exports', src.replace(/export\s+const/g, 'const') + '\nmodule.exports = { translations };')(mod, mod.exports);
 const de = mod.exports.translations.de;
 
-const DOSE_SKIP = ['today_pending_skip', 'today_pending_prompt_today', 'log_skipped', 'log_status_skipped', 'log_mark_skipped', 'today_skipped_today', 'report_outcome_line', 'today_skip', 'today_skip_title', 'today_skip_confirm'];
+const DOSE_SKIP = ['today_pending_skip', 'today_pending_prompt_today', 'log_skipped', 'log_status_skipped', 'log_mark_skipped', 'today_skipped_today', 'report_skipped_label', 'report_sum_skipped', 'report_how_skipped_t', 'today_skip', 'today_skip_title', 'today_skip_confirm'];
 
 test('German names a skipped dose with one verb: auslassen / ausgelassen', () => {
   for (const k of DOSE_SKIP) {

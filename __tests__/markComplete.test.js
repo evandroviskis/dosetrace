@@ -5,7 +5,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { translations } = require('../i18n/translations.js');
 
-const KEYS = ['today_mark_taken', 'notif_action_complete', 'log_mark_taken', 'report_outcome_line', 'today_take_undone',
+// report_outcome_line left the list 2026-11-24: the adherence report for a doctor says "registradas como tomadas" (founder,
+// docs/design/relatorio-adesao.html; the app's own words stay Concluída / complete).
+const KEYS = ['today_mark_taken', 'notif_action_complete', 'log_mark_taken', 'today_take_undone',
   'today_site_back_msg', 'today_tip_2', 'xp_remind_body', 'xp_remind_taken', 'xp_notes_taken', 'today_pending_take'];
 const OLD = { en: /\btaken\b/i, es: /\btomad[ao]s?\b/i, pt: /\btomad[ao]s?\b/i, fr: /\bpris(es?)?\b/i, de: /\b(ein)?genommen\b/i, it: /\b(assunt[aeio]|pres[ae])\b/i };
 

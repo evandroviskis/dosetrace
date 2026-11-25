@@ -26,7 +26,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { orphanedPendingCount, discardOrphaned } from '../lib/accountActions';
 import { shouldPromptOrphans, orphanPromptKey, orphanedSheet } from '../lib/orphanedPending';
 import { getCachedUser } from '../lib/supabase';
-import { profileMeta } from '../lib/pendingGateStore';
+import { profileUser } from '../lib/pendingGateStore';
+import { getNickname } from '../lib/profileName';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
 import { handledSlotIndexes, ymd } from '../lib/notificationPlan';
@@ -506,7 +507,7 @@ export default function TodayScreen() {
     useCallback(() => {
       // Fetch display name
       getCachedUser().then(user => {
-        const name = profileMeta(user)?.display_name; // DV-114 Gate B 2: a name kept on this phone counts
+        const name = getNickname(profileUser(user)); // DV-114 Gate B 2: a name kept on this phone counts (lib/profileName, AR-18)
         if (name) {
           setUserName(name.split(/\s+/)[0]); // first name only
         }
