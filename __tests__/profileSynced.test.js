@@ -106,23 +106,25 @@ test('PS-1b (Gate B F1): while user_metadata is the mirror, a profile row waitin
   const db = H.makeDb();
   PS.recordProfileWrite(db, U, { display_name: 'Sam' }, { ready: true, meta: {}, now: now() });
   assert.equal(rows(db)[0].sync_status, 'pending', 'the row does wait to be sent');
-  assert.ok(!core.UNSENT_TABLES.includes(T), 'not an at-risk table while the mirror exists');
-  assert.deepEqual(core.UNSENT_TABLES, core.TABLES.filter((t) => t !== T));
+  // Founder 2026-11-24 (B, PS-22): the table is in the list, and getUnsentChanges counts only a row holding an
+  // Edit profile save user_metadata has not accepted (kept offline); a row only mirroring it never counts.
+  assert.ok(core.UNSENT_TABLES.includes(T));
+  assert.deepEqual(core.getUnsentChanges(db, T, U), [], 'not at risk: user_metadata already has it');
   const s = summarizeUnsent(db, [U]);
   assert.equal(s.count, 0);
   assert.equal(s.byKind.profile, undefined, 'no double count with the kept 18+ / profile answer (lib/pendingGate keptGateCount)');
   const { pendingForSignOut, unsyncedCount } = require('../lib/recoveryFlow');
-  assert.equal(pendingForSignOut({ db, localOwnerId: U, sessionUserId: U, tables: core.UNSENT_TABLES, getPending: core.getPendingChanges }), 0, 'the deliberate sign-out is not blocked');
+  assert.equal(pendingForSignOut({ db, localOwnerId: U, sessionUserId: U, tables: core.UNSENT_TABLES, getPending: core.getUnsentChanges }), 0, 'the deliberate sign-out is not blocked');
   const { crossAccountDecision } = require('../lib/accountGuard');
-  assert.deepEqual(crossAccountDecision({ localOwnerId: U, sessionUserId: 'user-2', countPending: (id) => unsyncedCount(db, id, core.UNSENT_TABLES, core.getPendingChanges) }), { action: 'discard', pending: 0 }, 'another account signs in: silent discard, no sheet');
+  assert.deepEqual(crossAccountDecision({ localOwnerId: U, sessionUserId: 'user-2', countPending: (id) => unsyncedCount(db, id, core.UNSENT_TABLES, core.getUnsentChanges) }), { action: 'discard', pending: 0 }, 'another account signs in: silent discard, no sheet');
   const cloud = H.makeCloud();
   const rb = await core.rebuildFromCloud(db, cloud, U, { keep: { seq: null } });
   assert.equal(rb.ok, true);
   assert.equal(rb.discarded.count, 0, 'the takeover never announces a profile change as discarded');
   // The app's call sites use the same list.
-  assert.match(read('App.js'), /countPending: \(id\) => unsyncedCount\(getDB\(\), id, UNSENT_TABLES, getPendingChanges\),/);
-  assert.match(read('lib/accountActions.js'), /pendingForSignOut\(\{ db: getDB\(\), localOwnerId: getLocalDataUserId\(\), sessionUserId, tables: UNSENT_TABLES, getPending: getPendingChanges \}\)/);
-  assert.match(read('screens/TodayScreen.js'), /unsyncedCount\(getDB\(\), getLocalDataUserId\(\), UNSENT_TABLES, getPendingChanges\)/);
+  assert.match(read('App.js'), /countPending: \(id\) => unsyncedCount\(getDB\(\), id, UNSENT_TABLES, getUnsentChanges\),/);
+  assert.match(read('lib/accountActions.js'), /pendingForSignOut\(\{ db: getDB\(\), localOwnerId: getLocalDataUserId\(\), sessionUserId, tables: UNSENT_TABLES, getPending: getUnsentChanges \}\)/);
+  assert.match(read('screens/TodayScreen.js'), /unsyncedCount\(getDB\(\), getLocalDataUserId\(\), UNSENT_TABLES, getUnsentChanges\)/);
 });
 
 test('PS-2: the Supabase migration FILE (NOT applied): table, own-row RLS, updated_at, A-119 guard, backfill that never overwrites the table, trigger from auth.users that never breaks a sign-in', () => {
@@ -450,7 +452,7 @@ test('PS-12: old store versions — user_metadata keeps every key (the mirror), 
   assert.equal(view(db, server.meta).food_reminders, true);
 });
 
-test('PS-13: no visible change — no new string, no new notice, no screen reads the table directly (the one view through getCachedUser / the gate)', () => {
+test('PS-13: no visible change — no new string or notice (except PS-18\'s line for an Edit profile save kept offline), no screen reads the table directly (the one view through getCachedUser / the gate)', () => {
   const app = read('lib/profile.js');
   assert.doesNotMatch(app, /\bt\(['"]/);
   for (const f of ['screens/SettingsScreen.js', 'screens/OnboardingFlowScreen.js', 'screens/AgeConfirmScreen.js']) {

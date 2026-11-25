@@ -58,7 +58,8 @@ test('DV-113: the profile read fills it; Save writes tracking_types in the same 
   // updateUser({ data }) merges keys into user_metadata: only the profile's own keys are sent.
   // DV-114 Gate B 2 moved the profile keys into profileData (the same merge write).
   assert.match(save, /const profileData = \{[\s\S]*tracking_types: trackingTypes\.slice\(\),[\s\S]*\};/);
-  assert.match(save, /supabase\.auth\.updateUser\(\{ data: profileData \}\)/);
+  // Founder 2026-11-24 (B): through saveProfileEdit (one merge write of profileData + an edit kept offline).
+  assert.match(save, /saveProfileEdit\(user, profileData, \{ updateUser: \(data\) => supabase\.auth\.updateUser\(\{ data \}\)/);
   assert.doesNotMatch(save, /user_metadata: /);
 });
 

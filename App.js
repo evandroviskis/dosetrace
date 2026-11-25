@@ -20,7 +20,7 @@ import { clearTeamMessages } from './lib/teamMessages';
 import { clearExportFile } from './lib/exportFile';
 import { clearAccountKeys } from './lib/accountKeys';
 import AccountLanguageSync from './components/AccountLanguageSync';
-import { UNSENT_TABLES, getPendingChanges } from './lib/syncCore';
+import { UNSENT_TABLES, getUnsentChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { consumeExplicitSignIn, beginExplicitSignIn, endExplicitSignIn } from './lib/explicitSignIn';
 import { deviceFlow, deviceGate, subscribeDevice, readDeviceState, continueAfterVerdict, checkAccountGoneFor } from './lib/deviceRuntime';
@@ -66,7 +66,7 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId, getDB } from './lib/database';
 // Profile synced (docs/specs/profile-synced.md): the gates read the profile from the synced table.
-import { withProfile, ensureProfileCopy } from './lib/profile';
+import { withProfile, ensureProfileCopy, flushProfileEdits, startProfileEditFlush } from './lib/profile';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
 import { isForegroundStale } from './lib/stillGoingGate';
 import { bootView, bootTabTarget, lastSignedInUser } from './lib/todaySkeleton';
@@ -657,7 +657,7 @@ export default function App() {
   // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).
   const guardDeps = () => ({
     getLocalOwner: () => getLocalDataUserId(),
-    countPending: (id) => unsyncedCount(getDB(), id, UNSENT_TABLES, getPendingChanges),
+    countPending: (id) => unsyncedCount(getDB(), id, UNSENT_TABLES, getUnsentChanges),
     readOwnerLabel: () => AsyncStorage.getItem(OWNER_KEY),
     rememberOwner: (u) => AsyncStorage.setItem(OWNER_KEY, JSON.stringify({ id: u.id, email: u.email || null })),
     forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY),
@@ -1044,6 +1044,7 @@ export default function App() {
           if (!step.held) {
             // Profile synced (PS-5): the profile row created from user_metadata when missing (merge-only).
             ensureProfileCopy(session.user);
+            flushProfileEdits(); // founder 2026-11-24 (B): an Edit profile save kept on this phone goes to the account
             // One-time move of the open reality check + calculator inputs into the
             // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
             // A-119 round 3: never while a takeover's rebuild is queued (step.migrate).
@@ -1130,6 +1131,7 @@ export default function App() {
         if (step.held) return;
         // Profile synced (PS-5): the profile row created from user_metadata when missing (merge-only).
         ensureProfileCopy(session.user);
+        flushProfileEdits(); // founder 2026-11-24 (B): an Edit profile save kept on this phone goes to the account
 
         // One-time move of the open reality check + calculator inputs into the
         // synced tables (S-03), after the import and BEFORE scheduling reminders.
@@ -1160,6 +1162,9 @@ export default function App() {
     // DV-114: a gate answer kept on this phone is written on app open, connection back and return to
     // the app (and on sign-in, above) — never from inside onAuthStateChange.
     const stopGateFlush = startPendingGateFlush();
+    // Founder 2026-11-24 (B): an Edit profile save kept on this phone without internet goes to the account
+    // when the connection is back or the app returns to the front (lib/profile) — never from the callback below.
+    const stopProfileFlush = startProfileEditFlush();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session); // drives the navigator (null → Onboarding) immediately
@@ -1216,6 +1221,7 @@ export default function App() {
       if (appStateSub) appStateSub.remove();
       stopExactWatch();
       stopGateFlush();
+      stopProfileFlush();
       if (unsubSyncForFood) unsubSyncForFood();
     };
   }, []);
