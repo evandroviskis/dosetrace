@@ -118,7 +118,7 @@ test('DC2: GET lists every decision with counts per group (pending / being chang
   const W = world();
   const r = await get(W);
   assert.equal(r.code, 200);
-  assert.deepEqual(r.json.counts, { pendentes: 2, alterando: 1, decididas: 2, executadas: 1, total: 5 });
+  assert.deepEqual(r.json.counts, { pendentes: 2, depois: 0, alterando: 1, decididas: 2, executadas: 1, total: 5 });
   assert.equal(r.json.items.length, 5);
   assert.deepEqual(r.json.items.filter((x) => x.group === 'pendentes').map((x) => x.id), [D4, D1], 'sort first, then newest');
   assert.equal(r.json.items.find((x) => x.id === D3).group, 'decididas');
@@ -135,9 +135,9 @@ test('DC2: GET lists every decision with counts per group (pending / being chang
   assert.deepEqual((await get(W, '?area=painel')).json.items.map((x) => x.id), [D2]);
   assert.ok(r.json.items.every((x) => ['app', 'adm', 'ads'].indexOf(x.origem) >= 0), 'every item says which session posted it');
   assert.deepEqual(r.json.by_origem, {
-    app: { pendentes: 2, alterando: 0, decididas: 0, executadas: 0, total: 2 },
-    adm: { pendentes: 0, alterando: 0, decididas: 1, executadas: 0, total: 1 },
-    ads: { pendentes: 0, alterando: 1, decididas: 1, executadas: 1, total: 2 },
+    app: { pendentes: 2, depois: 0, alterando: 0, decididas: 0, executadas: 0, total: 2 },
+    adm: { pendentes: 0, depois: 0, alterando: 0, decididas: 1, executadas: 0, total: 1 },
+    ads: { pendentes: 0, depois: 0, alterando: 1, decididas: 1, executadas: 1, total: 2 },
   });
   const ads = await get(W, '?origem=ads');
   assert.deepEqual(ads.json.items.map((x) => x.id).sort(), [D3, D5].sort());
@@ -197,7 +197,7 @@ test('DC3: field whitelist — any other field (executed_at, title, context, dec
   }
   const bad = [
     [{ status: 'aprovado' }, 'id'], [{ id: 'x', status: 'aprovado' }, 'id'],
-    [{ id: D1 }, 'status'], [{ id: D1, status: 'pendente' }, 'status'], [{ id: D1, status: 'talvez' }, 'status'],
+    [{ id: D1 }, 'status'], [{ id: D1, status: 'alterando' }, 'status'], [{ id: D1, status: 'talvez' }, 'status'],
     [{ id: D1, status: 'aprovado', choice: 5 }, 'choice'], [{ id: D1, status: 'aprovado', choice: 'x'.repeat(301) }, 'choice'],
     [{ id: D1, status: 'aprovado', note: 7 }, 'note'], [{ id: D1, status: 'aprovado', note: 'a\u0007b' }, 'note'],
   ];
@@ -370,7 +370,7 @@ test('DC7: segmented by the session that posted it — "Todas · App · Painel a
   h = win.DCTab._list();
   assert.equal((h.match(/data-a="open"/g) || []).length, 2, 'only the app session');
   const gseg = h.match(/<div class="dc-seg"[\s\S]*?<\/div>/)[0];
-  assert.deepEqual([...gseg.matchAll(/<b>(\d+)<\/b>/g)].map((m) => m[1]), ['2', '0', '0'], 'group counts of the chosen origin');
+  assert.deepEqual([...gseg.matchAll(/<b>(\d+)<\/b>/g)].map((m) => m[1]), ['2', '0', '0', '0'], 'group counts of the chosen origin (Pendentes · Vou fazer depois · Alteração · Decididas, founder 2026-11-24)');
   assert.equal(win.DCTab.pending(), 3, 'badge = total pending, whatever the filter');
   st.data = null; st.origem = '';
 });

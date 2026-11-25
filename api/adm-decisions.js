@@ -17,10 +17,18 @@
  *   ?origem=app|adm|ads = which Claude session posted it (App · Painel admin · Publicidade, founder 2026-11-24);
  *   by_origem = the same counts per origin (never filtered either).
  * GET ?id=<uuid>            → { item } with images[].url = a signed URL valid for 10 minutes (private bucket)
- * PATCH { id, status, choice?, note? }  — only these four keys; status aprovado|recusado|ajustar; choice one of
+ * PATCH { id, status, choice?, note? }  — only these four keys; status aprovado|recusado|ajustar, or depois ("Vou fazer
+ *   depois", only from pendente; founder 2026-11-24) / pendente ("Voltar para Pendentes", only from depois) — a
+ *   transition the database refuses → 409 transition; choice one of
  *   the decision's options (or null); note up to 4000 characters, line breaks kept. Written by the definer
  *   function founder_decision_save only (it sets decided_at, keeps a history row, refuses an executed decision (409
  *   executed), one being changed by Claude (409 reworking) and more than 60 saves per hour). Body over 16 KB → 413.
+ * POST { action: 'ping', origem? } — "Avisar as sessões" (founder 2026-11-24): one notice row through the definer
+ *   function founder_decision_ping (origem app|adm|ads, or none = all three; 20 an hour per admin → 429). Same
+ *   write rule as PATCH. The list carries last_ping_at. The Claude sessions read the notices through
+ *   founder_decisions_signal (numbers and times only), never through this API.
+ * Migration: supabase/migrations/20261125000000_founder_decisions_depois_avisos.sql. Groups: Pendentes · Vou fazer
+ *   depois (status depois; not decided, never executed) · Alteração em andamento · Decididas.
  * Nothing here logs; the service key never leaves the server.
  */
 const { checkAdmin } = require('./_admAuth.js');
@@ -33,10 +41,10 @@ const MAX_CHOICE = 300;
 const LIST_LIMIT = 500;
 const AREAS = ['app', 'painel', 'site', 'divulgacao', 'outro'];
 const ORIGENS = ['app', 'adm', 'ads'];
-const GROUPS = ['pendentes', 'alterando', 'decididas', 'executadas'];
-const STATUSES = ['aprovado', 'recusado', 'ajustar'];
+const GROUPS = ['pendentes', 'depois', 'alterando', 'decididas', 'executadas'];
+const STATUSES = ['aprovado', 'recusado', 'ajustar', 'depois', 'pendente'];
 const WRITABLE = ['id', 'status', 'choice', 'note'];
-const COLS = 'id,created_at,updated_at,area,kind,title,question,context,founder_said,recommendation,options,links,images,status,choice,note,decided_at,rework_at,executed_at,executed_note,source,sort,origem';
+const COLS = 'id,created_at,updated_at,area,kind,title,question,context,founder_said,recommendation,options,links,images,status,choice,note,decided_at,later_at,rework_at,executed_at,executed_note,source,sort,origem';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PATH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,250}$/;
 // Control characters other than tab and line break never come from a typed note.
@@ -75,7 +83,7 @@ async function readBody(req) {
   });
 }
 
-function groupOf(r) { return r.status === 'pendente' ? 'pendentes' : r.status === 'alterando' ? 'alterando' : 'decididas'; }
+function groupOf(r) { return r.status === 'pendente' ? 'pendentes' : r.status === 'depois' ? 'depois' : r.status === 'alterando' ? 'alterando' : 'decididas'; }
 function inFilter(x, f) { return !f || (f === 'executadas' ? x.executed : x.group === f); }
 function safeUrl(u) { const s = String(u || '').trim(); return /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : null; }
 function safePath(p) { const s = String(p || ''); return PATH_RE.test(s) && s.indexOf('..') < 0 && s.indexOf('//') < 0 ? s : null; }
@@ -147,21 +155,39 @@ async function handler(req, res, opts) {
       if (!r.ok) return json(res, 503, { error: missing(r) ? 'not_configured' : 'unavailable' });
       const all = (Array.isArray(r.j) ? r.j : []).map(shape);
       all.sort((a, b) => (a.sort - b.sort) || (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
-      const zero = () => ({ pendentes: 0, alterando: 0, decididas: 0, executadas: 0, total: 0 });
+      const zero = () => ({ pendentes: 0, depois: 0, alterando: 0, decididas: 0, executadas: 0, total: 0 });
       const counts = zero(), by_origem = { app: zero(), adm: zero(), ads: zero() };
       for (const x of all) for (const c of [counts, by_origem[x.origem]]) { c[x.group]++; if (x.executed) c.executadas++; c.total++; }
       const items = all.filter((x) => inFilter(x, status) && (!area || x.area === area) && (!origem || x.origem === origem));
-      return json(res, 200, { items, counts, by_origem, generated_at: new Date(now).toISOString() });
+      // When the last "Avisar as sessões" went out (null before the notices table exists or with none yet).
+      const p = await call(sb, '/rest/v1/founder_decision_pings?select=at,origem&order=at.desc&limit=1');
+      const last_ping_at = p.ok && Array.isArray(p.j) && p.j[0] ? p.j[0].at : null;
+      return json(res, 200, { items, counts, by_origem, last_ping_at, generated_at: new Date(now).toISOString() });
     }
-    if (method !== 'PATCH') return json(res, 405, { error: 'method' });
+    if (method !== 'PATCH' && method !== 'POST') return json(res, 405, { error: 'method' });
     const body = await readBody(req);
     if (body.tooBig) return json(res, 413, { error: 'too_large' });
+    if (method === 'POST') {
+      const b = body.v;
+      if (!b || typeof b !== 'object' || Array.isArray(b)) return json(res, 400, bad('body'));
+      for (const k of Object.keys(b)) if (k !== 'action' && k !== 'origem') return json(res, 400, bad(k));
+      if (b.action !== 'ping') return json(res, 400, bad('action'));
+      if (b.origem != null && ORIGENS.indexOf(b.origem) < 0) return json(res, 400, bad('origem'));
+      const r = await call(sb, '/rest/v1/rpc/founder_decision_ping', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p_actor: auth.user.id, p_origem: b.origem || null }) });
+      if (!r.ok) return json(res, 503, { error: missing(r) ? 'not_configured' : 'store' });
+      const st = r.j && r.j.state;
+      if (st === 'sent') return json(res, 200, { state: 'sent', at: r.j.at, origem: r.j.origem == null ? null : r.j.origem });
+      if (st === 'limited') return json(res, 429, { error: 'rate', retry_after: r.j.retry_after });
+      if (st === 'bad_origem') return json(res, 400, bad('origem'));
+      return json(res, 503, { error: 'store' });
+    }
     const v = validate(body.v);
     if (v.error) return json(res, 400, v);
     const r = await call(sb, '/rest/v1/rpc/founder_decision_save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p_id: v.id, p_actor: auth.user.id, p_status: v.status, p_choice: v.choice, p_note: v.note }) });
     if (!r.ok) return json(res, 503, { error: missing(r) ? 'not_configured' : 'store' });
     const st = r.j && r.j.state;
-    if (st === 'saved') return json(res, 200, { ok: true, id: r.j.id, status: r.j.status, choice: r.j.choice, note: r.j.note, decided_at: r.j.decided_at });
+    if (st === 'saved') return json(res, 200, { ok: true, id: r.j.id, status: r.j.status, choice: r.j.choice, note: r.j.note, decided_at: r.j.decided_at, later_at: r.j.later_at == null ? null : r.j.later_at });
+    if (st === 'bad_transition') return json(res, 409, { error: 'transition' });
     if (st === 'unknown') return json(res, 404, { error: 'unknown' });
     if (st === 'executed') return json(res, 409, { error: 'executed', executed_at: r.j.executed_at });
     if (st === 'reworking') return json(res, 409, { error: 'reworking', rework_at: r.j.rework_at });

@@ -91,3 +91,22 @@ Reabrir por engano (só antes de executar): `update public.founder_decisions set
 | DC6 | `alterando` só pela sessão (SQL): só leitura no painel, gravação recusada (409), grupo próprio; migração separada sobre a aplicada | DC3 + DC6 |
 | DC7 | Separada pela sessão que enviou (`origem` app/adm/ads; migração 20261124020000, já no ar): controle no topo com as pendentes de cada uma, rótulo em cada cartão, número da aba = total pendente | DC2 + DC7 |
 | DC5 | Aba no computador e no celular com o número de pendentes, 6 idiomas, tokens dos dois temas, botões de 56 px, texto 17 px, voltar do Android fecha uma camada | DC5 + `docs/evidence/decisoes/` (390 px, claro e escuro) |
+
+## 5. "Vou fazer depois", "Tarefa sua", "Atualizar" e "Avisar as sessões" (Evandro, 2026-11-24; construído, migração NÃO aplicada)
+
+Desenhos: `docs/specs/desenhos/vou-fazer-depois.html` e `docs/specs/desenhos/avisar-sessoes.html` (aprovados com "4 aprovo", sem opção escolhida: executada a segunda, construir e mostrar antes da migração). Prova: `docs/evidence/decisoes/11-*` a `18-*` (390 px e computador, claro e escuro) e `prova-depois-avisos.html`. Migração: `supabase/migrations/20261125000000_founder_decisions_depois_avisos.sql` (aplicar ANTES de publicar o código: a lista lê `later_at`).
+
+- `status = 'depois'`: ele guardou para depois. `decided_at` nulo, `later_at` = desde quando, `note` = a observação dele. **Não executar; continuar listando** no fim de cada resposta, na parte "Guardadas para depois". Ele decide dali ou volta para Pendentes (`status = 'pendente'`).
+- `kind = 'tarefa'`: pendência que só ele pode fazer (login, acesso, apagar algo). Rótulo "Tarefa sua".
+- Ler as respostas sempre com `status in ('aprovado', 'recusado', 'ajustar') and executed_at is null`.
+- "Avisar as sessões" grava uma linha em `founder_decision_pings` (origem nula = as três). Cada sessão lê o sinal com `select public.founder_decisions_signal('<a chave dela>')` (anon), que devolve por origem `{ aguardando, ultima_resposta, ultimo_aviso }` ou null. A chave fica no Mac, fora do git; no banco vai só `insert into public.founder_decision_signal_keys (label, hash) values ('<app|adm|ads>', '<shasum -a 256 da chave>');`.
+
+| # | Critério | Prova |
+|---|---|---|
+| DL1 | "Vou fazer depois" e "Voltar para Pendentes" passam só pela função de gravação; o grupo Depois tem contagem própria; o número da aba conta só Pendentes; transição recusada 409 | `__tests__/admDecisionsLater.test.js` DL1 |
+| DL2 | Migração: `depois` com `later_at` (sem `decided_at`), `tarefa`, histórico aceita as duas, a função só aceita depois a partir de pendente e pendente a partir de depois; as três migrações aplicadas intactas | DL2 |
+| DL3 | Tela: quatro grupos; a quarta resposta separada abaixo das três; aviso "Guardada para depois" com a observação; rótulo Tarefa sua; 6 idiomas | DL3 + DC5 + capturas 12-16 |
+| DA1 | "Avisar as sessões" = POST ping com a mesma regra de gravação (Origin, admin, código ou aparelho), 20 por hora; a lista traz `last_ping_at` | DA1 |
+| DA2 | Avisos e chaves com RLS e sem política; só a impressão da chave; o sinal devolve só números e horas, executável pelo anon | DA2 |
+| DA3 | Tela: Atualizar e Avisar no topo; o aviso segue a sessão escolhida e mostra quantas respostas aguardam; Novidades = o que as sessões fizeram desde a última vez | DA3 + capturas 11, 15, 17 |
+

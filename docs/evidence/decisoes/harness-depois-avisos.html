@@ -1,0 +1,68 @@
+<!doctype html>
+<html data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DC harness</title>
+<style>
+  :root{--bg:#0C1B2E;--surface:#12263C;--surface2:#183454;--line:#22405f;--ink:#EAF2FB;--muted:#8FA6BD;--accent:#4FA3E8;--accent2:#46C6EE;--good:#2CD3A7;--warn:#E8B54F;--bad:#E8776B;--navbg:rgba(12,27,46,.92);--accent-ink:#04121f;--scrim:rgba(4,10,18,.6)}
+  :root[data-theme="light"]{--bg:#EEF3F9;--surface:#FFFFFF;--surface2:#F1F5FA;--line:#D6E0EC;--ink:#0C2340;--muted:#5A7085;--accent:#2A78C2;--accent2:#2AA0C8;--good:#159A78;--warn:#B5831C;--bad:#CC4B3D;--navbg:rgba(238,243,249,.92);--accent-ink:#FFFFFF;--scrim:rgba(12,27,46,.45)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  button{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:7px 13px;cursor:pointer}
+  button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px 12px 60px}
+  #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;display:none}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="dc-root"></div></div>
+<div id="toast"></div>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  document.documentElement.setAttribute('data-theme', q.get('theme') === 'dark' ? 'dark' : 'light');
+  var MOB = q.get('mob') !== '0';
+  function iso(m) { return new Date(Date.parse('2026-11-25T00:00:00Z') + m * 60000).toISOString(); }
+  var rows = [
+    { id: 'p1', origem: 'adm', area: 'painel', kind: 'tarefa', title: 'Código de campanha da Apple (pt) para os links de criadores', question: 'O senhor pode gerar no App Store Connect o código de campanha para os links da App Store?', context: 'Exemplo para a prova da tela.', options: ['A) Gerar agora', 'B) Deixar para depois'], status: 'pendente', created_at: iso(-600), updated_at: iso(-600), sort: 50 },
+    { id: 'p2', origem: 'adm', area: 'painel', kind: 'tarefa', title: 'Compra de teste (sandbox) para provar a receita por criador', question: 'O senhor pode fazer uma assinatura de teste com a conta de teste, no iPhone pelo TestFlight?', options: [], status: 'pendente', created_at: iso(-500), updated_at: iso(-500), sort: 70 },
+    { id: 'p3', origem: 'adm', area: 'app', kind: 'texto', title: 'Nome do campo onde a pessoa digita o código do influenciador', question: 'Em cima do campo aparece "Tenho um código de indicação" ou "Tenho um código de criador"?', options: [], status: 'pendente', created_at: iso(-700), updated_at: iso(20), sort: 23 },
+    { id: 'l1', origem: 'adm', area: 'painel', kind: 'tarefa', title: 'Conferências do painel que só o senhor faz (Fold e telas de login)', question: 'Quando o senhor pode cadastrar o Fold no DT Admin e olhar as telas de login nos dois temas?', options: [], status: 'depois', later_at: iso(-8), note: 'Faço quando estiver com o Fold.', created_at: iso(-800), updated_at: iso(-8), sort: 75 },
+    { id: 'a1', origem: 'app', area: 'app', kind: 'visual', title: 'Tela de abertura nova', question: 'Q', options: [], status: 'aprovado', decided_at: iso(-30), created_at: iso(-900), updated_at: iso(-30), sort: 10 },
+    { id: 'a2', origem: 'adm', area: 'painel', kind: 'visual', title: 'Cartão Saúde do sistema', question: 'Q', options: [], status: 'aprovado', decided_at: iso(-60), created_at: iso(-900), updated_at: iso(-60), sort: 47 },
+    { id: 'x1', origem: 'adm', area: 'painel', kind: 'regra', title: 'Aceitar 5 diferenças do programa de criadores', question: 'Q', options: [], status: 'aprovado', decided_at: iso(-120), executed_at: iso(10), executed_note: 'Registrado: creators.md diz "Desvios aceitos pelo Evandro", com a data e a resposta do senhor.', created_at: iso(-900), updated_at: iso(10), sort: 71 },
+    { id: 'r1', origem: 'app', area: 'app', kind: 'visual', title: 'Botão Registrar dose na tela Hoje', question: 'Q', options: [], status: 'alterando', decided_at: iso(-90), rework_at: iso(21), created_at: iso(-900), updated_at: iso(21), sort: 5 },
+  ];
+  var pings = [];
+  function shape(r) { var g = r.status === 'pendente' ? 'pendentes' : r.status === 'depois' ? 'depois' : r.status === 'alterando' ? 'alterando' : 'decididas'; return Object.assign({ links: [], images: [], options: [], choice: null, note: null, decided_at: null, later_at: null, rework_at: null, executed_at: null, executed_note: null, source: 'exemplo' }, r, { group: g, executed: !!r.executed_at }); }
+  function list() {
+    var all = rows.map(shape), z = function () { return { pendentes: 0, depois: 0, alterando: 0, decididas: 0, executadas: 0, total: 0 }; };
+    var counts = z(), by = { app: z(), adm: z(), ads: z() };
+    all.forEach(function (x) { [counts, by[x.origem]].forEach(function (c) { c[x.group]++; if (x.executed) c.executadas++; c.total++; }); });
+    return { items: all, counts: counts, by_origem: by, last_ping_at: pings.length ? pings[pings.length - 1].at : iso(-25), generated_at: iso(42) };
+  }
+  function ok(j) { return Promise.resolve({ status: 200, j: j }); }
+  window.DTADM = {
+    api: function (m, b, p) {
+      if (m === 'GET') { var id = /\?id=([^&]+)/.exec(p || ''); if (id) return ok({ item: shape(rows.find(function (r) { return r.id === decodeURIComponent(id[1]); })) }); return ok(list()); }
+      if (m === 'POST') { var at = iso(43); pings.push({ at: at, origem: b.origem || null }); return ok({ state: 'sent', at: at, origem: b.origem || null }); }
+      if (m === 'PATCH') {
+        var r = rows.find(function (x) { return x.id === b.id; });
+        if (b.status === 'depois') Object.assign(r, { status: 'depois', later_at: iso(44), note: b.note, choice: null, decided_at: null });
+        else if (b.status === 'pendente') Object.assign(r, { status: 'pendente', later_at: null, note: null, choice: null, decided_at: null });
+        else Object.assign(r, { status: b.status, choice: b.choice, note: b.note, decided_at: iso(44), later_at: null });
+        return ok({ ok: true, id: r.id, status: r.status, choice: r.choice, note: r.note, decided_at: r.decided_at, later_at: r.later_at });
+      }
+    },
+    needsStepUp: function () { return false; }, openStepUp: function (f) { f(); },
+    toast: function (m) { var t = document.getElementById('toast'); t.textContent = m; t.style.display = 'block'; },
+    openExternal: function () {}, lang: function () { return 'pt'; }, isMobile: function () { return MOB; }, expired: function () {}, noauth: function () {}, onDevice: function () { return false; }
+  };
+  try { localStorage.setItem('dt_adm_dc_seen', iso(0)); } catch (e) {}
+})();
+</script>
+<script src="/web/adm-decisions.js"></script>
+<script>window.DCTab.mount(document.getElementById('dc-root'));</script>
+</body>
+</html>
