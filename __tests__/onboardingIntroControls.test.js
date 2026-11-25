@@ -86,7 +86,7 @@ test('observation scene: Melatonin via oral_melatonin, 3 mg at 22:00, no mark ch
   const s = code('components/OnboardingIntro.js');
   const scene = s.slice(s.indexOf('function ObservationScene('), s.indexOf('function LabsScene('));
   assert.ok(scene.length > 300);
-  for (const k of ['obi_obs_title', 'obi_obs_sub', 'obi_obs_note', 'obi_obs_report', 'obi_obs_ph', 'dose_mark_label', 'dose_mark_fasted', 'dose_mark_meal', 'dose_note_label', 'optional', 'today_taken', 'team_msg_today_at', 'cancel', 'save', 'report_header', 'report_dose_line', 'protocols_every_day', 'report_notes_label']) assert.match(scene, new RegExp(`'${k}'`), k);
+  for (const k of ['obi_obs_title', 'obi_obs_sub', 'obi_obs_note', 'obi_obs_report', 'obi_obs_ph', 'dose_mark_label', 'dose_mark_fasted', 'dose_mark_meal', 'dose_note_label', 'optional', 'today_taken', 'team_msg_today_at', 'cancel', 'save', 'settings_report_title', 'report_dose_setup', 'protocols_every_day', 'report_notes_label']) assert.match(scene, new RegExp(`'${k}'`), k);
   assert.match(scene, /OBS_EXAMPLE\.nameKey/);
   assert.doesNotMatch(scene, /pillOn|markOn|c\.data\b[^;]*fasted/, 'no mark is shown as chosen');
 });

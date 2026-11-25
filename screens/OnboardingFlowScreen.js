@@ -47,6 +47,7 @@ import { markSetupSeen } from '../lib/reminderSetup';
 import { askAndRemember } from '../lib/notifBlocked';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CheckMark from '../components/CheckMark';
+import { nicknameFollows, nicknameAfterFullName, firstNameOf } from '../lib/profileName';
 import { Analytics } from '../lib/analytics';
 import { onboardingFunnel } from '../lib/onboardingFunnelStore';
 import useKeyboardLift from '../components/useKeyboardLift';
@@ -129,6 +130,18 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
   const [d, setD] = useState(() => formFrom(signedIn ? meta : {}));
   const touched = useRef(new Set());
   const set = (k, v) => { touched.current.add(k); setD((cur) => ({ ...cur, [k]: typeof v === 'function' ? v(cur[k]) : v })); };
+  // Founder 2026-11-24 13:32 / 13:34: the optional full name (reports only) first, then the nickname shown in the
+  // app. An empty nickname follows the full name with the first name until she edits it herself (lib/profileName,
+  // the same rule as Edit profile AR-17b); an existing nickname is never rewritten.
+  const nickFollowRef = useRef(null);
+  const [nickAuto, setNickAuto] = useState(false);
+  const onFullName = (v) => {
+    if (nickFollowRef.current == null) nickFollowRef.current = nicknameFollows(d.name);
+    set('reportName', v);
+    if (nickFollowRef.current) set('name', (nick) => nicknameAfterFullName({ following: true, nickname: nick, fullName: v }));
+    setNickAuto(nickFollowRef.current && !!firstNameOf(v));
+  };
+  const onNickname = (v) => { nickFollowRef.current = false; setNickAuto(false); set('name', v); };
   // The draft (OB-8 help choices, the protocol, "Montar depois"): its own durable store (OB-22).
   const [help, setHelp] = useState([]);
   const [protocol, setProtocol] = useState(null);
@@ -517,14 +530,28 @@ export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderD
               <Text style={s.hint}>{t('profile_required_legend')}</Text>
 
               <View style={s.field}>
-                <Text style={s.fieldLabel}>{t('profile_name')}<Text style={s.req}> *</Text></Text>
+                <Text style={s.fieldLabel}>{t('profile_report_name')}</Text>
+                <TextInput
+                  {...kb.fieldProps('reportName', { next: 'name' })}
+                  style={s.input}
+                  placeholder={t('profile_report_name_placeholder')}
+                  placeholderTextColor={colors.ink3}
+                  value={d.reportName || ''} onChangeText={onFullName} autoCapitalize="words" autoCorrect={false}
+                  textContentType="name" autoComplete="name" accessibilityLabel={t('profile_report_name')}
+                />
+                <Text style={[s.hint, s.hintUnder]}>{t('profile_report_name_hint')}</Text>
+              </View>
+
+              <View style={s.field}>
+                <Text style={s.fieldLabel}>{t('profile_nickname')}<Text style={s.req}> *</Text></Text>
                 <TextInput
                   {...kb.fieldProps('name', { next: 'birthYear' })}
                   style={s.input}
-                  placeholder={t('profile_name_placeholder')}
                   placeholderTextColor={colors.ink3}
-                  value={d.name} onChangeText={(v) => set('name', v)} autoCapitalize="words" autoCorrect={false}
+                  value={d.name} onChangeText={onNickname} autoCapitalize="words" autoCorrect={false}
+                  accessibilityLabel={t('profile_nickname')}
                 />
+                <Text style={[s.hint, s.hintUnder]}>{nickAuto ? t('profile_nickname_autofill') : t('profile_nickname_hint')}</Text>
               </View>
 
               <View style={s.field}>
@@ -846,6 +873,7 @@ function makeStyles(colors) {
     sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
     textCenter: { textAlign: 'center' },
     hint: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+    hintUnder: { marginTop: 6 },
     help: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
     // A-139: the field's 10 pt gap already spaces them (picture: note 10 under the bar, link right under the help line).
     sexNote: { marginTop: 0 },

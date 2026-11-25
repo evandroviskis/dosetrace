@@ -63,6 +63,8 @@ const y = (v) => v - Y0;
 const CUT_MS = 180; // the short fade of a jump (Voltar, Pular, Avançar mid-scene)
 const NB = ' ';
 
+// the real report (lib/adherenceReportDoc doseLine) writes the frequency lower-case after the dose
+const lcFirst = (v) => (v ? v.charAt(0).toLocaleLowerCase() + v.slice(1) : v);
 const fill = (str, vars) => Object.keys(vars).reduce((o, k) => o.split(`{${k}}`).join(String(vars[k])), String(str || ''));
 const Tx = (p) => <Text allowFontScaling={false} {...p} />;
 
@@ -568,9 +570,9 @@ function ObservationScene({ clock, s, c, t, language, timeFormat }) {
         <Tx style={s.reportLabel} numberOfLines={1}>{t('obi_obs_report')}</Tx>
         <View style={s.reportCard}>
           <View style={s.reportPaper}>
-            <Tx style={s.reportMono} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('report_header')}</Tx>
-            <Tx style={[s.reportMono, { marginTop: 4 }]} numberOfLines={1}>{name}</Tx>
-            <Tx style={s.reportMono} numberOfLines={1}>{`  ${fill(t('report_dose_line'), { dose, frequency: t('protocols_every_day') })}`}</Tx>
+            <Tx style={s.reportMono} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{t('settings_report_title').toLocaleUpperCase()}</Tx>
+            <Tx style={[s.reportMono, { marginTop: 4 }]} numberOfLines={1}>{name.toLocaleUpperCase()}</Tx>
+            <Tx style={s.reportMono} numberOfLines={1}>{`  ${fill(t('report_dose_setup'), { dose, frequency: lcFirst(t('protocols_every_day')) })}`}</Tx>
           </View>
         </View>
       </Enter>
