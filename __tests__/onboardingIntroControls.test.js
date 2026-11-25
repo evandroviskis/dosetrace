@@ -29,6 +29,18 @@ test('OBSERVATION_SCENE is one exported constant, true on this branch (test APK)
   assert.match(code('components/OnboardingIntro.js'), /\bobs: ObservationScene\b/, 'the scene view is chosen by key, so false drops it');
 });
 
+// Integration 2026-11-24 (integration/pacote-2026-11): the dose observation ships in the same release, so the
+// scene is on for the release. The gate is checked against the tree, not a branch name: the scene may be true
+// only while the feature it shows is in the app (the marks and the note in the dose sheet, the report lines).
+// On feat/onboarding-protocol alone (no lib/doseObservation.js) this test fails, as it should.
+test('OBSERVATION_SCENE true only together with the dose observation feature (same release)', () => {
+  assert.equal(I.OBSERVATION_SCENE, true);
+  for (const f of ['lib/doseObservation.js', 'screens/components/DoseObservation.js']) assert.ok(fs.existsSync(path.join(__dirname, '..', f)), f);
+  assert.match(code('screens/LogScreen.js'), /DoseObservation/, 'the dose sheet shows the marks and the note');
+  assert.match(code('screens/SettingsScreen.js'), /reportObservationSections\(/, 'the report the scene shows carries the observations');
+  assert.match(read('lib/obIntro.js'), /integration\/pacote-2026-11/, 'the comment records why it is on for the release');
+});
+
 test('OBSERVATION_SCENE false: exactly the six scenes, four story bars (body 11,8 s since 2026-11-24: 35,3 s)', () => {
   const T = WITHOUT;
   assert.deepEqual(T.SCENES.map((s) => s.key), ['open', 'syringe', 'body', 'reminders', 'labs', 'end']);
