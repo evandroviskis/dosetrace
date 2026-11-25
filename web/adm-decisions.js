@@ -7,6 +7,7 @@
   'use strict';
   var T = {
     en: {
+      g_depois: "Do it later", empty_depois: "Nothing kept for later.", later: "Do it later", back_pending: "Back to Pending", later_hint: "Cannot do it right now?", back_hint: "Or put it back on the Pending list", k_tarefa: "Task for you", st_depois: "For later", later_since: "Kept for later on {d}", later_note: "Your note: {n}", saved_later: "Saved. It is under Do it later.", saved_back: "Back under Pending.", refresh: "Refresh", ping_all: "Notify the sessions", ping_one: "Notify {s}", refreshed_at: "Refreshed at {d}", last_ping: "Last notice: {d}", no_ping: "none yet", news_h: "What changed since {d}", news_close: "Close", n_executed: "Carried out: {t}", n_rework: "Being changed: {t}", n_new: "New: {t}", n_version: "New version under Pending: {t}", sent_h: "Notice sent at {d} to {s}", sent_all: "the three sessions", sent_hint1: "1 of your answers waits to be carried out. The sessions start as soon as they read the notice.", sent_hint: "{n} of your answers wait to be carried out. The sessions start as soon as they read the notice.", e_transition: "This decision changed meanwhile. Open it again.", e_ping: "Could not send the notice ({m}).", 
       title_h: 'Decisions', o_all: 'All', o_app: 'App', o_adm: 'Admin panel', o_ads: 'Marketing', o_from: 'Posted by', intro: 'What you need to decide. Tap a decision to open it.',
       g_pendentes: 'Pending', g_alterando: 'Being changed', g_decididas: 'Decided',
       area_all: 'All areas', a_app: 'App', a_painel: 'Panel', a_site: 'Website', a_divulgacao: 'Marketing', a_outro: 'Other',
@@ -24,6 +25,7 @@
       e_executed: 'This decision has already been carried out and can no longer be changed.', e_rate: 'Too many saves in a short time. Try again in {m} min.', e_choice: 'This option no longer exists in this decision. Open the decision again.', e_generic: 'Could not save ({m}). Your text is still here.', e_code: 'Code not confirmed.',
     },
     pt: {
+      g_depois: "Vou fazer depois", empty_depois: "Nada guardado para depois.", later: "Vou fazer depois", back_pending: "Voltar para Pendentes", later_hint: "Ainda não é possível fazer agora?", back_hint: "Ou devolva para a lista de Pendentes", k_tarefa: "Tarefa sua", st_depois: "Para depois", later_since: "Guardada para depois em {d}", later_note: "Sua observação: {n}", saved_later: "Salvo. Está em Vou fazer depois.", saved_back: "Voltou para Pendentes.", refresh: "Atualizar", ping_all: "Avisar as sessões", ping_one: "Avisar {s}", refreshed_at: "Atualizado às {d}", last_ping: "Último aviso: {d}", no_ping: "nenhum ainda", news_h: "Novidades desde {d}", news_close: "Fechar", n_executed: "Executou: {t}", n_rework: "Em alteração: {t}", n_new: "Nova: {t}", n_version: "Nova versão em Pendentes: {t}", sent_h: "Aviso enviado às {d} para {s}", sent_all: "as três sessões", sent_hint1: "1 resposta do senhor aguarda execução. As sessões começam assim que lerem o aviso.", sent_hint: "{n} respostas do senhor aguardam execução. As sessões começam assim que lerem o aviso.", e_transition: "Esta decisão mudou enquanto isso. Abra de novo.", e_ping: "Não foi possível enviar o aviso ({m}).", 
       title_h: 'Decisões', o_all: 'Todas', o_app: 'App', o_adm: 'Painel admin', o_ads: 'Publicidade', o_from: 'Enviada por', intro: 'O que o senhor precisa decidir. Toque em uma decisão para abrir.',
       g_pendentes: 'Pendentes', g_alterando: 'Alteração em andamento', g_decididas: 'Decididas',
       area_all: 'Todas as áreas', a_app: 'App', a_painel: 'Painel', a_site: 'Site', a_divulgacao: 'Divulgação', a_outro: 'Outro',
@@ -43,6 +45,7 @@
   };
   function tr(base, over) { var o = {}; Object.keys(base).forEach(function (k) { o[k] = over[k] != null ? over[k] : base[k]; }); return o; }
   T.es = tr(T.en, {
+      g_depois: "Lo haré después", empty_depois: "Nada guardado para después.", later: "Lo haré después", back_pending: "Volver a Pendientes", later_hint: "¿No puedes hacerlo ahora?", back_hint: "O devuélvela a la lista de Pendientes", k_tarefa: "Tarea tuya", st_depois: "Para después", later_since: "Guardada para después el {d}", later_note: "Tu nota: {n}", saved_later: "Guardado. Está en Lo haré después.", saved_back: "Volvió a Pendientes.", refresh: "Actualizar", ping_all: "Avisar a las sesiones", ping_one: "Avisar a {s}", refreshed_at: "Actualizado a las {d}", last_ping: "Último aviso: {d}", no_ping: "ninguno aún", news_h: "Novedades desde {d}", news_close: "Cerrar", n_executed: "Ejecutó: {t}", n_rework: "En cambio: {t}", n_new: "Nueva: {t}", n_version: "Nueva versión en Pendientes: {t}", sent_h: "Aviso enviado a las {d} a {s}", sent_all: "las tres sesiones", sent_hint1: "1 respuesta tuya espera ejecución. Las sesiones empiezan en cuanto leen el aviso.", sent_hint: "{n} respuestas tuyas esperan ejecución. Las sesiones empiezan en cuanto leen el aviso.", e_transition: "Esta decisión cambió mientras tanto. Ábrela de nuevo.", e_ping: "No se pudo enviar el aviso ({m}).", 
     title_h: 'Decisiones', o_all: 'Todas', o_app: 'App', o_adm: 'Panel admin', o_ads: 'Publicidad', o_from: 'Enviada por', intro: 'Lo que tienes que decidir. Toca una decisión para abrirla.', g_pendentes: 'Pendientes', g_alterando: 'Cambio en curso', g_decididas: 'Decididas',
     area_all: 'Todas las áreas', a_app: 'App', a_painel: 'Panel', a_site: 'Sitio web', a_divulgacao: 'Difusión', a_outro: 'Otro', k_visual: 'Visual', k_texto: 'Texto', k_regra: 'Regla', k_outro: 'Otro',
     loading: 'Cargando las decisiones…', e_conf: 'La pestaña Decisiones aún no está activa en el servidor (falta aplicar la migración).', e_load: 'No se pudieron cargar las decisiones ({n}).', retry: 'Reintentar',
@@ -58,6 +61,7 @@
     e_executed: 'Esta decisión ya se ejecutó y ya no se puede cambiar.', e_rate: 'Demasiados guardados en poco tiempo. Inténtalo de nuevo en {m} min.', e_choice: 'Esta opción ya no existe en esta decisión. Abre la decisión de nuevo.', e_generic: 'No se pudo guardar ({m}). Tu texto sigue aquí.', e_code: 'Código no confirmado.',
   });
   T.fr = tr(T.en, {
+      g_depois: "Je le ferai plus tard", empty_depois: "Rien de gardé pour plus tard.", later: "Je le ferai plus tard", back_pending: "Remettre en attente", later_hint: "Impossible de le faire maintenant ?", back_hint: "Ou remettez-la dans la liste En attente", k_tarefa: "Tâche pour vous", st_depois: "Pour plus tard", later_since: "Gardée pour plus tard le {d}", later_note: "Votre note : {n}", saved_later: "Enregistré. Elle est dans Je le ferai plus tard.", saved_back: "Remise en attente.", refresh: "Actualiser", ping_all: "Prévenir les sessions", ping_one: "Prévenir {s}", refreshed_at: "Actualisé à {d}", last_ping: "Dernier avis : {d}", no_ping: "aucun pour l’instant", news_h: "Nouveautés depuis {d}", news_close: "Fermer", n_executed: "Réalisé : {t}", n_rework: "En modification : {t}", n_new: "Nouvelle : {t}", n_version: "Nouvelle version en attente : {t}", sent_h: "Avis envoyé à {d} à {s}", sent_all: "les trois sessions", sent_hint1: "1 de vos réponses attend d’être réalisée. Les sessions commencent dès qu’elles lisent l’avis.", sent_hint: "{n} de vos réponses attendent d’être réalisées. Les sessions commencent dès qu’elles lisent l’avis.", e_transition: "Cette décision a changé entre-temps. Ouvrez-la de nouveau.", e_ping: "Impossible d’envoyer l’avis ({m}).", 
     title_h: 'Décisions', o_all: 'Toutes', o_app: 'Appli', o_adm: 'Panneau admin', o_ads: 'Publicité', o_from: 'Envoyée par', intro: 'Ce que vous devez décider. Touchez une décision pour l’ouvrir.', g_pendentes: 'En attente', g_alterando: 'Modification en cours', g_decididas: 'Décidées',
     area_all: 'Tous les domaines', a_app: 'Appli', a_painel: 'Panneau', a_site: 'Site web', a_divulgacao: 'Communication', a_outro: 'Autre', k_visual: 'Visuel', k_texto: 'Texte', k_regra: 'Règle', k_outro: 'Autre',
     loading: 'Chargement des décisions…', e_conf: 'L’onglet Décisions n’est pas encore actif sur le serveur (la migration n’a pas été appliquée).', e_load: 'Impossible de charger les décisions ({n}).', retry: 'Réessayer',
@@ -73,6 +77,7 @@
     e_executed: 'Cette décision a déjà été réalisée et ne peut plus être modifiée.', e_rate: 'Trop d’enregistrements en peu de temps. Réessayez dans {m} min.', e_choice: 'Cette option n’existe plus dans cette décision. Rouvrez la décision.', e_generic: 'Impossible d’enregistrer ({m}). Votre texte est toujours là.', e_code: 'Code non confirmé.',
   });
   T.de = tr(T.en, {
+      g_depois: "Mache ich später", empty_depois: "Nichts für später aufgehoben.", later: "Mache ich später", back_pending: "Zurück zu Offen", later_hint: "Geht es gerade nicht?", back_hint: "Oder lege sie zurück in die Liste Offen", k_tarefa: "Deine Aufgabe", st_depois: "Für später", later_since: "Für später aufgehoben am {d}", later_note: "Deine Notiz: {n}", saved_later: "Gespeichert. Sie steht unter Mache ich später.", saved_back: "Zurück unter Offen.", refresh: "Aktualisieren", ping_all: "Sitzungen benachrichtigen", ping_one: "{s} benachrichtigen", refreshed_at: "Aktualisiert um {d}", last_ping: "Letzte Benachrichtigung: {d}", no_ping: "noch keine", news_h: "Neu seit {d}", news_close: "Schließen", n_executed: "Umgesetzt: {t}", n_rework: "Wird geändert: {t}", n_new: "Neu: {t}", n_version: "Neue Version unter Offen: {t}", sent_h: "Benachrichtigung um {d} an {s} gesendet", sent_all: "alle drei Sitzungen", sent_hint1: "1 deiner Antworten wartet auf Umsetzung. Die Sitzungen beginnen, sobald sie die Benachrichtigung lesen.", sent_hint: "{n} deiner Antworten warten auf Umsetzung. Die Sitzungen beginnen, sobald sie die Benachrichtigung lesen.", e_transition: "Diese Entscheidung hat sich inzwischen geändert. Öffne sie erneut.", e_ping: "Benachrichtigung konnte nicht gesendet werden ({m}).", 
     title_h: 'Entscheidungen', o_all: 'Alle', o_app: 'App', o_adm: 'Admin-Panel', o_ads: 'Werbung', o_from: 'Gesendet von', intro: 'Was du entscheiden musst. Tippe auf eine Entscheidung, um sie zu öffnen.', g_pendentes: 'Offen', g_alterando: 'Wird geändert', g_decididas: 'Entschieden',
     area_all: 'Alle Bereiche', a_app: 'App', a_painel: 'Panel', a_site: 'Website', a_divulgacao: 'Marketing', a_outro: 'Sonstiges', k_visual: 'Visuell', k_texto: 'Text', k_regra: 'Regel', k_outro: 'Sonstiges',
     loading: 'Entscheidungen werden geladen…', e_conf: 'Der Tab Entscheidungen ist auf dem Server noch nicht aktiv (die Migration fehlt).', e_load: 'Entscheidungen konnten nicht geladen werden ({n}).', retry: 'Erneut versuchen',
@@ -88,6 +93,7 @@
     e_executed: 'Diese Entscheidung wurde bereits umgesetzt und kann nicht mehr geändert werden.', e_rate: 'Zu viele Speichervorgänge in kurzer Zeit. Versuche es in {m} Min. erneut.', e_choice: 'Diese Option gibt es in dieser Entscheidung nicht mehr. Öffne die Entscheidung erneut.', e_generic: 'Speichern fehlgeschlagen ({m}). Dein Text ist noch da.', e_code: 'Code nicht bestätigt.',
   });
   T.it = tr(T.en, {
+      g_depois: "Lo farò dopo", empty_depois: "Niente messo da parte per dopo.", later: "Lo farò dopo", back_pending: "Rimetti in sospeso", later_hint: "Non puoi farlo adesso?", back_hint: "Oppure rimettila nella lista In sospeso", k_tarefa: "Compito tuo", st_depois: "Per dopo", later_since: "Messa da parte per dopo il {d}", later_note: "La tua nota: {n}", saved_later: "Salvato. È in Lo farò dopo.", saved_back: "Tornata In sospeso.", refresh: "Aggiorna", ping_all: "Avvisa le sessioni", ping_one: "Avvisa {s}", refreshed_at: "Aggiornato alle {d}", last_ping: "Ultimo avviso: {d}", no_ping: "nessuno ancora", news_h: "Novità dalle {d}", news_close: "Chiudi", n_executed: "Eseguita: {t}", n_rework: "In modifica: {t}", n_new: "Nuova: {t}", n_version: "Nuova versione In sospeso: {t}", sent_h: "Avviso inviato alle {d} a {s}", sent_all: "le tre sessioni", sent_hint1: "1 tua risposta attende l’esecuzione. Le sessioni iniziano appena leggono l’avviso.", sent_hint: "{n} tue risposte attendono l’esecuzione. Le sessioni iniziano appena leggono l’avviso.", e_transition: "Questa decisione è cambiata nel frattempo. Aprila di nuovo.", e_ping: "Impossibile inviare l’avviso ({m}).", 
     title_h: 'Decisioni', o_all: 'Tutte', o_app: 'App', o_adm: 'Pannello admin', o_ads: 'Pubblicità', o_from: 'Inviata da', intro: 'Ciò che devi decidere. Tocca una decisione per aprirla.', g_pendentes: 'In sospeso', g_alterando: 'Modifica in corso', g_decididas: 'Decise',
     area_all: 'Tutte le aree', a_app: 'App', a_painel: 'Pannello', a_site: 'Sito web', a_divulgacao: 'Promozione', a_outro: 'Altro', k_visual: 'Visivo', k_texto: 'Testo', k_regra: 'Regola', k_outro: 'Altro',
     loading: 'Caricamento delle decisioni…', e_conf: 'La scheda Decisioni non è ancora attiva sul server (manca la migrazione).', e_load: 'Impossibile caricare le decisioni ({n}).', retry: 'Riprova',
@@ -104,7 +110,10 @@
   });
   window.DC_T = T;
 
-  var GROUPS = ['pendentes', 'alterando', 'decididas'];
+  // Founder 2026-11-24: Pendentes · Vou fazer depois (kept for later by him; never decided, never executed) · Alteração em andamento · Decididas.
+  var GROUPS = ['pendentes', 'depois', 'alterando', 'decididas'];
+  var DECIDED = ['aprovado', 'recusado', 'ajustar'];
+  var SEEN_KEY = 'dt_adm_dc_seen';
   var AREAS = ['app', 'painel', 'site', 'divulgacao', 'outro'];
   // Which Claude session posted it (founder 2026-11-24): App · Painel admin · Publicidade.
   var ORIGENS = ['app', 'adm', 'ads'];
@@ -115,7 +124,11 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function when(iso) { if (!iso) return '—'; try { return new Date(iso).toLocaleString(L(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { return String(iso); } }
   // Founder 2026-11-24: Pendentes / Alteração em andamento / Decididas (the executed ones inside Decididas, after the waiting ones).
-  function groupOf(r) { return r && r.status === 'pendente' ? 'pendentes' : r && r.status === 'alterando' ? 'alterando' : 'decididas'; }
+  function groupOf(r) { return r && r.status === 'pendente' ? 'pendentes' : r && r.status === 'depois' ? 'depois' : r && r.status === 'alterando' ? 'alterando' : 'decididas'; }
+  // The answer already saved, as the draft starts from it: none on a pending or a kept card.
+  function baseStatus(it) { return !it || it.status === 'pendente' || it.status === 'depois' ? null : it.status; }
+  function hm(iso) { if (!iso) return '—'; try { return new Date(iso).toLocaleTimeString(L(), { hour: '2-digit', minute: '2-digit' }); } catch (e) { return String(iso); } }
+  function ms(iso) { var n = iso ? Date.parse(iso) : NaN; return isNaN(n) ? null : n; }
   // Read only: carried out, or being changed by Claude (never decided while it changes).
   function readOnly() { var it = DC.det; return !!(it && (it.executed_at || it.status === 'alterando')); }
   function safeUrl(u) { var s = String(u || '').trim(); return /^https:\/\/[^\s"'<>]+$/i.test(s) ? s : null; }
@@ -130,7 +143,7 @@
   function dropDraft(id) { try { var s = store(); if (s) s.removeItem(DRAFT_KEY + id); } catch (e) {} }
 
   // ------------------------------------------------------------------ state, API
-  var DC = { root: null, data: null, err: null, loading: false, group: 'pendentes', area: '', origem: '', sel: null, det: null, detErr: null, draft: null, busy: false, saveErr: null, savedAt: null, box: null };
+  var DC = { root: null, data: null, err: null, loading: false, group: 'pendentes', area: '', origem: '', sel: null, det: null, detErr: null, draft: null, busy: false, saveErr: null, savedAt: null, box: null, news: null, newsSince: null, mine: {}, sent: null, pinging: false };
   function api(m, b, q) { return window.DTADM.api(m, b, '/api/adm-decisions' + (q || '')); }
   function pending() { return DC.data && DC.data.counts ? DC.data.counts.pendentes : null; }
   function paintBadge() {
@@ -138,13 +151,40 @@
     var els = []; try { els = document.querySelectorAll('.dc-badge'); } catch (e) {}
     for (var i = 0; i < els.length; i++) { els[i].textContent = n ? String(n) : ''; els[i].hidden = !n; }
   }
-  function load(silent) {
+  // "Novidades" (founder 2026-11-24): what the Claude sessions did since his last look on this device — carried out,
+  // put in rework, a new decision, a new version back under Pendentes. Never what he did himself here (DC.mine).
+  function news(items, seen) {
+    var s0 = ms(seen); if (s0 == null) return [];
+    var out = [];
+    (items || []).forEach(function (r) {
+      if (DC.mine[r.id]) return;
+      var ex = ms(r.executed_at), rw = ms(r.rework_at), cr = ms(r.created_at), up = ms(r.updated_at);
+      var w = null, at = null;
+      if (ex != null && ex > s0) { w = 'executed'; at = ex; }
+      else if (r.status === 'alterando' && rw != null && rw > s0) { w = 'rework'; at = rw; }
+      else if (cr != null && cr > s0) { w = 'new'; at = cr; }
+      else if (r.status === 'pendente' && up != null && up > s0) { w = 'version'; at = up; }
+      if (w) out.push({ id: r.id, what: w, at: at, origem: r.origem, title: r.title, note: w === 'executed' ? (r.executed_note || '') : '' });
+    });
+    return out.sort(function (a, b) { return b.at - a.at; });
+  }
+  function readSeen() { try { var s = store(); return s ? s.getItem(SEEN_KEY) : null; } catch (e) { return null; } }
+  function writeSeen(v) { try { var s = store(); if (s && v) s.setItem(SEEN_KEY, v); } catch (e) {} }
+  // How many of his answers wait to be carried out, for the chosen session (or all).
+  function waiting() { return ((DC.data && DC.data.items) || []).filter(function (r) { return DECIDED.indexOf(r.status) >= 0 && !r.executed_at && (!DC.origem || (r.origem || 'app') === DC.origem); }).length; }
+  function pingOrigem() { return ORIGENS.indexOf(DC.origem) >= 0 ? DC.origem : null; }
+  // look = he opened the tab or pressed Atualizar: compute "Novidades" and remember this look.
+  function load(silent, look) {
     if (!silent) { DC.loading = true; draw(); }
     return api('GET').then(function (x) {
       DC.loading = false;
       if (x.expired) { if (!silent) window.DTADM.expired(); return; }
       if (x.noauth) { if (!silent) window.DTADM.noauth(); return; }
-      if (x.status === 200 && x.j) { DC.data = x.j; DC.err = null; }
+      if (x.status === 200 && x.j) {
+        DC.data = x.j; DC.err = null;
+        // An empty diff keeps the box already shown (the tab may mount twice for one opening); "Fechar" clears it.
+        if (look) { var prev = readSeen(), n = news(x.j.items, prev); if (n.length) { DC.news = n; DC.newsSince = prev; } writeSeen(x.j.generated_at); DC.mine = {}; }
+      }
       else if (!silent || !DC.data) DC.err = x.status === 503 ? t('e_conf') : t('e_load', { n: x.status || '—' });
       paintBadge(); draw();
     });
@@ -157,16 +197,16 @@
       if (DC.sel !== id) return;
       if (x.status === 200 && x.j && x.j.item) {
         var it = x.j.item; DC.det = it;
-        var saved = { status: it.status === 'pendente' ? null : it.status, choice: it.choice || null, note: it.note || '' };
+        var saved = { status: baseStatus(it), choice: it.choice || null, note: it.note || '' };
         DC.draft = readDraft(id) || saved;
       } else DC.detErr = x.status === 503 ? t('e_conf') : t('e_load', { n: x.status || '—' });
       draw();
     });
   }
-  function dirty() { var it = DC.det, d = DC.draft; if (!it || !d) return false; return (d.status || null) !== (it.status === 'pendente' ? null : it.status) || (d.choice || null) !== (it.choice || null) || String(d.note || '').trim() !== String(it.note || ''); }
+  function dirty() { var it = DC.det, d = DC.draft; if (!it || !d) return false; return (d.status || null) !== baseStatus(it) || (d.choice || null) !== (it.choice || null) || String(d.note || '').trim() !== String(it.note || ''); }
   function errText(x) {
     var j = x && x.j;
-    if (x && x.status === 409) return j && j.error === 'reworking' ? t('e_reworking') : t('e_executed');
+    if (x && x.status === 409) return j && j.error === 'reworking' ? t('e_reworking') : j && j.error === 'transition' ? t('e_transition') : t('e_executed');
     if (x && x.status === 429) return t('e_rate', { m: Math.max(1, Math.ceil(((j && j.retry_after) || 60) / 60)) });
     if (x && x.status === 400 && j && j.field === 'choice') return t('e_choice');
     if (x && x.status === 503 && j && j.error === 'not_configured') return t('e_conf');
@@ -183,10 +223,10 @@
         if (x.noauth) { window.DTADM.noauth(); return; }
         if (x.stepUp) { if (retried) { DC.saveErr = t('e_code'); draw(); return; } window.DTADM.openStepUp(function () { send(true); }); return; }
         if (x.status === 200 && x.j && x.j.ok) {
-          it.status = x.j.status; it.choice = x.j.choice; it.note = x.j.note; it.decided_at = x.j.decided_at; it.group = groupOf(it);
-          DC.draft = { status: it.status, choice: it.choice || null, note: it.note || '' };
-          dropDraft(it.id); DC.savedAt = x.j.decided_at;
-          window.DTADM.toast(t('saved_at', { d: when(x.j.decided_at) }), 'ok');
+          it.status = x.j.status; it.choice = x.j.choice; it.note = x.j.note; it.decided_at = x.j.decided_at; it.later_at = x.j.later_at || null; it.group = groupOf(it);
+          DC.draft = { status: baseStatus(it), choice: it.choice || null, note: it.note || '' };
+          dropDraft(it.id); DC.savedAt = x.j.decided_at; DC.mine[it.id] = true;
+          window.DTADM.toast(it.status === 'depois' ? t('saved_later') : it.status === 'pendente' ? t('saved_back') : t('saved_at', { d: when(x.j.decided_at) }), 'ok');
           draw(); load(true);
           return;
         }
@@ -196,26 +236,64 @@
     if (window.DTADM.needsStepUp()) window.DTADM.openStepUp(function () { send(true); }); else send(false);
   }
 
+  // "Avisar as sessões" (founder 2026-11-24): one notice row; the sessions' watchers read it through the signal.
+  function ping() {
+    if (DC.pinging) return;
+    var o = pingOrigem();
+    function send(retried) {
+      DC.pinging = true; draw();
+      api('POST', { action: 'ping', origem: o }).then(function (x) {
+        DC.pinging = false;
+        if (x.expired) { window.DTADM.expired(); return; }
+        if (x.noauth) { window.DTADM.noauth(); return; }
+        if (x.stepUp) { if (retried) { window.DTADM.toast(t('e_code'), 'err'); draw(); return; } window.DTADM.openStepUp(function () { send(true); }); return; }
+        if (x.status === 200 && x.j && x.j.state === 'sent') {
+          DC.sent = { at: x.j.at, origem: x.j.origem, n: waiting() };
+          if (DC.data) DC.data.last_ping_at = x.j.at;
+          window.DTADM.toast(t('sent_h', { d: hm(x.j.at), s: x.j.origem ? t('o_' + x.j.origem) : t('sent_all') }), 'ok');
+          draw(); return;
+        }
+        window.DTADM.toast(x.status === 429 ? t('e_rate', { m: Math.max(1, Math.ceil(((x.j && x.j.retry_after) || 60) / 60)) }) : t('e_ping', { m: (x.j && x.j.error) || x.status || '—' }), 'err');
+        draw();
+      });
+    }
+    if (window.DTADM.needsStepUp()) window.DTADM.openStepUp(function () { send(true); }); else send(false);
+  }
+  function topBar() {
+    var d = DC.data || {}, o = pingOrigem();
+    var lbl = (o ? t('ping_one', { s: t('o_' + o) }) : t('ping_all')) + ' · ' + waiting();
+    var h = '<div class="dc-bar"><button type="button" class="dc-ref" data-a="refresh"' + (DC.loading ? ' disabled' : '') + '>' + esc(t('refresh')) + '</button><button type="button" class="dc-ping" data-a="ping"' + (DC.pinging ? ' disabled' : '') + '>' + esc(lbl) + '</button></div>';
+    h += '<div class="dc-stamp"><span>' + esc(t('refreshed_at', { d: hm(d.generated_at) })) + '</span><span>' + esc(t('last_ping', { d: d.last_ping_at ? hm(d.last_ping_at) : t('no_ping') })) + '</span></div>';
+    if (DC.sent) h += '<div class="dc-sent" role="status"><b>' + esc(t('sent_h', { d: hm(DC.sent.at), s: DC.sent.origem ? t('o_' + DC.sent.origem) : t('sent_all') })) + '</b><span class="dc-small">' + esc(DC.sent.n === 1 ? t('sent_hint1') : t('sent_hint', { n: DC.sent.n })) + '</span></div>';
+    if (DC.news && DC.news.length) {
+      h += '<div class="dc-new"><div class="dc-new-h"><span>' + esc(t('news_h', { d: hm(DC.newsSince) })) + '</span><button type="button" class="dc-new-x" data-a="newsclose">' + esc(t('news_close')) + '</button></div>';
+      h += DC.news.map(function (n) { return '<button type="button" class="dc-new-i" data-a="open" data-v="' + esc(n.id) + '">' + origLabel(n) + '<span class="dc-new-t">' + esc(t('n_' + n.what, { t: n.title })) + '</span>' + (n.note ? '<span class="dc-new-n">' + esc(n.note) + '</span>' : '') + '</button>'; }).join('');
+      h += '</div>';
+    }
+    return h;
+  }
+
   // ------------------------------------------------------------------ list
   function stChip(r) {
     if (r.status === 'alterando' && !r.executed_at) return '<span class="dc-st acc">' + esc(t('st_alterando')) + '</span>';
+    if (r.status === 'depois' && !r.executed_at) return '<span class="dc-st later">' + esc(t('st_depois')) + '</span>';
     if (r.executed_at) return '<span class="dc-st good">' + esc(t('executed_at', { d: when(r.executed_at) })) + '</span>';
     var cls = r.status === 'aprovado' ? 'good' : r.status === 'recusado' ? 'bad' : r.status === 'ajustar' ? 'warn' : 'acc';
     return '<span class="dc-st ' + cls + '">' + esc(t('st_' + r.status)) + '</span>';
   }
   function origLabel(r) { var o = ORIGENS.indexOf(r.origem) >= 0 ? r.origem : 'app'; return '<span class="dc-orig">' + esc(t('o_' + o)) + '</span>'; }
-  function tags(r) { return '<span class="dc-tag">' + esc(t('a_' + r.area)) + '</span><span class="dc-tag">' + esc(t('k_' + r.kind)) + '</span>'; }
+  function tags(r) { return '<span class="dc-tag">' + esc(t('a_' + r.area)) + '</span><span class="dc-tag' + (r.kind === 'tarefa' ? ' task' : '') + '">' + esc(t('k_' + r.kind)) + '</span>'; }
   function list() {
-    var d = DC.data, all = (d && d.counts) || { pendentes: 0, alterando: 0, decididas: 0, executadas: 0 }, by = (d && d.by_origem) || {};
-    var c = DC.origem ? (by[DC.origem] || { pendentes: 0, alterando: 0, decididas: 0, executadas: 0 }) : all;
-    var h = '<div class="dc-head"><h2 class="dc-h1">' + esc(t('title_h')) + '</h2><p class="dc-intro">' + esc(t('intro')) + '</p></div>';
+    var d = DC.data, all = (d && d.counts) || { pendentes: 0, depois: 0, alterando: 0, decididas: 0, executadas: 0 }, by = (d && d.by_origem) || {};
+    var c = DC.origem ? (by[DC.origem] || { pendentes: 0, depois: 0, alterando: 0, decididas: 0, executadas: 0 }) : all;
+    var h = '<div class="dc-headrow"><div class="dc-head"><h2 class="dc-h1">' + esc(t('title_h')) + '</h2><p class="dc-intro">' + esc(t('intro')) + '</p></div><div class="dc-top">' + topBar() + '</div></div>';
     h += '<div class="dc-orig-seg" role="tablist">' + [''].concat(ORIGENS).map(function (o) { var n = o ? ((by[o] && by[o].pendentes) || 0) : (all.pendentes || 0); return '<button type="button" role="tab" data-a="origem" data-v="' + o + '" class="' + (DC.origem === o ? 'on' : '') + '" aria-selected="' + (DC.origem === o) + '">' + esc(o ? t('o_' + o) : t('o_all')) + ' <b>' + n + '</b></button>'; }).join('') + '</div>';
     h += '<div class="dc-seg" role="tablist">' + GROUPS.map(function (g) { return '<button type="button" role="tab" data-a="group" data-v="' + g + '" class="' + (DC.group === g ? 'on' : '') + '" aria-selected="' + (DC.group === g) + '">' + esc(t('g_' + g)) + ' <b>' + (c[g] || 0) + '</b></button>'; }).join('') + '</div>';
     h += '<div class="dc-areas">' + [''].concat(AREAS).map(function (a) { return '<button type="button" data-a="area" data-v="' + a + '" class="' + (DC.area === a ? 'on' : '') + '" aria-pressed="' + (DC.area === a) + '">' + esc(a ? t('a_' + a) : t('area_all')) + '</button>'; }).join('') + '</div>';
     var items = ((d && d.items) || []).filter(function (r) { return r.group === DC.group && (!DC.area || r.area === DC.area) && (!DC.origem || (r.origem || 'app') === DC.origem); });
     if (!items.length) return h + '<div class="dc-empty">' + esc(t('empty_' + DC.group)) + '</div>';
     function card(r) {
-      var sub = r.executed_at ? (r.executed_note || '') : r.status === 'alterando' ? t('reworking_since', { d: when(r.rework_at) }) : r.status !== 'pendente' ? (t('decided_on', { d: when(r.decided_at) }) + (r.choice ? ' · ' + r.choice : '')) : r.question;
+      var sub = r.executed_at ? (r.executed_note || '') : r.status === 'depois' ? t('later_since', { d: when(r.later_at) }) + (r.note ? ' · ' + r.note : '') : r.status === 'alterando' ? t('reworking_since', { d: when(r.rework_at) }) : r.status !== 'pendente' ? (t('decided_on', { d: when(r.decided_at) }) + (r.choice ? ' · ' + r.choice : '')) : r.question;
       return '<button type="button" class="dc-item" data-a="open" data-v="' + esc(r.id) + '"><span class="dc-item-top">' + origLabel(r) + tags(r) + stChip(r) + '</span><span class="dc-item-t">' + esc(r.title) + '</span><span class="dc-item-q">' + esc(sub) + '</span></button>';
     }
     if (DC.group !== 'decididas') return h + '<div class="dc-list">' + items.map(card).join('') + '</div>';
@@ -237,6 +315,7 @@
     h += '<div class="dc-small">' + esc(t('created', { d: when(it.created_at) })) + (it.source ? ' · ' + esc(t('from', { s: it.source })) : '') + '</div>';
     if (it.executed_at) h += '<div class="dc-banner good"><b>' + esc(t('executed_at', { d: when(it.executed_at) })) + '</b>' + (it.executed_note ? ' — ' + esc(it.executed_note) : '') + '</div>';
     else if (rework) h += '<div class="dc-banner acc"><b>' + esc(t('reworking_since', { d: when(it.rework_at) })) + '</b><br>' + esc(t('reworking_hint')) + '</div>';
+    else if (it.status === 'depois') h += '<div class="dc-banner later"><b>' + esc(t('later_since', { d: when(it.later_at) })) + '</b>' + (it.note ? '<br>' + esc(t('later_note', { n: it.note })) : '') + '</div>';
     else if (it.status !== 'pendente') h += '<div class="dc-banner"><b>' + esc(t('decided_on', { d: when(it.decided_at) })) + '</b> · ' + esc(t('waiting')) + '</div>';
     h += block(t('h_question'), it.question, 'dc-q');
     h += block(t('h_context'), it.context);
@@ -260,7 +339,11 @@
       return h;
     }
     if (it.options && it.options.length) h += '<section class="dc-sec"><h3>' + esc(t('h_options')) + '</h3><div class="dc-opts" role="radiogroup">' + it.options.map(function (o, i) { var on = d.choice === o; return '<button type="button" role="radio" aria-checked="' + on + '" data-a="choice" data-v="' + i + '" class="' + (on ? 'on' : '') + '">' + esc(o) + '</button>'; }).join('') + '</div></section>';
-    h += '<section class="dc-sec"><h3>' + esc(t('h_decision')) + '</h3><div class="dc-act">' + [['aprovado', 'approve', 'good'], ['recusado', 'refuse', 'bad'], ['ajustar', 'adjust', 'warn']].map(function (b) { var on = d.status === b[0]; return '<button type="button" data-a="status" data-v="' + b[0] + '" class="' + b[2] + (on ? ' on' : '') + '" aria-pressed="' + on + '">' + esc(t(b[1])) + '</button>'; }).join('') + '</div></section>';
+    // The fourth answer, set apart below the three (founder 2026-11-24): "Vou fazer depois" on a pending card,
+    // "Voltar para Pendentes" on a kept one; any other card (already answered, waiting) has only the three.
+    var fourth = it.status === 'pendente' ? ['depois', 'later', 'later_hint'] : it.status === 'depois' ? ['pendente', 'back_pending', 'back_hint'] : null;
+    var btns = [['aprovado', 'approve', 'good'], ['recusado', 'refuse', 'bad'], ['ajustar', 'adjust', 'warn']].concat(fourth ? [[fourth[0], fourth[1], 'later']] : []);
+    h += '<section class="dc-sec"><h3>' + esc(t('h_decision')) + '</h3><div class="dc-act">' + btns.map(function (b) { var on = d.status === b[0]; return (b[2] === 'later' ? '<div class="dc-later-hint">' + esc(t(fourth[2])) + '</div>' : '') + '<button type="button" data-a="status" data-v="' + b[0] + '" class="' + b[2] + (on ? ' on' : '') + '" aria-pressed="' + on + '">' + esc(t(b[1])) + '</button>'; }).join('') + '</div></section>';
     h += '<section class="dc-sec"><h3><label for="dc-note">' + esc(t('h_note')) + '</label></h3><textarea id="dc-note" class="dc-note" maxlength="' + MAX_NOTE + '" placeholder="' + esc(t('note_ph')) + '">' + esc(d.note || '') + '</textarea><div class="dc-small dc-count" id="dc-count">' + chars(d.note) + ' / ' + MAX_NOTE + '</div></section>';
     h += '<div class="dc-savebar"><button type="button" class="dc-save" data-a="save"' + (!d.status || DC.busy ? ' disabled' : '') + '>' + esc(DC.busy ? t('saving') : t('save')) + '</button>';
     h += '<div class="dc-small" id="dc-hint">' + esc(!d.status ? t('need_status') : dirty() ? t('unsaved') : DC.savedAt ? t('saved_at', { d: when(DC.savedAt) }) : it.decided_at ? t('saved_at', { d: when(it.decided_at) }) : '') + '</div>';
@@ -293,6 +376,9 @@
     if (a === 'origem') { DC.origem = ORIGENS.indexOf(v) >= 0 ? v : ''; draw(); return; }
     if (a === 'area') { DC.area = AREAS.indexOf(v) >= 0 ? v : ''; draw(); return; }
     if (a === 'open') { open(v); return; }
+    if (a === 'refresh') { DC.sent = null; load(!!DC.data, true); return; }
+    if (a === 'ping') { ping(); return; }
+    if (a === 'newsclose') { DC.news = null; draw(); return; }
     if (a === 'back') { DC.sel = null; DC.det = null; DC.box = null; draw(); return; }
     if (a === 'retry') { load(false); return; }
     if (a === 'ext') { ext(v); return; }
@@ -301,7 +387,7 @@
     if (a === 'boxsize') { if (DC.box) { DC.box.real = !DC.box.real; draw(); } return; }
     if (!DC.det || readOnly() || !DC.draft) return;
     if (a === 'choice') { var o = DC.det.options[Number(v)]; DC.draft.choice = DC.draft.choice === o ? null : o; writeDraft(DC.det.id, DC.draft); draw(); return; }
-    if (a === 'status') { DC.draft.status = DC.draft.status === v ? null : v; writeDraft(DC.det.id, DC.draft); draw(); return; }
+    if (a === 'status') { if (['aprovado', 'recusado', 'ajustar', 'depois', 'pendente'].indexOf(v) < 0) return; DC.draft.status = DC.draft.status === v ? null : v; writeDraft(DC.det.id, DC.draft); draw(); return; }
     if (a === 'save') { save(); return; }
   }
   function onInput(ev) {
@@ -312,7 +398,7 @@
   }
 
   var STYLE = '.dc{max-width:860px;margin:0 auto}.dc-head{margin:6px 0 12px}.dc-h1{font-size:22px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0 0 4px}.dc-intro{color:var(--muted);font-size:15px;margin:0}'
-    + '.dc-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px}.dc-seg button{min-height:52px;font-size:15.5px;font-weight:700;border-radius:12px;background:var(--surface);color:var(--ink)}.dc-seg button b{display:inline-block;min-width:24px;padding:0 6px;border-radius:999px;background:var(--surface2);color:var(--ink);font-size:13px}.dc-seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.dc-seg button.on b{background:var(--bg);color:var(--ink)}'
+    + '.dc-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 10px}.dcm .dc-seg{grid-template-columns:repeat(2,minmax(0,1fr))}.dc-seg button{min-height:52px;font-size:15.5px;font-weight:700;border-radius:12px;background:var(--surface);color:var(--ink)}.dc-seg button b{display:inline-block;min-width:24px;padding:0 6px;border-radius:999px;background:var(--surface2);color:var(--ink);font-size:13px}.dc-seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.dc-seg button.on b{background:var(--bg);color:var(--ink)}'
     + '.dc-orig-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 10px}.dcm .dc-orig-seg{grid-template-columns:repeat(2,minmax(0,1fr))}.dc-orig-seg button{min-height:48px;font-size:15px;font-weight:700;border-radius:12px;background:var(--surface);color:var(--ink)}.dc-orig-seg button b{display:inline-block;min-width:24px;padding:0 6px;border-radius:999px;background:var(--surface2);color:var(--ink);font-size:13px}.dc-orig-seg button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}.dc-orig-seg button.on b{background:var(--bg);color:var(--ink)}.dc-orig{display:inline-block;font-size:12.5px;font-weight:800;color:var(--accent);border-left:3px solid var(--accent);padding:0 6px;letter-spacing:.02em}.dc-areas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.dc-areas button{min-height:44px;border-radius:999px;font-size:14.5px;padding:6px 14px}'
     + '.dc-list{display:grid;gap:10px}.dc-item{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-height:72px}.dc-item:hover{border-color:var(--accent)}.dc-item-top{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}.dc-item-t{display:block;font-size:18px;font-weight:700;line-height:1.3;color:var(--ink)}.dc-item-q{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted);font-size:15px;margin-top:4px;white-space:pre-wrap}'
     + '.dc-tag{display:inline-block;border:1px solid var(--line);color:var(--muted);font-size:12.5px;border-radius:7px;padding:1px 8px;font-weight:600}.dc-st{display:inline-block;font-size:12.5px;border-radius:999px;padding:1px 9px;border:1px solid var(--line);color:var(--muted);font-weight:700}.dc-st.good{color:var(--good);border-color:var(--good)}.dc-st.bad{color:var(--bad);border-color:var(--bad)}.dc-st.warn{color:var(--warn);border-color:var(--warn)}.dc-st.acc{color:var(--accent);border-color:var(--accent)}'
@@ -325,6 +411,9 @@
     + '.dc-links{display:grid;gap:8px}.dc-big{min-height:52px;font-size:16px;font-weight:700;padding:10px 16px;border-radius:12px;text-align:left}'
     + '.dc-opts{display:flex;flex-direction:column;gap:8px}.dc-opts button{min-height:56px;font-size:16.5px;text-align:left;padding:12px 16px;border-radius:12px;background:var(--surface)}.dc-opts button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:800}'
     + '.dc-act{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.dcm .dc-act{grid-template-columns:minmax(0,1fr)}.dc-act button{min-height:56px;font-size:17px;font-weight:700;border-radius:12px;background:var(--surface);color:var(--ink);border-width:2px;display:flex;align-items:center;justify-content:center;gap:10px}.dc-act button::before{content:"";width:18px;height:18px;border-radius:50%;border:2px solid var(--dc-c);box-sizing:border-box;flex:none}.dc-act button.good{--dc-c:var(--good);border-color:var(--good)}.dc-act button.bad{--dc-c:var(--bad);border-color:var(--bad)}.dc-act button.warn{--dc-c:var(--warn);border-color:var(--warn)}.dc-act button.on{font-weight:800;border-width:3px;background:var(--surface2);background:color-mix(in srgb,var(--dc-c) 22%,var(--surface))}.dc-act button.on::before{background:var(--dc-c);box-shadow:inset 0 0 0 3px var(--surface)}'
+    + '.dc-act button.later{--dc-c:var(--accent2);border-color:var(--accent2);border-style:dashed;grid-column:1/-1}.dc-act button.later.on{border-style:solid}.dc-later-hint{grid-column:1/-1;font-size:14px;color:var(--muted);text-align:center;margin:6px 0 -2px}.dc-banner.later{border-color:var(--accent2);border-style:dashed}.dc-st.later{color:var(--accent2);border-color:var(--accent2);border-style:dashed}.dc-tag.task{color:var(--ink);background:var(--surface2);border-color:var(--ink);font-weight:800}'
+    + '.dc-headrow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}.dc-headrow .dc-head{flex:1 1 260px;min-width:0}.dc-top{flex:0 1 420px;min-width:0}.dcm .dc-top{flex:1 1 100%}.dc-bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 6px}.dc-bar button{min-height:52px;font-size:15.5px;font-weight:800;border-radius:12px;line-height:1.2;padding:4px 8px}.dc-bar .dc-ping{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.dc-bar button[disabled]{opacity:.5;cursor:default}.dc-stamp{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13.5px;color:var(--muted);margin:0 0 12px}.dc-sent{border:1px solid var(--good);background:var(--surface);border-radius:12px;padding:11px 13px;margin:0 0 12px;font-size:15px}.dc-sent b{display:block}'
+    + '.dc-new{background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:12px 14px;margin:0 0 14px;display:grid;gap:8px}.dc-new-h{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800}.dc-new-x{min-height:40px;padding:4px 12px;border-radius:10px;font-size:14px;text-transform:none;letter-spacing:0}.dc-new-i{display:grid;gap:2px;text-align:left;width:100%;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:52px}.dc-new-t{font-weight:700;font-size:15.5px;line-height:1.3;color:var(--ink)}.dc-new-n{font-size:14px;color:var(--muted)}'
     + '.dc-note{width:100%;min-height:150px;font:inherit;font-size:17px;line-height:1.5;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;resize:vertical}.dc-note:focus{outline:2px solid var(--accent);border-color:var(--accent)}.dc-count{text-align:right}'
     + '.dc-savebar{margin:16px 0 28px}.dc-save{width:100%;min-height:60px;font-size:18px;font-weight:800;border-radius:14px;background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}.dc-save[disabled]{opacity:.45;cursor:default}.dc-err{color:var(--bad);font-size:15px;margin-top:8px;font-weight:700}'
     + '.dc-box{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;flex-direction:column;padding:calc(10px + var(--sat,0px)) 10px calc(10px + var(--sab,0px))}.dc-box-bar{display:flex;gap:8px;flex-wrap:wrap}.dc-box-cap{font-weight:700;font-size:15px;margin:8px 2px}.dc-box-img{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px;background:var(--surface2)}.dc-box-img img{display:block;width:100%;height:auto}.dc-box-img.real img{width:auto;max-width:none}';
@@ -337,7 +426,7 @@
       DC.root = root;
       if (!root._dcBound) { root.addEventListener('click', onClick); root.addEventListener('input', onInput); root._dcBound = true; }
       draw();
-      if (!DC.data && !DC.loading) load(false);
+      if (!DC.loading) load(!!DC.data, true);
       if (DC.sel && !DC.det && !DC.detErr) open(DC.sel);
     },
     // Called by the page after each successful load: the badge on the tab (pending count), with no UI change.
@@ -345,7 +434,7 @@
     pending: pending,
     // Android Back (DTAdminBack): picture → decision → list.
     back: function () { if (!DC.root || !document.body.contains(DC.root)) return false; if (DC.box) { DC.box = null; draw(); return true; } if (DC.sel) { DC.sel = null; DC.det = null; draw(); return true; } return false; },
-    _state: DC, _t: t, _group: groupOf, _safeUrl: safeUrl, _readOnly: readOnly, _detail: detail, _list: list,
+    _state: DC, _t: t, _group: groupOf, _safeUrl: safeUrl, _readOnly: readOnly, _detail: detail, _list: list, _news: news, _pingOrigem: pingOrigem,
   };
   var early = document.getElementById('dc-root'); if (early && !early.innerHTML) window.DCTab.mount(early);
 })();
