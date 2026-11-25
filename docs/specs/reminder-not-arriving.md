@@ -6,7 +6,7 @@
 - builds on: docs/specs/reminder-setup-conversation.md (RS-1..RS-14) and reminder-check.md / reminder-setup-placement.md. Everything they decided stays: what is read, the steps, the summary card, the schedule line, the 10-second test and its blocked rule, the Settings row states, the Today cards. Rebuild = replace: the two old names ("Garanta que seus lembretes cheguem", "Verificar lembretes") and the iPhone row at the end of the card are gone.
 - no AI and no network: every sentence is fixed app text in the 6 languages. JS only (EAS Update possible).
 - code: screens/SettingsScreen.js (the row, the closed card summary), lib/reminderHealth.js (notifCardSummary), lib/reminderConversation.js (the new phases), components/ReminderConversation.js (contact, open without resume), i18n/translations.js.
-- checklist-signed: pending — awaiting signature, approved by picture 2026-11-24 ("Aprovo os três pontos")
+- checklist-signed: 2026-11-25 by the founder in the conversation ("Assino o número 4", answering "assinar a lista RN-1 a RN-14"; admin panel Decisões tab item 56; Second Brain dosetrace/02-decisoes.md 2026-11-25); approved by picture 2026-11-24 ("Aprovo os três pontos")
 - committed-to: the next delivery (approved → next build; JS only)
 
 ## Acceptance checklist
