@@ -97,9 +97,13 @@ function Scene({ clock, k, children }) {
 }
 
 // A line that draws itself (stroke-dashoffset from its length to 0).
+// The static offset is the one for the clock at render: a scene shown complete (Voltar, Reduce Motion)
+// mounts on its hold frame with the clock still, and on Android the SVG applies animated props only after
+// the value changes (S25 2026-11-25: the lab lines were missing after Voltar).
 function DrawLine({ clock, at, dur, d, length, color, width }) {
-  const props = useAnimatedProps(() => ({ strokeDashoffset: length * (1 - eInOutCubic(clamp01((clock.get() - at) / dur))) }));
-  return <APath animatedProps={props} d={d} fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={[length, length]} strokeDashoffset={length} />;
+  const dash = (v) => { 'worklet'; return length * (1 - eInOutCubic(clamp01((v - at) / dur))); };
+  const props = useAnimatedProps(() => ({ strokeDashoffset: dash(clock.get()) }));
+  return <APath animatedProps={props} d={d} fill="none" stroke={color} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={[length, length]} strokeDashoffset={dash(clock.get())} />;
 }
 function polyline(pts) {
   let len = 0;
@@ -287,8 +291,10 @@ function TopLine({ clock, q, totals, part1, B, c }) {
   const colAt = q + 1 >= 3 ? B.more[q + 1 - 3] : 0;
   const { T, L, ACC } = part1;
   const tq = totals[q], tn = totals[q + 1];
-  const props = useAnimatedProps(() => {
-    const v = clock.get();
+  // The ends for a clock value; also the static props at render, so a scene shown complete has its line
+  // (S25 2026-11-25: Voltar opened Dose no corpo without it — see DrawLine).
+  const ends = (v) => {
+    'worklet';
     const P = EASE(clamp01((v - s0) / sd));
     const a = colGeo(q, P), b = colGeo(q + 1, P);
     const ax = a.x + a.w / 2, ay = BASE - tq * a.mg, bx = b.x + b.w / 2, by = BASE - tn * b.mg;
@@ -297,8 +303,10 @@ function TopLine({ clock, q, totals, part1, B, c }) {
     if (q < 2) f = lp <= 0 ? 0 : clamp01((lp * T - ACC[q]) / L[q]);
     else if (lp >= 1 && v >= colAt) f = EASE(clamp01((v - colAt) / IN_DUR));
     return { x1: ax, y1: ay, x2: ax + (bx - ax) * f, y2: ay + (by - ay) * f, strokeOpacity: f > 0 ? 1 : 0 };
-  });
-  return <ALine animatedProps={props} x1={0} y1={0} x2={0} y2={0} stroke={c.ink} strokeWidth={2} strokeLinecap="round" strokeOpacity={0} />;
+  };
+  const props = useAnimatedProps(() => ends(clock.get()));
+  const e0 = ends(clock.get());
+  return <ALine animatedProps={props} x1={e0.x1} y1={e0.y1} x2={e0.x2} y2={e0.y2} stroke={c.ink} strokeWidth={2} strokeLinecap="round" strokeOpacity={e0.strokeOpacity} />;
 }
 function BodyScene({ clock, c, s, t }) {
   const B = BEATS.body;
