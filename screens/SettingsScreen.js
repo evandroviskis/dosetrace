@@ -82,7 +82,7 @@ import { heldByProtocol, reportGaps, fillDate } from '../lib/unsyncedDoses';
 import { forceSync, isOnlineNow } from '../lib/sync';
 import { DTSheet } from './components/ProtocolParts';
 import { SheetToast } from './components/BodySheets';
-import { saveProfileEdit } from '../lib/profile';
+import { saveProfileEdit, saveProfileFields } from '../lib/profile';
 import { MealTimesRow } from './components/MealTimesSheet';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
@@ -95,6 +95,7 @@ import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
 import { supplyState } from '../lib/supplyLow';
 import { birthMonthIndex, getNickname, getReportName, nicknameFields, reportNameFields, saveReportName, nicknameFollows, nicknameAfterFullName, firstNameOf } from '../lib/profileName';
 import { buildAdherenceReport } from '../lib/adherenceReportDoc';
+import { observationSummary, reportObservationSections } from '../lib/doseObservation';
 import { reportNameSheet } from '../lib/reportNameSheet';
 import { hasNativeModule } from '../lib/nativeModule';
 import { removeExportFiles, moveIntoSharedFile, ADHERENCE_PDF_NAME } from '../lib/exportFile';
@@ -803,7 +804,7 @@ export default function SettingsScreen({ navigation }) {
       t,
       show: setSheet,
       onGenerate: (name) => { makeAdherenceReport(name); },
-      onSave: async (name) => { const r = await saveReportName(name); if (r.ok) fetchUser(); return r; },
+      onSave: async (name) => { const r = await saveReportName(name, { saveEdit: (data) => saveProfileFields(user, data) }); if (r.ok) fetchUser(); return r; },
     }));
   }
 
@@ -879,8 +880,12 @@ export default function SettingsScreen({ navigation }) {
         unsync: unsyncNotice ? { never: !!unsyncNotice.never, sinceMs: unsyncSinceMs } : null,
         gaps,
       };
+      // Per protocol, what she marked (Em jejum / Com refeição) and wrote on the logged taken doses of the same
+      // 30 days (lib/doseObservation, DO-25), under the protocol's lines (AR-22; integration 2026-11-24).
+      const observations = new Map(observationSummary({ logs, protocols, fromMs: thirtyDaysAgo.getTime(), toMs: now.getTime() + 1 }).map((s) => [s.protocolId, s]));
+      const extraSections = (p) => reportObservationSections(observations.get(p.id), { t, language, timeFormat });
       // In the app language and clock, never the device locale (founder 2026-10-02).
-      const { text: report, html } = buildAdherenceReport(model, { t, language, timeFormat });
+      const { text: report, html } = buildAdherenceReport(model, { t, language, timeFormat, extraSections });
       reportHtmlRef.current = html;
 
       // Shown first, exactly as it will be sent (Settings part 3); Share opens the system sheet.

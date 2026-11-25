@@ -108,14 +108,16 @@ test('AR-1/AR-3/AR-4: the top says what the report is, the name, the period and 
   const { text, html } = build(model());
   const lines = text.split('\n');
   assert.equal(lines[0], 'RELATÓRIO DE ADESÃO');
-  assert.match(text, /Este relatório foi gerado pelo aplicativo DoseTrace, um diário pessoal em que a própria pessoa registra as doses que toma\. O aplicativo não mede, não verifica e não interpreta nada/);
+  // With the dose observation in the same release (integration 2026-11-24) the block names the marks and the
+  // observations, as the approved picture's ABOUT.
+  assert.match(text, /Este relatório foi gerado pelo aplicativo DoseTrace, um diário pessoal em que a própria pessoa registra as doses que toma, marca se foram em jejum ou com refeição e escreve observações\. O aplicativo não mede, não verifica e não interpreta nada/);
   assert.match(text, /As doses previstas seguem o horário que a própria pessoa configurou no aplicativo\./);
   assert.ok(text.includes('Nome: Marina Costa Silva\n'));
   assert.ok(text.includes('Período: 26/10/2026 a 24/11/2026 (últimos 30 dias, até a hora em que o relatório foi gerado)\n'));
   assert.ok(text.includes(`Gerado em: 24/11/2026 às ${CLOCK}\n`), 'the app clock (lib/timeFormat), the 12/24 h choice');
   assert.ok(text.includes(`Gerado pelo DoseTrace em 24/11/2026 às ${CLOCK}.`));
-  // the marks / observations belong to feat/dose-observation: not promised here
-  assert.doesNotMatch(text, /jejum|refeição|observaç/i);
+  // the mark counts and the observations come only through extraSections (__tests__/adherenceReportObservations.test.js)
+  assert.doesNotMatch(text, /Doses registradas como tomadas (em jejum|com refeição)|Observações escritas pela pessoa/);
   for (const s of ['Relatório de adesão', 'Gerado pelo aplicativo DoseTrace', 'Marina Costa Silva', `24/11/2026 às ${CLOCK}`, '26/10/2026 a 24/11/2026']) assert.ok(html.includes(s), s);
 });
 

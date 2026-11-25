@@ -21,6 +21,7 @@ import { hasPremium } from '../lib/entitlement';
 import { usePremiumUpdates } from '../lib/usePremium';
 import { formatDate as localeDate, MONTHS_SHORT, labelColon } from '../lib/localeFormat';
 import { getReportName, saveReportName } from '../lib/profileName';
+import { saveProfileFields } from '../lib/profile';
 import { reportNameSheet } from '../lib/reportNameSheet';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Analytics } from '../lib/analytics';
@@ -1000,10 +1001,12 @@ export default function BodyScreen({ navigation, route }) {
     // report, so it carries the full name in its header — never the nickname. With none, the same sheet first
     // (add it, saved to the profile, or make it without a name line). The CSV does not change.
     if (kind === 'pdf') {
-      const full = getReportName(await getCachedUser());
+      const me = await getCachedUser();
+      const full = getReportName(me);
       if (!full) {
         // After the export sheet has closed (the same wait as notice(cfg, afterPicker)): never two at once.
-        sheetAfterPicker(reportNameSheet({ t, show: setSheet, onGenerate: (name) => { runExport(kind, name); }, onSave: (name) => saveReportName(name) }));
+        // The typed name is a profile edit: kept on this phone without internet (lib/profile, PS-18).
+        sheetAfterPicker(reportNameSheet({ t, show: setSheet, onGenerate: (name) => { runExport(kind, name); }, onSave: (name) => saveReportName(name, { saveEdit: (data) => saveProfileFields(me, data) }) }));
         return;
       }
       await runExport(kind, full);

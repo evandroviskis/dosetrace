@@ -213,3 +213,31 @@ test('AR-24: the name sheet and profile strings in 6 languages; fr vous, pt form
   for (const l of LANGS) for (const k of keys) assert.ok(translations[l][k], `${l}.${k}`);
   assert.match(translations.fr.report_name_sheet_body, /\bvous\b|\bVous\b|votre/);
 });
+
+// Integration 2026-11-24 with feat/profile-synced (offline Edit profile, PS-18): the full name typed in the sheet
+// before a report is a profile edit like any other. Without internet it is kept on this phone and sent when the
+// internet is back (lib/profile saveProfileEdit), never dropped; the report is made with it either way.
+test('AR-19 + PS-18: the sheet saves the full name through the offline profile path (kept on this phone without internet)', async () => {
+  const { saveReportName } = require('../lib/profileName');
+  const sent = [];
+  const kept = await saveReportName('  Marina Costa Silva ', {
+    saveEdit: async (data) => { sent.push(data); return { status: 'kept' }; },
+    updateUser: async () => { throw new Error('the sheet never writes past the offline path'); },
+  });
+  assert.deepEqual(sent, [{ report_name: 'Marina Costa Silva' }]);
+  assert.deepEqual(kept, { ok: true, value: 'Marina Costa Silva', kept: true });
+  assert.deepEqual(await saveReportName('Ana', { saveEdit: async () => ({ status: 'saved' }) }), { ok: true, value: 'Ana', kept: false });
+  const refused = await saveReportName('Ana', { saveEdit: async () => ({ status: 'failed', error: { code: 'DT001' } }) });
+  assert.equal(refused.ok, false);
+  assert.equal((await saveReportName('Ana', { saveEdit: async () => { throw new Error('x'); } })).ok, false);
+  assert.deepEqual(await saveReportName('  ', { saveEdit: async () => { throw new Error('never called'); } }), { ok: false });
+  // Both screens pass the offline path (lib/profile saveProfileFields, the same saveProfileEdit as Edit profile).
+  const s = read('screens/SettingsScreen.js');
+  const fn = s.slice(s.indexOf('async function handleAdherenceReport'), s.indexOf('async function makeAdherenceReport'));
+  assert.match(fn, /saveReportName\(name, \{ saveEdit: \(data\) => saveProfileFields\(user, data\) \}\)/);
+  const b = read('screens/BodyScreen.js');
+  const ex = b.slice(b.indexOf('async function doExport'), b.indexOf('function formatDate(dateStr)'));
+  assert.match(ex, /saveReportName\(name, \{ saveEdit: \(data\) => saveProfileFields\(me, data\) \}\)/);
+  const p = read('lib/profile.js');
+  assert.match(p, /export function saveProfileFields\(user, data\) \{[\s\S]*?saveProfileEdit\(user, data, \{ updateUser: [\s\S]*?knownOffline: online === false \}\)/);
+});
