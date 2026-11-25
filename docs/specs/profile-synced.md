@@ -23,6 +23,7 @@
 - rows added after the signature (Gate B review 2026-11-24 19:20, decided by logic, not a change of what he approved): PS-24..PS-27; shown to the founder with the build list.
 - checklist-signed: 2026-11-24 19:12 EST by the founder in the conversation ("4 aprovo", answering "listas de aceitação com o desenho da observação corrigido"; admin panel Decisões tab item 29, option "A) Assinar as três"; Second Brain dosetrace/02-decisoes.md 2026-11-24 19:12)
 - PS-18..PS-23 signed (the six rows of the offline Edit profile, added after the signature above): 2026-11-24 19:18 EST by the founder in the conversation ("3 assino", answering "assinar os 6 critérios novos (PS-18 a PS-23)"; Second Brain dosetrace/02-decisoes.md 2026-11-24 19:18); no row changed
+- PS-11 change accepted: 2026-11-25 by the founder in the conversation ("aceito o número 6", answering "deixar o nome vazio na folha do relatório não apaga o nome guardado; apagar continua possível no Editar perfil"; admin panel Decisões tab item 57; Second Brain dosetrace/02-decisoes.md 2026-11-25)
 - still open after the signature (noted 2026-11-24): the signature does not close the items in "Owed before the build" below. "pode aplicar" for the migration, the device proof once it is applied (update over the store version keeps every profile value, Edit profile saves and shows it, a re-sign-in shows it, both themes unchanged) and the delete-user deploy are checked before publication.
 - committed-to: the next build (same package as the adherence report, founder 2026-11-24)
 
