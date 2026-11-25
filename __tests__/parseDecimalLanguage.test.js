@@ -94,7 +94,12 @@ test('the prefill shows the plain localized decimal: no "1,1250" trick, no group
 
 test('every user-typed numeric field is parsed with the app language', () => {
   const protocols = read('screens', 'ProtocolsScreen.js');
-  assert.match(protocols, /protocolPayload\(currentForm\(\), frequencyLabel, language\)/, 'protocol save');
+  // OB-22: the new protocol's save is the one shared save (lib/protocolSave), called with the app language.
+  assert.match(protocols, /insertNewProtocol\(\{[\s\S]{0,200}userId: user\.id, language, frequencyLabel/, 'protocol save');
+  assert.match(read('lib', 'protocolSave.js'), /deps\.protocolPayload\(f, frequencyLabel, language\)/);
+  assert.match(read('lib', 'protocolSave.js'), /deps\.parseDecimal\(f\.water, language\)/);
+  // The onboarding's draft: typed numbers read in the language they were typed in (OB-16).
+  assert.match(read('lib', 'onboardingDraft.js'), /parseDecimal\(text, language\)/);
   assert.match(protocols, /editPatch\(editStartRef\.current, currentForm\(\), frequencyLabel, language\)/, 'protocol edit save');
   assert.match(protocols, /const wizardDraw = computeDraw\(\{[^}]*\blanguage,/, 'wizard live draw');
   const calc = read('screens', 'components', 'CalculatorSection.js');

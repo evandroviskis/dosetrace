@@ -24,6 +24,7 @@ import { getActiveProtocols, getEndedProtocols, getDeletedProtocols, getBiomarke
 import { setSelection, clearSelection } from '../lib/bookSelection';
 import { buildPlaceIndex, searchPlaces, groupRows, shortcutsFor } from '../lib/appSearch';
 import { buildTextIndex, makeTextSearch, markedPieces, legalContent, LEGAL } from '../lib/appSearchText';
+import useFreeProtocolLimit from '../lib/useFreeProtocolLimit'; // OB-28: the account's free protocol count
 import { protocolEntries, markerRecords, vaccineRecords } from '../lib/appSearchRecords';
 import { placeAction, textAction } from '../lib/appSearchNav';
 import { todayFlags, getQuery, setQuery, clearQuery, askFocusBack } from '../lib/appSearchStore';
@@ -54,6 +55,7 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
   const route = useRoute();
   const { colors } = useTheme();
   const { t, language } = useLanguage();
+  const freeProtocols = useFreeProtocolLimit();
   const book = useBook();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const fromTab = embedded ? tabProp : (route && route.params && route.params.from) || 'Today';
@@ -79,7 +81,7 @@ export default function AppSearchScreen({ embedded = false, tab: tabProp = null 
     translations, language, protocols: data.protocols, records: data.records,
     flags: { pending: flags.pending, alerts: flags.alerts, ended: data.ended, deleted: data.deleted },
   }), [language, data, flags.pending, flags.alerts]);
-  const searchText = useMemo(() => makeTextSearch(buildTextIndex(t, Platform.OS)), [language]); // eslint-disable-line react-hooks/exhaustive-deps
+  const searchText = useMemo(() => makeTextSearch(buildTextIndex(t, Platform.OS, { freeProtocols })), [language, freeProtocols]); // eslint-disable-line react-hooks/exhaustive-deps
   const places = useMemo(() => searchPlaces(placeIndex, q), [placeIndex, q]);
   const texts = useMemo(() => (q.trim() ? searchText(q) : []), [searchText, q]);
   const groups = useMemo(() => groupRows(places), [places]);

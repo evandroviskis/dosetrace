@@ -92,7 +92,7 @@ test('the sheet must be answered; one dose reads "Sim"; the date shows the year 
   }
   assert.equal(translations.pt.protocols_past_yes_one, 'Sim');
   const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
-  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('return true; // saved'));
+  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('// DV-126 (AD-49, DL-82)'));
   assert.match(block, /locked: true/);
   assert.match(block, /'dayMonthAuto'/);
   assert.match(block, /protocols_past_yes_one/);
@@ -117,7 +117,7 @@ test('"Quase todas": only with more than one dose; curve like Sim; Editar frasco
   assert.equal(translations.pt.protocols_past_body_vial_many, 'Todas ou quase todas: a curva estima esse período contando todas as doses previstas, e o frasco começa com {v} de {total} doses usadas. Se foram quase todas, em seguida você corrige esse número. Se não, a curva começa hoje e você informa quantas doses do frasco usou.');
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) assert.match(translations[l].protocols_past_body_vial_many, /\{v\}[\s\S]*\{total\}|\{total\}[\s\S]*\{v\}/, l);
   const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
-  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('return true; // saved'));
+  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('// DV-126 (AD-49, DL-82)'));
   assert.match(block, /const many = ask\.n > 1;/);
   assert.match(block, /many \? '_many' : ''/);
   assert.match(block, /label: t\('protocols_past_almost'\), kind: 'secondary', onPress: answer\('almost'\)/); // writes: pastStartWrites test
@@ -160,7 +160,7 @@ test('what each answer writes: Sim / Quase todas / Não, for a mixed vial, a fin
   assert.deepEqual(pastStartWrites('no', none, noVial), { historyFrom: '2026-10-27', vialUpdate: null, unitsTaken: null, openEditVial: false, openNewVialWindow: false });
   // The screen runs these and nothing else; never a dose row.
   const src = fs.readFileSync(path.join(__dirname, '../screens/ProtocolsScreen.js'), 'utf8');
-  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('return true; // saved'));
+  const block = src.slice(src.indexOf('const ask = protocolData ? pastStartAsk'), src.indexOf('// DV-126 (AD-49, DL-82)'));
   assert.match(block, /pastStartWrites\(kind, ask, \{ hasVial: !!newVial, recon: protocolData\.type === 'recon', today: todayStr \}\)/);
   for (const k of ['no', 'yes', 'almost']) assert.match(block, new RegExp(`onPress: answer\\('${k}'\\)`));
   assert.doesNotMatch(block, /insertDoseLog/);

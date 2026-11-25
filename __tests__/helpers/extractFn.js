@@ -65,6 +65,9 @@ function loadFn(file, header, name, deps = {}) {
   // DV-039: recordDoseTaken always writes inside withImmediateTransaction; a test without a database runs it
   // straight through (dv039DoseSupplyOneWrite.test.js checks the transaction itself).
   if (file === 'lib/doseActions.js' && !('withImmediateTransaction' in deps) && /withImmediateTransaction\(/.test(body)) deps = { ...deps, withImmediateTransaction: (fn) => fn() };
+  // OB-22: the add-protocol form's save of a new protocol goes through lib/protocolSave (shared with the
+  // onboarding's protocol); a test of saveProtocol runs that real function over the fakes it passes.
+  if (file === 'screens/ProtocolsScreen.js' && !('insertNewProtocol' in deps) && /insertNewProtocol\(/.test(body)) deps = { ...deps, insertNewProtocol: require('../../lib/protocolSave').insertNewProtocol };
   const names = Object.keys(deps);
   // eslint-disable-next-line no-new-func
   return new Function(...names, `${body}\nreturn ${name};`)(...names.map((n) => deps[n]));

@@ -30,8 +30,9 @@ test('PA-5: plans are matched by packageType (Android ids carry a base-plan suff
   assert.equal(got.monthly.product.identifier, 'monthly:p1m');
   assert.equal(got.annual.product.identifier, 'yearly:annual');
   assert.equal(got.lifetime, null);
-  assert.deepEqual(P.pickPackages(null), { annual: null, monthly: null, lifetime: null });
-  assert.deepEqual(P.pickPackages([{ packageType: 'ANNUAL' }]), { annual: null, monthly: null, lifetime: null }, 'a package without a product is ignored');
+  // threeMonth: the entry offer's 3-month plan (docs/design/onboarding-offer.html); the paywall ignores it.
+  assert.deepEqual(P.pickPackages(null), { annual: null, monthly: null, lifetime: null, threeMonth: null });
+  assert.deepEqual(P.pickPackages([{ packageType: 'ANNUAL' }]), { annual: null, monthly: null, lifetime: null, threeMonth: null }, 'a package without a product is ignored');
 });
 
 test('PA-6: the buy section has exactly four states and Premium wins', () => {

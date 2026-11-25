@@ -163,14 +163,16 @@ test('PA-30 / PA-40: the 8 steps; both buttons of "Never miss a dose" go to Crea
   assert.match(ONB, /async function enableNotifications\(\) \{[\s\S]{0,200}toAuth\('create'\)/);
   assert.match(ONB, /onPress=\{\(\) => toAuth\('create'\)\}[\s\S]{0,120}ob_not_now/);
   assert.match(ONB, /onPress=\{\(\) => toAuth\('signin'\)\}[\s\S]{0,120}onboarding_already_have_account/);
-  assert.doesNotMatch(ONB, /'ready'|ob_ready_sub|ob_create_account/, 'the "You\'re all set" step is gone');
+  assert.doesNotMatch(ONB, /ob_ready_sub|ob_create_account/, 'the "You\'re all set" step is gone');
+  assert.ok(!require('../lib/onboardingSteps').STEPS.includes('finish'), 'pre-account ends on the reminders (ready is now the protocol summary, OB-19)');
   assert.match(APP, /setAuthEntry\(\{ mode: mode === 'signin' \? 'signin' : 'create' \}\)/);
   assert.match(APP, /initialMode=\{authEntry\.mode\} \/>/);
 });
 
 test('PA-31: the welcome screen shows the droplet app icon near the top (prototype position), not the blue square', () => {
   assert.match(ONB, /require\('\.\.\/assets\/adaptive-icon\.png'\)\} style=\{s\.logo\}/);
-  assert.match(ONB, /splashHead: \{ alignItems: 'center', gap: 14, paddingTop: 90 \}/);
+  // 2026-11-24 picture (language option B): the old 36 pt pill row is gone, so 44 pt top row + 70
+  assert.match(ONB, /splashHead: \{ alignItems: 'center', gap: 14, paddingTop: 114 \}/);
   assert.doesNotMatch(ONB, /applogo/);
 });
 
@@ -206,7 +208,7 @@ test('PA-39 / PA-63: Terms of service AND Privacy policy linked on the consent s
 
 test('PA-41: Finish setup writes only the shown steps and reports a failed save in a sheet', () => {
   assert.match(ONB, /accountPatch\(form, meta, new Date\(\)\.toISOString\(\), steps\)/);
-  assert.match(ONB, /refreshForm\(cur, meta, touched\.current\)/);
+  assert.match(ONB, /refreshForm\(\w+, meta, touched\.current\)/);
   // DV-114: a refused save (offline keeps the answer on the phone, dv114OfflineGates.test.js).
   assert.match(ONB, /friendlyError\(r\.error, t, 'error_save_failed'\)/);
   assert.match(ONB, /t\('ob_finish_setup'\)/);

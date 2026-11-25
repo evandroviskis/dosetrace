@@ -22,6 +22,8 @@ import { clamp01, eOutQuad, eInOutCubic } from './motion';
 import { MONO } from '../lib/fonts';
 import { paletteHex } from '../lib/protocolColors';
 import { markerLabel } from '../lib/markerNames';
+import { shownLimit, freeProtocolsLabel, fillFreeProtocols } from '../lib/freePlan';
+import useFreeProtocolLimit from '../lib/useFreeProtocolLimit';
 import {
   FX_W, eBack, kf, groupNum, numGroup, demoDec, useFxClock, FxCanvas, Box, Anim, Bar, Rect, T, Count, Typed,
   OkMark, Corners, ScanBeam, fmtDate,
@@ -298,15 +300,16 @@ function VaxFx({ c, t: tr, width, label, language }) {
   );
 }
 
-/* ---- Protocols: the free plan's 3 slots, then as many as you run ---- */
+/* ---- Protocols: the free plan's slots (OB-28: 1 for a new account, 3 before the rule), then as many as you run ---- */
 // Dots in the user protocol-colour palette (lib/protocolColors) — deliberately
 // fixed, the same in both themes, shown only as dots (DESIGN.md §2.4).
 const PROTOCOL_DOTS = ['forest', 'coral', 'lavender', 'sky', 'amber', 'rose'].map(paletteHex);
 const SAMPLE_PROTOCOLS = ['BPC-157', 'TB-500', 'Testosterone Cypionate', 'Magnesium Bisglycinate', 'Vitamin D3', 'Semaglutide'];
-function ProtosFx({ c, t: tr, width, label }) {
+function ProtosFx({ c, t: tr, width, label, freeProtocols, language }) {
   const H = 250, DUR = 5600;
   const t = useFxClock(DUR);
-  // The 4th protocol: dimmed and shaken while the free plan is full, then unlocked.
+  const free = shownLimit(freeProtocols);
+  // The protocol after the free ones: dimmed and shaken while the free plan is full, then unlocked.
   const fourth = (tv) => {
     'worklet';
     const locked = tv <= 2600;
@@ -320,7 +323,7 @@ function ProtosFx({ c, t: tr, width, label }) {
     <FxCanvas width={width} h={H} label={label}>
       {SAMPLE_PROTOCOLS.map((name, i) => {
         const y = 6 + i * 34;
-        const at = i < 3 ? 150 + i * 250 : (i === 3 ? 1300 : 2900 + (i - 3) * 260);
+        const at = i < free ? 150 + i * 250 : (i === free ? 1300 : 2900 + (i - free) * 260);
         const row = (
           <>
             <Rect x={4} y={y} w={318} h={28} r={14} fill={c.well} />
@@ -330,15 +333,15 @@ function ProtosFx({ c, t: tr, width, label }) {
         );
         return (
           <Box key={name} t={t} at={at} dur={420} dx={-20}>
-            {i === 3 ? <Anim t={t} fx={fourth} style={{ left: 0, top: 0, width: FX_W, height: H }}>{row}</Anim> : row}
+            {i === free ? <Anim t={t} fx={fourth} style={{ left: 0, top: 0, width: FX_W, height: H }}>{row}</Anim> : row}
           </Box>
         );
       })}
-      <Anim t={t} fx={lock} style={{ left: 294, top: 6 + 3 * 34 + 4 }}>
+      <Anim t={t} fx={lock} style={{ left: 294, top: 6 + free * 34 + 4 }}>
         <FeatureIcon name="lock" size={20} color={c.ink} />
       </Anim>
       <Anim t={t} fx={before} style={{ left: 0, top: 0, width: FX_W, height: H }}>
-        <T x={163} y={232} size={12.5} weight="600" color={c.ink2} anchor="middle" width={310}>{tr('paywall_free_feat_3')}</T>
+        <T x={163} y={232} size={12.5} weight="600" color={c.ink2} anchor="middle" width={310}>{freeProtocolsLabel(tr, freeProtocols, language)}</T>
       </Anim>
       <Anim t={t} fx={after} style={{ left: 0, top: 0, width: FX_W, height: H }}>
         <T x={163} y={232} size={12.5} weight="600" color={c.data} anchor="middle" width={310}>{tr('paywall_feat_4')}</T>
@@ -424,6 +427,7 @@ export const PREVIEW_FEATURES = [
 export function FeaturePreview({ featureKey, width }) {
   const { colors } = useTheme();
   const { t, language } = useLanguage();
+  const freeProtocols = useFreeProtocolLimit();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const f = PREVIEW_FEATURES.find((x) => x.key === featureKey);
   if (!f) return null;
@@ -432,7 +436,7 @@ export function FeaturePreview({ featureKey, width }) {
   return (
     <View style={s.fx}>
       <View style={s.tag}><Text style={s.tagText}>{t('paywall_hero_example')}</Text></View>
-      <f.Fx key={language} c={colors} t={t} width={width} label={label} language={language} />
+      <f.Fx key={language} c={colors} t={t} width={width} label={label} language={language} freeProtocols={freeProtocols} />
     </View>
   );
 }
@@ -441,7 +445,8 @@ export function FeaturePreview({ featureKey, width }) {
 // `onUnlock` is given), the example-only note.
 export function FeaturePreviewSheet({ featureKey, onClose, onUnlock }) {
   const { colors } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const freeProtocols = useFreeProtocolLimit();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { width: winW } = useWindowSize(); // the measured window: the sheet fits the closed Fold (A-129)
@@ -464,7 +469,7 @@ export function FeaturePreviewSheet({ featureKey, onClose, onUnlock }) {
                 </TouchableOpacity>
               </View>
               <FeaturePreview featureKey={feature.key} width={inner} />
-              <Text style={s.body}>{t(feature.bodyKey)}</Text>
+              <Text style={s.body}>{fillFreeProtocols(t(feature.bodyKey), t, freeProtocols, language)}</Text>
               {/* CE-8 (docs/specs/curve-explained.md): the curve's lock shows its three cards before Unlock */}
               {feature.key === 'serum' ? <CurveCardsList /> : null}
               {onUnlock ? (

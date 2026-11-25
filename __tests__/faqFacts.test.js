@@ -40,10 +40,13 @@ test('the scan number 20 appears only in "What does Premium include?"', () => {
   }
 });
 
-test('"Is DoseTrace free?" names the free plan: 3 active protocols, 3 scans a month, 7 food-log days', () => {
+test('"Is DoseTrace free?" names the free plan: the account\'s active protocols (1 new / 3 before OB-28), 3 scans a month, 7 food-log days', () => {
+  const { fillFreeProtocols } = require('../lib/freePlan');
   for (const l of LANGS) {
-    const a = qa(l, 0, 1);
+    const tl = (k) => tr[l][k];
+    const a = fillFreeProtocols(qa(l, 0, 1), tl, 3, l);
     assert.match(a, /3 [^.]*protoc|3 aktive Protokolle/i, l);
+    assert.match(fillFreeProtocols(qa(l, 0, 1), tl, 1, l), /1 [^.,]*(protoc|Protokoll)/i, l);
     assert.match(a, /3 [^.]*(scan|escane|leitura)/i, l);
     assert.match(a, /7 /, l);
   }

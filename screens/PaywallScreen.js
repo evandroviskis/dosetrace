@@ -36,6 +36,7 @@ import {
   purchaseOutcome, lifetimeCancelNeeded, restoreOutcome, outcomeSheet, comparisonRows, includedLines, storeName,
 } from '../lib/paywallPlans';
 import { FREE_DAYS } from '../lib/foodThread';
+import useFreeProtocolLimit from '../lib/useFreeProtocolLimit'; // OB-28: the account's free protocol count
 import LegalModal from '../components/LegalModal';
 import { Analytics } from '../lib/analytics';
 import CheckMark from '../components/CheckMark';
@@ -60,6 +61,7 @@ function BackChevron({ color }) {
  */
 export default function PaywallScreen({ navigation, route }) {
   const { t, language } = useLanguage();
+  const freeProtocols = useFreeProtocolLimit();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const { width: winW } = useWindowSize();
@@ -257,7 +259,7 @@ export default function PaywallScreen({ navigation, route }) {
     );
   };
 
-  const rows = comparisonRows(t, { freeFoodDays: FREE_DAYS });
+  const rows = comparisonRows(t, { freeFoodDays: FREE_DAYS, freeProtocols });
 
   return (
     <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>

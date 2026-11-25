@@ -21,6 +21,9 @@ import { getCachedUser, supabase } from '../lib/supabase';
 import { hasPremium } from '../lib/entitlement';
 import { getOfferings, checkTrialEligibility } from '../lib/purchases';
 import { anyTrial } from '../lib/paywallPlans';
+import { introOfferOpen } from '../lib/offerEligibility';
+// OB-28: the free plan's protocol count (1 for an account made after the rule, 3 for every account before).
+import { freeProtocolLimit, atFreeProtocolLimit, fillFreeProtocols } from '../lib/freePlan';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { hasNativeModule } from '../lib/nativeModule';
 import { quotaLimitFrom, fillQuotaMessage } from '../lib/scanQuotaMessage';
@@ -54,6 +57,7 @@ import { CopperFormSheet, GhkAmountSheet } from './components/CopperSheets';
 import { sameMass } from '../lib/doseStamp';
 import { vialUsedAmounts, previewUsedAmounts } from '../lib/doseEdit';
 import { pastStartAsk, pastStartWrites, editStartAsk, editStartWrites } from '../lib/pastDoses';
+import { insertNewProtocol } from '../lib/protocolSave';
 import { tsMs, vialToReopen } from '../lib/deleteDose';
 import { startAfterEnd, isEnded } from '../lib/protocolEnd';
 import { requestSync, notifyDataChanged } from '../lib/sync';
@@ -71,12 +75,14 @@ import { stepForHandback, spacingOptions } from '../lib/protocolAssistant';
 import { isClockTime } from '../lib/assistantTime';
 import { renderText } from '../lib/assistantText';
 import ProtocolAssistant from './components/ProtocolAssistant';
+import PurposeTiles from '../components/PurposeTiles';
+import { purposeOrder, purposeProductKey, goalsAfterProductChange } from '../lib/protocolPurpose';
 import FitExplainer from './components/FitExplainer';
 import { SyringePickerRow, SyringePickerSheet } from './components/SyringePicker';
 import { supplyState, bottleState } from '../lib/supplyLow';
 import { detailBlocks } from '../lib/supplyNotice';
 import { computeServings, servingText, supplyDaysLeft } from '../lib/oralMath';
-import { matchesQuery, blendComposition, BLEND_IDS } from '../lib/compounds';
+import { matchesQuery, blendComposition, BLEND_IDS, LYOPHILIZED_KEYS, RTU_KEYS, ORAL_KEYS } from '../lib/compounds';
 import { frequencyLabelFor, protocolFrequencyText, courseState, endDateRange } from '../lib/schedule';
 import { startNewVial, showsNewVialButton } from '../lib/newVial';
 import { applyVialEdit, showsEditVialButton, editMixDate, mixDateError } from '../lib/vialEdit';
@@ -132,19 +138,6 @@ const SORT_OPTIONS = [
 ];
 const SORT_STORAGE_KEY = 'dosetrace_protocols_sort';
 
-const LYOPHILIZED_KEYS = ['lyo_5_amino_1mq','lyo_alpha_endorphin','lyo_alpha_msh','lyo_gamma_endorphin','lyo_ac_epithalon','lyo_ace_031','lyo_adamax','lyo_adipotide','lyo_aicar','lyo_albiglutide','lyo_aod_9604','lyo_ara_290','lyo_bpc_157','lyo_cagrilintide','lyo_cecropin_b','lyo_cerebrolysin','lyo_cetrorelix_acetate','lyo_cjc_1295_with_dac','lyo_cjc_1295_without_dac','lyo_cortexin','lyo_dermorphin','lyo_dihexa','lyo_dsip','lyo_dulaglutide','lyo_eloralintide','lyo_epithalon','lyo_epo','lyo_exenatide','lyo_follistatin_344','lyo_foxo4_dri','lyo_fsh','lyo_gdf_8','lyo_ghk_cu','lyo_ghrelin','lyo_ghrp_2','lyo_ghrp_6','lyo_glutathione','lyo_gonadorelin','lyo_gts_21','lyo_hcg','lyo_hexarelin','lyo_hgh','lyo_hgh_fragment_176_191','lyo_hmg','lyo_humanin','lyo_hyaluronic_acid','lyo_igf_1_des','lyo_igf_1_lr3','lyo_ipamorelin','lyo_kisspeptin_10','lyo_kisspeptin_13','lyo_kpv','lyo_lc120','lyo_lc216','lyo_liraglutide','lyo_lixisenatide','lyo_ll_37','lyo_mazdutide','lyo_melanotan_1','lyo_melanotan_2','lyo_melatonin','lyo_mgf','lyo_mog_35_55','lyo_mots_c','lyo_myostatin','lyo_n_acetyl_selank_amidate','lyo_n_acetyl_semax_amidate','lyo_n_acetyl_epitalon_amidate','lyo_nad_plus','lyo_octreotide','lyo_orexin_a','lyo_oxytocin','lyo_p21','lyo_pe_22_28','lyo_peg_mgf','lyo_pentadeca_arginate','lyo_peptide_t','lyo_pinealon','lyo_pt_141','lyo_retatrutide','lyo_rgd_peptide','lyo_selank','lyo_semaglutide','lyo_semax','lyo_sermorelin','lyo_snap_8','lyo_ss_31','lyo_survodutide','lyo_tb_500','lyo_tesamorelin','lyo_tesofensine','lyo_thymalin','lyo_thymosin_alpha_1','lyo_thymosin_beta_4','lyo_thymulin','lyo_tirzepatide','lyo_triptorelin','lyo_vip','lyo_glow','lyo_klow','lyo_wolverine'];
-
-const RTU_KEYS = ['rtu_boldenone_undecylenate','rtu_cyanocobalamin','rtu_drostanolone_enanthate','rtu_drostanolone_propionate','rtu_dulaglutide','rtu_estradiol_cypionate','rtu_estradiol_valerate','rtu_hydroxocobalamin','rtu_insulin_aspart','rtu_insulin_degludec','rtu_insulin_glargine','rtu_insulin_lispro','rtu_l_carnitine','rtu_lipo_c','rtu_liraglutide','rtu_methenolone_enanthate','rtu_methylcobalamin','rtu_mic_blend','rtu_nandrolone_decanoate','rtu_nandrolone_phenylpropionate','rtu_progesterone','rtu_pyridoxine','rtu_semaglutide','rtu_stanozolol','rtu_sustanon_250','rtu_testosterone_cypionate','rtu_testosterone_enanthate','rtu_testosterone_propionate','rtu_testosterone_suspension','rtu_testosterone_undecanoate','rtu_tirzepatide','rtu_trenbolone_acetate','rtu_trenbolone_enanthate','rtu_trenbolone_hexahydrobenzylcarbonate'];
-
-const ORAL_KEYS = ['oral_alpha_gpc','oral_ala','oral_ashwagandha','oral_astragalus','oral_bacopa','oral_berberine','oral_beta_alanine','oral_citrulline','oral_coq10','oral_creatine','oral_curcumin','oral_gaba','oral_grape_seed','oral_krill_oil','oral_carnitine','oral_glutamine','oral_theanine','oral_tyrosine','oral_lions_mane','oral_maca','oral_mag_bisglycinate','oral_mag_threonate','oral_melatonin','oral_milk_thistle','oral_nac','oral_nmn','oral_nr','oral_omega3','oral_probiotics','oral_red_yeast','oral_resveratrol','oral_rhodiola','oral_saw_palmetto','oral_taurine','oral_tudca','oral_vit_b','oral_vit_c','oral_vit_d3','oral_vit_k2','oral_zinc'];
-
-const WELLNESS_KEYS_INJECTABLE = ['wt_anabolic','wt_antioxidant','wt_appetite','wt_athletic','wt_body_comp','wt_circadian','wt_cognitive','wt_hormonal_wellness','wt_energy','wt_metabolic_wellness','wt_gut','wt_hormone_balance','wt_recovery_support','wt_joint','wt_libido','wt_longevity','wt_metabolic','wt_cellular_energy','wt_mood','wt_muscle','wt_endurance','wt_rest','wt_sexual','wt_skin','wt_sleep_opt','wt_strength','wt_stress','wt_tissue','wt_vitality','wt_weight'];
-
-const WELLNESS_KEYS_ORAL = ['wt_antioxidant_def','wt_atp','wt_heart_wellness','wt_neuro_wellness','wt_cognitive_vit','wt_electrolyte','wt_digestive_wellness','wt_blood_sugar_wellness','wt_liver_wellness','wt_stress_adaptation','wt_immune','wt_joint_health','wt_mental','wt_cellular_opt','wt_kidney_wellness','wt_sleep_quality','wt_stress_mgmt'];
-
-// Free tier: max active protocols before Premium is required. If you change
-// this, update the copy in protocols_limit_msg + paywall_free_feat_3.
-const FREE_PROTOCOL_LIMIT = 3;
 // The editor's keyboard wrapper (build 54): fills the page sheet; on Android its bottom padding
 // is the keyboard's overlap while the keyboard is up.
 const EDITOR_FLEX = { flex: 1 };
@@ -1216,6 +1209,7 @@ export default function ProtocolsScreen() {
   // No time is picked for the person: each dose starts empty (founder 2026-11-04, MF-1).
   const [reminderTimes, setReminderTimes] = useState(['']);
   const [goals, setGoals] = useState([]);
+  const goalsForRef = useRef(null); // the product the goals were chosen for (item 15)
   const [notes, setNotes] = useState('');
   const [note, setNote] = useState('');
   const [composition, setComposition] = useState(''); // blend "what's in the vial" label
@@ -1392,7 +1386,7 @@ export default function ProtocolsScreen() {
     const sp = route.params?.search;
     if (!sp || !sp.target) return;
     const p = sp.protocolId != null ? protocols.find((x) => String(x.id) === String(sp.protocolId)) || null : null;
-    const needsProtocol = ['protocol', 'calc', 'vial', 'newVial', 'editVial', 'schedule'].includes(sp.target);
+    const needsProtocol = ['protocol', 'calc', 'vial', 'newVial', 'editVial', 'schedule', 'pastDoses'].includes(sp.target);
     if (needsProtocol && !p && fetchGen === 0) return; // the list is not read yet
     navigation.setParams({ search: undefined });
     if (needsProtocol && !p) return; // gone meanwhile (ended or deleted): nothing opens
@@ -1405,6 +1399,7 @@ export default function ProtocolsScreen() {
       case 'vial': openProtocolById(p.id); setLand({ key: sp.target === 'calc' && p.type === 'oral' ? 'serving' : sp.target, n: sp.n }); break;
       case 'newVial': openProtocolById(p.id); if (p.type !== 'oral') openNewVialWindow(p); break;
       case 'editVial': openProtocolById(p.id); openEditVial(p.id); break;
+      case 'pastDoses': openProtocolById(p.id); setTimeout(() => askPastStart(getProtocolById(p.id) || p, currentVialOf(p.id)), 400); break;
       case 'schedule': openProtocolById(p.id); openEdit(p, 4); break;
       case 'ended':
       case 'deleted': if (!book) { setOpenId(null); setShowList(true); } setLand({ key: 'archive', n: sp.n }); break;
@@ -1750,7 +1745,9 @@ export default function ProtocolsScreen() {
     setConcentration(f.concentration); setConcentrationUnit(f.concentrationUnit);
     setIntervalDays(f.intervalDays); setCustomIntervalOpen(f.customIntervalOpen); setCustomIntervalText(f.customIntervalText);
     setDosesPerDay(f.dosesPerDay); setStartDate(f.startDate); setReminderTimes(f.reminderTimes);
-    setGoals(f.goals); setNotes(f.notes); setNote(f.note); setComposition(f.composition);
+    setGoals(f.goals);
+    goalsForRef.current = purposeProductKey({ type: f.type, compoundId: f.compoundId, name: f.name });
+    setNotes(f.notes); setNote(f.note); setComposition(f.composition);
     setServingStrength(f.servingStrength); setServingStrengthUnit(f.servingStrengthUnit); setServingUnits(f.servingUnits);
     setContainerUnits(f.containerUnits); setDivisible(f.divisible);
     setVialValidDays(f.vialValidDays); setVialMl(f.vialMl); setVialExpMonth(f.vialExpMonth); setVialExpYear(f.vialExpYear);
@@ -1816,9 +1813,23 @@ export default function ProtocolsScreen() {
     Analytics.compoundSearched(custom, type);
   }
 
-  function getWellnessKeys() {
-    return type === 'oral' ? WELLNESS_KEYS_ORAL : WELLNESS_KEYS_INJECTABLE;
+  // PQ-5..PQ-8 (docs/specs/purpose-question.md): the goal tiles in tap-saving order — her own past
+  // choices for this product (ended protocols too), the product's usual goals, then A-Z; a night
+  // dose lifts the sleep goal. The protocol being edited is not its own history.
+  function purposeFor({ type: ty, compoundId: cid, name: nm, times }) {
+    return purposeOrder({ type: ty, compoundId: cid, name: nm, protocols: [...protocols, ...endedProtocols], excludeId: editingId, times, label: t, language });
   }
+  const toggleGoal = (gKey) => {
+    goalsForRef.current = purposeProductKey({ type, compoundId, name });
+    setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey]);
+  };
+  // Council 2026-11-20 (item 15): the goals belong to the product they were chosen for — another
+  // product chosen clears them (Sleep for Melatonina never carries over to Vitamina C).
+  useEffect(() => {
+    const key = purposeProductKey({ type, compoundId, name });
+    const kept = goalsAfterProductChange(goals, goalsForRef.current, key);
+    if (kept === null) { setGoals([]); goalsForRef.current = null; }
+  }, [type, compoundId, name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Edit: the form starts as the stored row (lib/protocolForm formFromProtocol, the same
   // mapping as before) and Save writes only what the user changes (founder decision 2,
@@ -2386,7 +2397,7 @@ export default function ProtocolsScreen() {
       // DB count, so the extra protocol is never created — the block happens
       // before insert, not after.
       const activeCount = (getActiveProtocols(user.id) || []).length;
-      if (activeCount >= FREE_PROTOCOL_LIMIT && !(await hasPremium())) {
+      if (atFreeProtocolLimit({ activeCount, limit: freeProtocolLimit(user), premium: false }) && !(await hasPremium())) {
         setSaving(false);
         closeWizard();
         promptUpgrade();
@@ -2394,24 +2405,12 @@ export default function ProtocolsScreen() {
       }
       // RTU has no dilution: the vial's total compound (concentration × bottle volume) is
       // stored in `amount` (lib/protocolForm protocolPayload) so the card shows "X mg vial".
-      const newId = insertProtocol({ user_id: user.id, ...protocolPayload(currentForm(), frequencyLabel, language), start_date: safeStart });
-
-      let newVialId = null;
-      if (type === 'recon' && !skipVial) {
-        newVialId = insertVial({
-          user_id: user.id, protocol_id: newId,
-          mixed_on: mix.date,
-          water_ml: parseDecimal(water, language) || null,
-          // Vial capacity is derived (vial amount ÷ dose), not asked.
-          total_doses: dosesPerVial({ amount, unit, dose, doseUnit, language }),
-          doses_taken: 0,
-        });
-      }
-
-      // Ready-to-use vial: injections = (concentration × ml) ÷ dose; optional
-      // expiry from the box (month/year → last day of that month).
-      const rtuVial = rtuVialFields(currentForm(), language);
-      if (rtuVial) newVialId = insertVial({ user_id: user.id, protocol_id: newId, doses_taken: 0, ...rtuVial });
+      // OB-22: the one save of a new protocol (lib/protocolSave), shared with the protocol the
+      // onboarding built before the account — the protocol, then its first vial.
+      const { newId, newVialId } = insertNewProtocol({
+        form: { ...currentForm(), type, amount, unit, water, dose, doseUnit },
+        userId: user.id, language, frequencyLabel, startDate: safeStart, skipVial, mixedOn: mix ? mix.date : null,
+      }, { insertProtocol, insertVial, protocolPayload, parseDecimal, dosesPerVial, rtuVialFields });
       setSaving(false);
       const protocolData = getProtocolById(newId);
       if (protocolData) afterProtocolChange({ saved: protocolData }).catch(() => {});
@@ -2422,64 +2421,7 @@ export default function ProtocolsScreen() {
       // Sim: the curve estimates that time (A-30) and the vial starts with the doses scheduled since it was
       // mixed already used. Não: the curve starts today (history_from) and "Editar frasco" opens for the
       // doses already used. Nothing is ever written to the Dose log (declared history is not a logged dose).
-      const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
-      const hq = historyQuestion(protocolData, Date.now());
-      const newVial = newVialId != null ? getVialById(newVialId) : null;
-      const ask = protocolData ? pastStartAsk({ protocol: protocolData, vial: newVial, nowMs: Date.now(), curveAsk: !!hq }) : null;
-      // A-112 SP-5: no setup opening here any more — Today opens "Make sure your reminders arrive"
-      // once per phone (lib/reminderSetup), and onboarding offers it first.
-      if (ask) {
-        const doseText = `${decimalText(protocolData.dose, language)}\u00A0${unitText(protocolData.dose_unit, language)}`;
-        // Council 2026-10-27: the date carries its year when it is another year; one dose reads "Sim".
-        const title = t(pluralKey('protocols_past_title', ask.n, language))
-          .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonthAuto')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
-        // Founder 2026-10-27 ("3 b"): with more than one dose a third answer, "Quase todas" — the texts name it.
-        const many = ask.n > 1;
-        const bk = (k) => t(`${k}${many ? '_many' : ''}`);
-        let body = bk('protocols_past_body');
-        if (ask.vialUnknown) body = bk('protocols_past_body_vial_unknown');
-        else if (ask.vialUsed > 0) body = bk('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total));
-        else if (ask.unitsUsed > 0) {
-          const sv = computeServings({
-            targetDose: protocolData.dose, doseUnit: protocolData.dose_unit, servingStrength: protocolData.serving_strength,
-            servingStrengthUnit: protocolData.serving_strength_unit, servingUnits: protocolData.serving_units, form: protocolData.notes,
-          });
-          const word = sv && sv.unitKey ? `\u00A0${t(servingPluralKey(sv.unitKey, ask.unitsUsed, language, { glyph: false }))}` : '';
-          body = bk('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
-        }
-        const supplyChanged = () => {
-          notifyDataChanged('protocol');
-          requestSync();
-          afterProtocolChange({ saved: getProtocolById(newId) }).catch(() => {}); // the vial alerts follow the new count
-          fetchProtocols();
-        };
-        // Shown once the add sheet is gone (screenSheet waits for it). Council 2026-10-27: it must be answered —
-        // a backdrop tap or Android back would leave the curve as "Sim" and the vial as "Não".
-        // The three answers (lib/pastDoses pastStartWrites): history_from, the vial, the bottle, then one window.
-        const answer = (kind) => () => {
-          const w = pastStartWrites(kind, ask, { hasVial: !!newVial, recon: protocolData.type === 'recon', today: todayStr });
-          if (w.historyFrom) {
-            try { updateProtocol(newId, { history_from: w.historyFrom }); } catch { /* best-effort */ }
-            notifyDataChanged('protocol');
-            requestSync();
-          }
-          if (w.vialUpdate) { try { updateVial(newVial.id, w.vialUpdate); } catch { /* best-effort */ } }
-          if (w.unitsTaken != null) { try { updateProtocol(newId, { units_taken: w.unitsTaken }); } catch { /* best-effort */ } }
-          if (w.vialUpdate || w.unitsTaken != null) supplyChanged();
-          if (w.openNewVialWindow) setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
-          else if (w.openEditVial) setTimeout(() => openEditVialRef.current(newId), 400);
-        };
-        const noBtn = { label: t('protocols_past_no'), kind: 'secondary', onPress: answer('no') };
-        const yesBtn = { label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'), kind: 'primary', onPress: answer('yes') };
-        // "Quase todas" (founder "3 b"): only with more than one dose.
-        const almostBtn = { label: t('protocols_past_almost'), kind: 'secondary', onPress: answer('almost') };
-        setScreenSheet({
-          title,
-          body,
-          locked: true,
-          buttons: many ? [yesBtn, almostBtn, noBtn] : [noBtn, yesBtn],
-        });
-      }
+      if (protocolData) askPastStart(protocolData, newVialId != null ? getVialById(newVialId) : null);
     }
     requestSync();
     // Refresh every mounted screen right away (Today, etc.) — don't wait for the
@@ -2601,12 +2543,84 @@ export default function ProtocolsScreen() {
   }
 
 
-  // Free tier: up to FREE_PROTOCOL_LIMIT (3) active protocols; premium unlocks unlimited. The gate
+  // Free tier: up to the account's free limit of active protocols (lib/freePlan, OB-28: 1 for a new
+  // account, 3 for one made before the rule); premium unlocks unlimited. The gate
   // uses a FRESH DB count (not the possibly-stale `protocols` state) so a rapid
   // second Add right after a save can't slip an extra protocol through.
+  // Founder 2026-10-27: the ONE past-doses question for a protocol that started before it was in the
+  // app (lib/pastDoses). The manual form asks it after a save; the onboarding's protocol lands here
+  // when its answered start has become past by the time the account exists (council 2026-11-20).
+  // The protocol's current vial (the latest active one), for the question opened from a search target.
+  const currentVialOf = (pid) => {
+    const vs = (() => { try { return getVialsForProtocol(pid) || []; } catch { return []; } })();
+    return vs.filter((v) => v.active).slice(-1)[0] || vs.slice(-1)[0] || null;
+  };
+  function askPastStart(protocolData, newVial) {
+    if (!protocolData) return;
+    const newId = protocolData.id;
+    const todayStr = todayISO(); // the local day (a UTC date was already tomorrow in the evening)
+    const hq = historyQuestion(protocolData, Date.now());
+    const ask = protocolData ? pastStartAsk({ protocol: protocolData, vial: newVial, nowMs: Date.now(), curveAsk: !!hq }) : null;
+    // A-112 SP-5: no setup opening here any more — Today opens "Make sure your reminders arrive"
+    // once per phone (lib/reminderSetup), and onboarding offers it first.
+    if (ask) {
+      const doseText = `${decimalText(protocolData.dose, language)}\u00A0${unitText(protocolData.dose_unit, language)}`;
+      // Council 2026-10-27: the date carries its year when it is another year; one dose reads "Sim".
+      const title = t(pluralKey('protocols_past_title', ask.n, language))
+        .replace('{date}', formatDate(protocolData.start_date, language, 'dayMonthAuto')).replace('{n}', String(ask.n)).replace('{dose}', doseText);
+      // Founder 2026-10-27 ("3 b"): with more than one dose a third answer, "Quase todas" — the texts name it.
+      const many = ask.n > 1;
+      const bk = (k) => t(`${k}${many ? '_many' : ''}`);
+      let body = bk('protocols_past_body');
+      if (ask.vialUnknown) body = bk('protocols_past_body_vial_unknown');
+      else if (ask.vialUsed > 0) body = bk('protocols_past_body_vial').replace('{v}', String(ask.vialUsed)).replace('{total}', String(ask.total));
+      else if (ask.unitsUsed > 0) {
+        const sv = computeServings({
+          targetDose: protocolData.dose, doseUnit: protocolData.dose_unit, servingStrength: protocolData.serving_strength,
+          servingStrengthUnit: protocolData.serving_strength_unit, servingUnits: protocolData.serving_units, form: protocolData.notes,
+        });
+        const word = sv && sv.unitKey ? `\u00A0${t(servingPluralKey(sv.unitKey, ask.unitsUsed, language, { glyph: false }))}` : '';
+        body = bk('protocols_past_body_bottle').replace('{u}', `${decimalText(ask.unitsUsed, language)}${word}`);
+      }
+      const supplyChanged = () => {
+        notifyDataChanged('protocol');
+        requestSync();
+        afterProtocolChange({ saved: getProtocolById(newId) }).catch(() => {}); // the vial alerts follow the new count
+        fetchProtocols();
+      };
+      // Shown once the add sheet is gone (screenSheet waits for it). Council 2026-10-27: it must be answered —
+      // a backdrop tap or Android back would leave the curve as "Sim" and the vial as "Não".
+      // The three answers (lib/pastDoses pastStartWrites): history_from, the vial, the bottle, then one window.
+      const answer = (kind) => () => {
+        const w = pastStartWrites(kind, ask, { hasVial: !!newVial, recon: protocolData.type === 'recon', today: todayStr });
+        if (w.historyFrom) {
+          try { updateProtocol(newId, { history_from: w.historyFrom }); } catch { /* best-effort */ }
+          notifyDataChanged('protocol');
+          requestSync();
+        }
+        if (w.vialUpdate) { try { updateVial(newVial.id, w.vialUpdate); } catch { /* best-effort */ } }
+        if (w.unitsTaken != null) { try { updateProtocol(newId, { units_taken: w.unitsTaken }); } catch { /* best-effort */ } }
+        if (w.vialUpdate || w.unitsTaken != null) supplyChanged();
+        if (w.openNewVialWindow) setTimeout(() => openNewVialWindow(getProtocolById(newId) || protocolData, 'finished'), 400);
+        else if (w.openEditVial) setTimeout(() => openEditVialRef.current(newId), 400);
+      };
+      const noBtn = { label: t('protocols_past_no'), kind: 'secondary', onPress: answer('no') };
+      const yesBtn = { label: t(ask.n === 1 ? 'protocols_past_yes_one' : 'protocols_past_yes'), kind: 'primary', onPress: answer('yes') };
+      // "Quase todas" (founder "3 b"): only with more than one dose.
+      const almostBtn = { label: t('protocols_past_almost'), kind: 'secondary', onPress: answer('almost') };
+      setScreenSheet({
+        title,
+        body,
+        locked: true,
+        buttons: many ? [yesBtn, almostBtn, noBtn] : [noBtn, yesBtn],
+      });
+    }
+  }
+
   // DV-126 (AD-49, DL-82): the trial is claimed only when the store offers it to this person (the paywall's rule);
   // the answer is waited for at most 2.5 s, then the sheet opens without the trial.
   async function promptUpgrade() {
+    const offerAsk = introOfferOpen(); // asked alongside the trial answer, not after it
     let trial = false;
     try {
       const ask = (async () => {
@@ -2617,12 +2631,17 @@ export default function ProtocolsScreen() {
       })();
       trial = !!(await Promise.race([ask, new Promise((r) => setTimeout(() => r(false), 2500))]));
     } catch { trial = false; }
+    // Founder 2026-11-20: a free person the store still gives the intro price to goes to the entry
+    // offer (her moment of highest intent); otherwise the paywall, as before.
+    const offer = await offerAsk;
+    if (offer) trial = false; // the offer has no trial (the trial left the stores with it)
+    const limit = freeProtocolLimit(await getCachedUser().catch(() => null));
     setScreenSheet({
       title: t('protocols_limit_title'),
-      body: t(trial ? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'),
+      body: fillFreeProtocols(t(trial ? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'), t, limit, language),
       buttons: [
         { label: t('cancel'), kind: 'secondary' },
-        { label: t(trial ? 'protocols_limit_upgrade' : 'protocols_limit_upgrade_notrial'), kind: 'primary', onPress: () => navigation.navigate('Paywall', { source: 'protocol_limit' }) },
+        { label: t(trial ? 'protocols_limit_upgrade' : 'protocols_limit_upgrade_notrial'), kind: 'primary', onPress: () => (offer ? navigation.navigate('EntryOffer', { freeProtocols: limit }) : navigation.navigate('Paywall', { source: 'protocol_limit' })) },
       ],
     });
   }
@@ -2630,7 +2649,8 @@ export default function ProtocolsScreen() {
   async function isOverFreeLimit() {
     const user = await getCachedUser();
     const count = user ? (getActiveProtocols(user.id) || []).length : protocols.length;
-    return count >= FREE_PROTOCOL_LIMIT && !(await hasPremium());
+    if (!atFreeProtocolLimit({ activeCount: count, limit: freeProtocolLimit(user), premium: false })) return false;
+    return !(await hasPremium());
   }
 
   async function openAdd() {
@@ -3330,6 +3350,7 @@ export default function ProtocolsScreen() {
               language={language}
               scanLabel={extractVialLabel}
               askConsent={assistantConsent}
+              purposeFor={purposeFor}
               onFinish={finishAssistant}
             />
           ) : (
@@ -3476,6 +3497,11 @@ export default function ProtocolsScreen() {
                   <Text style={[s.footAttn, s.flush]}>{t('protocols_custom_hint')}</Text>
                 ) : null}
                 <Text style={[s.footC3, s.flush]}>{t('protocols_spelling_note')}</Text>
+
+                {/* PQ-1: "Para que você usa {produto}?" right after the product, once one is chosen. */}
+                {name ? (
+                  <PurposeTiles key={type + ':' + (compoundId || name)} name={name} ordered={purposeFor({ type, compoundId, name, times: reminderTimes })} value={goals} onToggle={toggleGoal} t={t} />
+                ) : null}
               </>
             )}
 
@@ -3935,15 +3961,6 @@ export default function ProtocolsScreen() {
                       onChange={onAndroidTime}
                     />
                   )}
-                </Fld>
-
-                {/* Wellness goals */}
-                <Fld s={s} label={t('protocols_wellness_goal')}>
-                  <View style={s.pills}>
-                    {getWellnessKeys().map((gKey) => (
-                      <Pill key={gKey} s={s} label={t(gKey)} on={goals.includes(gKey)} onPress={() => setGoals(prev => prev.includes(gKey) ? prev.filter(g => g !== gKey) : [...prev, gKey])} />
-                    ))}
-                  </View>
                 </Fld>
 
                 {/* Blend composition — "what's in the vial". Blends only. A journal

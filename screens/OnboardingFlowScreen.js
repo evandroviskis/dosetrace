@@ -4,7 +4,6 @@ import {
   StyleSheet, BackHandler, Linking, Platform,
 } from 'react-native';
 import Modal from '../components/PresenceModal';
-import { useWindowSize } from '../lib/windowSize';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,
 } from 'react-native-reanimated';
@@ -16,12 +15,12 @@ import { useTheme } from '../lib/theme';
 import { useSheetGap } from '../components/useSheetInset';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { saveOnboarding, loadOnboarding, markSeenOnboarding, markStashFresh, isStashFresh, clearOnboarding } from '../lib/onboardingStore';
+import { draftStore } from '../lib/onboardingDraftStore';
 import { supabase, missingProfileFields } from '../lib/supabase';
 import { signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
 import { runSignOut } from '../lib/settingsSignOut';
 import { createBusyGuard } from '../lib/busyGuard';
-import { goalOptions } from '../lib/profileGoals';
 import { COUNTRIES, countryLabel } from '../lib/countries';
 import { PRIVACY_URL } from '../lib/legalLinks';
 import { friendlyError } from '../lib/friendlyError';
@@ -30,10 +29,16 @@ import { answerGate } from '../lib/pendingGateStore';
 import { PROFILE_ACTIVITY } from '../lib/activityLevels';
 import { activityParts } from '../lib/progressFormat';
 import {
-  STEPS, birthYearState, activeSteps as stepsFor, canContinue as canGo, formFrom, stashPatch,
-  accountPatch, refreshForm, entryStep,
+  STEPS, PROTOCOL_STEPS, HELP_OPTIONS, toggleHelp, nextStep, prevStep, skipTarget,
+  birthYearState, activeSteps as stepsFor, canContinue as canGo, formFrom, stashPatch,
+  accountPatch, refreshForm, entryStep, resumeAfterConsent, stepNear,
 } from '../lib/onboardingSteps';
-import AccumulationHero from '../components/AccumulationHero';
+import { reminderLine } from '../lib/onboardingDraft';
+import OnboardingIntro from '../components/OnboardingIntro';
+import OnboardingProtocolSteps, { stepTitle, weekdayPhrase } from './components/OnboardingProtocolSteps';
+import { purposeFromProfile } from '../lib/protocolPurpose';
+import { compoundIdFor, freezeStart } from '../lib/onboardingDraft';
+import GoalTiles from '../components/GoalTiles';
 import FeatureIcon from '../components/FeatureIcon';
 import CompoundPills, { compoundPillStyles } from '../components/CompoundPills';
 import { toggleKey } from '../lib/trackingTypes';
@@ -42,6 +47,8 @@ import { markSetupSeen } from '../lib/reminderSetup';
 import { askAndRemember } from '../lib/notifBlocked';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CheckMark from '../components/CheckMark';
+import { Analytics } from '../lib/analytics';
+import { onboardingFunnel } from '../lib/onboardingFunnelStore';
 import useKeyboardLift from '../components/useKeyboardLift';
 import SegmentedBar from '../components/SegmentedBar';
 import LegalModal from '../components/LegalModal';
@@ -68,48 +75,48 @@ function ProgressDash({ on, s }) {
   );
 }
 
-// Drawn monoline chevron (back / open / dropdown) — never a font glyph.
-const CHEVRON_PATHS = { left: 'M8 2 L2 8 L8 14', right: 'M2 2 L8 8 L2 14', down: 'M2 2 L8 8 L14 2' };
+// Drawn monoline chevron (back / open) — never a font glyph.
+const CHEVRON_PATHS = { left: 'M8 2 L2 8 L8 14', right: 'M2 2 L8 8 L2 14' };
 function Chevron({ dir, color }) {
-  const down = dir === 'down';
   return (
-    <Svg width={down ? 13 : 11} height={down ? 8 : 18} viewBox={down ? '0 0 16 10' : '0 0 10 16'}>
+    <Svg width={11} height={18} viewBox="0 0 10 16">
       <Path d={CHEVRON_PATHS[dir]} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 
 /**
- * The single value-before-signup onboarding (docs/specs/premium-and-auth.md PA-30…PA-42;
- * prototype onbScreen, approved from the pictures 2026-10-03). The rules live in
- * lib/onboardingSteps.js; this screen renders them.
+ * The single value-before-signup onboarding (docs/specs/onboarding-protocol.md OB-1..OB-25, signed by
+ * the founder 2026-11-20; picture docs/design/onboarding-protocolo.html). The rules live in
+ * lib/onboardingSteps.js and lib/onboardingDraft.js; this screen renders them.
  *
- * TWO MODES (one screen):
- *  • Pre-account (no `session`): the prototype's 8 steps. Everything typed is stashed
- *    (onboardingStore) as the user goes, and the flow reopens where it was left with the
- *    values kept (Back from Create account lands on "Never miss a dose"). Both buttons of the
- *    last step go to Create account: onDone('create'); "Already have an account? Sign in"
- *    on the welcome screen: onDone('signin').
- *  • Signed-in (`session` passed): an Apple/Google sign-in or a returning account missing
- *    required fields (the build-49 gate). Prefilled from the account, only the missing steps
- *    (+ consent if never recorded), then "Finish setup", which writes only those steps'
- *    fields to the account. A sign-out escape stays in the corner.
+ * THREE MODES (one screen):
+ *  • Pre-account (no `session`): the intro video (OB-27), "Como o DoseTrace pode ajudar
+ *    você?", the goals, the Terms, what she uses, her first protocol (kept on the phone as a draft,
+ *    lib/onboardingDraftStore — never in the database before the account), About you with the
+ *    routine (OP-1) and the reminders. Everything typed is kept as she goes and the flow reopens
+ *    where it was left. Both buttons of the last step go to Create account: onDone('create');
+ *    "Already have an account? Sign in" on the welcome screen: onDone('signin').
+ *  • Signed-in (`session` passed): an Apple/Google sign-in or a returning account missing required
+ *    fields (the build-49 gate). Prefilled from the account, only the missing steps (+ consent if
+ *    never recorded), then "Finish setup", which writes only those steps' fields to the account.
+ *  • Builder (`session` + mode="builder", OB-26): an account 15+ days old that never created a
+ *    protocol builds it with the same protocol screens; onBuilderDone(protocol | null).
  */
 const MONTH_KEYS = [
   'month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun',
   'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec',
 ];
 
-export default function OnboardingFlowScreen({ onDone, session }) {
+export default function OnboardingFlowScreen({ onDone, session, mode, onBuilderDone }) {
   // A-152: the name and birth year fields stay above the keyboard (iPhone and Android).
   const kb = useKeyboardLift();
   const { t, language, setLanguage, LANGUAGES, timeFormat } = useLanguage();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const { width: winW } = useWindowSize();
-  const heroW = Math.min(420, winW - 32); // 16 pt screen gutter each side
   const thisYear = new Date().getFullYear();
 
+  const builder = mode === 'builder';
   const signedIn = !!session?.user;
   const meta = (session && session.user && session.user.user_metadata) || {};
   // A-139 C: the account's saved Sex at birth (signed-in only); pre-account it is a first choice.
@@ -122,20 +129,39 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const [d, setD] = useState(() => formFrom(signedIn ? meta : {}));
   const touched = useRef(new Set());
   const set = (k, v) => { touched.current.add(k); setD((cur) => ({ ...cur, [k]: typeof v === 'function' ? v(cur[k]) : v })); };
+  // The draft (OB-8 help choices, the protocol, "Montar depois"): its own durable store (OB-22).
+  const [help, setHelp] = useState([]);
+  const [protocol, setProtocol] = useState(null);
+  const [skipped, setSkipped] = useState(false);
   const [ready, setReady] = useState(signedIn);
-  const [step, setStep] = useState(0);
+  const [cur, setCur] = useState(builder ? 'compound' : signedIn ? null : 'splash');
+  const resumeTo = useRef(null); // the step to reopen once the consent is confirmed again (entryStep)
+  // The intro video (components/OnboardingIntro, founder 2026-11-24): the Android back asks it first
+  // (its Voltar, the scene before); Back from the step after it reopens it on its end frame, never
+  // from the start (the founder saw the presentation restart).
+  const introBack = useRef(null);
+  const introAtEnd = useRef(false);
+  // Council 2026-11-20: where people stop (step names only). Before the account the steps wait on the
+  // phone (lib/onboardingFunnel) and go as one event after the sign-in; signed in, each step is logged.
+  useEffect(() => {
+    if (!cur) return;
+    if (signedIn) Analytics.viewed('ob_' + cur);
+    else onboardingFunnel.note(cur);
+  }, [cur, signedIn]);
 
   // Pre-account: reopen with what was already entered, at the step the user left
   // (PA-62 — Back from Create account used to restart empty).
   useEffect(() => {
     if (signedIn) return;
     let active = true;
-    loadOnboarding().then((stash) => {
+    Promise.all([loadOnboarding(), draftStore.load()]).then(([stash, draft]) => {
       if (!active) return;
       // A stash read back may be someone else's: the consent boxes start empty unless they
       // were ticked in this run (Gate B).
       setD(formFrom(stash, { trustConsent: isStashFresh() }));
-      setStep(entryStep(stash, { consentPassed: isStashFresh() }));
+      if (draft) { setHelp(Array.isArray(draft.help) ? draft.help : []); setProtocol(draft.protocol || null); setSkipped(!!draft.skipped); }
+      resumeTo.current = resumeAfterConsent(stash, draft && draft.lastStep);
+      setCur(entryStep(stash, { consentPassed: isStashFresh(), lastStep: draft && draft.lastStep }));
       setReady(true);
     }).catch(() => { if (active) setReady(true); });
     return () => { active = false; };
@@ -150,13 +176,13 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     if (!signedIn || !isStashFresh()) return;
     let active = true;
     loadOnboarding().then((stash) => {
-      if (active && stash && Object.keys(stash).length) setD((cur) => refreshForm(cur, { ...stash, ...metaForms(meta) }, touched.current));
+      if (active && stash && Object.keys(stash).length) setD((c) => refreshForm(c, { ...stash, ...metaForms(meta) }, touched.current));
     }).catch(() => {});
     return () => { active = false; };
   }, []);
   const metaKey = JSON.stringify(meta);
   useEffect(() => {
-    if (signedIn) setD((cur) => refreshForm(cur, meta, touched.current));
+    if (signedIn) setD((c) => refreshForm(c, meta, touched.current));
   }, [metaKey]);
 
   const [showLang, setShowLang] = useState(false);
@@ -171,19 +197,21 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   // every return from Android by itself.
   const [showSetup, setShowSetup] = useState(false);
 
-  // The steps to show (lib/onboardingSteps activeSteps).
+  // The steps to show (lib/onboardingSteps activeSteps), by NAME (a list that changes under the
+  // screen — "Como vem" appearing, "Montar depois" — never skips or repeats a step).
   const missingKey = signedIn ? missingProfileFields(session.user).join(',') : '';
   const steps = useMemo(
-    () => stepsFor({ signedIn, missing: missingKey ? missingKey.split(',') : [], consentAccepted: !!meta.consent_accepted }),
-    [signedIn, missingKey, meta.consent_accepted],
+    () => stepsFor({ signedIn, mode, protocol, skipped, missing: missingKey ? missingKey.split(',') : [], consentAccepted: !!meta.consent_accepted }),
+    [signedIn, mode, protocol, skipped, missingKey, meta.consent_accepted],
   );
-  // Self-heal: right after an Apple/Google sign-up the session + metadata hydrate over a
-  // few frames, so the steps can shrink while `step` still points past the new end (the
-  // "blank onboarding screen after Sign in with Apple" bug). Clamp step back into range.
+  // Self-heal: right after an Apple/Google sign-up the session + metadata hydrate over a few frames,
+  // so the steps can change while `cur` names a step no longer in the list (the "blank onboarding
+  // screen after Sign in with Apple" bug): fall back to the first step (signed-in) or keep the order.
   useEffect(() => {
-    if (step > steps.length - 1) setStep(Math.max(0, steps.length - 1));
-  }, [steps.length, step]);
-  const cur = steps[step];
+    if (!ready) return;
+    if (!cur || !steps.includes(cur)) setCur(stepNear(steps, cur));
+  }, [steps, cur, ready]);
+  const step = Math.max(0, steps.indexOf(cur));
 
   // Step transition: the new step slides in from the direction you're moving.
   const reduceMotion = useReducedMotion();
@@ -203,21 +231,22 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     transform: [{ translateX: 24 * dir.value * (1 - enter.value) }],
   }));
 
-  // Android hardware / swipe back: close an open picker, else step back one; on the first
-  // screen let the OS handle it (exit). There must always be a way back.
+  // Android hardware / swipe back: close an open picker; on the intro video, its Voltar (the scene
+  // before, complete); else step back one; on the first screen let the OS handle it (exit). There
+  // must always be a way back.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (showSetup) { setShowSetup(false); return true; }
       if (showLang) { setShowLang(false); return true; }
       if (showCountry) { setShowCountry(false); return true; }
+      if (cur === 'intro' && introBack.current && introBack.current()) return true;
       if (step > 0) { back(); return true; }
+      if (builder) { onBuilderDone && onBuilderDone(null); return true; }
       return false;
     });
     return () => sub.remove();
-  }, [step, showLang, showCountry, showSetup]);
+  }, [step, showLang, showCountry, showSetup, cur, steps]);
 
-  // Full goal set, shared with the Settings profile editor, alphabetized.
-  const GOALS = goalOptions(t);
   const PROVIDERS = [
     { key: 'yes', label: t('profile_provider_yes') },
     { key: 'no', label: t('profile_provider_no') },
@@ -227,13 +256,6 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     { key: 'male', label: t('profile_gender_male') },
     { key: 'female', label: t('profile_gender_female') },
   ];
-  const FEATURES = [
-    { icon: 'reconstitution', t: t('ob_feat1_t'), d: t('ob_feat1_d') },
-    { icon: 'curve', t: t('ob_feat2_t'), d: t('ob_feat2_d') },
-    { icon: 'bell', t: t('ob_feat3_t'), d: t('ob_feat3_d') },
-    { icon: 'stack', t: t('ob_feat4_t'), d: t('ob_feat4_d') },
-    { icon: 'scan', t: t('ob_feat5_t'), d: t('ob_feat5_d') },
-  ];
   const TERMS = [
     { key: 'med', t: t('ob_term1_t'), d: t('ob_term1_d') },
     { key: 'est', t: t('ob_term2_t'), d: t('ob_term2_d') },
@@ -242,12 +264,16 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   ];
 
   const year = birthYearState(d.birthYearText, thisYear);
-  const form = { ...d, birthYear: year.year };
+  const form = { ...d, birthYear: year.year, help, protocol, language, now: new Date() };
   const canContinue = () => canGo(cur, form);
 
-  async function persist() {
+  async function persist(over = {}) {
     // Only keys with a value (saveOnboarding merges — an undefined would clobber an earlier step).
-    if (!signedIn) await saveOnboarding(stashPatch(form, new Date().toISOString()));
+    if (!signedIn) {
+      await saveOnboarding(stashPatch(form, new Date().toISOString()));
+      // The draft: its own key, with the language the numbers were typed in (OB-22).
+      await draftStore.save({ help, protocol, skipped, language, ...over });
+    }
   }
 
   async function next() {
@@ -255,16 +281,59 @@ export default function OnboardingFlowScreen({ onDone, session }) {
     // Passing "Before we begin" is what makes these answers this person's for this run
     // (lib/pendingProfile): from here on they may go into the account they create.
     if (cur === 'consent') markStashFresh();
-    await persist();
-    if (step < steps.length - 1) setStep(step + 1);
+    const over = {};
+    if (cur === 'start') { const frozen = freezeStart(protocol, new Date()); setProtocol(frozen); over.protocol = frozen; }
+    if (cur === 'ready') {
+      // PQ-14: the protocol keeps the goals from her profile that map to it ("Para: …" on this screen).
+      const withPurpose = { ...(protocol || {}), purpose: purposeFromProfile(builder ? meta.primary_goal : d.goals, protocol && protocol.form, compoundIdFor(protocol)) };
+      if (builder) { onBuilderDone && onBuilderDone(withPurpose); return; }
+      setProtocol(withPurpose);
+      over.protocol = withPurpose;
+    }
+    // The protocol steps are back in when she builds after a "Montar depois" (OB-20).
+    if (PROTOCOL_STEPS.includes(cur) && skipped) setSkipped(false);
+    let n = nextStep(steps, cur);
+    // A kill earlier in this flow reopened it on the consent: after it, back to where she was.
+    if (cur === 'consent' && resumeTo.current && steps.includes(resumeTo.current)) n = resumeTo.current;
+    resumeTo.current = null;
+    if (n) over.lastStep = n;
+    await persist(over);
+    introAtEnd.current = false; // forward into the video: it plays from the start
+    if (n) setCur(n);
     else finish();
   }
-  function back() { if (showSetup) { setShowSetup(false); return; } if (step > 0) setStep(step - 1); }
+  function back() {
+    if (showSetup) { setShowSetup(false); return; }
+    // Back from About you after "Montar depois": the protocol screens come back, with what was typed.
+    if (cur === 'about' && skipped && !signedIn) {
+      const again = stepsFor({ signedIn: false, protocol, skipped: false }).filter((x) => PROTOCOL_STEPS.includes(x));
+      setSkipped(false);
+      setCur(again.find((x) => x !== 'ready' && !canGo(x, form)) || 'ready'); // the first one still to answer
+      return;
+    }
+    const p = prevStep(steps, cur);
+    introAtEnd.current = p === 'intro';
+    if (p) setCur(p); // Back keeps every answer (OB-20)
+  }
+  // OB-20: "Montar depois" → the protocol is not built and the onboarding goes on (the draft keeps
+  // what was typed, unused). The intro video's "Pular" is its own (components/OnboardingIntro).
+  async function skip() {
+    const target = skipTarget(cur);
+    if (!target) return;
+    if (PROTOCOL_STEPS.includes(cur)) {
+      setSkipped(true);
+      await persist({ skipped: true });
+    }
+    setCur(target);
+  }
 
-  async function toAuth(mode) {
+  async function toAuth(authMode) {
     await persist();
+    // The draft belongs to whoever goes on to Create account / Sign in from here (OB-22): the
+    // persisted hand-off is its owner marker after an app kill (e.g. while confirming the email).
+    await draftStore.markHandoff().catch(() => {});
     await markSeenOnboarding();
-    onDone && onDone(mode);
+    onDone && onDone(authMode);
   }
 
   async function finish() {
@@ -301,7 +370,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   }
 
   // "Never miss a dose": iOS asks for notifications, then Create account (both buttons go
-  // there — the "You're all set" step is gone, founder 2026-09-29).
+  // there — the "You're all set" step is gone, founder 2026-09-29). OB-24: the permission is asked
+  // only here.
   // NB-2: the answer is remembered as the person's own choice, never followed by the blocked sheet.
   async function enableNotifications() {
     await askAndRemember(Notifications, AsyncStorage);
@@ -312,11 +382,18 @@ export default function OnboardingFlowScreen({ onDone, session }) {
   const q = countrySearch.toLowerCase();
   const filteredCountries = COUNTRIES.filter((c) => c.toLowerCase().includes(q) || countryLabel(c, language).toLowerCase().includes(q));
 
-  if (!ready) return <SafeAreaView style={s.root} />; // reading the stash (a few ms)
+  if (!ready || !cur) return <SafeAreaView style={s.root} />; // reading the stash (a few ms)
+
+  const isProtocolStep = PROTOCOL_STEPS.includes(cur);
+  const builtProtocol = protocol && protocol.name && !skipped ? protocol : null;
+  const remindersSub = builtProtocol && builtProtocol.time
+    ? reminderLine(builtProtocol, { t, timeFormat, language, weekdayName: weekdayPhrase(t) })
+    : t('ob_reminders_sub');
 
   return (
     <SafeAreaView style={s.root}>
-      {(step > 0 || signedIn) && (
+      {/* OB-27: the intro video is full screen with its own story bars, Pular, Voltar and Avançar / Começar. */}
+      {(step > 0 || signedIn) && cur !== 'intro' && (
         <View style={s.topBar}>
           <TouchableOpacity onPress={back} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} disabled={step === 0} style={[s.backBtn, step === 0 && s.hidden]} accessibilityRole="button" accessibilityLabel={t('back')}>
             <Chevron dir="left" color={colors.ink} />
@@ -324,7 +401,12 @@ export default function OnboardingFlowScreen({ onDone, session }) {
           <View style={s.progress}>
             {steps.map((_, i) => (<ProgressDash key={i} on={i <= step} s={s} />))}
           </View>
-          {signedIn ? (
+          {builder ? (
+            // OB-26: shown once, with "Agora não".
+            <TouchableOpacity onPress={() => onBuilderDone && onBuilderDone(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.signOutBtn} accessibilityRole="button">
+              <Text style={s.signOutLink}>{t('ob_builder_close')}</Text>
+            </TouchableOpacity>
+          ) : signedIn ? (
             <TouchableOpacity onPress={handleSignOut} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={s.signOutBtn} accessibilityRole="button">
               <Text style={s.signOutLink}>{t('settings_signout')}</Text>
             </TouchableOpacity>
@@ -337,45 +419,59 @@ export default function OnboardingFlowScreen({ onDone, session }) {
       <Animated.View style={[{ flex: 1 }, stepStyle]}>
         {/* RS-8: Android, after "Turn on notifications" — the conversation for the phone items only;
             its last chip ("Continuar" / "Configurar depois") and "Agora não" go on exactly as before. */}
-        {cur === 'reminders' && showSetup ? (
+        {cur === 'intro' ? (
+          <OnboardingIntro onDone={next} atEnd={introAtEnd.current} backRef={introBack} onLanguage={() => setShowLang(true)} />
+        ) : cur === 'reminders' && showSetup ? (
           <ReminderConversation mode="onboarding" onContinue={() => toAuth('create')} />
         ) : (
         <ScrollView {...kb.scrollProps} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
           {cur === 'splash' && (
             <View style={s.splashWrap}>
-              <View style={s.langRow}>
-                <TouchableOpacity style={s.langPill} onPress={() => setShowLang(true)} accessibilityRole="button" accessibilityLabel={t('settings_language')}>
-                  <Text style={s.langPillText}>{String(language).toUpperCase()}</Text>
-                  <Chevron dir="down" color={colors.ink2} />
-                </TouchableOpacity>
-              </View>
               <View style={s.splashHead}>
                 {/* The droplet app icon (founder 2026-09-07, Q1 = B) — its own artwork, fixed brand colours. */}
                 <Image source={require('../assets/adaptive-icon.png')} style={s.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
                 <Text style={s.brand}>DoseTrace</Text>
                 <Text style={s.phrase}>{t('ob_phrase')}</Text>
               </View>
+              {/* Founder 2026-11-24 (option B): the six languages, each in its own language, one tap
+                  switches — someone who does not read English finds "Português" without reading a word. */}
+              <View style={s.langChips} accessibilityRole="radiogroup" accessibilityLabel={t('settings_language')}>
+                <View style={s.langChipHead}>
+                  <FeatureIcon name="globe" size={18} color={colors.ink2} />
+                  <Text style={s.langChipHeadText}>{t('settings_language')}</Text>
+                </View>
+                <View style={s.langChipList}>
+                  {(LANGUAGES || []).map((l) => {
+                    const on = language === l.code;
+                    return (
+                      <TouchableOpacity key={l.code} style={[s.langChip, on && s.langChipOn]} onPress={() => setLanguage(l.code)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={l.native}>
+                        <Text style={[s.langChipText, on && s.langChipTextOn]}>{l.native}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
             </View>
           )}
 
-          {cur === 'features' && (
+          {cur === 'help' && (
             <>
               <View style={s.stepHead}>
-                <Text style={s.title}>{t('ob_features_title')}</Text>
-                <Text style={s.sub}>{t('ob_features_sub')}</Text>
+                <Text style={s.title}>{t('ob_help_title')}</Text>
+                <Text style={s.sub}>{t('ob_help_sub')}</Text>
               </View>
-              <AccumulationHero width={heroW} height={140} />
-              <View style={s.featList}>
-                {FEATURES.map((f, i) => (
-                  <View key={i} style={s.featRow}>
-                    <View style={s.featIcon}><FeatureIcon name={f.icon} size={30} color={colors.ink} /></View>
-                    <View style={s.featText}>
-                      <Text style={s.featTitle}>{f.t}</Text>
-                      <Text style={s.featDesc}>{f.d}</Text>
-                    </View>
-                  </View>
-                ))}
+              <View style={s.helpList}>
+                {HELP_OPTIONS.map((h) => {
+                  const on = help.includes(h.key);
+                  return (
+                    <TouchableOpacity key={h.key} style={[s.helpRow, on && s.helpRowOn]} onPress={() => setHelp((p) => toggleHelp(p, h.key))} accessibilityRole="checkbox" accessibilityState={{ checked: on }}>
+                      <FeatureIcon name={h.icon} size={26} color={on ? colors.ink : colors.ink2} />
+                      <Text style={[s.helpText, on && s.helpTextOn]}>{t(h.tKey)}</Text>
+                      {on ? <CheckMark size={22} color={colors.ink} /> : null}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </>
           )}
@@ -384,25 +480,10 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             <>
               <View style={s.stepHead}>
                 <Text style={s.title}>{t('ob_goal_title')}</Text>
-                <Text style={s.sub}>{t('ob_goal_sub')}</Text>
+                <Text style={s.sub}>{t('ob_goal_pick')}</Text>
               </View>
-              <Text style={s.hint}>{t('profile_goal_multi_hint')}</Text>
-              <View style={s.pillRow}>
-                {GOALS.map((g) => {
-                  const on = d.goals.includes(g.key);
-                  return (
-                    <TouchableOpacity
-                      key={g.key}
-                      style={[s.pill, on && s.pillOn]}
-                      onPress={() => set('goals', (prev) => (prev.includes(g.key) ? prev.filter((k) => k !== g.key) : [...prev, g.key]))}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: on }}
-                    >
-                      <Text style={[s.pillText, on && s.pillTextOn]}>{g.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              {/* OB-10 / OB-11: the one goals component, shared with Edit profile (DV-113). */}
+              <GoalTiles value={d.goals} onToggle={(key) => set('goals', (p) => toggleKey(p, key))} t={t} />
             </>
           )}
 
@@ -414,6 +495,16 @@ export default function OnboardingFlowScreen({ onDone, session }) {
               </View>
               {/* DV-113: the one component, shared with Edit profile. */}
               <CompoundPills value={d.tracking} onToggle={(key) => set('tracking', (p) => toggleKey(p, key))} t={t} />
+            </>
+          )}
+
+          {isProtocolStep && (
+            <>
+              <View style={s.stepHead}>
+                {cur === 'compound' && <Text style={s.kicker}>{t('ob_cmp_kicker')}</Text>}
+                <Text style={s.title}>{stepTitle(cur, protocol, { t, tracking: d.tracking })}</Text>
+              </View>
+              <OnboardingProtocolSteps step={cur} p={protocol} setP={setProtocol} tracking={builder ? meta.tracking_types : d.tracking} t={t} language={language} timeFormat={timeFormat} mode={mode} kb={kb} profileGoals={builder ? meta.primary_goal : d.goals} />
             </>
           )}
 
@@ -483,14 +574,8 @@ export default function OnboardingFlowScreen({ onDone, session }) {
                   <Chevron dir="right" color={colors.ink3} />
                 </TouchableOpacity>
               </View>
-            </>
-          )}
 
-          {cur === 'routine' && (
-            <>
-              <View style={s.stepHead}>
-                <Text style={s.title}>{t('ob_routine_title')}</Text>
-              </View>
+              {/* OP-1 (founder 2026-11-20): the routine is on the same screen as About you. */}
               <View style={s.field}>
                 <Text style={s.fieldHead}>{t('profile_activity')}</Text>
                 {/* One activity scale everywhere: the calculator's 5 levels, title + sub-line. */}
@@ -567,8 +652,9 @@ export default function OnboardingFlowScreen({ onDone, session }) {
           {cur === 'reminders' && !showSetup && (
             <View style={s.centerStep}>
               <FeatureIcon name="bell" size={76} color={colors.data} />
-              <Text style={[s.title, s.textCenter]}>{t('ob_reminders_title')}</Text>
-              <Text style={[s.sub, s.textCenter]}>{t('ob_reminders_sub')}</Text>
+              <Text style={[s.title, s.textCenter]}>{t(builtProtocol ? 'ob_reminders_title_dose' : 'ob_reminders_title')}</Text>
+              {/* OB-24: names her dose — "Toda segunda-feira às 08:00, para a Tirzepatida." */}
+              <Text style={[s.sub, s.textCenter]}>{remindersSub}</Text>
             </View>
           )}
 
@@ -585,6 +671,7 @@ export default function OnboardingFlowScreen({ onDone, session }) {
         )}
       </Animated.View>
 
+      {cur !== 'intro' && (
       <View style={[s.footer, cur === 'reminders' && showSetup && s.footerNone]}>
         {cur === 'splash' && (
           <>
@@ -619,10 +706,17 @@ export default function OnboardingFlowScreen({ onDone, session }) {
             accessibilityRole="button"
             accessibilityState={{ disabled: !canContinue() }}
           >
-            <Text style={s.primaryBtnText}>{t('ob_continue')}</Text>
+            <Text style={s.primaryBtnText}>{builder && cur === 'ready' ? t('ob_builder_save') : t('ob_continue')}</Text>
+          </TouchableOpacity>
+        )}
+        {/* OB-20: every protocol screen has "Montar depois" (the builder's own exit is "Agora não"). */}
+        {isProtocolStep && !builder && (
+          <TouchableOpacity style={s.linkBtn} onPress={skip} accessibilityRole="button">
+            <Text style={s.linkText}>{t('ob_build_later')}</Text>
           </TouchableOpacity>
         )}
       </View>
+      )}
 
       {/* Language picker (Graduated bottom sheet, prototype.html langSheet()) */}
       <Modal visible={showLang} animationType="fade" transparent onRequestClose={() => setShowLang(false)}>
@@ -723,17 +817,23 @@ function makeStyles(colors) {
     backBtn: { minWidth: 24, minHeight: 44, justifyContent: 'center' },
     signOutBtn: { minHeight: 44, justifyContent: 'center' },
     signOutLink: { fontSize: 15, fontWeight: '600', color: c.ink },
-    progress: { flex: 1, flexDirection: 'row', gap: 4 },
+    progress: { flex: 1, flexDirection: 'row', gap: 3 },
     dash: { flex: 1, height: 4, borderRadius: 2, backgroundColor: c.line, overflow: 'hidden' },
     dashFill: { height: '100%', borderRadius: 2, backgroundColor: c.ink },
     content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 14, flexGrow: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
 
     // Splash (prototype: the block starts 90 pt under the language pill, not centred)
     splashWrap: { flex: 1 },
-    langRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-    langPill: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, flexDirection: 'row', alignItems: 'center', gap: 6 },
-    langPillText: { fontSize: 13, color: c.ink2 },
-    splashHead: { alignItems: 'center', gap: 14, paddingTop: 90 },
+    splashHead: { alignItems: 'center', gap: 14, paddingTop: 114 }, // picture 2026-11-24: the 44 pt top row (no pill now) + 70
+    // the six language chips under the phrase (picture option B)
+    langChips: { marginTop: 34, alignItems: 'center', gap: 10 },
+    langChipHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    langChipHeadText: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+    langChipList: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, maxWidth: 330 },
+    langChip: { minHeight: 40, borderRadius: 20, paddingHorizontal: 14, borderWidth: 1, borderColor: c.line, justifyContent: 'center' },
+    langChipOn: { borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised },
+    langChipText: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+    langChipTextOn: { color: c.ink, fontWeight: '600' },
     logo: { width: 112, height: 112 },
     logoSm: { width: 84, height: 84 },
     brand: { fontSize: 42, lineHeight: 48, fontWeight: '700', color: c.ink, letterSpacing: -0.84 },
@@ -741,6 +841,7 @@ function makeStyles(colors) {
 
     // Step heads (obHead): large title + ink2 sentence, left-aligned
     stepHead: { gap: 14, paddingTop: 4 },
+    kicker: { fontSize: 13, lineHeight: 16, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase', color: c.data, marginBottom: -8 },
     title: { fontSize: 30, lineHeight: 36, fontWeight: '600', color: c.ink, letterSpacing: -0.6 },
     sub: { fontSize: 17, lineHeight: 22, color: c.ink2 },
     textCenter: { textAlign: 'center' },
@@ -751,13 +852,12 @@ function makeStyles(colors) {
     sexWhy: { marginTop: -10 },
     note: { fontSize: 13, lineHeight: 18, color: c.ink, paddingHorizontal: 4 },
 
-    // Features
-    featList: { gap: 14 },
-    featRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-    featIcon: { width: 48, height: 48, borderRadius: 14, backgroundColor: c.raised, alignItems: 'center', justifyContent: 'center' },
-    featText: { flex: 1, gap: 2 },
-    featTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
-    featDesc: { fontSize: 15, lineHeight: 20, color: c.ink2 },
+    // OB-8: How DoseTrace can help
+    helpList: { gap: 10 },
+    helpRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1, borderColor: c.line, backgroundColor: c.raised },
+    helpRowOn: { borderWidth: 1.5, borderColor: c.ink },
+    helpText: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink2 },
+    helpTextOn: { color: c.ink, fontWeight: '600' },
 
     // Pills (selection = ink outline on raised) — the one look, shared with Edit profile (DV-113).
     ...compoundPillStyles(c),

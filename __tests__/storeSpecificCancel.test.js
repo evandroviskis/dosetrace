@@ -68,5 +68,5 @@ test('council fix 4: every screen that shows the Terms or the FAQ fills the stor
   const pay = read('screens/PaywallScreen.js');
   assert.match(pay, /content=\{fillStoreText\(t\(terms\.bodyKey\), t, Platform\.OS\)\}/);
   const faq = read('screens/FAQScreen.js');
-  assert.match(faq, /\{fillStoreText\(item\.a, t, Platform\.OS\)\}/);
+  assert.match(faq, /\{fillStoreText\(item\.a, t, Platform\.OS, \{ freeProtocols \}\)\}/); // OB-28: plus the free protocol count
 });

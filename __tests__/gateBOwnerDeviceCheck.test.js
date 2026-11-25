@@ -166,6 +166,7 @@ function loadContinue(order, step, applyPendingProfile) {
     fullImportFromCloud: async () => {}, requestSync: () => {}, reloadDevice: () => {},
     runRealityMigration: async () => {}, syncAllNotifications: async () => {}, registerPushToken: async () => {},
     applyPendingProfile: async () => { order.push('profile'); return applyPendingProfile(); }, supabase: {},
+    afterSignInOnboarding: async () => {}, // OB-22: the onboarding protocol after the import (onboardingProtocolScreens.test.js)
   });
 }
 

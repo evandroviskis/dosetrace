@@ -20,7 +20,8 @@ test('DV-126: anyTrial follows the store answer', () => {
 test('DV-126: the limit sheet words depend on it', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens/ProtocolsScreen.js'), 'utf8');
   const fn = src.slice(src.indexOf('async function promptUpgrade() {'), src.indexOf('async function promptUpgrade() {') + 1600);
-  assert.match(fn, /body: t\(trial \? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'\)/);
+  // OB-28: the sentence states the account's free count (lib/freePlan fillFreeProtocols).
+  assert.match(fn, /body: fillFreeProtocols\(t\(trial \? 'protocols_limit_msg' : 'protocols_limit_msg_notrial'\), t, /);
   assert.match(fn, /label: t\(trial \? 'protocols_limit_upgrade' : 'protocols_limit_upgrade_notrial'\)/);
   const { translations } = require('../i18n/translations');
   for (const l of ['en', 'es', 'pt', 'fr', 'de', 'it']) {

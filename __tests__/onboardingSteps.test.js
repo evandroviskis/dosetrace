@@ -6,17 +6,18 @@ const assert = require('node:assert/strict');
 const O = require('../lib/onboardingSteps');
 const L = require('../lib/activityLevels');
 
-test('PA-30: the pre-account flow is the prototype\'s 8 steps; "You\'re all set" is gone', () => {
-  assert.deepEqual(O.STEPS, ['splash', 'features', 'goal', 'tracking', 'about', 'routine', 'consent', 'reminders']);
-  assert.deepEqual(O.activeSteps({ signedIn: false }), O.STEPS);
-  assert.ok(!O.STEPS.includes('ready'));
+// PA-30's 8 steps were replaced by the signed onboarding-protocol order (OB-1, founder 2026-11-20);
+// the order itself is tested in __tests__/onboardingProtocol.test.js.
+test('PA-30 (superseded by OB-1): "You\'re all set" stays gone; the pre-account flow ends on the reminders', () => {
+  assert.equal(O.STEPS[O.STEPS.length - 1], 'reminders');
+  assert.ok(!O.STEPS.includes('finish') && !O.STEPS.includes('features'));
 });
 
 test('PA-41: signed-in users with gaps see only the missing steps, then Finish setup (build-49 gate)', () => {
   assert.deepEqual(O.activeSteps({ signedIn: true, missing: ['country'], consentAccepted: true }), ['about', 'finish']);
-  assert.deepEqual(O.activeSteps({ signedIn: true, missing: ['activity'], consentAccepted: true }), ['routine', 'finish']);
+  assert.deepEqual(O.activeSteps({ signedIn: true, missing: ['activity'], consentAccepted: true }), ['about', 'finish'], 'OP-1: the routine is on About you');
   assert.deepEqual(O.activeSteps({ signedIn: true, missing: [], consentAccepted: false }), ['consent', 'finish']);
-  assert.deepEqual(O.activeSteps({ signedIn: true, missing: ['name', 'age', 'sex', 'country', 'goal', 'activity', 'tracking', 'provider'], consentAccepted: false }), ['goal', 'tracking', 'about', 'routine', 'consent', 'finish'], 'a brand-new Apple/Google user sees the whole profile');
+  assert.deepEqual(O.activeSteps({ signedIn: true, missing: ['name', 'age', 'sex', 'country', 'goal', 'activity', 'tracking', 'provider'], consentAccepted: false }), ['goal', 'consent', 'tracking', 'about', 'finish'], 'a brand-new Apple/Google user sees the whole profile (Terms before the first health-data question, OB-12)');
 });
 
 test('PA-35: the birth year: 1900 … this year − 18; outside it the adults note shows, never a silent refusal', () => {
@@ -34,7 +35,7 @@ test('PA-35: the birth year: 1900 … this year − 18; outside it the adults no
 
 test('PA-31…PA-37: Continue stays dim until each step is answered', () => {
   const full = { goals: ['fitness'], tracking: ['oral'], name: 'Sam', gender: 'female', country: 'Italy', birthMonth: 0, birthYear: 1990, activity: 'light', provider: 'yes', terms: { med: 1, est: 1, ai: 1, priv: 1 } };
-  for (const s of ['splash', 'features', 'goal', 'tracking', 'about', 'routine', 'consent', 'reminders', 'finish']) assert.equal(O.canContinue(s, full), true, s);
+  for (const s of ['splash', 'intro', 'goal', 'tracking', 'about', 'consent', 'reminders', 'finish']) assert.equal(O.canContinue(s, full), true, s);
   assert.equal(O.canContinue('goal', { ...full, goals: [] }), false);
   assert.equal(O.canContinue('tracking', { ...full, tracking: [] }), false);
   assert.equal(O.canContinue('about', { ...full, name: '   ' }), false);
@@ -43,9 +44,9 @@ test('PA-31…PA-37: Continue stays dim until each step is answered', () => {
   assert.equal(O.canContinue('about', { ...full, birthMonth: null }), false);
   assert.equal(O.canContinue('about', { ...full, birthYear: null }), false);
   assert.equal(O.canContinue('about', { ...full, birthMonth: 0 }), true, 'January (index 0) counts');
-  assert.equal(O.canContinue('routine', { ...full, activity: '' }), false);
-  assert.equal(O.canContinue('routine', { ...full, activity: 'active' }), true, 'a legacy level still counts');
-  assert.equal(O.canContinue('routine', { ...full, provider: '' }), false);
+  assert.equal(O.canContinue('about', { ...full, activity: '' }), false, 'OP-1');
+  assert.equal(O.canContinue('about', { ...full, activity: 'active' }), true, 'a legacy level still counts');
+  assert.equal(O.canContinue('about', { ...full, provider: '' }), false);
   assert.equal(O.canContinue('consent', { ...full, terms: { med: 1, est: 1, ai: 1 } }), false, 'all four confirmations');
   assert.equal(O.canContinue('consent', { ...full, terms: {}, consentAccepted: true }), false, 'a stored consent never passes the step (Gate B); the signed-in flow skips the step instead');
   assert.equal(O.canContinue(undefined, full), false, 'an out-of-range step never advances');
@@ -105,11 +106,11 @@ test('PA-62: formFrom restores everything the user typed (stash or account) and 
 
 test('PA-62: entry step — a finished intro reopens on "Never miss a dose"; anything less on the welcome screen', () => {
   const stash = { display_name: 'Sam', primary_goal: 'fitness', tracking_types: ['peptides'], gender: 'male', country: 'Brazil', birth_year: 1990, birth_month: 4, activity_level: 'moderate', has_provider: 'no', consent_accepted: true };
-  assert.equal(O.STEPS[O.entryStep(stash, { consentPassed: true })], 'reminders', 'Back from Create account in the same run');
-  assert.equal(O.STEPS[O.entryStep(stash)], 'consent', 'after a restart: confirm again');
-  assert.equal(O.entryStep({ ...stash, consent_accepted: false }), 0);
-  assert.equal(O.entryStep({}), 0);
-  assert.equal(O.entryStep(null), 0);
+  assert.equal(O.entryStep(stash, { consentPassed: true }), 'reminders', 'Back from Create account in the same run');
+  assert.equal(O.entryStep(stash), 'consent', 'after a restart: confirm again');
+  assert.equal(O.entryStep({ ...stash, consent_accepted: false }), 'splash');
+  assert.equal(O.entryStep({}), 'splash');
+  assert.equal(O.entryStep(null), 'splash');
 });
 
 test('PA-41: Finish setup writes ONLY the fields of the steps it showed — never blanks a hidden field', () => {
@@ -117,16 +118,15 @@ test('PA-41: Finish setup writes ONLY the fields of the steps it showed — neve
   // Only the country was missing → only the About step was shown.
   const form = { ...O.formFrom({}), country: 'Spain', name: '', gender: '', birthYear: null, birthMonth: null };
   const out = O.accountPatch(form, meta, 'NOW', ['about', 'finish']);
-  assert.deepEqual(Object.keys(out).sort(), ['birth_month', 'birth_year', 'country', 'display_name', 'gender', 'onboarded_at'].sort());
+  assert.deepEqual(Object.keys(out).sort(), ['activity_level', 'activity_scale', 'birth_month', 'birth_year', 'country', 'display_name', 'gender', 'has_provider', 'onboarded_at'].sort(), 'OP-1: About you carries the routine');
   // …and the screen fills those from the account first (refreshForm), so nothing is blank:
   const filled = O.refreshForm(form, meta, new Set(['country']));
   const out2 = O.accountPatch(filled, meta, 'NOW', ['about', 'finish']);
   assert.equal(out2.display_name, 'Ann');
   assert.equal(out2.country, 'Spain', 'what the user typed wins');
   assert.equal(out2.birth_month, 12);
-  assert.ok(!('primary_goal' in out2) && !('tracking_types' in out2) && !('activity_level' in out2), 'hidden steps untouched');
-  const routineOnly = O.accountPatch({ ...O.formFrom(meta), activity: 'light' }, meta, 'NOW', ['routine', 'finish']);
-  assert.deepEqual(Object.keys(routineOnly).sort(), ['activity_level', 'activity_scale', 'has_provider', 'onboarded_at']);
+  assert.ok(!('primary_goal' in out2) && !('tracking_types' in out2), 'hidden steps untouched');
+  assert.equal(out2.activity_level, 'moderate', 'the routine comes from the account, never blanked');
 });
 
 test('PA-41: the form follows the account when its profile lands mid-flow, keeping what the user touched', () => {
@@ -144,10 +144,10 @@ test('PA-41: the form follows the account when its profile lands mid-flow, keepi
 
 test('PA-37: rewriting an old 4-level activity keeps the original as activity_level_legacy', () => {
   const meta = { activity_level: 'very_active', has_provider: 'no' };
-  const out = O.accountPatch({ ...O.formFrom(meta) }, meta, 'NOW', ['routine', 'finish']);
+  const out = O.accountPatch({ ...O.formFrom(meta) }, meta, 'NOW', ['about', 'finish']);
   assert.equal(out.activity_level, 'very_high');
   assert.equal(out.activity_level_legacy, 'very_active');
-  const fresh = O.accountPatch({ ...O.formFrom({ activity_level: 'light', has_provider: 'no' }) }, { activity_level: 'light' }, 'NOW', ['routine', 'finish']);
+  const fresh = O.accountPatch({ ...O.formFrom({ activity_level: 'light', has_provider: 'no' }) }, { activity_level: 'light' }, 'NOW', ['about', 'finish']);
   assert.ok(!('activity_level_legacy' in fresh), 'a new key is not a legacy value');
 });
 
@@ -168,4 +168,23 @@ test('PA-37: Edit profile keeps an old value it rewrites (legacyActivity) and re
   const onb = fs.readFileSync(path.join(__dirname, '..', 'screens', 'OnboardingFlowScreen.js'), 'utf8');
   assert.match(onb, /PROFILE_ACTIVITY\.map/);
   assert.doesNotMatch(onb, /profile_activity_(sedentary|moderate|active|very_active)/);
+});
+
+test('council 2026-11-20 (UX): an app kill in the protocol steps reopens on that step, not on the welcome screen and the video', () => {
+  const half = { primary_goal: 'fat_loss', tracking_types: ['oral'], consent_accepted: true }; // About you not reached yet
+  for (const step of ['compound', 'form', 'vial', 'frequency', 'start', 'ready', 'about', 'reminders']) {
+    assert.equal(O.entryStep(half, { consentPassed: true, lastStep: step }), step, step + ' (same run)');
+    assert.equal(O.entryStep(half, { lastStep: step }), 'consent', step + ': after a restart the consent is confirmed again (Gate B), then the flow goes on there');
+    assert.equal(O.resumeAfterConsent(half, step), step);
+  }
+  assert.equal(O.entryStep(half, { lastStep: 'help' }), 'splash', 'only the protocol steps and after resume');
+  assert.equal(O.entryStep({ ...half, consent_accepted: false }, { lastStep: 'vial' }), 'splash', 'no consent yet: from the start');
+  assert.equal(O.resumeAfterConsent({ ...half, consent_accepted: false }, 'vial'), null);
+  assert.equal(O.resumeAfterConsent(half, 'nope'), null);
+  const fs = require('node:fs');
+  const FLOW = fs.readFileSync(require('node:path').join(__dirname, '..', 'screens', 'OnboardingFlowScreen.js'), 'utf8');
+  assert.match(FLOW, /entryStep\(stash, \{ consentPassed: isStashFresh\(\), lastStep: draft && draft\.lastStep \}\)/);
+  assert.match(FLOW, /resumeTo\.current = resumeAfterConsent\(stash, draft && draft\.lastStep\);/);
+  assert.match(FLOW, /if \(cur === 'consent' && resumeTo\.current && steps\.includes\(resumeTo\.current\)\)/);
+  assert.match(FLOW, /over\.lastStep = n;/);
 });

@@ -14,6 +14,7 @@ import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
 import Svg, { Path } from 'react-native-svg';
 import { useLanguage } from '../i18n/LanguageContext';
 import { fillStoreText } from '../lib/storeText';
+import useFreeProtocolLimit from '../lib/useFreeProtocolLimit'; // OB-28: the account's free protocol count
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { faqTarget, faqGroupIndex } from '../lib/faqLinks';
@@ -50,6 +51,7 @@ function Chevron({ dir, color }) {
 // questions closed.
 export default function FAQScreen({ navigation, route }) {
   const { t } = useLanguage();
+  const freeProtocols = useFreeProtocolLimit();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const faqData = t('faq_categories') || [];
@@ -124,10 +126,10 @@ export default function FAQScreen({ navigation, route }) {
                       </View>
                     </View>
                     {isOpen && !(mark && key === hitKey) && (
-                      <Text style={s.itemA}>{fillStoreText(item.a, t, Platform.OS)}</Text>
+                      <Text style={s.itemA}>{fillStoreText(item.a, t, Platform.OS, { freeProtocols })}</Text>
                     )}
                     {isOpen && mark && key === hitKey && (
-                      <Text style={s.itemA}>{marked(fillStoreText(item.a, t, Platform.OS), key)}</Text>
+                      <Text style={s.itemA}>{marked(fillStoreText(item.a, t, Platform.OS, { freeProtocols }), key)}</Text>
                     )}
                   </TouchableOpacity>
                 );

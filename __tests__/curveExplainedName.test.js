@@ -112,6 +112,7 @@ test('CE-9: the onboarding line says what the curve shows, never that the amount
     assert.doesNotMatch(d, RISE, `${l}: ${d}`);
     assert.ok(d.length > 50, l);
   }
-  const ob = read('screens', 'OnboardingFlowScreen.js');
-  assert.match(ob, /\{ icon: 'curve', t: t\('ob_feat2_t'\), d: t\('ob_feat2_d'\) \}/);
+  // The single features list of the old onboarding was replaced by the five animated feature screens
+  // (docs/specs/onboarding-protocol.md OB-1..OB-3, founder 2026-11-20); the dose-in-body screen's copy is
+  // tested in __tests__/onboardingFeatures.test.js.
 });

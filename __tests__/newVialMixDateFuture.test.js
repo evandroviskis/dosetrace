@@ -161,7 +161,8 @@ function formSave(now, form = {}) {
     setWizSheet: (s) => calls.sheets.push(s), wizError: (body) => calls.sheets.push({ title: 'error', body }),
     showMissingName() {}, showCheckValues() {},
     getCachedUser: async () => ({ id: 'user-A' }),
-    getActiveProtocols: () => [], FREE_PROTOCOL_LIMIT: 3, hasPremium: async () => true,
+    getActiveProtocols: () => [], hasPremium: async () => true,
+    freeProtocolLimit: require('../lib/freePlan').freeProtocolLimit, atFreeProtocolLimit: require('../lib/freePlan').atFreeProtocolLimit, // OB-28
     promptUpgrade() {}, closeWizard: () => { calls.closed++; },
     currentForm: () => ({}), protocolPayload: () => ({ name: 'Tirzepatide', type: f.type }), frequencyLabel: () => 'weekly',
     insertProtocol: (row) => { calls.protocols.push(row); return 42; },
@@ -170,6 +171,7 @@ function formSave(now, form = {}) {
     rtuVialFields: () => null, getProtocolById: (id) => ({ id }), afterProtocolChange: async () => {},
     Analytics: { protocolCreated() {} }, historyQuestion: () => null, setScreenSheet() {},
     getVialById: () => null, pastStartAsk: () => null, // founder 2026-10-27: the past-start question (lib/pastDoses)
+    askPastStart() {}, // the same question, now one function (the form and the onboarding, council 2026-11-20)
     updateProtocol() {}, notifyDataChanged() {}, requestSync() {}, fetchProtocols() {}, pluralKey: (k) => k,
     friendlyError: (e) => `ERR:${e && e.message}`,
   });

@@ -28,8 +28,8 @@ test('GB-2 (major): consent counts only when THIS person ticked the four boxes i
   // Resume: a finished stash reopens on the consent step (boxes empty) unless the consent was
   // passed in this run (Back from Create account) — never pre-ticked for whoever holds the phone.
   const stash = { display_name: 'Sam', primary_goal: 'fitness', tracking_types: ['peptides'], gender: 'male', country: 'Brazil', birth_year: 1990, birth_month: 4, activity_level: 'moderate', has_provider: 'no', consent_accepted: true };
-  assert.equal(O.STEPS[O.entryStep(stash, { consentPassed: false })], 'consent');
-  assert.equal(O.STEPS[O.entryStep(stash, { consentPassed: true })], 'reminders');
+  assert.equal(O.entryStep(stash, { consentPassed: false }), 'consent');
+  assert.equal(O.entryStep(stash, { consentPassed: true }), 'reminders');
   assert.deepEqual(O.formFrom(stash, { trustConsent: false }).terms, {}, 'a resumed stash never pre-ticks the boxes');
   const onb = read('screens', 'OnboardingFlowScreen.js');
   assert.match(onb, /if \(cur === 'consent'\) markStashFresh\(\);/, 'passing the consent step is what makes the answers this person\'s');
@@ -110,8 +110,8 @@ test('GB-10 (minor): every activity write says which scale it is on (activity_sc
   const O = require('../lib/onboardingSteps');
   const P = require('../lib/pendingProfile');
   const form = { ...O.formFrom({ activity_level: 'moderate', has_provider: 'no' }) };
-  assert.equal(O.accountPatch(form, {}, 'NOW', ['routine', 'finish']).activity_scale, 5);
-  assert.ok(!('activity_scale' in O.accountPatch(form, {}, 'NOW', ['about', 'finish'])), 'no activity written → no scale');
+  assert.equal(O.accountPatch(form, {}, 'NOW', ['about', 'finish']).activity_scale, 5, 'OP-1: About you carries the routine');
+  assert.ok(!('activity_scale' in O.accountPatch(form, {}, 'NOW', ['goal', 'finish'])), 'no activity written → no scale');
   assert.equal(O.stashPatch({ activity: 'light', terms: {} }, 'NOW').activity_scale, 5);
   assert.equal(P.pendingProfilePatch({ activity_level: 'light', activity_scale: 5 }, {}, { fresh: true, nowISO: 'NOW' }).activity_scale, 5);
   assert.equal(P.signupMetadata({ activity_level: 'light' }, { fresh: true, nowISO: 'NOW' }).activity_scale, 5);
