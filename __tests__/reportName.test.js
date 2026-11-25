@@ -69,9 +69,11 @@ test('AR-17b: Edit profile wires the follow: the full-name field fills the nickn
 test('AR-18/AR-19: saveReportName sends ONLY report_name (a merge write), trimmed; an empty name writes nothing', async () => {
   const { saveReportName } = require('../lib/profileName');
   const sent = [];
-  const updateUser = async (data) => { sent.push(data); return { data: { user: { user_metadata: { display_name: 'x', report_name: data.report_name } } }, error: null }; };
+  // Integration 2026-11-24 (feat/profile-synced): the call has supabase.auth.updateUser's own shape ({ data }),
+  // so it is the one wrapper that writes user_metadata and then the synced table (PS-11).
+  const updateUser = async (a) => { sent.push(a); return { data: { user: { user_metadata: { display_name: 'x', report_name: a.data.report_name } } }, error: null }; };
   const r = await saveReportName('  Marina Costa Silva ', { updateUser });
-  assert.deepEqual(sent, [{ report_name: 'Marina Costa Silva' }]);
+  assert.deepEqual(sent, [{ data: { report_name: 'Marina Costa Silva' } }]);
   assert.equal(r.ok, true);
   assert.deepEqual(await saveReportName('   ', { updateUser }), { ok: false });
   assert.equal(sent.length, 1);

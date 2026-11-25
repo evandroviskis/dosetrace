@@ -17,26 +17,39 @@ const { nicknameFields, reportNameFields } = require('../lib/profileName'); // A
 const SETTINGS = 'screens/SettingsScreen.js';
 const t = (k) => k;
 
-// updateUser: 'ok' | 'error' (resolves { error }) | 'throw' (rejects).
+// updateUser: 'ok' | 'error' (resolves { error }) | 'throw' (rejects) | 'offline' (resolves a network error).
+// Founder 2026-11-24 (B): a profile save WITHOUT INTERNET is no longer refused — it is kept on the phone
+// (__tests__/profileOfflineEdit.test.js PS-18). The refusals below are the ones that still refuse: the
+// server said no (A-119 DT001, a 4xx).
+const DENIED = { code: 'DT001', message: 'device_not_active', status: 409 };
 function fakeSupabase(mode, writes) {
   return {
     auth: {
       updateUser: async (attrs) => {
         writes.push(attrs);
-        if (mode === 'throw') throw new Error('Network request failed');
-        if (mode === 'error') return { data: { user: null }, error: { message: 'Network request failed', status: 0 } };
+        if (mode === 'throw') throw Object.assign(new Error('Bad Request'), { status: 400 });
+        if (mode === 'throwOffline') throw new Error('Network request failed');
+        if (mode === 'error') return { data: { user: null }, error: DENIED };
+        if (mode === 'offline') return { data: { user: null }, error: { message: 'Network request failed', status: 0 } };
         return { data: { user: { id: 'u1' } }, error: null };
       },
     },
   };
 }
+// The real Edit profile send (lib/profileStore sendProfileEdits, wired by lib/profile saveProfileEdit) on a test database.
+const H = require('./helpers/syncHarness');
+const PS = require('../lib/profileStore');
+const realSaveProfileEdit = (db) => (user, data, opts) => PS.sendProfileEdits(db, user.id, data, { ...opts, meta: user.user_metadata, canKeep: () => true });
 
 function profile(mode, supabase = null) {
-  const out = { writes: [], editSheet: [], closedEdit: 0, closedPicker: 0, refetched: 0 };
+  const out = { writes: [], editSheet: [], closedEdit: 0, closedPicker: 0, refetched: 0, savedOffline: 0, db: H.makeDb() };
   const save = loadFn(SETTINGS, 'async function saveProfile(', 'saveProfile', {
     t, friendlyError, normalizeActivityLevel, legacyActivity, errorSheetConfig,
     nicknameFields, reportNameFields, reportName: '', loadedReportName: { current: '' }, // AR-18: full name untouched
     supabase: supabase || fakeSupabase(mode, out.writes),
+    saveProfileEdit: realSaveProfileEdit(out.db),
+    isOnlineNow: () => true,
+    showSavedOffline: () => { out.savedOffline++; },
     savingProfile: { current: false },
     // The typed values in Edit profile.
     displayName: 'Sam Carter', birthMonth: 4, birthYear: 1985, gender: 'male', country: 'Portugal',
@@ -64,10 +77,23 @@ for (const mode of ['error', 'throw']) {
     const sheet = out.editSheet[0];
     assert.equal(sheet.title, 'err_title_save', 'DV-233: "Couldn\'t save", never the generic Error');
     assert.equal(sheet.icon, 'warning');
-    assert.equal(sheet.body, 'error_network', 'the app\'s friendly network message');
+    assert.equal(sheet.body, 'error_save_failed', 'the app\'s friendly "could not save" message');
     assert.deepEqual(sheet.buttons.map((b) => [b.label, b.kind]), [['ok', 'primary']]);
+    assert.equal(out.savedOffline, 0, 'never "saved on this phone" for a refusal');
+    assert.equal(PS.readProfileRow(out.db, 'u1'), null, 'nothing kept on the phone');
   });
 }
+
+test('DV-008 + founder 2026-11-24 (B): a profile save without internet is kept on the phone — Edit profile closes and says so (PS-18)', async () => {
+  const { out, save } = profile('offline');
+  await save();
+  assert.equal(out.writes.length, 1, 'the save was tried');
+  assert.equal(out.closedEdit, 1);
+  assert.equal(out.refetched, 1);
+  assert.equal(out.editSheet.length, 0);
+  assert.equal(out.savedOffline, 1, '"Saved on this phone. It will be sent…"');
+  assert.equal(JSON.parse(PS.readProfileRow(out.db, 'u1').pending_meta).display_name, 'Sam Carter', 'the typed values are kept');
+});
 
 test('DV-008: a profile save that succeeds still closes Edit profile and re-reads the account', async () => {
   const { out, save } = profile('ok');
@@ -90,7 +116,8 @@ function analytics(mode, supabase = null) {
   const out = { writes: [], values: [], errors: [] };
   const toggle = loadFn(SETTINGS, 'async function toggleAnalytics(', 'toggleAnalytics', {
     t, friendlyError,
-    supabase: supabase || fakeSupabase(mode, out.writes),
+    // The analytics switch still refuses a save without internet (only Edit profile keeps it, founder B).
+    supabase: supabase || fakeSupabase({ error: 'offline', throw: 'throwOffline' }[mode] || mode, out.writes),
     analyticsSaved: { current: true }, // what the account holds (fetchUser)
     setAnalyticsEnabled: (v) => out.values.push(v),
     errorSheet: (body) => out.errors.push(body),
@@ -172,7 +199,7 @@ test('DV-008: a double tap on Edit profile Save sends one save; after it is answ
   const b = save(); // second tap while the first is in flight
   await tick();
   assert.equal(writes.length, 1, 'one save in flight');
-  supa.pending[0](refused); await Promise.all([a, b]);
+  supa.pending[0]({ data: { user: null }, error: DENIED }); await Promise.all([a, b]);
   assert.equal(out.editSheet.length, 1, 'one error sheet');
   const c = save(); await tick();
   assert.equal(writes.length, 2, 'a retry after the answer is sent');

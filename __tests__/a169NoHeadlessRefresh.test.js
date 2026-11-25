@@ -168,5 +168,6 @@ test('A-169: App.js feeds the first-frame cache from its synchronous listener an
   assert.match(app.slice(j, j + 900), /setSession\(session\);\s*\n\s*noteSessionUser\(\(session && session\.user\) \|\| null\);/, 'after the cold-start read');
   const s = read('lib/supabase.js');
   assert.match(s, /export function noteSessionUser\(u\) \{ knownUser_ = u \|\| null; \}/);
-  assert.match(s, /export function peekCachedUser\(\) \{ return knownUser_; \}/);
+  // Profile synced (PS-4): the same in-memory user, with the profile table laid over it (no auth call).
+  assert.match(s, /export function peekCachedUser\(\) \{ return withProfileView\(knownUser_\); \}/);
 });

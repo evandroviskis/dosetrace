@@ -141,6 +141,7 @@ Deno.serve(async (req) => {
       'reality_check_open',
       'calc_inputs',
       'lab_prefs',
+      'account_profile',
       'ai_food_usage',
       'ai_scan_usage',
       // DV-011 (DL-93): the assistant's use ledger is named (it cascades too).

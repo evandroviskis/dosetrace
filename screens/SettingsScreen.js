@@ -79,8 +79,10 @@ import { runSignOut } from '../lib/settingsSignOut';
 import { scanMissedDoses, unsyncedState, unrecordedGapsWithMisses } from '../lib/doseActions';
 import { readUnrecordedGaps } from '../lib/pullStamp';
 import { heldByProtocol, reportGaps, fillDate } from '../lib/unsyncedDoses';
-import { forceSync } from '../lib/sync';
+import { forceSync, isOnlineNow } from '../lib/sync';
 import { DTSheet } from './components/ProtocolParts';
+import { SheetToast } from './components/BodySheets';
+import { saveProfileEdit } from '../lib/profile';
 import { MealTimesRow } from './components/MealTimesSheet';
 import { exportMyData, requestAccountDeletion, finishAccountDeletion as teardownDeletedAccount, signOutIntended } from '../lib/accountActions';
 import { signOutSheet } from '../lib/deviceCopy';
@@ -292,6 +294,10 @@ export default function SettingsScreen({ navigation }) {
   const [aiUseOn, setAiUseOn] = useState(false);
   const [aiUse] = useState(createAIUseSwitch);
   const savingProfile = useRef(false); // DV-008: Edit profile Save in flight (a double tap sends one save)
+  // Founder 2026-11-24 (B): the line after an Edit profile save kept on this phone (the app's toast, as DV-114's).
+  const [savedOfflineToast, setSavedOfflineToast] = useState(null);
+  const savedOfflineTimer = useRef(null);
+  useEffect(() => () => { if (savedOfflineTimer.current) clearTimeout(savedOfflineTimer.current); }, []);
   const [exporting, setExporting] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   // A-169 review: Edit profile open, for fetchUser (a ref: read in the same tick it is set), and the
@@ -704,6 +710,13 @@ export default function SettingsScreen({ navigation }) {
     if (stopQueue) await stopQueue;
   }
 
+  // "Saved on this phone. It will be sent to your account when you're back online." for 4 s (DV-114's toast time).
+  function showSavedOffline() {
+    if (savedOfflineTimer.current) clearTimeout(savedOfflineTimer.current);
+    setSavedOfflineToast(t('profile_saved_offline'));
+    savedOfflineTimer.current = setTimeout(() => setSavedOfflineToast(null), 4000);
+  }
+
   async function saveProfile() {
     // The profile gate is hard-ON for everyone (lib/supabase.js PROFILE_GATE_SINCE),
     // so saving an incomplete profile would re-gate the user out of the app on the
@@ -725,8 +738,10 @@ export default function SettingsScreen({ navigation }) {
     if (savingProfile.current) return; // a double tap on Save sends one save
     savingProfile.current = true;
     try {
-      // DV-008 / DL-56: updateUser RESOLVES { error } when the save is refused (offline): that
-      // is a failure too — Edit profile stays open with the typed values and the error sheet shows.
+      // Founder 2026-11-24 (B): without internet the save is kept on this phone (lib/profile saveProfileEdit,
+      // the synced profile table), shown at once and sent when the internet is back; Edit profile closes
+      // and the line says so. A refusal that is not a connection problem (A-119 DT001, any 4xx) is still a
+      // failure (DV-008 / DL-56): Edit profile stays open with the typed values and the error sheet shows.
       const profileData = {
           // The nickname, and the full name only when changed (merge write; lib/profileName).
           ...nicknameFields(displayName),
@@ -748,12 +763,14 @@ export default function SettingsScreen({ navigation }) {
       };
       // Gate B re-review: a kept 18+ / profile answer goes first, so this newer save always lands last.
       await flushPendingGate(); // never throws (offline → kept for later)
-      const res = await supabase.auth.updateUser({ data: profileData });
-      if (res && res.error) throw res.error;
+      // One merge write of the edit kept on this phone (if any) + this save, through the one wrapper.
+      const res = await saveProfileEdit(user, profileData, { updateUser: (data) => supabase.auth.updateUser({ data }), knownOffline: isOnlineNow() === false });
+      if (!res || res.status === 'failed') throw (res && res.error) || new Error('not saved');
       await forgetKeptKeys(user && user.id, Object.keys(profileData)).catch(() => {}); // DV-114 Gate B 2: newer than a kept answer, before the reload
       setShowCountryPicker(false);
       setEditProfileOpen(false);
       fetchUser();
+      if (res.status === 'kept') showSavedOffline();
     } catch (e) {
       setEditSheet(errorSheetConfig(t, 'save', friendlyError(e, t, 'error_save_failed'))); // DV-233
     } finally {
@@ -1680,6 +1697,8 @@ export default function SettingsScreen({ navigation }) {
       {/* The screen's DoseTrace sheet. While Edit profile is up its own sheet (below, inside it)
           is the one shown, so two popups are never stacked side by side (M1). */}
       <DTSheet config={showEditProfile ? null : sheet} onClose={closeSheet} />
+      {/* Founder 2026-11-24 (B): an Edit profile save kept on this phone without internet says so. */}
+      <SheetToast text={savedOfflineToast} />
 
       {/* ADHERENCE REPORT PREVIEW (Settings part 3) */}
       <Modal

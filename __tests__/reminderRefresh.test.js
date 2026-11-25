@@ -14,10 +14,12 @@ test('AC1: in the background the user is read from the stored session — no net
   };
   const readStoredUser = loadFn('lib/supabase.js', 'export async function readStoredUser(', 'readStoredUser', deps);
   assert.equal((await readStoredUser()).id, 'u1');
-  const getCachedUser = loadFn('lib/supabase.js', 'export async function getCachedUser(', 'getCachedUser', { ...deps, storedSessionOnly: () => true, readStoredUser });
+  // Profile synced: the profile view is a local SQLite read (lib/profile), never a network call.
+  const withProfileView = (u) => u;
+  const getCachedUser = loadFn('lib/supabase.js', 'export async function getCachedUser(', 'getCachedUser', { ...deps, storedSessionOnly: () => true, readStoredUser, withProfileView });
   assert.equal((await getCachedUser()).id, 'u1');
   assert.equal(refreshed, 0, 'never asks the server');
-  const fg = loadFn('lib/supabase.js', 'export async function getCachedUser(', 'getCachedUser', { ...deps, storedSessionOnly: () => false, readStoredUser });
+  const fg = loadFn('lib/supabase.js', 'export async function getCachedUser(', 'getCachedUser', { ...deps, storedSessionOnly: () => false, readStoredUser, withProfileView });
   await fg();
   assert.equal(refreshed, 1, 'the app in the foreground keeps the normal path');
   const none = loadFn('lib/supabase.js', 'export async function readStoredUser(', 'readStoredUser', { ...deps, SecureStoreAdapter: { getItem: async () => null } });

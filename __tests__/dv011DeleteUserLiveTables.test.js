@@ -13,6 +13,9 @@ const LIVE_USER_TABLES = ['account_devices', 'admin_actions_log', 'admin_users',
   'team_messages', 'user_devices', 'vaccines', 'vials'];
 // Admin-side records, not the person's own data (kept as the admin audit trail; never synced to the app).
 const EXEMPT = ['admin_actions_log', 'admin_users'];
+// Profile synced (docs/specs/profile-synced.md): migration written, NOT applied yet — listed ahead of it
+// (delete-user tolerates a missing table, tableMissing); it moves to LIVE_USER_TABLES once applied.
+const NOT_YET_APPLIED = ['account_profile'];
 
 const src = fs.readFileSync(path.join(__dirname, '..', 'supabase/functions/delete-user/index.ts'), 'utf8');
 const list = (name) => {
@@ -24,7 +27,7 @@ test('DV-011: every live user table is deleted by name (or exempt), and nothing 
   const named = new Set([...list('userDataTables'), ...list('deviceTables')]);
   const missing = LIVE_USER_TABLES.filter((t) => !named.has(t) && !EXEMPT.includes(t));
   assert.deepEqual(missing, []);
-  const absent = [...named].filter((t) => !LIVE_USER_TABLES.includes(t));
+  const absent = [...named].filter((t) => !LIVE_USER_TABLES.includes(t) && !NOT_YET_APPLIED.includes(t));
   assert.deepEqual(absent, []);
   assert.match(src, /\.from\('profiles'\)\s*\.delete\(\)\s*\.eq\('id', user\.id\)/);
   assert.match(src, /\.from\('referrals'\)/);

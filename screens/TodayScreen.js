@@ -50,7 +50,7 @@ import { offlinePendingAlert } from '../lib/offlineAlert';
 import { calendarDaysSince } from '../lib/localDate';
 import { SITE_HISTORY_DAYS } from '../lib/bodySites';
 import { unsyncedCount } from '../lib/recoveryFlow';
-import { TABLES, getPendingChanges } from '../lib/syncCore';
+import { UNSENT_TABLES, getUnsentChanges } from '../lib/syncCore';
 import { scanMissedDoses, recordDoseTaken, recordSkipPending, recordSkipToday, getMissedWatermark, isDoseAlreadyLogged, scheduleSinceNow, unrecordedQueue } from '../lib/doseActions';
 import UnrecordedHost from './components/UnrecordedHost';
 import { todayMayAsk, afterShown, afterLater, afterAnswered } from '../lib/unrecordedPeriod';
@@ -595,7 +595,7 @@ export default function TodayScreen() {
   const [offlinePending, setOfflinePending] = useState(false);
   function refreshOffline() {
     let pending = 0;
-    try { pending = unsyncedCount(getDB(), getLocalDataUserId(), TABLES, getPendingChanges); } catch { pending = 0; }
+    try { pending = unsyncedCount(getDB(), getLocalDataUserId(), UNSENT_TABLES, getUnsentChanges); } catch { pending = 0; }
     setOfflinePending(offlinePendingAlert({ online: isOnlineNow(), pendingCount: pending }));
   }
   useEffect(() => {

@@ -168,7 +168,8 @@ test('Gate B 1: the sign-out sheet names the kept answer in its list (6 language
 test('Gate B 1: the deliberate sign-out tries to send it first, counts it, and removes it only once signed out', () => {
   const acts = read('lib/accountActions.js');
   const fn = acts.slice(acts.indexOf('export async function signOutIntended('), acts.indexOf('// A-119 OD-9: not signed out yet'));
-  assert.match(fn, /forceSync: async \(\) => \{ try \{ await gateStore\(\)\.flushPendingGate\(\); \} catch \{[^}]*\} return forceSync\(\); \}/);
+  // Founder 2026-11-24 (B, PS-22): the Edit profile save kept on this phone is sent in the same step.
+  assert.match(fn, /forceSync: async \(\) => \{ try \{ await gateStore\(\)\.flushPendingGate\(\); \} catch \{[^}]*\} try \{ await require\('\.\/profile'\)\.flushProfileEdits\(\); \} catch \{[^}]*\} return forceSync\(\); \}/);
   assert.match(fn, /pendingForSignOut\(\{[^}]*\}\) \+ gateStore\(\)\.keptGateCount\(sessionUserId\)/);
   assert.match(fn, /if \(r && r\.blocked === false && uid\) \{ try \{ await gateStore\(\)\.forgetKeptGate\(uid\); \}/);
   // Account deletion takes it with the account.
@@ -222,7 +223,8 @@ test('Gate B 2: the profile is read with the kept answer laid over it wherever i
   assert.match(load, /setBirthYear\(pm\.birth_year \?\? null\)/);
   assert.match(load, /activitySourceKey\(pm, /);
   // Settings' save: the saved keys leave the kept answer (newer wins).
-  assert.match(st, /const res = await supabase\.auth\.updateUser\(\{ data: profileData \}\);\s*if \(res && res\.error\) throw res\.error;\s*await forgetKeptKeys\(user && user\.id, Object\.keys\(profileData\)\)/);
+  // Founder 2026-11-24 (B): saved to the account or kept on this phone (lib/profile saveProfileEdit) — newer either way.
+  assert.match(st, /const res = await saveProfileEdit\(user, profileData, \{[^\n]*\}\);\s*if \(!res \|\| res\.status === 'failed'\) throw \(res && res\.error\) \|\| new Error\('not saved'\);\s*await forgetKeptKeys\(user && user\.id, Object\.keys\(profileData\)\)/);
   // Today's greeting, the body map and its explainer, the calculator, Journey's tile.
   assert.match(read('screens/TodayScreen.js'), /const name = getNickname\(profileUser\(user\)\);/); // AR-18: through lib/profileName
   assert.match(read('screens/components/BodyMapModal.js'), /figureSex\(profileMeta\(user\)\)/);
@@ -242,7 +244,7 @@ test('Gate B re-review: the Settings profile save sends a kept answer before its
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'screens/SettingsScreen.js'), 'utf8');
   const save = src.slice(src.indexOf('async function saveProfile('), src.indexOf('async function handleExportData('));
   const flush = save.indexOf('await flushPendingGate()');
-  const write = save.indexOf('await supabase.auth.updateUser({ data: profileData })');
+  const write = save.indexOf('await saveProfileEdit(user, profileData, '); // founder 2026-11-24 (B): the one profile send
   assert.ok(flush > 0 && write > flush, 'flush awaited before the profile write');
   assert.match(src, /import \{ profileMeta, profileUser, forgetKeptKeys, flushPendingGate \} from '\.\.\/lib\/pendingGateStore';/);
 });

@@ -20,7 +20,7 @@ import { clearTeamMessages } from './lib/teamMessages';
 import { clearExportFile } from './lib/exportFile';
 import { clearAccountKeys } from './lib/accountKeys';
 import AccountLanguageSync from './components/AccountLanguageSync';
-import { TABLES, getPendingChanges } from './lib/syncCore';
+import { UNSENT_TABLES, getUnsentChanges } from './lib/syncCore';
 import { setSignInHandler, noteSignedIn } from './lib/signInWork';
 import { consumeExplicitSignIn, beginExplicitSignIn, endExplicitSignIn } from './lib/explicitSignIn';
 import { deviceFlow, deviceGate, subscribeDevice, readDeviceState, continueAfterVerdict, checkAccountGoneFor } from './lib/deviceRuntime';
@@ -65,6 +65,8 @@ import { installFontMapping, useAppFonts } from './lib/fonts';
 // load, before any component renders.
 installFontMapping();
 import { initDatabase, clearLocalDatabase, getLocalDataUserId, getDB } from './lib/database';
+// Profile synced (docs/specs/profile-synced.md): the gates read the profile from the synced table.
+import { withProfile, ensureProfileCopy, flushProfileEdits, startProfileEditFlush } from './lib/profile';
 import { startSyncEngine, stopSyncEngine, fullImportFromCloud, isLocalDBEmpty, requestSync, addSyncListener, waitForSyncIdle, runSyncExclusive } from './lib/sync';
 import { isForegroundStale } from './lib/stillGoingGate';
 import { bootView, bootTabTarget, lastSignedInUser } from './lib/todaySkeleton';
@@ -328,7 +330,10 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
   // on into the app; the toast says it goes to the account when the internet is back.
   const gateAnswer = usePendingGate(session && session.user ? session.user.id : null);
   const gateToast = useGateToast(t);
-  const gateUser = session ? withPendingAnswer(session.user, gateAnswer.pending) : null;
+  // Profile synced (PS-4): the account_profile table laid over user_metadata (lib/profile).
+  // Read once per render (Gate B nit).
+  const profiledUser = session ? withProfile(session.user) : null;
+  const gateUser = session ? withPendingAnswer(profiledUser, gateAnswer.pending) : null;
   const gated = (u) => !isProfileComplete(u) || needsAdultConfirmation(u && u.user_metadata);
 
   // DV-242 (AD-102 = B): another account signed in over a previous account's changes never backed
@@ -460,7 +465,7 @@ function ThemedRoot({ session, navigationRef, onNavReady, recovery, onRecoveryDo
           // DV-242: the local data still belongs to another account — an empty screen (the boot
           // ground) under the sheet, so this account never sees it; nothing syncs meanwhile.
           <Stack.Screen name="AccountHold" component={BootEmpty} />
-        ) : !gateAnswer.ready && gated(session.user) ? (
+        ) : !gateAnswer.ready && gated(profiledUser) ? (
           // DV-114: the phone's pending answer is not read yet (a moment at start) — the empty ground,
           // so a gate it already answered never flashes.
           <Stack.Screen name="GateWait" component={BootEmpty} />
@@ -652,7 +657,7 @@ export default function App() {
   // DV-242 (AD-102 = B): the cross-account guard's effects (lib/accountGuard).
   const guardDeps = () => ({
     getLocalOwner: () => getLocalDataUserId(),
-    countPending: (id) => unsyncedCount(getDB(), id, TABLES, getPendingChanges),
+    countPending: (id) => unsyncedCount(getDB(), id, UNSENT_TABLES, getUnsentChanges),
     readOwnerLabel: () => AsyncStorage.getItem(OWNER_KEY),
     rememberOwner: (u) => AsyncStorage.setItem(OWNER_KEY, JSON.stringify({ id: u.id, email: u.email || null })),
     forgetLocalOwner: () => AsyncStorage.removeItem(OWNER_KEY),
@@ -1037,6 +1042,9 @@ export default function App() {
           // background sync pushes / pulls changes.
           const step = await startupDeviceStep({ gate: deviceGate, userId: session.user.id, isLocalEmpty: isLocalDBEmpty, fullImport: fullImportFromCloud, requestSync });
           if (!step.held) {
+            // Profile synced (PS-5): the profile row created from user_metadata when missing (merge-only).
+            ensureProfileCopy(session.user);
+            flushProfileEdits(); // founder 2026-11-24 (B): an Edit profile save kept on this phone goes to the account
             // One-time move of the open reality check + calculator inputs into the
             // synced tables (S-03), AFTER the import and BEFORE scheduling reminders.
             // A-119 round 3: never while a takeover's rebuild is queued (step.migrate).
@@ -1121,6 +1129,9 @@ export default function App() {
         applyPendingProfile(supabase).catch(() => {});
         flushPendingGate(); // DV-114: an 18+ / profile answer kept on this phone goes to the account
         if (step.held) return;
+        // Profile synced (PS-5): the profile row created from user_metadata when missing (merge-only).
+        ensureProfileCopy(session.user);
+        flushProfileEdits(); // founder 2026-11-24 (B): an Edit profile save kept on this phone goes to the account
 
         // One-time move of the open reality check + calculator inputs into the
         // synced tables (S-03), after the import and BEFORE scheduling reminders.
@@ -1151,6 +1162,9 @@ export default function App() {
     // DV-114: a gate answer kept on this phone is written on app open, connection back and return to
     // the app (and on sign-in, above) — never from inside onAuthStateChange.
     const stopGateFlush = startPendingGateFlush();
+    // Founder 2026-11-24 (B): an Edit profile save kept on this phone without internet goes to the account
+    // when the connection is back or the app returns to the front (lib/profile) — never from the callback below.
+    const stopProfileFlush = startProfileEditFlush();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session); // drives the navigator (null → Onboarding) immediately
@@ -1207,6 +1221,7 @@ export default function App() {
       if (appStateSub) appStateSub.remove();
       stopExactWatch();
       stopGateFlush();
+      stopProfileFlush();
       if (unsubSyncForFood) unsubSyncForFood();
     };
   }, []);
