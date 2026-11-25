@@ -12,7 +12,8 @@
   - one device at a time (A-119 / AD-77): nothing here is about two phones writing at once; the per-key merge protects against the server copy and the old versions' writes.
 - not visual: no screen, text or notice changes (no new string); the person sees exactly the same profile before, during and after the move. The picture says so explicitly.
 - code: lib/profileStore.js (rules), lib/profile.js (app wiring), lib/profileWrite.js (the step after a metadata write), lib/profileName.js (getNickname, getReportName, saveReportName), lib/supabase.js (the updateUser wrapper; getCachedUser / peekCachedUser / readStoredUser), App.js (the gates; the copy after the account guard), lib/syncCore.js (TABLES, LATE_TABLES, FULL_PULL, push / pull / import), lib/syncMappers.js, lib/sync.js, lib/schema.js, lib/changeSeq.js, lib/database.js (sign-out wipe, local owner), lib/unsentSummary.js, supabase/functions/delete-user/index.ts (list only; it tolerates a missing table), supabase/migrations/20261124000000_account_profile.sql (NOT applied).
-- checklist-signed: pending (founder)
+- checklist-signed: 2026-11-24 19:12 EST by the founder in the conversation ("4 aprovo", answering "listas de aceitação com o desenho da observação corrigido"; admin panel Decisões tab item 29, option "A) Assinar as três"; Second Brain dosetrace/02-decisoes.md 2026-11-24 19:12)
+- still open after the signature (noted 2026-11-24): the signature does not close the items in "Owed before the build" below. "pode aplicar" for the migration, the device proof once it is applied (update over the store version keeps every profile value, Edit profile saves and shows it, a re-sign-in shows it, both themes unchanged) and the delete-user deploy are checked before publication.
 - committed-to: the next build (same package as the adherence report, founder 2026-11-24)
 
 ## Acceptance checklist
