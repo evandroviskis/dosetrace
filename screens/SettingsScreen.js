@@ -93,7 +93,7 @@ import { teamMessages, settingsRow, settingsRowLine } from '../lib/teamMessages'
 import { useTeamMessages } from '../lib/useTeamMessages';
 import { SexWhy, SexChangeNote } from '../components/SexAtBirthWhy';
 import { supplyState } from '../lib/supplyLow';
-import { birthMonthIndex, getNickname, getReportName, nicknameFields, reportNameFields, saveReportName, nicknameFollows, nicknameAfterFullName, firstNameOf } from '../lib/profileName';
+import { birthMonthIndex, REPORT_NAME_KEY, getNickname, getReportName, nicknameFields, reportNameFields, saveReportName, nicknameFollows, nicknameAfterFullName, firstNameOf } from '../lib/profileName';
 import { buildAdherenceReport } from '../lib/adherenceReportDoc';
 import { observationSummary, reportObservationSections } from '../lib/doseObservation';
 import { reportNameSheet } from '../lib/reportNameSheet';
@@ -508,7 +508,7 @@ export default function SettingsScreen({ navigation }) {
         else if (sp.doc === 'terms') setShowTerms(true);
         else if (sp.doc === 'disclaimer') setShowDisclaimer(true);
         break;
-      case 'profile': openEditProfile(); break;
+      case 'profile': openEditProfileWith(sp.values || null); break;
       case 'premium': navigation.navigate('Paywall', { source: 'settings' }); break;
       case 'signout':
       case 'delete':
@@ -630,6 +630,32 @@ export default function SettingsScreen({ navigation }) {
   }
   function openEditProfile() {
     whenAllSettled([profileLoaded.p]).then(() => setEditProfileOpen(true));
+  }
+  // Gate B 2026-11-24 (docs/specs/profile-synced.md PS-26): the app's notice after the account refused an
+  // edit kept on this phone reopens Edit profile filled with what was typed (values: the kept keys), set
+  // before it opens so the profile read never lands over them. No values → opens as usual (the search).
+  function openEditProfileWith(values) {
+    return whenAllSettled([profileLoaded.p]).then(() => {
+      if (values && typeof values === 'object') fillProfileForm(values);
+      setEditProfileOpen(true);
+    });
+  }
+  // Only the keys given (the rest stays as Settings read it); the same conversions as the profile read.
+  function fillProfileForm(v) {
+    // AR-18: the names only through lib/profileName (the full name too, when it was among the kept keys).
+    if ('display_name' in v) setDisplayName(getNickname(v));
+    if (REPORT_NAME_KEY in v) setReportName(getReportName(v));
+    if ('gender' in v) setGender(v.gender || '');
+    if ('birth_month' in v) setBirthMonth(birthMonthIndex(v.birth_month));
+    if ('birth_year' in v) {
+      setBirthYear(v.birth_year ?? null);
+      setBirthYearText(v.birth_year != null ? String(v.birth_year) : '');
+    }
+    if ('country' in v) setCountry(v.country || '');
+    if ('primary_goal' in v) { const pg = v.primary_goal || ''; setPrimaryGoals(pg ? pg.split(',').filter(Boolean) : []); }
+    if ('tracking_types' in v) setTrackingTypes(Array.isArray(v.tracking_types) ? v.tracking_types : []);
+    if ('activity_level' in v) setActivityLevel(normalizeActivityLevel(v.activity_level));
+    if ('has_provider' in v) setHasProvider(v.has_provider || '');
   }
 
   // DV-007 = A (lib/aiUseSwitch): OFF withdraws at once; ON asks with the AI features' own sheet.

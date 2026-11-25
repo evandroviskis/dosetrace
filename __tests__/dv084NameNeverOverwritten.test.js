@@ -17,8 +17,9 @@ test('DV-084: a sign-in name fills only an empty display_name', () => {
 
 test('DV-084: Apple and Google go through it', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'lib/supabase.js'), 'utf8');
-  assert.match(src, /const fill = signInName\(\{ meta: data && data\.user && data\.user\.user_metadata, providerName: full,/);
-  assert.match(src, /const gName = signInName\(\{ meta: m, providerName: m\.full_name \|\| m\.name,/);
+  // Gate B 2026-11-24 (profile-synced PS-24): "is the name empty?" is asked on the profile view (a kept edit counts).
+  assert.match(src, /const fill = signInName\(\{ meta: profileMetaOf\(data && data\.user\), providerName: full,/);
+  assert.match(src, /const gName = signInName\(\{ meta: profileMetaOf\(data && data\.user\), providerName: m\.full_name \|\| m\.name,/);
 });
 
 // Gate B review 2026-10-31 (B1): a new Google / Apple sign-up right after onboarding — the name the person typed

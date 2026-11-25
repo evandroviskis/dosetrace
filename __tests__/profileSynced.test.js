@@ -252,7 +252,9 @@ test('PS-6: every profile write goes to user_metadata (merge, only the keys sent
   assert.doesNotThrow(() => afterMetadataWrite({ data: { user: { id: U } }, error: null }, { a: 1 }, () => { throw new Error('db closed'); }), 'a table failure never changes the write result');
   // The one wrapper: the A-119 guard first (unchanged), then the metadata write, then the table.
   const sb = read('lib/supabase.js');
-  assert.match(sb, /supabase\.auth\.updateUser = async \(attributes, options\) => \{\n\s+if \(attributes && attributes\.data && metadataGuard\) \{[\s\S]*?if \(allowed === false\) return \{ data: \{ user: null \}, error: \{ code: 'DT001'[\s\S]*?\}\n\s+const res = await rawUpdateUser\(attributes, options\);\n[\s\S]*?if \(attributes && attributes\.data\) afterMetadataWrite\(res, attributes\.data, noteProfileWriteLazy\);\n\s+return res;\n\};/);
+  // Gate B 2026-11-24 (PS-24): its body is lib/profileWrite metadataWrite (guard → raw → table step → clear).
+  assert.match(sb, /supabase\.auth\.updateUser = \(attributes, options\) => metadataWrite\(attributes, options, \{\n\s+guard: metadataGuard,\n\s+raw: rawUpdateUser,\n\s+note: noteProfileWriteLazy,/);
+  assert.match(read('lib/profileWrite.js'), /if \(allowed === false\) return \{ data: \{ user: null \}, error: \{ code: 'DT001'[\s\S]*?\}\n[\s\S]*?const res = await d\.raw\(attributes, options\);\n\s+if \(data\) \{\n\s+afterMetadataWrite\(res, data, d\.note\);/);
   // recordProfileWrite: after this phone read the cloud table → a per-key patch to send; before → the
   // local copy follows, nothing waits to be sent (user_metadata already has it; the backfill copies it).
   const db = H.makeDb();
