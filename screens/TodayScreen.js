@@ -42,7 +42,7 @@ import {
   getProtocolById, hardDeleteOldProtocols, endProtocolAtLastDose, getHistoryProtocols, deactivateVialsByProtocol,
   markProtocolStillGoing, setProtocolPlannedEnd, continueProtocolCourse,
   getBiomarkers,
-  getDB, getLocalDataUserId, withImmediateTransaction,
+  getDB, getLocalDataUserId, withImmediateTransaction, getProtocolTakenLogs,
 } from '../lib/database';
 import { requestSync, addSyncListener, isOnlineNow, notifyDataChanged } from '../lib/sync';
 import { endProtocolFully } from '../lib/endProtocolFlow';
@@ -2258,6 +2258,14 @@ export default function TodayScreen() {
     fetchProtocols();
   }
 
+  // Copper this cycle (docs/specs/ghk-cu-copper.md CU-6, CU-8): the right page saves exactly like My Protocols.
+  function saveCopper(id, fields) {
+    updateProtocol(id, fields);
+    notifyDataChanged('protocol');
+    requestSync();
+    fetchProtocols();
+  }
+
   function afterLogChange() {
     setUndoData(prev => (prev && wasDeleted(prev.logId) ? null : prev)); // a dose deleted there: no Undo bar for it
     fetchProtocols(); // a delete gave a dose back to the vial / bottle
@@ -2324,6 +2332,7 @@ export default function TodayScreen() {
             draft={getDraft(noteDraftKey(p.id))}
             onDraft={(id, text) => { if (text == null) clearDraft(noteDraftKey(id)); else setDraft(noteDraftKey(id), text); setNoteTick((n) => n + 1); }}
             onNoteFocus={pageLift.liftField}
+            copperLogs={getProtocolTakenLogs(p.id)} onCopperSave={saveCopper}
             t={t}
           />
           {pageLift.spacer}
