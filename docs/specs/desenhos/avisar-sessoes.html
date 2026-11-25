@@ -1,0 +1,235 @@
+<title>Atualizar e Avisar as sessões</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600;700&display=swap">
+<style>
+/* Layout: a review sheet. Explanation first, then each screen as a light/dark pair at real phone width, then the computer, then what he decides. */
+:root{
+  --pg-bg:#F3F6FA; --pg-surface:#FFFFFF; --pg-ink:#0C2340; --pg-muted:#566B80; --pg-line:#D6E0EC; --pg-accent:#2A78C2;
+  --f-display:"Space Grotesk",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-body:Inter,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--pg-bg:#0A1625;--pg-surface:#11233A;--pg-ink:#E6EEF8;--pg-muted:#93A9BF;--pg-line:#22405f;--pg-accent:#4FA3E8;color-scheme:dark}}
+:root[data-theme="dark"]{--pg-bg:#0A1625;--pg-surface:#11233A;--pg-ink:#E6EEF8;--pg-muted:#93A9BF;--pg-line:#22405f;--pg-accent:#4FA3E8;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--pg-bg);color:var(--pg-ink);font:16px/1.6 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 60px}
+.page{max-width:1180px;margin:0 auto;display:grid;gap:40px}
+h1,h2{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(30px,5vw,44px);line-height:1.1}
+h2{font-size:24px;line-height:1.2}
+.lead{max-width:68ch;display:grid;gap:12px}
+.lead p,.prose p{margin:0}
+.eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--pg-muted)}
+.quote{border-left:4px solid var(--pg-accent);padding:10px 14px;background:var(--pg-surface);border-radius:0 12px 12px 0;font-style:italic;max-width:68ch}
+.rules{display:grid;gap:10px;max-width:72ch;margin:0;padding-left:22px}
+.screen{display:grid;gap:14px}
+.screen-h{display:grid;gap:4px;max-width:72ch}
+.screen-h p{margin:0;color:var(--pg-muted)}
+.pair{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.frame{display:grid;gap:8px;width:min(390px,100%);min-width:0}
+.frame-cap{font-size:13px;font-weight:700;color:var(--pg-muted);letter-spacing:.06em;text-transform:uppercase}
+.frame.desk{width:100%}
+.ex{font-size:13.5px;color:var(--pg-muted)}
+.box{background:var(--pg-surface);border:1px solid var(--pg-line);border-radius:14px;padding:18px 20px;max-width:78ch;display:grid;gap:10px}
+.box ul{margin:0;padding-left:20px;display:grid;gap:6px}
+code{font-size:.9em;background:var(--pg-bg);border:1px solid var(--pg-line);border-radius:6px;padding:0 5px;overflow-wrap:anywhere}
+.opts{display:grid;gap:8px;margin:0;padding-left:22px}
+
+/* ---------- The panel mock: the panel's own tokens (web/adm.html), fixed per frame on purpose ---------- */
+.ph{--bg:#EEF3F9;--surface:#FFFFFF;--surface2:#F1F5FA;--line:#D6E0EC;--ink:#0C2340;--muted:#5A7085;--accent:#2A78C2;--accent2:#2AA0C8;--good:#159A78;--warn:#B5831C;--bad:#CC4B3D;--accent-ink:#FFFFFF;
+  background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;border:1px solid var(--pg-line);border-radius:22px;overflow:hidden;position:relative}
+.ph.dark{--bg:#0C1B2E;--surface:#12263C;--surface2:#183454;--line:#22405f;--ink:#EAF2FB;--muted:#8FA6BD;--accent:#4FA3E8;--accent2:#46C6EE;--good:#2CD3A7;--warn:#E8B54F;--bad:#E8776B;--accent-ink:#04121f}
+.ph button{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);cursor:default}
+.ph-top{display:flex;justify-content:space-between;align-items:center;padding:12px 12px 4px}
+.ph-brand{font-weight:800;font-size:17px;display:flex;gap:8px;align-items:center}
+.ph-brand i{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block}
+.ph-upd{font-size:12px;color:var(--muted)}
+.ph-menu{width:34px;height:34px;border-radius:9px}
+.ph-body{padding:6px 12px 14px}
+.ph-nav{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--surface);padding:8px 0 10px;font-size:11.5px;font-weight:700;color:var(--muted);text-align:center}
+.ph-nav span{display:grid;justify-items:center;gap:3px;position:relative}
+.ph-nav span::before{content:"";width:22px;height:20px;border-radius:6px;background:var(--muted);opacity:.55}
+.ph-nav span.on{color:var(--accent)}.ph-nav span.on::before{background:var(--accent);opacity:1}
+.ph-nav b{position:absolute;top:-6px;left:calc(50% + 4px);background:var(--bad);color:#fff;border-radius:999px;font-size:10.5px;min-width:18px;padding:0 5px;line-height:18px}
+.dsk .ph-body{max-width:860px;margin:0 auto;padding:8px 20px 22px}
+.dsk-top{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)}
+.dsk-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.dsk-tabs span{padding:6px 12px;border-radius:9px;font-weight:700;font-size:14px;color:var(--muted)}
+.dsk-tabs span.on{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.dsk-tabs b{background:var(--bad);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;margin-left:4px}
+
+/* copied from web/adm-decisions.js STYLE, plus the new parts marked NEW */
+.dc-h1{font-size:22px;margin:0 0 4px;font-weight:800}.dc-intro{color:var(--muted);font-size:15px;margin:0 0 12px}
+.dc-orig-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 10px}.m .dc-orig-seg{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dc-orig-seg button{min-height:48px;font-size:15px;font-weight:700;border-radius:12px}.dc-orig-seg button b,.dc-seg button b{display:inline-block;min-width:24px;padding:0 6px;border-radius:999px;background:var(--surface2);color:var(--ink);font-size:13px}
+.dc-orig-seg button.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}.dc-orig-seg button.on b,.dc-seg button.on b{background:var(--bg);color:var(--ink)}
+/* NEW: four groups; on the phone two by two */
+.dc-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 10px}.m .dc-seg{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dc-seg button{min-height:52px;font-size:15px;font-weight:700;border-radius:12px;line-height:1.2;padding:4px 6px}.dc-seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.dc-areas{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.dc-areas button{min-height:40px;border-radius:999px;font-size:14px;padding:4px 13px}.dc-areas button.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.dc-list{display:grid;gap:10px}
+.dc-item{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.dc-item-top{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+.dc-item-t{display:block;font-size:17px;font-weight:700;line-height:1.3}
+.dc-item-q{display:block;color:var(--muted);font-size:14.5px;margin-top:4px}
+.dc-orig{display:inline-block;font-size:12.5px;font-weight:800;color:var(--accent);border-left:3px solid var(--accent);padding:0 6px}
+.dc-tag{display:inline-block;border:1px solid var(--line);color:var(--muted);font-size:12.5px;border-radius:7px;padding:1px 8px;font-weight:600}
+/* NEW: "Tarefa sua" */
+.dc-tag.task{color:var(--ink);background:var(--surface2);border-color:var(--ink);font-weight:800}
+.dc-st{display:inline-block;font-size:12.5px;border-radius:999px;padding:1px 9px;border:1px solid var(--line);color:var(--muted);font-weight:700}.dc-st.acc{color:var(--accent);border-color:var(--accent)}
+/* NEW: "Para depois" chip */
+.dc-st.later{color:var(--accent2);border-color:var(--accent2);border-style:dashed}
+.dc-back{min-height:44px;font-size:15px;font-weight:700;padding:6px 14px;margin:2px 0 10px;border-radius:12px}
+.dc-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.dc-title{font-size:21px;line-height:1.25;margin:8px 0 4px;font-weight:800}
+.dc-small{color:var(--muted);font-size:13.5px}
+.dc-sec{margin:16px 0 0}.dc-sec h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:800}
+.dc-body{font-size:16px;line-height:1.55;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}.dc-body.dc-q{font-weight:700;border-color:var(--accent)}
+.dc-act{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.m .dc-act{grid-template-columns:minmax(0,1fr)}
+.dc-act button{min-height:54px;font-size:16.5px;font-weight:700;border-radius:12px;border-width:2px;display:flex;align-items:center;justify-content:center;gap:10px}
+.dc-act button::before{content:"";width:18px;height:18px;border-radius:50%;border:2px solid var(--dc-c);flex:none}
+.dc-act .good{--dc-c:var(--good);border-color:var(--good)}.dc-act .bad{--dc-c:var(--bad);border-color:var(--bad)}.dc-act .warn{--dc-c:var(--warn);border-color:var(--warn)}
+/* NEW: the fourth answer, set apart: full row, dashed, its own color */
+.dc-act .later{--dc-c:var(--accent2);border-color:var(--accent2);border-style:dashed;grid-column:1/-1}
+.dc-later-hint{grid-column:1/-1;font-size:13.5px;color:var(--muted);margin:6px 0 -2px;text-align:center}
+.dc-act button.on{border-width:3px;border-style:solid;background:color-mix(in srgb,var(--dc-c) 22%,var(--surface));font-weight:800}
+.dc-act button.on::before{background:var(--dc-c);box-shadow:inset 0 0 0 3px var(--surface)}
+.dc-note{width:100%;min-height:84px;font-size:16px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;color:var(--ink)}
+.dc-save{width:100%;min-height:56px;font-size:17px;font-weight:800;border-radius:14px;background:var(--accent)!important;border-color:var(--accent)!important;color:var(--accent-ink)!important;margin-top:14px}
+.dc-banner{border:1px dashed var(--accent2);border-radius:12px;padding:11px 13px;font-size:15px;margin:12px 0 0;background:var(--surface)}
+.dc-banner b{display:block}
+.dc-toast{margin-top:10px;border-radius:12px;padding:10px 13px;font-size:15px;font-weight:700;background:var(--surface);border:1px solid var(--good);color:var(--ink)}
+</style><style>
+/* NEW for this design: the refresh / notify bar, the "what changed" box, the confirmation */
+.dc-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:0 0 6px}
+.dc-bar button{min-height:52px;font-size:15.5px;font-weight:800;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;line-height:1.2;padding:4px 8px}
+.dc-bar .ref::before{content:"";width:15px;height:15px;border-radius:50%;border:2.5px solid var(--accent);border-right-color:transparent;flex:none}
+.dc-bar .ping{background:var(--accent)!important;border-color:var(--accent)!important;color:var(--accent-ink)!important}
+.dc-bar .ping[disabled]{opacity:.5}
+.dc-stamp{font-size:13.5px;color:var(--muted);margin:0 0 12px;display:flex;flex-wrap:wrap;gap:4px 12px}
+.dc-stamp b{color:var(--ink);font-weight:700}
+.dc-new{background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:12px 14px;margin:0 0 14px;display:grid;gap:10px}
+.dc-new-h{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800;display:flex;justify-content:space-between;gap:8px}
+.dc-new-h span{text-transform:none;letter-spacing:0;color:var(--accent);font-weight:700}
+.dc-new-i{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:9px}
+.dc-new-i:first-of-type{border-top:0;padding-top:0}
+.dc-new-t{font-weight:700;font-size:15.5px;line-height:1.3}
+.dc-new-n{font-size:14px;color:var(--muted)}
+.dc-sent{border:1px solid var(--good);background:var(--surface);border-radius:12px;padding:11px 13px;margin:0 0 12px;font-size:15px}
+.dc-sent b{display:block}
+.dc-sent small{display:block;color:var(--muted);font-size:13.5px;margin-top:2px}
+.dsk .dc-headrow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.dsk .dc-bar{width:400px;flex:none}
+.dc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:1px}
+</style>
+
+<main class="page">
+  <header class="lead">
+    <span class="eyebrow">Painel admin · aba Decisões · desenho para aprovar</span>
+    <h1>Atualizar e Avisar as sessões</h1>
+    <p>Dois botões no topo da aba Decisões. <b>Atualizar</b> traz na hora o que as sessões fizeram desde a última vez que o senhor abriu a aba. <b>Avisar as sessões</b> diz às sessões do Claude abertas no Mac que há respostas suas esperando, para elas lerem e começarem a executar sem o senhor precisar escrever em cada conversa.</p>
+    <div class="quote">"um botão ali que quando eu aperto refresh... as informações das respostas que eu dei sejam enviadas para que as sessões possam ler e começar a executar... primeiro para eu ver as informações atualizadas, se você respondeu alguma coisa, e também... enviar um comando... para que você veja e possa responder, e começar a executar." (Evandro, 24/11/2026, aprovado com "1 sim" na sessão principal)</div>
+  </header>
+
+  <section class="screen">
+    <h2>Como funciona</h2>
+    <ol class="rules">
+      <li><b>Atualizar</b> recarrega a lista e mostra a hora ("Atualizado às 19:42"). Se alguma sessão executou, refez ou criou uma decisão desde a última vez, aparece a caixa <b>Novidades</b>, com o que cada sessão fez e a nota dela. Tocar numa novidade abre o cartão.</li>
+      <li><b>Avisar as sessões</b> grava um aviso com a hora e quem apertou. Segue a escolha do topo: com "Todas" avisa as três sessões; com "Painel admin" avisa só essa, e o botão muda para "Avisar Painel admin".</li>
+      <li>O botão diz quantas respostas suas aguardam execução. Funciona mesmo com zero, caso o senhor só queira que as sessões olhem a aba.</li>
+      <li>Depois de avisar, aparece "Aviso enviado às 19:43", e a hora fica embaixo dos botões ("Último aviso: 19:43"). São no máximo 20 avisos por hora.</li>
+      <li>As sessões no Mac conferem os avisos sozinhas e, quando há resposta nova, começam a executar. Uma sessão fechada vê o aviso quando for aberta. O senhor continua vendo o resultado de cada uma no cartão, em "Executado em … — nota".</li>
+    </ol>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2>1. Topo da aba no celular</h2><p>Os dois botões ficam acima do seletor das sessões. Embaixo deles, a hora da última atualização e do último aviso.</p></div>
+    <div class="pair" data-screen="top"></div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2>2. Depois de Atualizar</h2><p>A caixa Novidades lista o que mudou desde a última vez, com a sessão e a nota dela. Some quando o senhor toca em Fechar ou abre a aba de novo.</p></div>
+    <div class="pair" data-screen="news"></div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2>3. Depois de Avisar</h2><p>A confirmação diz a hora e quais sessões foram avisadas. Aqui o topo está em "Painel admin", então só essa sessão recebe o aviso.</p></div>
+    <div class="pair" data-screen="sent"></div>
+  </section>
+
+  <section class="screen">
+    <div class="screen-h"><h2>4. No computador</h2><p>Os botões ficam à direita do título, na mesma linha.</p></div>
+    <div class="pair" data-screen="desk"></div>
+  </section>
+
+  <p class="ex">Os cartões e as novidades acima são exemplos, com títulos de decisões reais da aba. Os horários e os números foram inventados para o desenho. Se o "Vou fazer depois" (decisão 76) for aprovado, os grupos passam a ser quatro, como no outro desenho.</p>
+
+  <section class="box">
+    <h2>O que muda por trás</h2>
+    <ul>
+      <li>Uma tabela nova guarda os avisos (hora, quem apertou, para qual sessão). Ninguém de fora lê nem escreve nela. O painel só grava por uma função própria, com o limite de 20 por hora, e só depois do mesmo login, papel de administrador e código do autenticador (ou o aparelho DT Admin) que a aba já exige para salvar.</li>
+      <li>As sessões no Mac leem o sinal por uma função que só responde a quem tem a chave delas. Ela devolve, por sessão, só três coisas: quantas respostas aguardam execução, a hora da última resposta e a hora do último aviso. Nenhum título, nenhum texto, nenhum dado de usuário.</li>
+      <li>Cada sessão tem a sua chave. A chave fica no Mac, fora do git; o banco guarda só a impressão dela (o hash), e uma chave pode ser cortada sem afetar as outras.</li>
+      <li>Atualizar não muda nada no banco; só lê de novo.</li>
+      <li>Primeiro o teste, depois o código. A migração é idempotente e tem como desfazer. Ela só é aplicada com o "pode" do senhor, e a publicação só com o "go".</li>
+    </ul>
+  </section>
+
+  <section class="box">
+    <h2>O que o senhor decide</h2>
+    <p>A pergunta está na aba Decisões, enviada pelo Painel admin, com estas opções:</p>
+    <ol class="opts">
+      <li>Aprovo o desenho. Pode construir, aplicar a migração e publicar.</li>
+      <li>Aprovo o desenho. Construa e me mostre funcionando antes de aplicar a migração.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+(function () {
+  var P = [
+    { o: 'Painel admin', tags: ['Painel', 'Visual'], t: 'Resposta "Vou fazer depois" em todos os cartões da aba Decisões', q: 'O senhor aprova o desenho da resposta "Vou fazer depois" e do rótulo "Tarefa sua"?' },
+    { o: 'Painel admin', tags: ['Painel', 'Regra'], t: 'Compra de teste (sandbox) para provar a receita por criador', q: 'O senhor pode fazer uma assinatura de teste com a conta de teste, no iPhone pelo TestFlight?' }
+  ];
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function tags(a) { return a.map(function (x) { return '<span class="dc-tag">' + esc(x) + '</span>'; }).join(''); }
+  function card(r) { return '<button class="dc-item"><span class="dc-item-top"><span class="dc-orig">' + esc(r.o) + '</span>' + tags(r.tags) + '<span class="dc-st acc">Pendente</span></span><span class="dc-item-t">' + esc(r.t) + '</span><span class="dc-item-q">' + esc(r.q) + '</span></button>'; }
+  function bar(origem, n, last) {
+    var lbl = origem ? 'Avisar ' + origem : 'Avisar as sessões';
+    return '<div class="dc-bar"><button class="ref">Atualizar</button><button class="ping">' + lbl + ' · ' + n + '</button></div>'
+      + '<div class="dc-stamp"><span>Atualizado às <b>19:42</b></span><span>Último aviso: <b>' + (last || 'nenhum hoje') + '</b></span></div>';
+  }
+  function orig(on) {
+    var o = [['Todas', 9], ['App', 3], ['Painel admin', 4], ['Publicidade', 2]];
+    return '<div class="dc-orig-seg">' + o.map(function (x) { return '<button class="' + (x[0] === on ? 'on' : '') + '">' + x[0] + ' <b>' + x[1] + '</b></button>'; }).join('') + '</div>';
+  }
+  function seg() { return '<div class="dc-seg" style="grid-template-columns:repeat(3,minmax(0,1fr))"><button class="on">Pendentes <b>9</b></button><button>Em alteração <b>2</b></button><button>Decididas <b>31</b></button></div>'; }
+  var head = '<div class="dc-h1">Decisões</div><p class="dc-intro">O que o senhor precisa decidir. Toque numa decisão para abrir.</p>';
+  var news = '<div class="dc-new"><div class="dc-new-h">Novidades desde 19:10 <span>Fechar</span></div>'
+    + '<div class="dc-new-i"><span class="dc-orig">Painel admin</span><span class="dc-new-t"><i class="dc-dot"></i>Executou: Aceitar 5 diferenças do programa de criadores</span><span class="dc-new-n">Registrado: creators.md diz "Desvios aceitos pelo Evandro", com a data e a sua resposta.</span></div>'
+    + '<div class="dc-new-i"><span class="dc-orig">Painel admin</span><span class="dc-new-t"><i class="dc-dot"></i>Nova versão em Pendentes: Nome do campo do código do influenciador</span><span class="dc-new-n">Reescrita em palavras simples, como o senhor pediu.</span></div>'
+    + '<div class="dc-new-i"><span class="dc-orig">App</span><span class="dc-new-t"><i class="dc-dot"></i>Em alteração: Tela de abertura nova</span><span class="dc-new-n">Desde 19:21.</span></div></div>';
+  var sent = '<div class="dc-sent"><b>Aviso enviado às 19:43 para Painel admin</b><small>2 respostas suas aguardam execução. A sessão começa assim que ler o aviso.</small></div>';
+  var S = {
+    top: function () { return head + bar('', 3, '') + orig('Todas') + seg() + '<div class="dc-list">' + P.map(card).join('') + '</div>'; },
+    news: function () { return head + bar('', 3, '') + news + orig('Todas') + seg() + '<div class="dc-list">' + card(P[0]) + '</div>'; },
+    sent: function () { return head + bar('Painel admin', 2, '19:43') + sent + orig('Painel admin') + seg() + '<div class="dc-list">' + P.map(card).join('') + '</div>'; }
+  };
+  function phone(inner, dark) {
+    return '<div class="frame"><span class="frame-cap">' + (dark ? 'Tema escuro' : 'Tema claro') + ' · 390 px</span><div class="ph m' + (dark ? ' dark' : '') + '">'
+      + '<div class="ph-top"><div><div class="ph-brand"><i></i>DoseTrace Admin</div><div class="ph-upd">Atualizado 19:42</div></div><button class="ph-menu">≡</button></div>'
+      + '<div class="ph-body">' + inner + '</div>'
+      + '<div class="ph-nav"><span>Resumo</span><span>Contas</span><span>Criadores</span><span class="on">Decisões<b>9</b></span><span>Mais</span></div></div></div>';
+  }
+  function desk(dark) {
+    var inner = '<div class="dc-headrow"><div>' + head + '</div><div>' + bar('', 3, '19:43') + '</div></div>' + news + orig('Todas') + seg() + '<div class="dc-list">' + P.map(card).join('') + '</div>';
+    return '<div class="frame desk"><span class="frame-cap">' + (dark ? 'Tema escuro' : 'Tema claro') + ' · computador</span><div class="ph dsk' + (dark ? ' dark' : '') + '">'
+      + '<div class="dsk-top"><div class="ph-brand"><i></i>DoseTrace Admin</div><div class="dsk-tabs"><span>Resumo</span><span>Contas</span><span>Criadores</span><span class="on">Decisões<b>9</b></span><span>Mais</span></div></div>'
+      + '<div class="ph-body">' + inner + '</div></div></div>';
+  }
+  document.querySelectorAll('[data-screen]').forEach(function (el) {
+    var k = el.getAttribute('data-screen');
+    el.innerHTML = k === 'desk' ? desk(false) + desk(true) : phone(S[k](), false) + phone(S[k](), true);
+  });
+})();
+</script>
