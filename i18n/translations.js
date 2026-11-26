@@ -7394,7 +7394,7 @@ export const translations = {
     nutri_per_day: '/dia',
     nutri_q_meal_forward: 'Já fez alguma refeição hoje, ou ainda vai comer?',
     nutri_q_meal_past: 'Você fez alguma refeição hoje — almoço, jantar, qualquer coisa?',
-    nutri_q_snack: 'Beliscou alguma coisa ao longo do dia — uma barrinha, uma fruta, um lanchinho?',
+    nutri_q_snack: 'Comeu algum lanche ao longo do dia, como uma barra, uma fruta ou um iogurte?',
     nutri_q_drink: 'Algo para beber? Café, suco, uma cerveja — tudo conta.',
     nutri_q_supplement: 'Algum suplemento hoje — um shake, creatina, vitaminas?',
     nutri_q_more_forward: 'Mais alguma coisa até agora? Se comer mais tarde, é só me contar.',
