@@ -105,7 +105,7 @@ export default function DoseObservation({ log, protocol, name, onContext, onSave
         <View style={s.rep}>
           <View style={s.repText}>
             <Text style={s.repTitle}>{t('dose_obs_repeat_title')}</Text>
-            <Text style={s.repBody} numberOfLines={3}>{repeatBody(repeatOn ? protocol : { repeat_dose_context: log.dose_context, repeat_dose_note: text || log.dose_note }, name, t)}</Text>
+            <Text style={s.repBody}>{repeatBody(repeatOn ? protocol : { repeat_dose_context: log.dose_context, repeat_dose_note: text || log.dose_note }, name, t)}</Text>
           </View>
           <GradSwitch value={repeatOn} onValueChange={onRepeat} accessibilityLabel={t('dose_obs_repeat_title')} />
         </View>
