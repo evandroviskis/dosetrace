@@ -137,7 +137,8 @@
           }
         }
       ],
-      "expo-video"
+      "expo-video",
+      "./plugins/withFragmentPin"
     ],
     "extra": {
       "eas": {
