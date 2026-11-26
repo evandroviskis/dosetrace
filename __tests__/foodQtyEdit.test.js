@@ -204,3 +204,12 @@ test('FR-16: the quantity strings exist in all 6 languages, formal pt, with thei
   assert.equal(T.pt.nutri_qty_hint, 'Calorias e macros mudam junto, na mesma proporção.');
   assert.equal(T.pt.nutri_qty_before, 'Antes: {amount}.');
 });
+
+// iPhone simulator 2026-11-26: "1" sat in the middle of a 56 pt box, far from "bowl" (the picture shows
+// "200 g" together). With a unit the number is right-aligned against it; alone it stays centred.
+test('FR-16: the number sits right next to its unit, as in the picture', () => {
+  const ed = require('fs').readFileSync(require('path').join(__dirname, '..', 'screens', 'components', 'FoodEntryEditor.js'), 'utf8');
+  assert.match(ed, /qtyInput: \{[^}]*textAlign: 'right'/);
+  assert.match(ed, /qtyInputAlone: \{ textAlign: 'center' \}/);
+  assert.match(ed, /style=\{\[s\.qtyInput, !unit && s\.qtyInputAlone\]\}/);
+});

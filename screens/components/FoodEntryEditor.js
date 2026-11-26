@@ -282,7 +282,7 @@ function QtyField({ s, colors, label, value, unit, hint, canLess, lessLabel, mor
           <TextInput
             ref={ref}
             onFocus={() => { if (onFocus) onFocus(ref); }}
-            style={s.qtyInput}
+            style={[s.qtyInput, !unit && s.qtyInputAlone]}
             value={value}
             onChangeText={onChange}
             keyboardType="decimal-pad"
@@ -352,7 +352,8 @@ const makeStyles = (c) => StyleSheet.create({
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   qtyBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.line, backgroundColor: c.raised, alignItems: 'center', justifyContent: 'center' },
   qtyMid: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  qtyInput: { minWidth: 56, maxWidth: '70%', textAlign: 'center', fontSize: 20, color: c.ink, fontVariant: ['tabular-nums'], paddingVertical: 6, paddingHorizontal: 4 },
+  qtyInput: { minWidth: 56, maxWidth: '70%', textAlign: 'right', fontSize: 20, color: c.ink, fontVariant: ['tabular-nums'], paddingVertical: 6, paddingHorizontal: 4 },
+  qtyInputAlone: { textAlign: 'center' },
   qtyUnit: { fontSize: 15, color: c.ink2, flexShrink: 1 },
   qtyHint: { fontSize: 13, lineHeight: 18, color: c.ink2 },
   danger: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
