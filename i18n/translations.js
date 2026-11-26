@@ -1481,7 +1481,7 @@ export const translations = {
           {
             id: 'recon_calculator',
             q: "How does the reconstitution calculator work?",
-            a: "Enter your compound amount and the volume of bacteriostatic water you added. DoseTrace calculates the concentration and shows exactly how much to draw in your syringe."
+            a: "Enter your compound amount and the amount of diluent you added. DoseTrace calculates the concentration and shows exactly how much to draw in your syringe."
           },
           {
             id: 'recon_syringes',
@@ -1491,7 +1491,7 @@ export const translations = {
           {
             id: 'recon_vial_life',
             q: "How long does a reconstituted vial last?",
-            a: "Most reconstituted peptides remain stable for approximately 30 days when refrigerated with bacteriostatic water."
+            a: "It depends on the compound and the diluent: follow the label or your health professional. In DoseTrace each vial uses the validity you set (30 days unless you change it), and the app warns you as it approaches."
           }
         ]
       },
@@ -4990,7 +4990,7 @@ export const translations = {
           {
             id: 'recon_calculator',
             q: "¿Cómo funciona la calculadora de reconstitución?",
-            a: "Introduce la cantidad de tu compuesto y el volumen de agua bacteriostática que añadiste. DoseTrace calcula la concentración y muestra exactamente cuánto cargar en tu jeringa."
+            a: "Introduce la cantidad de tu compuesto y la cantidad de diluyente que añadiste. DoseTrace calcula la concentración y muestra exactamente cuánto cargar en tu jeringa."
           },
           {
             id: 'recon_syringes',
@@ -5000,7 +5000,7 @@ export const translations = {
           {
             id: 'recon_vial_life',
             q: "¿Cuánto dura un vial reconstituido?",
-            a: "La mayoría de los péptidos reconstituidos permanecen estables durante aproximadamente 30 días cuando se refrigeran con agua bacteriostática."
+            a: "Depende del compuesto y del diluyente: sigue la etiqueta o a tu profesional de salud. En DoseTrace, cada vial usa la validez que definiste (30 días, salvo que la cambies), y la app te avisa cuando se acerca el final."
           }
         ]
       },
@@ -8499,7 +8499,7 @@ export const translations = {
           {
             id: 'recon_calculator',
             q: "Como funciona a calculadora de reconstituição?",
-            a: "Digite a quantidade do seu composto e o volume de água bacteriostática que você adicionou. O DoseTrace calcula a concentração e mostra exatamente quanto aspirar na seringa."
+            a: "Digite a quantidade do seu composto e a quantidade de diluente que você adicionou. O DoseTrace calcula a concentração e mostra exatamente quanto aspirar na seringa."
           },
           {
             id: 'recon_syringes',
@@ -8509,7 +8509,7 @@ export const translations = {
           {
             id: 'recon_vial_life',
             q: "Quanto tempo dura um frasco reconstituído?",
-            a: "A maioria dos peptídeos reconstituídos permanece estável por aproximadamente 30 dias quando refrigerados com água bacteriostática."
+            a: "Depende do composto e do diluente: siga o rótulo ou o seu profissional de saúde. No DoseTrace, cada frasco usa a validade que você definiu (30 dias, a menos que você mude), e o app avisa quando ela estiver chegando ao fim."
           }
         ]
       },
@@ -12007,7 +12007,7 @@ export const translations = {
           {
             id: 'recon_calculator',
             q: "Comment fonctionne le calculateur de reconstitution ?",
-            a: "Saisissez la quantité de votre composé et le volume d'eau bactériostatique que vous avez ajouté. DoseTrace calcule la concentration et vous montre exactement quel volume prélever avec votre seringue."
+            a: "Saisissez la quantité de votre composé et la quantité de diluant que vous avez ajoutée. DoseTrace calcule la concentration et vous montre exactement quel volume prélever avec votre seringue."
           },
           {
             id: 'recon_syringes',
@@ -12017,7 +12017,7 @@ export const translations = {
           {
             id: 'recon_vial_life',
             q: "Combien de temps se conserve un flacon reconstitué ?",
-            a: "La plupart des peptides reconstitués restent stables pendant environ 30 jours lorsqu'ils sont réfrigérés avec de l'eau bactériostatique."
+            a: "Cela dépend du composé et du diluant : suivez l'étiquette ou votre professionnel de santé. Dans DoseTrace, chaque flacon utilise la validité que vous avez indiquée (30 jours, sauf si vous la modifiez), et l'app vous prévient à l'approche de la fin."
           }
         ]
       },
@@ -15515,7 +15515,7 @@ export const translations = {
           {
             id: 'recon_calculator',
             q: "Wie funktioniert der Rekonstitutionsrechner?",
-            a: "Gib deine Substanzmenge und das Volumen des hinzugefügten bakteriostatischen Wassers ein. DoseTrace berechnet die Konzentration und zeigt genau, wie viel du in deiner Spritze aufziehen musst."
+            a: "Gib deine Substanzmenge und die Menge des hinzugefügten Lösungsmittels ein. DoseTrace berechnet die Konzentration und zeigt genau, wie viel du in deiner Spritze aufziehen musst."
           },
           {
             id: 'recon_syringes',
@@ -15525,7 +15525,7 @@ export const translations = {
           {
             id: 'recon_vial_life',
             q: 'Wie lange hält ein angemischtes Fläschchen?',
-            a: "Die meisten rekonstituierten Peptide bleiben etwa 30 Tage lang stabil, wenn sie im Kühlschrank mit bakteriostatischem Wasser gelagert werden."
+            a: "Das hängt von der Substanz und dem Lösungsmittel ab: Halte dich an das Etikett oder an deine Fachperson. In DoseTrace nutzt jedes Fläschchen die von dir festgelegte Haltbarkeit (30 Tage, außer du änderst sie), und die App warnt dich, wenn sie bald endet."
           }
         ]
       },
@@ -19024,7 +19024,7 @@ export const translations = {
           {
             id: 'recon_calculator',
             q: "Come funziona il calcolatore di ricostituzione?",
-            a: "Inserisci la tua quantità di composto e il volume di acqua batteriostatica che hai aggiunto. DoseTrace calcola la concentrazione e ti mostra esattamente quanto prelevare nella tua siringa."
+            a: "Inserisci la tua quantità di composto e la quantità di diluente che hai aggiunto. DoseTrace calcola la concentrazione e ti mostra esattamente quanto prelevare nella tua siringa."
           },
           {
             id: 'recon_syringes',
@@ -19034,7 +19034,7 @@ export const translations = {
           {
             id: 'recon_vial_life',
             q: "Quanto dura un flacone ricostituito?",
-            a: "La maggior parte dei peptidi ricostituiti rimane stabile per circa 30 giorni se conservati in frigorifero con acqua batteriostatica."
+            a: "Dipende dal composto e dal diluente: segui l'etichetta o il tuo professionista sanitario. In DoseTrace ogni flacone usa la validità che hai impostato (30 giorni, a meno che tu non la cambi), e l'app ti avvisa quando si avvicina la fine."
           }
         ]
       },
