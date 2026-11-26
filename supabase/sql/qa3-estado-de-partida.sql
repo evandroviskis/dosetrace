@@ -33,7 +33,7 @@ DECLARE
   k    int;
 BEGIN
   IF lang NOT IN ('pt','en','es','fr','de','it') THEN RAISE EXCEPTION 'language %', lang; END IF;
-  IF v_email NOT IN ('evandro1985+qa3@gmail.com', 'evandro1985+qa@gmail.com', 'dosetrace.io+s25@gmail.com', 'evandro1985+qa2@gmail.com') THEN RAISE EXCEPTION 'not a recording test account: %', v_email; END IF;
+  IF v_email NOT IN ('evandro1985+qa3@gmail.com', 'evandro1985+qa@gmail.com', 'dosetrace.io+s25@gmail.com', 'evandro1985+qa2@gmail.com', 'evandro1985+qa4@gmail.com') THEN RAISE EXCEPTION 'not a recording test account: %', v_email; END IF;
   SELECT id INTO uid FROM auth.users WHERE auth.users.email = v_email;
   IF uid IS NULL THEN RAISE EXCEPTION 'no account %', v_email; END IF;
   d0 := (now() AT TIME ZONE tz)::date;
