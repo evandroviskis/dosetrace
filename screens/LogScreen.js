@@ -124,6 +124,9 @@ export default function LogScreen({ embedded = false, refreshKey, onChanged, pop
     if (['Taken', 'Skipped', 'Missed'].includes(routeFilter)) {
       setFilter(routeFilter);
       if (!embedded) { try { navigation.setParams({ filter: undefined }); } catch { /* no params to clear */ } }
+      // FT-5 (Fold 2026-11-26): a search landing also brings the filtered list into view, as
+      // "Ver histórico" does; without it the page stayed on Today's title and rings.
+      if (embedded && filterKey != null) { pendingScroll.current = { to: 'log', n: Date.now() }; applyScroll(); }
     }
   }, [routeFilter, filterKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // UP-24 (option B): the card "Doses sem registro antes de {data}" while any unrecorded period remains;
