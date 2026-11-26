@@ -57,6 +57,14 @@ the decision did not foresee — raise it in one line, citing the decision, and 
 CUMULATIVE, EVERY reply, no exception (founder, same day): if he talks about something else and does not answer, the next reply answers what he said AND repeats every still-open decision; new decisions are added to the old ones. The live list is ~/Desktop/Second Brain/dosetrace/91-decisoes-pendentes.md (answered items move to 02-decisoes.md); the UserPromptSubmit hook .claude/hooks/decisoes-pendentes.sh injects it at every prompt.
 DECISIONS PAGE (founder, same day): the founder decides on https://claude.ai/artifact/GkAUg1YcjEgzWJPF5JZw5u (artifact db, collection "decisions": status pendente/aprovado/recusado/ajustar, choice, note). Before every reply read it (ArtifactData list) and move what he decided into 02-decisoes.md; every new question goes there too (with its design link) and into 91-decisoes-pendentes.md. A decision still pending there blocks the work it gates: never decide for him.
 
+## Standing rule: the rules card + the end-of-reply check (founder, 2026-11-26)
+
+"Eu percebo que você não está consultando... Você continua escorregando." A skill would not help (Claude chooses when
+to call it). Two hooks instead: checar-prompt.sh prints ~/Desktop/Second Brain/dosetrace/00-cartao-de-regras.md
+verbatim at every prompt (only rules that already slipped; every new slip becomes a line there, same day), and
+the Stop hook checar-resposta.sh blocks a reply that does not end with the decisions block. Read the card as a
+checklist before sending, every reply.
+
 ## Standing rule: websites — open Chrome and do it yourself (founder, 2026-11-26, asked ~4 times)
 
 "Toda vez que tiver que fazer alguma coisa que eu tenha que fazer acesso a algum site, você abre o Chrome,
