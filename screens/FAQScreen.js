@@ -17,7 +17,7 @@ import { fillStoreText } from '../lib/storeText';
 import useFreeProtocolLimit from '../lib/useFreeProtocolLimit'; // OB-28: the account's free protocol count
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
-import { faqTarget, faqGroupIndex } from '../lib/faqLinks';
+import { faqTarget, faqGroupIndex, faqForPlatform } from '../lib/faqLinks';
 
 // A group's own lines (CE-6, docs/specs/curve-explained.md): under the curve group's name the Bateman
 // line, under its questions the estimate footer, the same words as the curve screen.
@@ -54,7 +54,7 @@ export default function FAQScreen({ navigation, route }) {
   const freeProtocols = useFreeProtocolLimit();
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
-  const faqData = t('faq_categories') || [];
+  const faqData = faqForPlatform(t('faq_categories') || [], Platform.OS); // Android-only questions only there (lib/faqLinks)
   const hit = route && route.params && route.params.openQuestion ? faqTarget(faqData, route.params.openQuestion) : null;
   const hitKey = hit ? `${hit.ci}-${hit.qi}` : null;
   const groupAt = !hit && route && route.params && route.params.openGroup ? faqGroupIndex(faqData, route.params.openGroup) : -1;

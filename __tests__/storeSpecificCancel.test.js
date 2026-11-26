@@ -22,7 +22,8 @@ const tr = load();
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const LANGS = ['en', 'es', 'pt', 'fr', 'de', 'it'];
 const tFor = (l) => (k) => tr[l][k];
-const faqText = (l, os) => tr[l].faq_categories
+const { faqForPlatform } = require('../lib/faqLinks');
+const faqText = (l, os) => faqForPlatform(tr[l].faq_categories, os) // as the FAQ screen and the search read it
   .flatMap((c) => [c.category, ...c.questions.flatMap((q) => [q.q, fillStoreText(q.a, tFor(l), os)])]).join('\n');
 const termsText = (l, os) => fillStoreText(tr[l].settings_terms_body, tFor(l), os);
 const APPLE = /App Store|Apple ID|Apple-ID|ID de Apple|ID Apple|Identifiant Apple|Apple Account|Cuenta de Apple|Conta Apple|compte Apple|Account Apple|iPhone/;

@@ -198,14 +198,15 @@ test('AS-13 / AS-28: rows show only names and paths, never a value, unit, date, 
 const textIndex = (l) => TX.buildTextIndex(tFor(l), 'ios');
 const tsearch = (l, q) => TX.makeTextSearch(textIndex(l))(q);
 
-test('AS-24: the text index holds 83 paragraphs in each language, built from the strings the screens show', () => {
+test('AS-24: the text index holds 87 paragraphs in each language, built from the strings the screens show', () => {
   const { legalBlocks } = require('../lib/legalBlocks');
   for (const l of LANGS) {
     const u = textIndex(l);
     const by = {};
     u.forEach((x) => { by[x.src] = (by[x.src] || 0) + 1; });
-    assert.equal(u.length, 83, `${l}: ${JSON.stringify(by)}`); // WT-7: + the eight questions of Your weight
-    assert.equal(by.faq, 35, l); // CE-6: + the ten questions of the curve group; WT-7: + the eight of Your weight
+    assert.equal(u.length, 87, `${l}: ${JSON.stringify(by)}`); // WT-7: + the eight questions of Your weight; 2026-11-26: + four of Doses (the fifth is Android-only)
+    assert.equal(by.faq, 39, l); // 2026-11-26: + four questions of Doses on iOS (reminders_android_missing is Android-only)
+ // CE-6: + the ten questions of the curve group; WT-7: + the eight of Your weight
     assert.equal(by.learn, 5, l);
     // every paragraph is exactly a block LegalModal renders, with the heading above it
     for (const d of TX.LEGAL) {
@@ -216,7 +217,7 @@ test('AS-24: the text index holds 83 paragraphs in each language, built from the
     }
     // the FAQ answers with the store text filled, as FAQScreen shows them (no {store_…} token left)
     assert.equal(u.some((x) => /\{store_/.test(x.body)), false, l);
-    tr[l].faq_categories.forEach((c, ci) => c.questions.forEach((q, qi) => {
+    require('../lib/faqLinks').faqForPlatform(tr[l].faq_categories, 'ios').forEach((c, ci) => c.questions.forEach((q, qi) => { // as the iOS screen reads it
       const p = u.find((x) => x.src === 'faq' && x.open.ci === ci && x.open.qi === qi);
       assert.equal(p.title, q.q);
     }));

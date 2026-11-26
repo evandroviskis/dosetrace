@@ -1512,6 +1512,38 @@ export const translations = {
         ]
       },
       {
+        id: 'doses',
+        category: "Doses and reminders",
+        questions: [
+          {
+            id: 'doses_started_before',
+            q: "I started before installing the app. How do I record that?",
+            a: "When you create the protocol, set “When did you (or will you) start?” to the real date in the past. The app works out how many doses that would be and asks whether you took them all. If you answer “Yes, all of them”, the curve estimates that period and the vial starts with those doses already used. If you answer “No”, the curve starts today. Nothing is added to your dose log."
+          },
+          {
+            id: 'doses_yesterday',
+            q: "I forgot to mark yesterday's dose.",
+            a: "On Today, the dose shows under “Pending from yesterday”. Tap “Mark complete” if you took it or “Skip dose” if you didn't. If the app asks whether the dose is yesterday's or today's, choose the one you actually took."
+          },
+          {
+            id: 'doses_missed_but_taken',
+            q: "A dose shows as missed, but I took it.",
+            a: "A dose counts as missed when 12 hours pass without a record. Open the Dose log, tap “Missed”, tap the dose and choose “Mark complete”. The history and the curve update."
+          },
+          {
+            id: 'dose_change',
+            q: "I changed my dose. How do I update it without messing up my history?",
+            a: "Tap “Change dose” and enter the new dose. The app asks since when you have used it: “From now on”, “From the start”, or “From a dose”, and shows a summary of what changes before you save."
+          },
+          {
+            id: 'reminders_android_missing',
+            platform: 'android',
+            q: "My reminder didn't arrive.",
+            a: "On Android, the system can block reminders in several ways. In Settings, open “Check reminders”: the app checks your notification, alarm, and battery settings step by step and takes you straight to each one."
+          }
+        ]
+      },
+      {
         id: 'body',
         category: "My Body",
         questions: [
@@ -5017,6 +5049,38 @@ export const translations = {
             id: 'vials_expiry',
             q: "¿Qué pasa cuando vence un vial?",
             a: "DoseTrace te avisa cuando tu vial se acerca al final de la validez que definiste para él (30 días, salvo que la cambies en el protocolo). Los viales vencidos se marcan en rojo."
+          }
+        ]
+      },
+      {
+        id: 'doses',
+        category: "Dosis y recordatorios",
+        questions: [
+          {
+            id: 'doses_started_before',
+            q: "Empecé antes de instalar la app. ¿Cómo lo registro?",
+            a: "Al crear el protocolo, pon en “¿Cuándo empezaste (o empezarás)?” la fecha real, en el pasado. La app calcula cuántas dosis serían desde entonces y te pregunta si te las aplicaste todas. Si respondes “Sí, todas”, la curva estima ese periodo y el vial empieza con esas dosis ya usadas. Si respondes “No”, la curva empieza hoy. No se añade nada a tu registro de dosis."
+          },
+          {
+            id: 'doses_yesterday',
+            q: "Olvidé marcar la dosis de ayer.",
+            a: "En Hoy, la dosis aparece en “Pendiente de ayer”. Toca “Completar dosis” si te la aplicaste u “Omitir dosis” si no. Si la app pregunta si la dosis es de ayer o de hoy, elige la que realmente te aplicaste."
+          },
+          {
+            id: 'doses_missed_but_taken',
+            q: "Una dosis aparece como perdida, pero me la apliqué.",
+            a: "Una dosis queda como perdida cuando pasan 12 horas sin registro. Abre el Registro de dosis, toca “Perdidas”, toca la dosis y elige “Marcar como completada”. El historial y la curva se ajustan."
+          },
+          {
+            id: 'dose_change',
+            q: "Cambié la dosis. ¿Cómo la actualizo sin alterar el historial?",
+            a: "Toca “Cambiar dosis” e introduce la nueva dosis. La app pregunta desde cuándo la usas: “A partir de ahora”, “Desde el inicio” o “A partir de una dosis”, y muestra un resumen de lo que cambia antes de guardar."
+          },
+          {
+            id: 'reminders_android_missing',
+            platform: 'android',
+            q: "Mi recordatorio no llegó.",
+            a: "En Android, el sistema puede bloquear los recordatorios de varias formas. En Ajustes, abre “Comprobar recordatorios”: la app revisa paso a paso las notificaciones, las alarmas y recordatorios y la batería, y te lleva directamente a cada ajuste."
           }
         ]
       },
@@ -8530,6 +8594,38 @@ export const translations = {
         ]
       },
       {
+        id: 'doses',
+        category: "Doses e lembretes",
+        questions: [
+          {
+            id: 'doses_started_before',
+            q: "Comecei antes de instalar o app. Como registro?",
+            a: "Ao criar o protocolo, coloque em “Quando começou (ou vai começar)?” a data real, no passado. O app conta as doses desde então e pergunta se você aplicou todas. Se você responder “Sim, todas”, a curva estima esse período e o frasco começa com essas doses já usadas. Se responder “Não”, a curva começa hoje. Nada é adicionado ao seu registro de doses."
+          },
+          {
+            id: 'doses_yesterday',
+            q: "Esqueci de marcar a dose de ontem.",
+            a: "Em Hoje, a dose aparece em “Pendente de ontem”. Toque em “Concluir dose” se você a aplicou ou em “Pular dose” se não aplicou. Se o app perguntar se a dose é de ontem ou de hoje, escolha a que você realmente aplicou."
+          },
+          {
+            id: 'doses_missed_but_taken',
+            q: "A dose aparece como perdida, mas eu apliquei.",
+            a: "Uma dose fica como perdida quando passam 12 horas sem registro. Abra o Registro de doses, toque em “Perdidas”, toque na dose e escolha “Marcar como concluída”. O histórico e a curva se ajustam."
+          },
+          {
+            id: 'dose_change',
+            q: "Mudei a dose. Como atualizo sem mexer no histórico?",
+            a: "Toque em “Alterar dose” e coloque a nova dose. O app pergunta desde quando você usa a nova: “A partir de agora”, “Desde o início” ou “A partir de uma dose”, e mostra o resumo do que muda antes de salvar."
+          },
+          {
+            id: 'reminders_android_missing',
+            platform: 'android',
+            q: "Meu lembrete não chegou.",
+            a: "No Android, o sistema pode bloquear lembretes de várias formas. Em Ajustes, abra “Verificar lembretes”: o app confere, passo a passo, as notificações, os alarmes e lembretes e a bateria, e leva você direto a cada ajuste."
+          }
+        ]
+      },
+      {
         id: 'body',
         category: "Meu corpo",
         questions: [
@@ -12034,6 +12130,38 @@ export const translations = {
             id: 'vials_expiry',
             q: "Que se passe-t-il quand un flacon est périmé ?",
             a: "DoseTrace affiche un avertissement quand votre flacon approche de la fin de la validité que vous avez indiquée (30 jours, sauf si vous la modifiez dans le protocole). Les flacons périmés sont signalés en rouge."
+          }
+        ]
+      },
+      {
+        id: 'doses',
+        category: "Doses et rappels",
+        questions: [
+          {
+            id: 'doses_started_before',
+            q: "J’ai commencé avant d’installer l’app. Comment l’enregistrer ?",
+            a: "En créant le protocole, indiquez dans « Quand avez-vous commencé (ou quand allez-vous commencer) ? » la vraie date, dans le passé. L’app calcule combien de doses cela ferait depuis et vous demande si vous les avez toutes prises. Si vous répondez « Oui, toutes », la courbe estime cette période et le flacon commence avec ces doses déjà utilisées. Si vous répondez « Non », la courbe commence aujourd’hui. Rien n’est ajouté à votre journal des doses."
+          },
+          {
+            id: 'doses_yesterday',
+            q: "J’ai oublié de noter la dose d’hier.",
+            a: "Dans Aujourd’hui, la dose apparaît sous « En attente d'hier ». Touchez « Valider la dose » si vous l’avez prise ou « Sauter la dose » sinon. Si l’app demande si la dose est celle d’hier ou d’aujourd’hui, choisissez celle que vous avez vraiment prise."
+          },
+          {
+            id: 'doses_missed_but_taken',
+            q: "Une dose apparaît comme manquée, mais je l’ai prise.",
+            a: "Une dose est considérée comme manquée après 12 heures sans enregistrement. Ouvrez le Journal des doses, touchez « Manquées », touchez la dose et choisissez « Marquer comme effectuée ». L’historique et la courbe se mettent à jour."
+          },
+          {
+            id: 'dose_change',
+            q: "J’ai changé de dose. Comment la mettre à jour sans modifier l’historique ?",
+            a: "Touchez « Modifier la dose » et saisissez la nouvelle dose. L’app vous demande depuis quand vous l’utilisez : « À partir de maintenant », « Depuis le début » ou « À partir d’une dose », et affiche un résumé de ce qui change avant d’enregistrer."
+          },
+          {
+            id: 'reminders_android_missing',
+            platform: 'android',
+            q: "Mon rappel n’est pas arrivé.",
+            a: "Sur Android, le système peut bloquer les rappels de plusieurs façons. Dans Paramètres, ouvrez « Vérifier les rappels » : l’app vérifie étape par étape les notifications, les alarmes et rappels et la batterie, et vous mène directement à chaque réglage."
           }
         ]
       },
@@ -15546,6 +15674,38 @@ export const translations = {
         ]
       },
       {
+        id: 'doses',
+        category: "Dosen und Erinnerungen",
+        questions: [
+          {
+            id: 'doses_started_before',
+            q: "Ich habe vor der Installation der App angefangen. Wie trage ich das ein?",
+            a: "Gib beim Anlegen des Protokolls bei „Wann hast du angefangen (oder wann fängst du an)?“ das echte Datum in der Vergangenheit an. Die App berechnet, wie viele Dosen das seitdem wären, und fragt, ob du alle genommen hast. Antwortest du „Ja, alle“, schätzt die Kurve diesen Zeitraum, und das Fläschchen beginnt mit diesen bereits verbrauchten Dosen. Antwortest du „Nein“, beginnt die Kurve heute. In dein Dosisprotokoll wird nichts eingetragen."
+          },
+          {
+            id: 'doses_yesterday',
+            q: "Ich habe vergessen, die Dosis von gestern einzutragen.",
+            a: "Unter Heute erscheint die Dosis bei „Offen von gestern“. Tippe auf „Erledigt“, wenn du sie genommen hast, oder auf „Dosis auslassen“, wenn nicht. Fragt die App, ob die Dosis von gestern oder von heute ist, wähle die, die du wirklich genommen hast."
+          },
+          {
+            id: 'doses_missed_but_taken',
+            q: "Eine Dosis steht als verpasst, aber ich habe sie genommen.",
+            a: "Eine Dosis gilt als verpasst, wenn 12 Stunden ohne Eintrag vergehen. Öffne das Dosisprotokoll, tippe auf „Verpasst“, tippe auf die Dosis und wähle „Als erledigt markieren“. Verlauf und Kurve passen sich an."
+          },
+          {
+            id: 'dose_change',
+            q: "Ich habe meine Dosis geändert. Wie aktualisiere ich sie, ohne den Verlauf zu verändern?",
+            a: "Tippe auf „Dosis ändern“ und gib die neue Dosis ein. Die App fragt, seit wann du sie nimmst: „Ab jetzt“, „Von Anfang an“ oder „Ab einer Dosis“, und zeigt vor dem Speichern eine Übersicht, was sich ändert."
+          },
+          {
+            id: 'reminders_android_missing',
+            platform: 'android',
+            q: "Meine Erinnerung ist nicht angekommen.",
+            a: "Unter Android kann das System Erinnerungen auf verschiedene Weise blockieren. Öffne in den Einstellungen „Erinnerungen prüfen“: Die App prüft Schritt für Schritt die Benachrichtigungen, die Alarme und Erinnerungen und den Akku und bringt dich direkt zu jeder Einstellung."
+          }
+        ]
+      },
+      {
         id: 'body',
         category: "Mein Körper",
         questions: [
@@ -19051,6 +19211,38 @@ export const translations = {
             id: 'vials_expiry',
             q: "Che cosa succede quando un flacone scade?",
             a: "DoseTrace mostra un avviso quando il tuo flacone si avvicina alla fine della validità che hai impostato (30 giorni, a meno che tu non la cambi nel protocollo). I flaconi scaduti sono segnati in rosso."
+          }
+        ]
+      },
+      {
+        id: 'doses',
+        category: "Dosi e promemoria",
+        questions: [
+          {
+            id: 'doses_started_before',
+            q: "Ho iniziato prima di installare l’app. Come lo registro?",
+            a: "Quando crei il protocollo, inserisci in “Quando hai iniziato (o inizierai)?” la data reale, nel passato. L’app calcola quante dosi sarebbero da allora e ti chiede se le hai fatte tutte. Se rispondi “Sì, tutte”, la curva stima quel periodo e il flacone parte con quelle dosi già usate. Se rispondi “No”, la curva parte da oggi. Nel tuo registro delle dosi non viene aggiunto nulla."
+          },
+          {
+            id: 'doses_yesterday',
+            q: "Ho dimenticato di segnare la dose di ieri.",
+            a: "In Oggi, la dose compare in “In sospeso da ieri”. Tocca “Completa dose” se l’hai fatta o “Salta dose” se no. Se l’app chiede se la dose è di ieri o di oggi, scegli quella che hai fatto davvero."
+          },
+          {
+            id: 'doses_missed_but_taken',
+            q: "Una dose risulta mancata, ma l’ho fatta.",
+            a: "Una dose risulta mancata quando passano 12 ore senza registrazione. Apri il Registro delle dosi, tocca “Mancate”, tocca la dose e scegli “Segna come completata”. Lo storico e la curva si aggiornano."
+          },
+          {
+            id: 'dose_change',
+            q: "Ho cambiato dose. Come la aggiorno senza alterare lo storico?",
+            a: "Tocca “Modifica dose” e inserisci la nuova dose. L’app chiede da quando la usi: “Da adesso”, “Dall’inizio” o “Da una dose”, e mostra un riepilogo di ciò che cambia prima di salvare."
+          },
+          {
+            id: 'reminders_android_missing',
+            platform: 'android',
+            q: "Il mio promemoria non è arrivato.",
+            a: "Su Android il sistema può bloccare i promemoria in diversi modi. In Impostazioni apri “Verifica promemoria”: l’app controlla passo per passo le notifiche, le sveglie e promemoria e la batteria, e ti porta direttamente a ogni impostazione."
           }
         ]
       },

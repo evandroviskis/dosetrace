@@ -69,7 +69,7 @@ test('CE-6: deep links resolve by id; old { ci, qi } callers keep working; unkno
 
 test('CE-6: the FAQ screen opens by id, scrolls to a group, and shows the group\'s Bateman line and footer', () => {
   const src = read('screens', 'FAQScreen.js');
-  assert.match(src, /import \{ faqTarget, faqGroupIndex \} from '\.\.\/lib\/faqLinks';/);
+  assert.match(src, /import \{ faqTarget, faqGroupIndex(, faqForPlatform)? \} from '\.\.\/lib\/faqLinks';/); // 2026-11-26: + faqForPlatform
   assert.match(src, /faqTarget\(faqData, route\.params\.openQuestion\)/);
   assert.match(src, /faqGroupIndex\(faqData, route\.params\.openGroup\)/);
   assert.match(src, /const GROUP_LINES = \{ curve: \{ sub: 'curve_sub', note: 'curve_foot' \} \};/);

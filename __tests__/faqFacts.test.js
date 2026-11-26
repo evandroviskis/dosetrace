@@ -65,7 +65,7 @@ test('no answer points to a Vials tab', () => {
 });
 
 test('scans are said to be shared by labs, vaccine cards and vials wherever the FAQ counts them', () => {
-  for (const l of LANGS) for (const a of [qa(l, 0, 1), qa(l, 3, 0), premiumA(l)]) assert.match(a, SCAN, l);
+  for (const l of LANGS) for (const a of [qa(l, 0, 1), tr[l].faq_categories.flatMap((c) => c.questions).find((q) => q.id === 'body_lab_scan').a, premiumA(l)]) assert.match(a, SCAN, l);
 });
 
 test('a sentence that says "unlimited" calls the Premium scans "more", so "unlimited" can never be read onto them', () => {
