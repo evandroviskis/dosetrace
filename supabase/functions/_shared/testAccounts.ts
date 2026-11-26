@@ -6,7 +6,7 @@
 //
 // ONE definition, used by every capped function. A test account is the signed-in user whose email
 // (trimmed, lowercased) is in TEST_ACCOUNT_EMAILS or is a Gmail plus-alias of our own inbox
-// (dosetrace.io+anything@gmail.com) — and ONLY when that email is confirmed (email_confirmed_at
+// (dosetrace.io+anything@gmail.com, evandro1985+anything@gmail.com) — and ONLY when that email is confirmed (email_confirmed_at
 // set): the confirmation goes to our inbox, so nobody else can claim one.
 // evandro1985@gmail.com is deliberately NOT here: it is the account that tests the free limits.
 // This is not the Premium list (extract-bloodwork/quota.ts PREMIUM_EMAILS ↔ lib/purchases.js).
@@ -14,7 +14,9 @@
 
 export const TEST_ACCOUNT_EMAILS = ['dosetrace.io@gmail.com', 'appreview@dosetrace.io'];
 
-const INBOX_ALIAS = /^dosetrace\.io\+[a-z0-9._-]+@gmail\.com$/;
+// Plus-aliases of our own inboxes: dosetrace.io+x@gmail.com and the founder's test inbox evandro1985+x@gmail.com
+// (+qa, +qa2, +qa3, +qa4 in use, 2026-11-26). The bare evandro1985@gmail.com is NOT one (it tests the free limits).
+const INBOX_ALIAS = /^(dosetrace\.io|evandro1985)\+[a-z0-9._-]+@gmail\.com$/;
 
 export function isTestAccount(user: { email?: unknown; email_confirmed_at?: unknown } | null | undefined): boolean {
   if (!user || typeof user.email !== 'string') return false;

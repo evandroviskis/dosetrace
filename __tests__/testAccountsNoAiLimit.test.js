@@ -244,3 +244,18 @@ test('assistant: index.ts passes the test-account flag to the start and to the t
   assert.match(s, /\}, nowMs, \{ unlimited: noAiCap \}\);/);
   assert.ok(s.indexOf('const noAiCap = isTestAccount(user);') > s.indexOf('auth.getUser()'), 'decided only after auth');
 });
+
+// Found 2026-11-26 after the deploy: the test accounts in real use are evandro1985+qa, +qa2, +qa3 (the
+// Ads recording account), +qa4 — plus-aliases of the founder's own Gmail inbox, which the rule missed.
+// They are test accounts too; evandro1985@gmail.com itself stays limited (founder "1 sim": it tests
+// the free limits).
+test('test account: the plus-aliases of the founder test inbox count, the bare address does not', () => {
+  const { isTestAccount } = T();
+  for (const e of ['evandro1985+qa@gmail.com', 'evandro1985+qa2@gmail.com', 'evandro1985+qa3@gmail.com', 'EVANDRO1985+QA4@gmail.com ']) {
+    assert.equal(isTestAccount(u(e)), true, e);
+  }
+  for (const e of ['evandro1985@gmail.com', 'evandro1985+@gmail.com', 'xevandro1985+qa@gmail.com', 'evandro1985+qa@gmail.com.evil.com']) {
+    assert.equal(isTestAccount(u(e)), false, e);
+  }
+  assert.equal(isTestAccount({ id: 'u1', email: 'evandro1985+qa3@gmail.com', email_confirmed_at: null }), false, 'unconfirmed');
+});
