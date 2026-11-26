@@ -73,19 +73,20 @@ test('part 18: the unit sits right next to the Est. level number (the stat field
   assert.match(src, /width=\{levelW != null \? levelW : numW\(heroParts\.num\)\}/); // DB-9: the body number
 });
 
-test('part 21: no day question bubble on open unless it still applies — the prototype asks only after a log', () => {
-  const { resumableQuestion } = require('../lib/foodThread');
+// Founder 2026-11-26 (docs/specs/food-log-recent-receipt.md FR-12, amends FL-4): the day question after each
+// entry was replaced by the goodbye. The prototype rule stays: nothing is said on open by itself — the
+// goodbye only follows a log in this visit, and the day question comes from the reminders.
+test('part 21: no day question bubble and no goodbye on open — the app speaks only after a log', () => {
+  const { buildThread } = require('../lib/foodThread');
   const today = '2026-10-02';
-  const now = new Date('2026-10-02T12:00:00');
-  const cur = { id: 'drink', tense: 'neutral' };
-  assert.equal(resumableQuestion(cur, [], today, ['meal', 'snack', 'drink'], now), null, 'nothing logged today: no question on open');
-  const meal = [{ id: 1, entry_date: today, parse_status: 'done', parsed_items: [{ name: 'eggs', category: 'meal' }] }];
-  assert.deepEqual(resumableQuestion(cur, meal, today, ['meal', 'snack', 'drink'], now), cur, 'still open after a meal: kept (FL-32 resumes the thread)');
-  const drank = [...meal, { id: 2, entry_date: today, parse_status: 'done', parsed_items: [{ name: 'coffee', category: 'drink' }] }];
-  assert.equal(resumableQuestion(cur, drank, today, ['meal', 'snack', 'drink'], now), null, 'answered by a later log');
-  assert.equal(resumableQuestion(null, meal, today, [], now), null);
+  const meal = [{ id: 1, source: 'ai', entry_date: today, parse_status: 'done', created_at: new Date(2026, 9, 2, 8).toISOString(), raw_text: 'eggs', parsed_items: JSON.stringify([{ food: 'eggs', kcal: 140, category: 'meal', msg: 'm' }]) }];
+  const th = buildThread(meal, { todayISO: today });
+  assert.equal(th.filter((x) => x.type === 'question' || x.type === 'bye').length, 0, 'reopened: no question, no goodbye');
   const src = read('screens/FoodChatScreen.js');
-  assert.match(src, /const keep = resumableQuestion\(cur, r, localISO\(\), askedRef\.current\.ids, new Date\(\)\);/);
+  assert.doesNotMatch(src, /resumableQuestion|threadQuestion|askNext/, 'the day question is gone');
+  assert.match(src, /const \[bye, setBye\] = useState\(null\);/, 'the goodbye is not kept across visits');
+  const load = src.slice(src.indexOf('  async function load() {'), src.indexOf('  // Retry what waited for the network'));
+  assert.doesNotMatch(load, /setBye\(|sayBye\(/, 'opening the chat never says goodbye');
 });
 
 test('part 21: the send button is ink (prototype .send2) even when the box is empty, and still disabled then', () => {

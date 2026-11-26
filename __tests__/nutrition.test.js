@@ -71,49 +71,24 @@ test('markers: day_closed and not_recorded rows are markers, not food', () => {
   assert.deepEqual([...closedDays([{ source: 'day_closed', entry_date: '2026-09-06' }, { source: 'ai', entry_date: '2026-09-05' }])], ['2026-09-06']);
 });
 
-// ── FL-4/5/6/25: one question at a time about the rest of today ──
-const { pickDayQuestion, todayCategories, isDoneText } = require('../lib/nutrition');
-const row = (d, cats) => ({ entry_date: d, source: 'ai', parse_status: 'done', parsed_items: JSON.stringify(cats.map((c) => ({ food: 'x', kcal: 100, category: c }))) });
+// ── FL-4/5/6/25, amended 2026-11-26 (docs/specs/food-log-recent-receipt.md FR-12) ──
+// The question after each entry ("anything else today?", one category at a time) was replaced by the
+// goodbye; the day question now comes only from the meal reminders and the 20:00 question. FL-25 keeps
+// its rule through splitByDay / entryDateFor (food for an earlier day lands on that day).
+const nutritionLib = require('../lib/nutrition');
+const { isDoneText } = nutritionLib;
 const T = '2026-09-10';
-const noon = new Date('2026-09-10T12:00:00');
 
-test('pickDayQuestion: asks about the absent categories, one at a time, then one open "anything else", then stops', () => {
-  const e = [row(T, ['meal'])];
-  assert.deepEqual(pickDayQuestion(e, T, [], noon, false), { id: 'snack', tense: 'neutral' });
-  assert.deepEqual(pickDayQuestion(e, T, ['snack'], noon, false), { id: 'drink', tense: 'neutral' });
-  assert.deepEqual(pickDayQuestion(e, T, ['snack', 'drink'], noon, false), { id: 'supplement', tense: 'neutral' });
-  assert.deepEqual(pickDayQuestion(e, T, ['snack', 'drink', 'supplement'], noon, false), { id: 'more', tense: 'forward' });
-  assert.equal(pickDayQuestion(e, T, ['snack', 'drink', 'supplement', 'more'], noon, false), null);
+test('FR-12: the day question picker is gone (no question after each entry)', () => {
+  for (const k of ['pickDayQuestion', 'todayCategories', 'questionTense']) assert.equal(nutritionLib[k], undefined, k);
+  assert.deepEqual(nutritionLib.CATEGORIES, ['meal', 'snack', 'drink', 'supplement'], 'the categories are still stored on items');
 });
 
-test('pickDayQuestion: a category already logged today is never asked', () => {
-  const e = [row(T, ['drink']), row(T, ['snack', 'supplement'])];
-  assert.deepEqual(pickDayQuestion(e, T, [], noon, false), { id: 'meal', tense: 'forward' });
-  assert.deepEqual(pickDayQuestion(e, T, ['meal'], noon, false), { id: 'more', tense: 'forward' });
-});
-
-test('pickDayQuestion: time-aware tense — from 19:00 the day is asked about in the past tense', () => {
-  const e = [row(T, ['drink'])];
-  assert.deepEqual(pickDayQuestion(e, T, [], new Date('2026-09-10T20:00:00'), false), { id: 'meal', tense: 'past' });
-  assert.deepEqual(pickDayQuestion(e, T, [], new Date('2026-09-10T15:00:00'), false), { id: 'meal', tense: 'forward' });
-});
-
-test('pickDayQuestion: a closed day is never asked again', () => {
-  assert.equal(pickDayQuestion([row(T, ['meal'])], T, [], noon, true), null);
-});
-
-test('pickDayQuestion: food dated to an earlier day never counts toward today (FL-25)', () => {
-  // "pizza and a beer on Monday", typed today, lands on Monday — today still has no drink
-  const e = [row('2026-09-07', ['meal', 'drink']), row(T, ['meal'])];
-  assert.deepEqual([...todayCategories(e, T)], ['meal']);
-  assert.deepEqual(pickDayQuestion(e, T, ['snack'], noon, false), { id: 'drink', tense: 'neutral' });
-  // only a catch-up logged, nothing today → no question about today
-  assert.equal(pickDayQuestion([row('2026-09-07', ['meal'])], T, [], noon, false), null);
-});
-
-test('todayCategories: items saved before categories existed count as a meal; markers ignored', () => {
-  const e = [{ entry_date: T, source: 'ai', parsed_items: '[{"food":"toast","kcal":90}]' }, { entry_date: T, source: 'day_closed', parsed_items: '[]' }];
-  assert.deepEqual([...todayCategories(e, T)], ['meal']);
+test('FL-25: food for an earlier day typed today lands on that day, never on today', () => {
+  const groups = nutritionLib.splitByDay([{ food: 'pizza', kcal: 800, days_ago: 3 }, { food: 'toast', kcal: 90 }], T, null);
+  const days = groups.map((g) => g.entry_date).sort();
+  assert.deepEqual(days, ['2026-09-07', T].sort());
+  assert.equal(groups.find((g) => g.entry_date === '2026-09-07').items[0].food, 'pizza');
 });
 
 test('isDoneText: "that\'s it" and equivalents close the day in all 6 languages', () => {

@@ -15,12 +15,12 @@ function run(res, typed) {
     touch() {}, isDoneText: () => false, isNoText: () => false,
     setText: (v) => log.text.push(v), saveDraftNow: (v) => log.drafts.push(v), closeDay: async () => {},
     localISO: () => '2026-11-07', setNotice: (n) => log.notice.push(n), openFollowup: () => null,
-    skipFollowup() {}, askNext() {}, mustAskWhichEarlier: () => false, recentForParse: () => [],
-    getFoodLogsSince: () => [], setQuestion() {}, setConsentOpen() {}, askAIConsent: async () => true,
+    skipFollowup() {}, setBye() {}, sayBye() {}, announceLogged() {}, mustAskWhichEarlier: () => false, recentForParse: () => [],
+    getFoodLogsSince: () => [], setConsentOpen() {}, askAIConsent: async () => true,
     updateItem() {}, setBusy() {}, ensureFreeStart() {}, insertFoodLog: () => 7, rememberTypedHere() {},
     inFlight: new Set(), setSendingId() {}, refresh: () => [], parseFood: async () => res,
     deleteFoodLog: (id) => log.deleted.push(id), requestSync() {},
-    catchUpOutcome: () => ({ save: [], notice: 'too_old', putBack: typed }), saveParsed() {}, rememberAsked() {},
+    catchUpOutcome: () => ({ save: [], notice: 'too_old', putBack: typed }), saveParsed() {},
     sendFailureNotice: () => 'retry', isOnlineNow: () => true, scheduleCatchUp() {},
   };
   return loadFn('screens/FoodChatScreen.js', 'async function onSubmit(', 'onSubmit', deps)().then(() => log);

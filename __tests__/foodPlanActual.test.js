@@ -206,8 +206,9 @@ test('PA-7: food chat after a log — "+50 g protein in your day" on the latest 
   const chat = read('screens/FoodChatScreen.js');
   assert.match(chat, /const lastTodayEntry = useMemo\(\(\) => \{[\s\S]*?x\.type === 'entry' && x\.entry_date === today[\s\S]*?\}, \[thread, today\]\);/);
   assert.match(chat, /x\.key === lastTodayEntry && addedProtein\(x\) != null \? <Text style=\{s\.entryAdded\}>\{t\('pa_added_protein'\)\.replace\('\{n\}', formatInt\(addedProtein\(x\), language\)\)\}<\/Text> : null/);
-  assert.match(chat, /<Text style=\{s\.dayTotalHead\}>\{t\('pa_today_plan'\)\}<\/Text>\s*<PlanBars rows=\{todayBars\(x, plan\)\} \/>/);
-  assert.match(chat, /x\.fiber_g != null \? <Text style=\{s\.dayFiber\}>/, 'fiber stays as a number');
+  // FR-10 (founder 2026-11-26): the day sits in the panel fixed on top, no longer a card inside the thread.
+  assert.match(chat, /<Text style=\{s\.gHead\}>\{t\('pa_today_plan'\)\}<\/Text>\s*<PlanBars rows=\{todayBars\(dayTot, plan\)\} \/>/);
+  assert.match(chat, /dayTot\.fiber_g != null \? <Text style=\{s\.gSub\}>/, 'fiber stays as a number');
   assert.match(chat, /t\('nutri_est_note'\)/, 'the AI estimate note stays');
   assert.match(chat, /setPlan\(\(await readProgressTile\(\)\.catch\(\(\) => null\)\)\?\.plan \|\| null\);/);
   // Over plan in grey (ink3), never risk / attention.
@@ -218,11 +219,11 @@ test('PA-7: food chat after a log — "+50 g protein in your day" on the latest 
 
 test('PA-8: food chat without a plan — the numbers as before and "Set up your plan in Progress to compare"', () => {
   const chat = read('screens/FoodChatScreen.js');
-  const dt = chat.match(/case 'day_total':([\s\S]*?)case 'echo'/);
+  // FR-10: the panel fixed on top (dayTot), with or without a plan.
+  const dt = chat.match(/\{dayTot \? <View style=\{s\.band\}>\{plan \? \(([\s\S]*?)<FlatList/);
   assert.ok(dt);
-  assert.match(dt[1], /plan \? \(/);
-  assert.match(dt[1], /<Text style=\{s\.dayTotalHead\}>\{t\('nutri_today'\)\}<\/Text>/, 'the day line as before');
-  assert.match(dt[1], /<Text style=\{s\.dayNoPlan\}>\{t\('pa_no_plan'\)\}<\/Text>/);
+  assert.match(dt[1], /<Text style=\{s\.gHead\}>\{t\('nutri_today'\)\}<\/Text>/, 'the day line as before');
+  assert.match(dt[1], /<Text style=\{s\.gNoPlan\}>\{t\('pa_no_plan'\)\}<\/Text>/);
   assert.equal(tr.en.pa_no_plan, 'Set up your plan in Progress to compare');
   assert.equal(tr.pt.pa_no_plan, 'Monte seu plano em Progresso para comparar');
 });

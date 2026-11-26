@@ -42,9 +42,12 @@ test('A-133: a notice with no rows (deflect, fix, offline…) is kept; no notice
 
 test('A-133: the chat links each Updated notice to its rows and filters it by the live rows', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'FoodChatScreen.js'), 'utf8');
-  assert.match(src, /withNotice\(withDayTotal\(th, dayFoodTotal\(rows, today\), today\), liveNotice\(/);
+  // FR-10: the day total left the thread (fixed panel on top), so the notice goes straight onto it.
+  assert.match(src, /withNotice\(th, liveNotice\(/);
+  // FR-9: a follow-up answer no longer says "Updated — …" under its receipt (the receipt is the echo);
+  // the catch-up of offline rows (on open and on reconnect) still does.
   const updates = src.match(/setNotice\(\{ kind: 'updated'[^)]*\}\)/g) || [];
-  assert.ok(updates.length >= 3, 'all Updated notices found');
+  assert.equal(updates.length, 2, 'the two catch-up Updated notices');
   for (const u of updates) assert.match(u, /rowIds/, 'carries rowIds: ' + u);
   const actions = fs.readFileSync(path.join(__dirname, '..', 'lib', 'foodLogActions.js'), 'utf8');
   assert.match(actions, /return \{ changed, updatedItems, updatedRowIds \}/, 'catch-up reports which rows it updated');
