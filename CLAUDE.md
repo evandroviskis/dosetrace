@@ -196,6 +196,9 @@ say it, from the context of the screen — never a literal rendering of the Engl
 realidade". Before adding or changing any string: read where it appears, what it means to
 the user, then write the natural phrase; keep one term per concept across the whole app.
 A literal translation that reads oddly to a native speaker is a bug, same as a typo.
+No regionalisms (founder 2026-11-26: "beliscar" is São Paulo speech): every text uses the word any speaker of
+that language understands (pt-BR across Brazil, es across Spain and Latin America, and so on). A personal, human
+tone is welcome; regional slang and diminutives are not.
 
 ## Standing rule: SHOW the layout before building it (2026-10-02, founder directive)
 
