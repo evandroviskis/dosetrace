@@ -87,7 +87,7 @@ export default function HowtoPlayer({ video, title, onClose, onFinished, onFaile
         </View>
 
         <View style={s.frame}>
-          <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} allowsPictureInPicture={false} />
+          <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} allowsPictureInPicture={false} surfaceType="textureView" />
         </View>
 
         <View style={s.bottom}>
