@@ -26,7 +26,7 @@ import { pluralKey } from '../../lib/plural';
 import { localISO } from '../../lib/localDate';
 import {
   compoundChoices, compoundChosen, pickCompound, typedCompound, vialFields, vialPicture, FREQUENCIES, CUSTOM_INTERVALS,
-  pastCount, pastAnswers, summaryRows, draftToForm, startDateFor, compoundIdFor,
+  pastCount, pastAnswers, answerFor, summaryRows, draftToForm, startDateFor, compoundIdFor,
 } from '../../lib/onboardingDraft';
 import { purposeFromProfile } from '../../lib/protocolPurpose';
 
@@ -385,9 +385,9 @@ function StartStep({ s, c, p, patch, t, language }) {
           <Text style={s.fieldHead}>{t(pluralKey('ob_start_past', n, language)).replace('{date}', formatDate(startDateFor(p, now), language, 'dayMonthAuto')).replace('{n}', String(n))}</Text>
           <View style={s.chips}>
             {answers.map((k) => {
-              const on = p.pastAnswer === k;
+              const on = answerFor(p, n) === k;
               return (
-                <TouchableOpacity key={k} style={[s.chip, on && s.chipOn]} onPress={() => patch({ pastAnswer: k })} accessibilityRole="radio" accessibilityState={{ selected: on }}>
+                <TouchableOpacity key={k} style={[s.chip, on && s.chipOn]} onPress={() => patch({ pastAnswer: k, pastAnswerCount: n })} accessibilityRole="radio" accessibilityState={{ selected: on }}>
                   <Text style={[s.chipText, on && s.chipTextOn]}>{label[k]}</Text>
                 </TouchableOpacity>
               );

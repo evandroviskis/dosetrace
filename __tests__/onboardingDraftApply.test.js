@@ -159,3 +159,40 @@ test('council 2026-11-20 (item 20): a start she answered days before the account
   assert.match(PS, /if \(protocolData\) askPastStart\(protocolData, newVialId != null \? getVialById\(newVialId\) : null\);/, 'the manual form uses the same question');
   assert.match(PS, /\['protocol', 'calc', 'vial', 'newVial', 'editVial', 'schedule', 'pastDoses'\]\.includes\(sp\.target\)/);
 });
+
+test('S25 2026-11-25/26: "Sim, todas" answered for 7 doses on one day and the account made the next day (now 8) is never applied as 8; the app asks its own past-doses question again with the new count', async () => {
+  // answered on the 20th 15:00 for a start on the 13th (daily 08:00): 7 doses (13..19); account on the 21st.
+  const p = { ...PROTOCOL, startMode: 'started', startedOn: '2026-11-13', startOn: '2026-11-13', pastAnswer: 'yes' };
+  const answered = D.pastCount(p, new Date(NOW));
+  const next = NOW + 24 * 3600 * 1000;
+  assert.notEqual(D.pastCount(p, new Date(next)), answered, 'the count grew overnight');
+  const writes = [];
+  const grown = await setup({ draftPatch: { protocol: { ...p, pastAnswerCount: answered } } });
+  grown.deps.past = { ...grown.deps.past, pastStartWrites: (...a) => { writes.push(a[0]); return pastStartWrites(...a); } };
+  const r = await A.applyDraft({ user: { id: 'u1', created_at: new Date(next - 60000).toISOString() }, nowMs: next }, grown.deps);
+  assert.equal(r.action, 'inserted');
+  assert.deepEqual(writes, [], 'the old answer is not applied to a different count');
+  assert.equal(r.followUp, 'pastDoses', 'the question comes back with the current count');
+  // same day: the count she saw is the count now, the answer is applied as before
+  const sameWrites = [];
+  const same = await setup({ draftPatch: { protocol: { ...p, pastAnswerCount: answered } } });
+  same.deps.past = { ...same.deps.past, pastStartWrites: (...a) => { sameWrites.push(a[0]); return pastStartWrites(...a); } };
+  const r2 = await A.applyDraft({ user: { id: 'u1', created_at: '2026-11-20T14:55:00.000Z' }, nowMs: NOW }, same.deps);
+  assert.deepEqual(sameWrites, ['yes']);
+  assert.notEqual(r2.followUp, 'pastDoses');
+  // the step records the count she answered for
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'screens', 'components', 'OnboardingProtocolSteps.js'), 'utf8');
+  assert.match(src, /patch\(\{ pastAnswer: k, pastAnswerCount: n \}\)/);
+});
+
+test('S25 2026-11-26: back in the onboarding the next day, an answer given for another count is not shown as chosen and does not let her continue', () => {
+  const p = { ...PROTOCOL, startMode: 'started', startedOn: '2026-11-13', startOn: '2026-11-13', pastAnswer: 'yes' };
+  const n = D.pastCount(p, new Date(NOW));
+  assert.equal(D.answerFor(p, n), 'yes', 'legacy draft without a count keeps its answer');
+  assert.equal(D.answerFor({ ...p, pastAnswerCount: n }, n), 'yes');
+  assert.equal(D.answerFor({ ...p, pastAnswerCount: n - 1 }, n), null);
+  assert.equal(D.startReady({ ...p, pastAnswerCount: n }, new Date(NOW)), true);
+  assert.equal(D.startReady({ ...p, pastAnswerCount: n - 1 }, new Date(NOW)), false);
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'screens', 'components', 'OnboardingProtocolSteps.js'), 'utf8');
+  assert.match(src, /const on = answerFor\(p, n\) === k;/);
+});
