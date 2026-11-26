@@ -22,7 +22,7 @@ for (const l of LANGS) {
     assert.ok(a.doses_yesterday.includes(tr[l].today_pending_skip), 'skip label');
     assert.ok(a.doses_missed_but_taken.includes(tr[l].log_mark_taken), 'mark taken label');
     assert.ok(a.dose_change.includes(tr[l].dosefix_now) && a.dose_change.includes(tr[l].dosefix_start) && a.dose_change.includes(tr[l].dosefix_from), 'dose change options');
-    assert.ok(a.reminders_android_missing.includes(tr[l].settings_rc_title), 'reminder check label');
+    assert.ok(a.reminders_android_missing.includes(tr[l].settings_setup_title), 'the Android reminder row label (Ads 2026-11-26)');
     assert.equal(g.questions.find((q) => q.id === 'reminders_android_missing').platform, 'android');
   });
 }

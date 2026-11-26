@@ -145,7 +145,7 @@ test('HV-8: the variant reads the book layout and the profile sex at every focus
   assert.match(s, /useProfileSex\(\)/);
   assert.match(runtime(), /useFocusEffect/);
   assert.match(runtime(), /user_metadata/);
-  assert.match(runtime(), /gender/);
+  assert.match(runtime(), /figureSex\(/); // the sex of the body the app draws (Ads 2026-11-26)
 });
 
 test('HV-9: two anonymous events through lib/analytics (the switch respected), no third-party SDK', () => {

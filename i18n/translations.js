@@ -1552,13 +1552,13 @@ export const translations = {
           {
             id: 'dose_change',
             q: "I changed my dose. How do I update it without messing up my history?",
-            a: "Tap “Change dose” and enter the new dose. The app asks since when you have used it: “From now on”, “From the start”, or “From a dose”, and shows a summary of what changes before you save."
+            a: "In Protocols, open the protocol and tap “Edit”. Change “Dose amount” and tap “Save”. The app asks since when you have used the new dose: “From now on”, “From the start”, or “From a dose”, and shows a summary of what changes before it saves."
           },
           {
             id: 'reminders_android_missing',
             platform: 'android',
             q: "My reminder didn't arrive.",
-            a: "On Android, the system can block reminders in several ways. In Settings, open “Check reminders”: the app checks your notification, alarm, and battery settings step by step and takes you straight to each one."
+            a: "On Android, the system can block reminders in several ways. In Settings, open “Make sure your reminders arrive”: the app checks your notification, alarm, and battery settings step by step and takes you straight to each one."
           }
         ]
       },
@@ -5112,13 +5112,13 @@ export const translations = {
           {
             id: 'dose_change',
             q: "Cambié la dosis. ¿Cómo la actualizo sin alterar el historial?",
-            a: "Toca “Cambiar dosis” e introduce la nueva dosis. La app pregunta desde cuándo la usas: “A partir de ahora”, “Desde el inicio” o “A partir de una dosis”, y muestra un resumen de lo que cambia antes de guardar."
+            a: "En Protocolos, abre el protocolo y toca “Editar”. Cambia la “Cantidad por dosis” y toca “Guardar”. La app pregunta desde cuándo usas la nueva dosis: “A partir de ahora”, “Desde el inicio” o “A partir de una dosis”, y muestra un resumen de lo que cambia antes de guardar."
           },
           {
             id: 'reminders_android_missing',
             platform: 'android',
             q: "Mi recordatorio no llegó.",
-            a: "En Android, el sistema puede bloquear los recordatorios de varias formas. En Ajustes, abre “Comprobar recordatorios”: la app revisa paso a paso las notificaciones, las alarmas y recordatorios y la batería, y te lleva directamente a cada ajuste."
+            a: "En Android, el sistema puede bloquear los recordatorios de varias formas. En Ajustes, abre “Asegúrate de que lleguen tus recordatorios”: la app revisa paso a paso las notificaciones, las alarmas y recordatorios y la batería, y te lleva directamente a cada ajuste."
           }
         ]
       },
@@ -8672,13 +8672,13 @@ export const translations = {
           {
             id: 'dose_change',
             q: "Mudei a dose. Como atualizo sem mexer no histórico?",
-            a: "Toque em “Alterar dose” e coloque a nova dose. O app pergunta desde quando você usa a nova: “A partir de agora”, “Desde o início” ou “A partir de uma dose”, e mostra o resumo do que muda antes de salvar."
+            a: "Em Protocolos, abra o protocolo e toque em “Editar”. Mude a “Quantidade por dose” e toque em “Salvar”. O app pergunta desde quando você usa a nova dose: “A partir de agora”, “Desde o início” ou “A partir de uma dose”, e mostra o resumo do que muda antes de salvar."
           },
           {
             id: 'reminders_android_missing',
             platform: 'android',
             q: "Meu lembrete não chegou.",
-            a: "No Android, o sistema pode bloquear lembretes de várias formas. Em Ajustes, abra “Verificar lembretes”: o app confere, passo a passo, as notificações, os alarmes e lembretes e a bateria, e leva você direto a cada ajuste."
+            a: "No Android, o sistema pode bloquear lembretes de várias formas. Em Ajustes, abra “Garanta que seus lembretes cheguem”: o app confere, passo a passo, as notificações, os alarmes e lembretes e a bateria, e leva você direto a cada ajuste."
           }
         ]
       },
@@ -12231,13 +12231,13 @@ export const translations = {
           {
             id: 'dose_change',
             q: "J’ai changé de dose. Comment la mettre à jour sans modifier l’historique ?",
-            a: "Touchez « Modifier la dose » et saisissez la nouvelle dose. L’app vous demande depuis quand vous l’utilisez : « À partir de maintenant », « Depuis le début » ou « À partir d’une dose », et affiche un résumé de ce qui change avant d’enregistrer."
+            a: "Dans Protocoles, ouvrez le protocole et touchez « Modifier ». Changez la « Quantité par dose » et touchez « Enregistrer ». L’app vous demande depuis quand vous utilisez la nouvelle dose : « À partir de maintenant », « Depuis le début » ou « À partir d’une dose », et affiche un résumé de ce qui change avant d’enregistrer."
           },
           {
             id: 'reminders_android_missing',
             platform: 'android',
             q: "Mon rappel n’est pas arrivé.",
-            a: "Sur Android, le système peut bloquer les rappels de plusieurs façons. Dans Paramètres, ouvrez « Vérifier les rappels » : l’app vérifie étape par étape les notifications, les alarmes et rappels et la batterie, et vous mène directement à chaque réglage."
+            a: "Sur Android, le système peut bloquer les rappels de plusieurs façons. Dans Paramètres, ouvrez « Assurez-vous que vos rappels arrivent » : l’app vérifie étape par étape les notifications, les alarmes et rappels et la batterie, et vous mène directement à chaque réglage."
           }
         ]
       },
@@ -15790,13 +15790,13 @@ export const translations = {
           {
             id: 'dose_change',
             q: "Ich habe meine Dosis geändert. Wie aktualisiere ich sie, ohne den Verlauf zu verändern?",
-            a: "Tippe auf „Dosis ändern“ und gib die neue Dosis ein. Die App fragt, seit wann du sie nimmst: „Ab jetzt“, „Von Anfang an“ oder „Ab einer Dosis“, und zeigt vor dem Speichern eine Übersicht, was sich ändert."
+            a: "Öffne unter Protokolle das Protokoll und tippe auf „Bearbeiten“. Ändere die „Dosismenge“ und tippe auf „Speichern“. Die App fragt, seit wann du die neue Dosis nimmst: „Ab jetzt“, „Von Anfang an“ oder „Ab einer Dosis“, und zeigt vorher eine Übersicht, was sich ändert."
           },
           {
             id: 'reminders_android_missing',
             platform: 'android',
             q: "Meine Erinnerung ist nicht angekommen.",
-            a: "Unter Android kann das System Erinnerungen auf verschiedene Weise blockieren. Öffne in den Einstellungen „Erinnerungen prüfen“: Die App prüft Schritt für Schritt die Benachrichtigungen, die Alarme und Erinnerungen und den Akku und bringt dich direkt zu jeder Einstellung."
+            a: "Unter Android kann das System Erinnerungen auf verschiedene Weise blockieren. Öffne in den Einstellungen „Sorge dafür, dass deine Erinnerungen ankommen“: Die App prüft Schritt für Schritt die Benachrichtigungen, die Alarme und Erinnerungen und den Akku und bringt dich direkt zu jeder Einstellung."
           }
         ]
       },
@@ -19350,13 +19350,13 @@ export const translations = {
           {
             id: 'dose_change',
             q: "Ho cambiato dose. Come la aggiorno senza alterare lo storico?",
-            a: "Tocca “Modifica dose” e inserisci la nuova dose. L’app chiede da quando la usi: “Da adesso”, “Dall’inizio” o “Da una dose”, e mostra un riepilogo di ciò che cambia prima di salvare."
+            a: "In Protocolli apri il protocollo e tocca “Modifica”. Cambia la “Quantità della dose” e tocca “Salva”. L’app chiede da quando usi la nuova dose: “Da adesso”, “Dall’inizio” o “Da una dose”, e mostra un riepilogo di ciò che cambia prima di salvare."
           },
           {
             id: 'reminders_android_missing',
             platform: 'android',
             q: "Il mio promemoria non è arrivato.",
-            a: "Su Android il sistema può bloccare i promemoria in diversi modi. In Impostazioni apri “Verifica promemoria”: l’app controlla passo per passo le notifiche, le sveglie e promemoria e la batteria, e ti porta direttamente a ogni impostazione."
+            a: "Su Android il sistema può bloccare i promemoria in diversi modi. In Impostazioni apri “Assicurati che i promemoria arrivino”: l’app controlla passo per passo le notifiche, le sveglie e promemoria e la batteria, e ti porta direttamente a ogni impostazione."
           }
         ]
       },
