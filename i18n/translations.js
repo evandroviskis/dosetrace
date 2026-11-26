@@ -1507,7 +1507,7 @@ export const translations = {
           {
             id: 'vials_expiry',
             q: "What happens when a vial expires?",
-            a: "DoseTrace will show a warning when your vial is approaching its 30-day expiry. Expired vials are marked in red."
+            a: "DoseTrace shows a warning when your vial is approaching the end of the validity you set for it (30 days unless you change it in the protocol). Expired vials are marked in red."
           }
         ]
       },
@@ -1533,7 +1533,7 @@ export const translations = {
           {
             id: 'body_dose_in_body',
             q: "What is Dose in the body?",
-            a: "An estimate of how much of a compound may be in your body over time, worked out from your planned schedule and published half-lives. It is a math model, not a measurement of real blood levels: confirm with bloodwork. Dose in the body is part of Premium."
+            a: "An estimate of how much of a compound may be in your body over time, worked out with published half-lives: up to now from the doses you marked as done, at the time you marked them, and after now from your planned schedule. It is a math model, not a measurement of real blood levels: confirm with bloodwork. Dose in the body is part of Premium."
           }
         ]
       },
@@ -5016,7 +5016,7 @@ export const translations = {
           {
             id: 'vials_expiry',
             q: "¿Qué pasa cuando vence un vial?",
-            a: "DoseTrace te avisa cuando tu vial se acerca al final de sus 30 días de validez. Los viales vencidos se marcan en rojo."
+            a: "DoseTrace te avisa cuando tu vial se acerca al final de la validez que definiste para él (30 días, salvo que la cambies en el protocolo). Los viales vencidos se marcan en rojo."
           }
         ]
       },
@@ -5042,7 +5042,7 @@ export const translations = {
           {
             id: 'body_dose_in_body',
             q: "¿Qué es Dosis en el cuerpo?",
-            a: 'Una estimación de la cantidad de un compuesto que puede haber en tu cuerpo a lo largo del tiempo, calculada con tu esquema planificado y las vidas medias publicadas. Es un modelo matemático, no una medición de tus niveles reales en sangre: confírmalo con análisis. La curva Dosis en el cuerpo forma parte de Premium.'
+            a: 'Una estimación de la cantidad de un compuesto que puede haber en tu cuerpo a lo largo del tiempo, calculada con vidas medias publicadas: hasta ahora, a partir de las dosis que marcaste como hechas, a la hora en que las marcaste; después de ahora, a partir de tu esquema planificado. Es un modelo matemático, no una medición de tus niveles reales en sangre: confírmalo con análisis. La curva Dosis en el cuerpo forma parte de Premium.'
           }
         ]
       },
@@ -8525,7 +8525,7 @@ export const translations = {
           {
             id: 'vials_expiry',
             q: "O que acontece quando um frasco vence?",
-            a: "O DoseTrace mostra um aviso quando seu frasco estiver se aproximando do vencimento de 30 dias. Frascos vencidos são marcados em vermelho."
+            a: "O DoseTrace mostra um aviso quando seu frasco estiver chegando ao fim da validade que você definiu para ele (30 dias, a menos que você mude no protocolo). Frascos vencidos são marcados em vermelho."
           }
         ]
       },
@@ -8551,7 +8551,7 @@ export const translations = {
           {
             id: 'body_dose_in_body',
             q: "O que é Dose no corpo?",
-            a: "Uma estimativa de quanto de um composto pode estar no seu corpo ao longo do tempo, calculada a partir do seu esquema planejado e de meias-vidas publicadas. É um modelo matemático, não uma medição dos seus níveis reais no sangue: confirme com exames. A curva Dose no corpo faz parte do Premium."
+            a: "Uma estimativa de quanto de um composto pode estar no seu corpo ao longo do tempo, calculada com meias-vidas publicadas: até agora, a partir das doses que você marcou como concluídas, no horário em que as marcou; depois de agora, a partir do seu esquema planejado. É um modelo matemático, não uma medição dos seus níveis reais no sangue: confirme com exames. A curva Dose no corpo faz parte do Premium."
           }
         ]
       },
@@ -12033,7 +12033,7 @@ export const translations = {
           {
             id: 'vials_expiry',
             q: "Que se passe-t-il quand un flacon est périmé ?",
-            a: "DoseTrace affiche un avertissement quand votre flacon approche de sa limite de 30 jours. Les flacons périmés sont signalés en rouge."
+            a: "DoseTrace affiche un avertissement quand votre flacon approche de la fin de la validité que vous avez indiquée (30 jours, sauf si vous la modifiez dans le protocole). Les flacons périmés sont signalés en rouge."
           }
         ]
       },
@@ -12059,7 +12059,7 @@ export const translations = {
           {
             id: 'body_dose_in_body',
             q: "Qu’est-ce que « Dose dans le corps » ?",
-            a: "Une estimation de la quantité d'un composé qui peut se trouver dans votre corps au fil du temps, calculée à partir de votre schéma prévu et de demi-vies publiées. C'est un modèle mathématique, pas une mesure de vos taux sanguins réels : confirmez par un bilan sanguin. La courbe « Dose dans le corps » fait partie de Premium."
+            a: "Une estimation de la quantité d'un composé qui peut se trouver dans votre corps au fil du temps, calculée avec des demi-vies publiées : jusqu'à maintenant, à partir des doses que vous avez marquées comme prises, à l'heure où vous les avez marquées ; après maintenant, à partir de votre schéma prévu. C'est un modèle mathématique, pas une mesure de vos taux sanguins réels : confirmez par un bilan sanguin. La courbe « Dose dans le corps » fait partie de Premium."
           }
         ]
       },
@@ -15541,7 +15541,7 @@ export const translations = {
           {
             id: 'vials_expiry',
             q: "Was passiert, wenn ein Fläschchen abläuft?",
-            a: "DoseTrace zeigt eine Warnung an, wenn sich dein Fläschchen seinem 30-Tage-Ablaufdatum nähert. Abgelaufene Fläschchen werden rot markiert."
+            a: "DoseTrace zeigt eine Warnung an, wenn die von dir festgelegte Haltbarkeit deines Fläschchens bald endet (30 Tage, außer du änderst sie im Protokoll). Abgelaufene Fläschchen werden rot markiert."
           }
         ]
       },
@@ -15567,7 +15567,7 @@ export const translations = {
           {
             id: 'body_dose_in_body',
             q: "Was ist „Dosis im Körper“?",
-            a: "Eine Schätzung, wie viel einer Substanz im Lauf der Zeit in deinem Körper sein kann – berechnet aus deinem geplanten Schema und veröffentlichten Halbwertszeiten. Das ist ein Rechenmodell, keine Messung deiner echten Blutwerte: Bestätige es mit Bluttests. Die Kurve „Dosis im Körper“ gehört zu Premium."
+            a: "Eine Schätzung, wie viel einer Substanz im Lauf der Zeit in deinem Körper sein kann – berechnet mit veröffentlichten Halbwertszeiten: bis jetzt aus den als erledigt markierten Dosen, zu der Uhrzeit, zu der du sie markiert hast, und ab jetzt aus deinem geplanten Schema. Das ist ein Rechenmodell, keine Messung deiner echten Blutwerte: Bestätige es mit Bluttests. Die Kurve „Dosis im Körper“ gehört zu Premium."
           }
         ]
       },
@@ -19050,7 +19050,7 @@ export const translations = {
           {
             id: 'vials_expiry',
             q: "Che cosa succede quando un flacone scade?",
-            a: "DoseTrace mostrerà un avviso quando il tuo flacone si avvicina alla scadenza di 30 giorni. I flaconi scaduti sono segnati in rosso."
+            a: "DoseTrace mostra un avviso quando il tuo flacone si avvicina alla fine della validità che hai impostato (30 giorni, a meno che tu non la cambi nel protocollo). I flaconi scaduti sono segnati in rosso."
           }
         ]
       },
@@ -19076,7 +19076,7 @@ export const translations = {
           {
             id: 'body_dose_in_body',
             q: "Che cos’è Dose nel corpo?",
-            a: "Una stima della quantità di un composto che può essere presente nel tuo corpo nel tempo, calcolata dal tuo schema pianificato e dalle emivite pubblicate. È un modello matematico, non una misura dei tuoi livelli reali nel sangue: confermalo con le analisi. La curva Dose nel corpo fa parte di Premium."
+            a: "Una stima della quantità di un composto che può essere presente nel tuo corpo nel tempo, calcolata con le emivite pubblicate: fino a ora, dalle dosi che hai segnato come fatte, all'ora in cui le hai segnate; da ora in poi, dal tuo schema pianificato. È un modello matematico, non una misura dei tuoi livelli reali nel sangue: confermalo con le analisi. La curva Dose nel corpo fa parte di Premium."
           }
         ]
       },
