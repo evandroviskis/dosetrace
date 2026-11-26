@@ -108,8 +108,9 @@ test('HV-4: the end closes the player; Android back (onRequestClose) and the swi
   const p = player();
   assert.match(p, /addListener\('playToEnd'/);
   assert.match(p, /onRequestClose=\{onClose\}/);
-  assert.match(p, /PanResponder\.create/);
-  assert.match(p, /g\.dy > SWIPE_CLOSE \|\| g\.dx > SWIPE_CLOSE/);
+  // The swipe is read from raw touches (2026-11-26: PanResponder dropped every move): __tests__/howtoPlayerSwipeOverVideo.test.js.
+  assert.match(p, /onTouchEnd=\{touchEnd\}/);
+  assert.match(p, /swipeCloses\(\{ dx: n\.pageX - from\.x, dy: n\.pageY - from\.y \}\)\) cb\.current\.onClose\(\)/);
   const s = faq();
   // Closing never touches the open question nor the scroll: only the player state is cleared.
   assert.match(s, /onClose=\{\(\) => setPlaying\(null\)\}/);

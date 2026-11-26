@@ -6,17 +6,16 @@
 // video ends it closes by itself; Android back and a swipe (down, or from the left) close it the same way.
 // A video that cannot load closes the player and the FAQ shows the offline line (onFailed).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, PanResponder } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Modal from './PresenceModal'; // reports itself while visible (the update notice never shows over it)
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useTheme } from '../lib/theme';
 import { useLanguage } from '../i18n/LanguageContext';
-import { formatDuration } from '../lib/howtoVideos';
+import { formatDuration, swipeCloses } from '../lib/howtoVideos';
 import FeatureIcon from './FeatureIcon';
 
-const SWIPE_CLOSE = 80; // points dragged down or right before the player closes
 
 export default function HowtoPlayer({ video, title, onClose, onFinished, onFailed }) {
   const { useVideoPlayer, VideoView } = require('expo-video'); // only rendered when the module exists (lib/howtoRuntime)
@@ -58,10 +57,23 @@ export default function HowtoPlayer({ video, title, onClose, onFinished, onFaile
     return () => subs.forEach((x) => { try { x.remove(); } catch { /* gone */ } });
   }, [player]);
 
-  const pan = useRef(PanResponder.create({
-    onMoveShouldSetPanResponder: (_, g) => (g.dy > 12 && g.dy > Math.abs(g.dx)) || (g.dx > 12 && g.dx > Math.abs(g.dy)),
-    onPanResponderRelease: (_, g) => { if (g.dy > SWIPE_CLOSE || g.dx > SWIPE_CLOSE) cb.current.onClose(); },
-  })).current;
+  // HV-4 (iPhone simulator 2026-11-26): a swipe down or to the right closes the player like ×. Read from
+  // where the finger went down and where it lifted (raw touch events on the root, which arrive even over
+  // the native video view); a PanResponder dropped every move there (same timestamp), so it never fired.
+  // One finger only; a touch the system cancels never closes.
+  const down = useRef(null);
+  const touchStart = (e) => {
+    const n = e.nativeEvent;
+    down.current = n.touches && n.touches.length !== 1 ? null : { x: n.pageX, y: n.pageY };
+  };
+  const touchEnd = (e) => {
+    const from = down.current;
+    down.current = null;
+    const n = e.nativeEvent;
+    if (!from || (n.touches && n.touches.length > 0)) return;
+    if (swipeCloses({ dx: n.pageX - from.x, dy: n.pageY - from.y })) cb.current.onClose();
+  };
+  const touchCancel = () => { down.current = null; };
 
   const toggle = () => {
     try { if (player.playing) player.pause(); else player.play(); } catch { /* released */ }
@@ -71,7 +83,7 @@ export default function HowtoPlayer({ video, title, onClose, onFinished, onFaile
   return (
     <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <StatusBar style="light" />
-      <View style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]} {...pan.panHandlers}>
+      <View style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]} onTouchStart={touchStart} onTouchEnd={touchEnd} onTouchCancel={touchCancel}>
         <View style={s.top}>
           <TouchableOpacity
             onPress={onClose}
