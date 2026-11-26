@@ -4,7 +4,7 @@
 - pictures: docs/design/refeicoes-recentes.html (claude.ai/artifact/QSS1kvxXd4mU8VsSxUhq98, version 2 approved) and docs/design/registro-comida-visual.html (claude.ai/artifact/Sox1Sq7SYKo2ib89V2vozD, option A + goodbye approved).
 - council: 7 roles 2026-11-26 (unanimous: worth doing; no AI call; never "repeat the whole day").
 - amends: docs/specs/food-log.md FL-4 (the question after each entry → the goodbye) and FL-7 (the separate echo bubble → the receipt is the echo; the screen reader still announces what was logged).
-- checklist-signed: pending (founder).
+- checklist-signed: founder 2026-11-26 ("Assino os dois checklists, pode seguir").
 - committed-to: next build.
 
 ## Acceptance checklist

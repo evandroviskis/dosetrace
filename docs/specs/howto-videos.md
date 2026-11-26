@@ -4,7 +4,7 @@
 - picture: docs/design/videos-perguntas.html (claude.ai/artifact/MScL9Kd6mNgL2pQq74jhCN), approved 2026-11-26 ("Aprovo o desenho, pode construir").
 - council: dt-council 2026-11-26, 11 roles, GO-WITH-CHANGES (Second Brain dosetrace/conversas/dt-council-2026-11-26-videos-como-fazer.md).
 - hosting: Supabase Storage public bucket `howto` (migration 20261126200000_howto_videos_bucket, applied 2026-11-26).
-- checklist-signed: pending (founder).
+- checklist-signed: founder 2026-11-26 ("Assino os dois checklists, pode seguir").
 - committed-to: next build (native: the player module changes the runtime fingerprint; a store build, not an EAS Update).
 
 ## Acceptance checklist
