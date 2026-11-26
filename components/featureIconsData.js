@@ -252,6 +252,11 @@ export const FEATURE_ICON_XML = {
   <path d="M440 412 V612" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M584 412 V612" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`,
+  // How-to videos (docs/specs/howto-videos.md HV-1): the pause glyph's circle with a play triangle.
+  play: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <path d="M232 512 A280 280 0 1 0 792 512 A280 280 0 1 0 232 512 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M456 404 L628 512 L456 620 Z" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`,
   refresh: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <path d="M792 512 A280 280 0 1 1 710 314" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M720 176 V318 H578" fill="none" stroke="__C__" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>

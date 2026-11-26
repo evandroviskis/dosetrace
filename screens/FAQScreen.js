@@ -18,6 +18,12 @@ import useFreeProtocolLimit from '../lib/useFreeProtocolLimit'; // OB-28: the ac
 import { useTheme } from '../lib/theme';
 import { CONTENT_MAX_WIDTH } from '../lib/responsive';
 import { faqTarget, faqGroupIndex, faqForPlatform } from '../lib/faqLinks';
+import FeatureIcon from '../components/FeatureIcon';
+import HowtoPlayer from '../components/HowtoPlayer';
+import { useBook } from '../components/BookPanes';
+import { pickVideo, rowState, formatDuration, rowA11yLabel, eventProps } from '../lib/howtoVideos';
+import { useHowtoManifest, useProfileSex, videoOnlineNow } from '../lib/howtoRuntime';
+import { Analytics } from '../lib/analytics';
 
 // A group's own lines (CE-6, docs/specs/curve-explained.md): under the curve group's name the Bateman
 // line, under its questions the estimate footer, the same words as the curve screen.
@@ -50,8 +56,13 @@ function Chevron({ dir, color }) {
 // closes it. route.params.openGroup = a group id (the curve's "Saiba mais") scrolls to that group, its
 // questions closed.
 export default function FAQScreen({ navigation, route }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const freeProtocols = useFreeProtocolLimit();
+  // How-to videos (docs/specs/howto-videos.md): the manifest, this phone's family and the profile sex.
+  const book = useBook();
+  const sex = useProfileSex();
+  const { manifest, online, markOffline, version } = useHowtoManifest();
+  const [playing, setPlaying] = useState(null); // { id, q, video } while the player is open
   const { colors } = useTheme();
   const s = useMemo(() => makeStyles(colors), [colors]);
   const faqData = faqForPlatform(t('faq_categories') || [], Platform.OS); // Android-only questions only there (lib/faqLinks)
@@ -83,6 +94,13 @@ export default function FAQScreen({ navigation, route }) {
     setOpenItem(openItem === key ? null : key);
   }
 
+  // HV-5: a tap checks the connection first — offline the row becomes the line, never an empty player.
+  async function openVideo(id, q, video) {
+    if (!(await videoOnlineNow())) { markOffline(); return; }
+    setPlaying({ id, q, video });
+    Analytics.howtoVideoOpened(eventProps(id, video));
+  }
+
   return (
     <SafeAreaView style={s.container} edges={TAB_SCREEN_EDGES}>
       <View style={[s.centered, s.navRow]}>
@@ -109,29 +127,47 @@ export default function FAQScreen({ navigation, route }) {
               {section.questions.map((item, qi) => {
                 const key = `${si}-${qi}`;
                 const isOpen = openItem === key;
+                // HV-1 / HV-7 / HV-8: the video of this question in the app language for this phone, if any.
+                const video = isOpen ? pickVideo(manifest, { id: item.id, lang: language, os: Platform.OS, book, sex, appVersion: version }) : null;
+                const row = online === null ? null : rowState(video, online);
                 return (
-                  <TouchableOpacity
-                    key={item.id || qi}
-                    onLayout={hit ? at('item', key) : undefined}
-                    style={[s.item, qi > 0 && s.itemDivider]}
-                    onPress={() => toggle(key)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: isOpen }}
-                  >
-                    <View style={s.itemHeader}>
-                      <Text style={s.itemQ}>{marked(item.q, key)}</Text>
-                      <View style={s.itemChevron}>
-                        <Chevron dir={isOpen ? 'up' : 'down'} color={colors.ink2} />
+                  <View key={item.id || qi} onLayout={hit ? at('item', key) : undefined} style={qi > 0 ? s.itemDivider : null}>
+                    <TouchableOpacity
+                      style={[s.item, row && s.itemWithVid]}
+                      onPress={() => toggle(key)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: isOpen }}
+                    >
+                      <View style={s.itemHeader}>
+                        <Text style={s.itemQ}>{marked(item.q, key)}</Text>
+                        <View style={s.itemChevron}>
+                          <Chevron dir={isOpen ? 'up' : 'down'} color={colors.ink2} />
+                        </View>
                       </View>
-                    </View>
-                    {isOpen && !(mark && key === hitKey) && (
-                      <Text style={s.itemA}>{fillStoreText(item.a, t, Platform.OS, { freeProtocols })}</Text>
-                    )}
-                    {isOpen && mark && key === hitKey && (
-                      <Text style={s.itemA}>{marked(fillStoreText(item.a, t, Platform.OS, { freeProtocols }), key)}</Text>
-                    )}
-                  </TouchableOpacity>
+                      {isOpen && !(mark && key === hitKey) && (
+                        <Text style={s.itemA}>{fillStoreText(item.a, t, Platform.OS, { freeProtocols })}</Text>
+                      )}
+                      {isOpen && mark && key === hitKey && (
+                        <Text style={s.itemA}>{marked(fillStoreText(item.a, t, Platform.OS, { freeProtocols }), key)}</Text>
+                      )}
+                    </TouchableOpacity>
+                    {/* HV-2: the video row is a sibling of the answer, outside the question's tap target. */}
+                    {row === 'play' ? (
+                      <TouchableOpacity
+                        style={s.vid}
+                        onPress={() => openVideo(item.id, item.q, video)}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={rowA11yLabel(video, item.q, t, language)}
+                      >
+                        <FeatureIcon name="play" size={16} color={colors.ink} />
+                        <Text style={s.vidText}>{t('howto_watch')}</Text>
+                        <Text style={s.vidDur}>{formatDuration(video.dur)}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    {row === 'offline' ? <Text style={s.vidOff}>{t('howto_offline')}</Text> : null}
+                  </View>
                 );
               })}
             </View>
@@ -153,6 +189,17 @@ export default function FAQScreen({ navigation, route }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* HV-3 / HV-4: the player over the FAQ; closing it leaves the question open where it was. */}
+      {playing ? (
+        <HowtoPlayer
+          video={playing.video}
+          title={playing.q}
+          onClose={() => setPlaying(null)}
+          onFinished={() => { Analytics.howtoVideoFinished(eventProps(playing.id, playing.video)); setPlaying(null); }}
+          onFailed={() => { setPlaying(null); markOffline(); }}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -177,6 +224,12 @@ const makeStyles = (c) => StyleSheet.create({
   itemQ: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, flex: 1 },
   itemChevron: { paddingTop: 7, flexShrink: 0 },
   itemA: { fontSize: 15, lineHeight: 21, color: c.ink2, marginTop: 8 },
+  // How-to video row (picture "1 · a pergunta com vídeo" / "3 · sem internet"): quiet, under the answer.
+  itemWithVid: { paddingBottom: 10 },
+  vid: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingVertical: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  vidText: { fontSize: 15, color: c.ink },
+  vidDur: { marginLeft: 'auto', fontSize: 13, color: c.ink3, fontVariant: ['tabular-nums'] },
+  vidOff: { fontSize: 13, lineHeight: 18, color: c.ink3, paddingTop: 10, paddingBottom: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
   mark: { backgroundColor: c.mark, color: c.ink }, // app search: the typed words (AS-27)
   footer: { marginHorizontal: 16, marginTop: 24, padding: 18, backgroundColor: c.raised, borderRadius: 24, alignItems: 'center', gap: 4 },
   footerTitle: { fontSize: 17, fontWeight: '600', color: c.ink, textAlign: 'center' },
