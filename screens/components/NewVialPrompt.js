@@ -61,12 +61,19 @@ function KeyboardFrame({ children }) {
 // The mix date: Yesterday / Today, the month, the day (Today's vial window).
 function MixDateField({ s, t, colors, month, day, setMonth, setDay }) {
   const monthRow = useChosenInView(month); // A-190: the chosen month opens in view
+  // NV-3: Hoje (or Ontem) looks picked while the chosen date is that day, in the month pills' own style.
+  const td0 = new Date();
+  const yd0 = new Date(); yd0.setDate(yd0.getDate() - 1);
+  const isToday = month === td0.getMonth() && String(day) === String(td0.getDate());
+  const isYesterday = month === yd0.getMonth() && String(day) === String(yd0.getDate());
   return (
     <>
       <Text style={s.promptLabel}>{t('today_vial_mix_date')}</Text>
       <View style={s.yesterdayRow}>
         <TouchableOpacity
-          style={s.yesterdayPill}
+          style={[s.yesterdayPill, isYesterday && s.promptMonthPillOn]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isYesterday }}
           onPress={() => {
             const y = new Date();
             y.setDate(y.getDate() - 1);
@@ -74,17 +81,19 @@ function MixDateField({ s, t, colors, month, day, setMonth, setDay }) {
             setDay(String(y.getDate()));
           }}
         >
-          <Text style={s.yesterdayPillText}>{t('today_yesterday')}</Text>
+          <Text style={[s.yesterdayPillText, isYesterday && s.promptMonthTextOn]}>{t('today_yesterday')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={s.yesterdayPill}
+          style={[s.yesterdayPill, isToday && s.promptMonthPillOn]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isToday }}
           onPress={() => {
             const td = new Date();
             setMonth(td.getMonth());
             setDay(String(td.getDate()));
           }}
         >
-          <Text style={s.yesterdayPillText}>{t('today_today_pill')}</Text>
+          <Text style={[s.yesterdayPillText, isToday && s.promptMonthTextOn]}>{t('today_today_pill')}</Text>
         </TouchableOpacity>
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} {...monthRow.rowProps}>
