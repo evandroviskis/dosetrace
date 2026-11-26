@@ -25,14 +25,17 @@ DECLARE
   tz   text := '__TZ__';     -- e.g. America/New_York
   lang text := '__LANG__';   -- pt | en | es | fr | de | it
   d1   text := '__D1__';     -- 'vazio' (video 7: Pendente de ontem) | 'concluida' (the state after video 7, for 1, 8, 9, 10 in the afternoon)
-  uid  uuid := 'a6929b55-468e-4b73-b801-204b6fa31f2e';
+  v_email text := '__EMAIL__'; -- the recording account of this device (founder 2026-11-26: one test account per device so devices record in parallel)
+  uid  uuid;
   d0   date;
   p1   uuid := gen_random_uuid();
   p2   uuid := gen_random_uuid();
   k    int;
 BEGIN
   IF lang NOT IN ('pt','en','es','fr','de','it') THEN RAISE EXCEPTION 'language %', lang; END IF;
-  IF (SELECT email FROM auth.users WHERE id = uid) <> 'evandro1985+qa3@gmail.com' THEN RAISE EXCEPTION 'not +qa3'; END IF;
+  IF v_email NOT IN ('evandro1985+qa3@gmail.com', 'evandro1985+qa@gmail.com', 'dosetrace.io+s25@gmail.com') THEN RAISE EXCEPTION 'not a recording test account: %', v_email; END IF;
+  SELECT id INTO uid FROM auth.users WHERE auth.users.email = v_email;
+  IF uid IS NULL THEN RAISE EXCEPTION 'no account %', v_email; END IF;
   d0 := (now() AT TIME ZONE tz)::date;
 
   -- 1. what a previous round left
@@ -87,6 +90,6 @@ SELECT p.name, p.start_date, p.reminder_time, p.interval_days,
        (SELECT total_doses - doses_taken FROM public.vials v WHERE v.protocol_id = p.id AND v.active) AS doses_left,
        (SELECT string_agg(to_char(d.logged_at AT TIME ZONE '__TZ__', 'MM-DD HH24:MI') || ' ' || d.outcome, ', ' ORDER BY d.logged_at)
           FROM public.dose_logs d WHERE d.protocol_id = p.id) AS doses
-  FROM public.protocols p
- WHERE p.user_id = 'a6929b55-468e-4b73-b801-204b6fa31f2e' AND p.purged_at IS NULL
+  FROM public.protocols p JOIN auth.users u ON u.id = p.user_id
+ WHERE u.email = '__EMAIL__' AND p.purged_at IS NULL
  ORDER BY p.name;
