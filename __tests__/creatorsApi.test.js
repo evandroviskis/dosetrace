@@ -67,7 +67,7 @@ test('CR-2: /go — Android 302 to Play with the referrer; iPhone gets the code 
     assert.equal(new URL(a.headers.location).searchParams.get('referrer'), 'utm_source=youtube&utm_medium=creator&utm_campaign=ana&utm_content=ANA-YT');
     const i = await R.run(go, db, { url: '/api/go?c=ana&p=youtube', headers: { 'user-agent': IPHONE, 'accept-language': 'pt-BR,pt;q=0.9' } });
     assert.equal(i.code, 200);
-    assert.ok(i.body.includes('ANA-YT') && i.body.includes('Seu código de criador') && i.body.includes('Abrir a App Store'));
+    assert.ok(i.body.includes('ANA-YT') && i.body.includes('Seu código de indicação') && i.body.includes('Abrir a App Store'));
     assert.ok(i.body.includes('pt=123456') && i.body.includes('ct=cr-ana-yt'), 'App Store link carries the campaign');
     assert.ok(!i.body.includes('play.google.com'), 'iPhone: no Play button');
     assert.match(i.headers['content-security-policy'], /default-src 'none'/);
@@ -287,3 +287,15 @@ test('CR-W1 (live 2026-11-20): a write the database refuses is never answered "s
     assert.equal(p2.code, 200);
   } finally { envOff(); }
 });
+
+test('CR-NOME (Evandro 2026-11-26, aba nº 23: "código de indicação"): the public iPhone page names the field the same way in the 6 languages, never "creator code"', () => {
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'api', 'go.js'), 'utf8');
+  const want = { en: 'Referral code', es: 'Código de referido', pt: 'Código de indicação', fr: 'Code de parrainage', de: 'Empfehlungscode', it: 'Codice di invito' };
+  const TX = (0, eval)('(' + src.match(/const TX = (\{[\s\S]*?\n\});/)[1] + ')');
+  for (const [l, name] of Object.entries(want)) {
+    assert.ok(TX[l].title.toLowerCase().includes(name.toLowerCase()), l + ' title: ' + TX[l].title);
+    assert.ok(TX[l].where.includes(name), l + ' where: ' + TX[l].where);
+    assert.ok(!/creator|criador|creador|créateur/i.test(TX[l].title + ' ' + TX[l].where), l + ' still says creator');
+  }
+});
+
