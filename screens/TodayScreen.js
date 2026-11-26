@@ -2894,7 +2894,7 @@ export default function TodayScreen() {
                           </View>
                         ) : null}
                       </View>
-                      <Text style={s.takenWhen} numberOfLines={1}>{site ? `${formatTimeAMPM(hhmm)} · ${site}` : formatTimeAMPM(hhmm)}</Text>
+                      <Text style={s.takenWhen} numberOfLines={2}>{site ? `${formatTimeAMPM(hhmm)} · ${site}` : formatTimeAMPM(hhmm)}</Text>
                       <RowChevron color={colors.tick} />
                     </TouchableOpacity>
                   );
@@ -3420,10 +3420,11 @@ const todayV21Styles = (c) => ({
   takenDot: { width: 9, height: 9, borderRadius: 5, marginLeft: 6 },
   takenName: { fontSize: 17, color: c.ink },
   // DO-17: the name and, under it, the mark and observation line (one line).
-  takenMainCol: { flex: 1, minWidth: 0, gap: 2 },
+  // The name keeps its width (up to half the row): flex 1 (basis 0) let "13:03 · Abdômen, superior direito" cut "BPC-157" to "BP…" (Fold 2026-11-26).
+  takenMainCol: { flexShrink: 0, maxWidth: '50%', gap: 2 },
   takenObs: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   takenObsText: { flex: 1, fontSize: 14, color: c.ink2 },
-  takenWhen: { flexShrink: 1, fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
+  takenWhen: { flex: 1, minWidth: 0, textAlign: 'right', fontSize: 15, color: c.ink2, fontVariant: ['tabular-nums'] },
   foldList: { backgroundColor: c.raised, borderRadius: 22, paddingHorizontal: 16 },
   foldSep: { borderTopWidth: 1, borderTopColor: c.line },
   foldHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60 },
