@@ -139,10 +139,11 @@ test('DA1: "Avisar as sessões" = POST { action: ping, origem? } through founder
 }));
 
 // ------------------------------------------------------------------ DL2 / DA2: the migration text
-test('DL2 SQL: one transaction on top of the three applied ones — status depois with later_at (decided_at stays null), kind tarefa, history accepts depois and pendente, the save allows later only from pendente and back only from depois, a decision clears later_at; header NOT APPLIED until his "pode"', () => {
+test('DL2 SQL: one transaction on top of the three applied ones — status depois with later_at (decided_at stays null), kind tarefa, history accepts depois and pendente, the save allows later only from pendente and back only from depois, a decision clears later_at; header APPLIED 2026-11-26 after his "pode" (aba nº 81)', () => {
   const sql = read(MIG);
   const body = sql.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
-  assert.match(sql, /-- STATUS: NOT APPLIED/);
+  assert.match(sql, /-- STATUS: APPLIED 2026-11-26 in production \(supabase_migrations\.schema_migrations 20261126161844/, 'applied with his "Item 81, pode."');
+  assert.ok(!/NOT APPLIED/.test(sql), 'header never says not applied once it is');
   assert.equal((body.match(/^begin;$/gm) || []).length, 1); assert.equal((body.match(/^commit;$/gm) || []).length, 1);
   assert.match(body, /add column if not exists later_at timestamptz;/);
   assert.match(body, /check \(status in \('pendente', 'aprovado', 'recusado', 'ajustar', 'alterando', 'depois'\)\)/);

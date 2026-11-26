@@ -6,8 +6,9 @@
 -- option: build and show it working BEFORE applying this file.
 -- On top of 20261124000000 / 20261124010000 / 20261124020000 (all applied; left untouched).
 --
--- STATUS: NOT APPLIED — waits for the founder's "pode" (aba nº 76/77 or the conversation). Apply as ONE
--- transaction, before the API/page that use it are deployed. Tests: __tests__/admDecisionsLater.test.js (DL2, DA2).
+-- STATUS: APPLIED 2026-11-26 in production (supabase_migrations.schema_migrations 20261126161844
+-- founder_decisions_depois_avisos), as ONE transaction, after the founder's "Item 81, pode." in the panel session's
+-- conversation, BEFORE the API/page that use it were deployed. Do not apply again. Tests: __tests__/admDecisionsLater.test.js (DL2, DA2).
 --
 -- What it does:
 --   1. status may also be 'depois' (kept for later by him): decided_at stays null (not decided), later_at = since
