@@ -43,4 +43,4 @@ CLAIR ET SOMBRE
 Thèmes clair, sombre et système.
 
 PAS UN AVIS MÉDICAL
-DoseTrace est un journal personnel et un ensemble d'outils de bien-être général. Il ne pose aucun diagnostic, ne recommande ni dose ni traitement, ne vérifie pas les interactions et n'interprète pas vos analyses. Les fonctions d'IA ne font que transcrire ce que vous fournissez. Parlez toujours à un professionnel de santé de vos décisions médicales.
+DoseTrace est un journal personnel et un ensemble d'outils de bien-être général. Ce n'est pas un dispositif médical : il ne diagnostique, ne traite, ne guérit ni ne prévient aucune maladie. Il ne recommande ni dose ni traitement, ne vérifie pas les interactions et n'interprète pas vos analyses. Les fonctions d'IA ne font que transcrire ce que vous fournissez. Parlez toujours à un professionnel de santé de vos décisions médicales.

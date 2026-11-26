@@ -43,4 +43,4 @@ LIGHT AND DARK
 Light, dark and system themes.
 
 NOT MEDICAL ADVICE
-DoseTrace is a personal journal and a set of general-wellness tools. It does not diagnose, recommend doses or treatments, check interactions or interpret your lab values. The AI features only transcribe what you provide. Always talk to a qualified health professional about medical decisions.
+DoseTrace is a personal journal and a set of general-wellness tools. It is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. It does not recommend doses or treatments, check interactions or interpret your lab values. The AI features only transcribe what you provide. Always talk to a qualified health professional about medical decisions.

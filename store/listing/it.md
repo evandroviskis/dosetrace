@@ -43,4 +43,4 @@ CHIARO E SCURO
 Temi chiaro, scuro e di sistema.
 
 NON È UN PARERE MEDICO
-DoseTrace è un diario personale e un insieme di strumenti di benessere generale. Non fa diagnosi, non consiglia dosi o trattamenti, non verifica interazioni e non interpreta i tuoi esami. Le funzioni di IA trascrivono soltanto ciò che fornisci tu. Parla sempre con un professionista sanitario delle tue decisioni mediche.
+DoseTrace è un diario personale e un insieme di strumenti di benessere generale. Non è un dispositivo medico e non serve a diagnosticare, trattare, curare o prevenire alcuna condizione medica. Non consiglia dosi o trattamenti, non verifica interazioni e non interpreta i tuoi esami. Le funzioni di IA trascrivono soltanto ciò che fornisci tu. Parla sempre con un professionista sanitario delle tue decisioni mediche.

@@ -43,4 +43,4 @@ HELL UND DUNKEL
 Helles, dunkles und System-Design.
 
 KEINE MEDIZINISCHE BERATUNG
-DoseTrace ist ein persönliches Tagebuch und eine Sammlung allgemeiner Wellness-Werkzeuge. Es stellt keine Diagnosen, empfiehlt keine Dosen oder Behandlungen, prüft keine Wechselwirkungen und deutet keine Laborwerte. Die KI-Funktionen übertragen nur, was du angibst. Sprich bei medizinischen Entscheidungen immer mit einer Fachperson.
+DoseTrace ist ein persönliches Tagebuch und eine Sammlung allgemeiner Wellness-Werkzeuge. Es ist kein Medizinprodukt und dient nicht der Diagnose, Behandlung, Heilung oder Vorbeugung von Krankheiten. Es empfiehlt keine Dosen oder Behandlungen, prüft keine Wechselwirkungen und deutet keine Laborwerte. Die KI-Funktionen übertragen nur, was du angibst. Sprich bei medizinischen Entscheidungen immer mit einer Fachperson.
