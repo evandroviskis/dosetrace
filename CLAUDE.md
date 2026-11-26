@@ -56,6 +56,11 @@ the decision did not foresee — raise it in one line, citing the decision, and 
 "Por que você, quando você termina uma execução de qualquer coisa, você não resume tudo que eu tenho que decidir?" Decisions scattered across long messages force him to scroll back. So every reply that leaves anything open ends with one numbered block, "O que o senhor precisa decidir", holding ALL open decisions of the session (not only the new ones), each in one line with the options and my recommendation. Nothing to decide → say so in one line. Keep the body of the reply short; the decisions live only in that block.
 CUMULATIVE, EVERY reply, no exception (founder, same day): if he talks about something else and does not answer, the next reply answers what he said AND repeats every still-open decision; new decisions are added to the old ones. The live list is ~/Desktop/Second Brain/dosetrace/91-decisoes-pendentes.md (answered items move to 02-decisoes.md); the UserPromptSubmit hook .claude/hooks/decisoes-pendentes.sh injects it at every prompt.
 DECISIONS PAGE (founder, same day): the founder decides on https://claude.ai/artifact/GkAUg1YcjEgzWJPF5JZw5u (artifact db, collection "decisions": status pendente/aprovado/recusado/ajustar, choice, note). Before every reply read it (ArtifactData list) and move what he decided into 02-decisoes.md; every new question goes there too (with its design link) and into 91-decisoes-pendentes.md. A decision still pending there blocks the work it gates: never decide for him.
+WHERE HE DECIDES (founder 2026-11-26): the panel is for when he is AWAY from the computer (voice while his
+autonomous Tesla drives, a store queue with the Fold closed, where opening Claude and pictures is hard). At
+the computer he decides in the conversation, right away, and Claude writes his answer into the tab by id.
+On the phone he says he will post on the panel and Claude reads it later. Not sure where he is: ask in one
+line, "computador ou celular?".
 
 ## Standing rule: the rules card + the end-of-reply check (founder, 2026-11-26)
 
