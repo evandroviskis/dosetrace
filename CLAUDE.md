@@ -65,6 +65,11 @@ site (Supabase, RevenueCat, App Store Connect, Play Console, Vercel…): drive h
 open the exact page, do every step you can, check the result. Hand him only what you may not or cannot do:
 password / 2FA / passkey, copying or pasting a secret, the final confirm of a permanent deletion (after showing
 what goes). Never give him a manual step list for a site you can operate.
+Why (same day): he often works from the phone or his XR glasses (VITURE Beast) with the keyboard out of view,
+and ~97% of his messages are dictated by voice. So nothing for him to type, copy or paste that you can do
+(run commands yourself; only when a protection hook blocks you, one short command and why); every question
+answerable by voice in a few words (numbered, short, with your pick); replies short enough for a phone;
+read dictation generously (transcription slips are not questions).
 
 ## Standing rule: check the record before proposing (founder, 2026-10-23)
 
