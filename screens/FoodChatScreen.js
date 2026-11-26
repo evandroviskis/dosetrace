@@ -47,6 +47,7 @@ import { localISO, localDaysAgoISO } from '../lib/localDate';
 import { formatTime } from '../lib/timeFormat';
 import { syncAllNotifications, closeFoodDay, notificationsGranted } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
+import { Analytics } from '../lib/analytics';
 import FoodEntryEditor from './components/FoodEntryEditor';
 import PlanBars from './components/PlanBars';
 import { todayBars, addedProtein } from '../lib/planActual';
@@ -373,6 +374,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       if (open) { updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); clearDraft(fuDraftKey(open)); }
       setNotice(null);
       const id = insertFoodLog(repeatEntry(meal, { userId, day, msgId: newMessageId() }));
+      Analytics.foodLogged('recent');
       requestSync?.();
       const r = refresh(userId);
       announceLogged(meal.items, meal.label);
@@ -390,6 +392,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (!u) return;
     touch();
     deleteFoodLog(u.rowId); // the normal delete: a synced tombstone
+    Analytics.foodRecentUndo();
     if (u.reopen) updateItem(u.reopen.rowId, u.reopen.index, (it) => { const { ask_skipped, ...rest } = it || {}; return rest; });
     requestSync?.();
     refresh(userId);
@@ -472,6 +475,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const context = recentForParse(getFoodLogsSince(userId, day) || [], day);
     ensureFreeStart(userId); // the free days' anchor: the real day of first use (FL-41)
     const id = insertFoodLog({ user_id: userId, entry_date: day, raw_text: raw, parse_status: 'pending' });
+    Analytics.foodLogged('typed');
     rememberTypedHere(id); // typed here: this device parses it if the send fails (FL-19)
     inFlight.add(id);
     setSendingId(id);

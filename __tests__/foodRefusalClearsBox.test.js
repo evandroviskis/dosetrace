@@ -17,7 +17,7 @@ function run(res, typed) {
     localISO: () => '2026-11-07', setNotice: (n) => log.notice.push(n), openFollowup: () => null,
     skipFollowup() {}, setBye() {}, sayBye() {}, announceLogged() {}, mustAskWhichEarlier: () => false, recentForParse: () => [],
     getFoodLogsSince: () => [], setConsentOpen() {}, askAIConsent: async () => true,
-    updateItem() {}, setBusy() {}, ensureFreeStart() {}, insertFoodLog: () => 7, rememberTypedHere() {},
+    Analytics: { foodLogged() {}, foodRecentUndo() {} }, updateItem() {}, setBusy() {}, ensureFreeStart() {}, insertFoodLog: () => 7, rememberTypedHere() {},
     inFlight: new Set(), setSendingId() {}, refresh: () => [], parseFood: async () => res,
     deleteFoodLog: (id) => log.deleted.push(id), requestSync() {},
     catchUpOutcome: () => ({ save: [], notice: 'too_old', putBack: typed }), saveParsed() {},

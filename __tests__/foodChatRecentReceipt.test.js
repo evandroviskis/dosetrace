@@ -24,7 +24,7 @@ function repeatHarness({ access = { canLog: true, mode: 'free_days' }, logDay = 
     ensureFreeStart: () => { log.freeStart++; }, openFollowup: () => open,
     updateItem: (rowId, index, fn) => log.skipped.push(fn({ food: 'x' })), clearDraft() {}, fuDraftKey: () => 'k',
     setNotice: (n) => log.notice.push(n),
-    insertFoodLog: (row) => { log.inserted.push(row); return 41; }, repeatEntry, newMessageId: () => 'fresh',
+    Analytics: { foodLogged() {}, foodRecentUndo() {} }, insertFoodLog: (row) => { log.inserted.push(row); return 41; }, repeatEntry, newMessageId: () => 'fresh',
     requestSync() {}, refresh: () => [], announceLogged: () => { log.announced++; },
     sayBye: (day) => log.bye.push(day), setUndo: (u) => log.undo.push(u),
     clearTimeout() {}, setTimeout: (fn, ms) => { timer = { fn, ms }; return 1; },
@@ -71,7 +71,7 @@ test('FR-5: "Undo" shows for a few seconds; undo deletes the new row through the
   const log = { deleted: [], bye: [], undo: [] };
   const undoRepeat = loadFn('screens/FoodChatScreen.js', 'function undoRepeat(', 'undoRepeat', {
     undo: { rowId: 41, label: MEAL.label }, undoTimer: { current: 1 }, clearTimeout() {}, setUndo: (u) => log.undo.push(u), touch() {},
-    deleteFoodLog: (id) => log.deleted.push(id), requestSync() {}, refresh() {}, userId: 'u1', setBye: (b) => log.bye.push(b),
+    Analytics: { foodLogged() {}, foodRecentUndo() {} }, deleteFoodLog: (id) => log.deleted.push(id), requestSync() {}, refresh() {}, userId: 'u1', setBye: (b) => log.bye.push(b),
   });
   undoRepeat();
   assert.deepEqual(log.deleted, [41], 'deleteFoodLog = the synced tombstone');
@@ -151,7 +151,7 @@ async function submitHarness(res) {
     touch() {}, isDoneText: () => false, isNoText: () => false, setText() {}, saveDraftNow() {}, closeDay: async () => {},
     localISO: () => '2026-11-26', setNotice() {}, setBye: (b) => log.bye.push(b), openFollowup: () => null, skipFollowup() {},
     mustAskWhichEarlier: () => false, recentForParse: () => [], getFoodLogsSince: () => [], setConsentOpen() {}, askAIConsent: async () => true,
-    updateItem() {}, setBusy() {}, ensureFreeStart() {}, insertFoodLog: () => 7, rememberTypedHere() {}, inFlight: new Set(), setSendingId() {},
+    Analytics: { foodLogged() {}, foodRecentUndo() {} }, updateItem() {}, setBusy() {}, ensureFreeStart() {}, insertFoodLog: () => 7, rememberTypedHere() {}, inFlight: new Set(), setSendingId() {},
     refresh: () => ['rows'], parseFood: async () => { log.ai++; return res; }, deleteFoodLog() {}, requestSync() {},
     catchUpOutcome: (items) => ({ save: items, notice: null }), saveParsed() {}, sendFailureNotice: () => 'retry', isOnlineNow: () => true, scheduleCatchUp() {},
     announceLogged: (items) => log.announced.push(items.length), sayBye: (day, r) => log.bye.push({ day, r }),
