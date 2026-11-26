@@ -57,6 +57,15 @@ the decision did not foresee — raise it in one line, citing the decision, and 
 CUMULATIVE, EVERY reply, no exception (founder, same day): if he talks about something else and does not answer, the next reply answers what he said AND repeats every still-open decision; new decisions are added to the old ones. The live list is ~/Desktop/Second Brain/dosetrace/91-decisoes-pendentes.md (answered items move to 02-decisoes.md); the UserPromptSubmit hook .claude/hooks/decisoes-pendentes.sh injects it at every prompt.
 DECISIONS PAGE (founder, same day): the founder decides on https://claude.ai/artifact/GkAUg1YcjEgzWJPF5JZw5u (artifact db, collection "decisions": status pendente/aprovado/recusado/ajustar, choice, note). Before every reply read it (ArtifactData list) and move what he decided into 02-decisoes.md; every new question goes there too (with its design link) and into 91-decisoes-pendentes.md. A decision still pending there blocks the work it gates: never decide for him.
 
+## Standing rule: websites — open Chrome and do it yourself (founder, 2026-11-26, asked ~4 times)
+
+"Toda vez que tiver que fazer alguma coisa que eu tenha que fazer acesso a algum site, você abre o Chrome,
+você acessa, você faz o máximo que for possível e eu só faço o que você não consegue fazer." Any task on a
+site (Supabase, RevenueCat, App Store Connect, Play Console, Vercel…): drive his Chrome (Claude in Chrome),
+open the exact page, do every step you can, check the result. Hand him only what you may not or cannot do:
+password / 2FA / passkey, copying or pasting a secret, the final confirm of a permanent deletion (after showing
+what goes). Never give him a manual step list for a site you can operate.
+
 ## Standing rule: check the record before proposing (founder, 2026-10-23)
 
 Before any proposal, fix, recommendation or decision question to the founder, run
