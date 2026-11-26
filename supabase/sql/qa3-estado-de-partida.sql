@@ -3,7 +3,7 @@
 -- "pode seguir com o script"; any test account may be changed server-side (never hello@dosetrace.io).
 --
 -- How to run: through the Supabase SQL tool, after replacing the two values in the first lines of the block
--- (__TZ__ = the phone's time zone, __LANG__ = the round's language). Every date is counted from the moment it
+-- (__TZ__ = the phone's time zone, __LANG__ = the round's language, __D1__ = vazio | concluida). Every date is counted from the moment it
 -- runs (D0 = today in that zone), so it can run again between rounds, any day.
 --
 -- What it does, in the app's own shapes (checked against rows the app wrote, 2026-11-26):
@@ -24,6 +24,7 @@ DO $$
 DECLARE
   tz   text := '__TZ__';     -- e.g. America/New_York
   lang text := '__LANG__';   -- pt | en | es | fr | de | it
+  d1   text := '__D1__';     -- 'vazio' (video 7: Pendente de ontem) | 'concluida' (the state after video 7, for 1, 8, 9, 10 in the afternoon)
   uid  uuid := 'a6929b55-468e-4b73-b801-204b6fa31f2e';
   d0   date;
   p1   uuid := gen_random_uuid();
@@ -60,6 +61,11 @@ BEGIN
   VALUES (gen_random_uuid(), uid, p1, ((d0 - 3) + time '23:00') AT TIME ZONE tz, 'Missed', 0, false, now(), now());
   INSERT INTO public.dose_logs (id, user_id, protocol_id, logged_at, outcome, dose_amount, dose_unit, outcome_by_person, checkin_completed, created_at, updated_at)
   VALUES (gen_random_uuid(), uid, p1, ((d0 - 2) + time '23:00') AT TIME ZONE tz, 'Taken', 1.4, 'mg', true, false, now(), now());
+  IF d1 = 'concluida' THEN
+    INSERT INTO public.dose_logs (id, user_id, protocol_id, logged_at, outcome, dose_amount, dose_unit, outcome_by_person, checkin_completed, created_at, updated_at)
+    VALUES (gen_random_uuid(), uid, p1, ((d0 - 1) + time '23:00') AT TIME ZONE tz, 'Taken', 1.4, 'mg', true, false, now(), now());
+    UPDATE public.vials SET doses_taken = 2 WHERE protocol_id = p1;
+  ELSIF d1 <> 'vazio' THEN RAISE EXCEPTION 'd1 %', d1; END IF;
 
   -- 4. Composto 2
   INSERT INTO public.protocols (id, user_id, name, type, color, unit, amount, water, dose, dose_unit, syringe_size,
