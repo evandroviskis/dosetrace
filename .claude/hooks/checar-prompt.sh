@@ -13,6 +13,11 @@ echo "SECOND BRAIN (obrigatório a cada resposta): confronte sua memória com ~/
 # Founder 2026-11-26 ("as regras estão escapando"): the short card of the rules that already slipped, verbatim, every prompt.
 CARD="$HOME/Desktop/Second Brain/$SBP/00-cartao-de-regras.md"
 [ -f "$CARD" ] && cat "$CARD"
+# Founder 2026-11-26: also the app's goal and the questions every decision must pass, and the latest decisions.
+BUSSOLA="$HOME/Desktop/Second Brain/$SBP/00-bussola.md"
+[ -f "$BUSSOLA" ] && cat "$BUSSOLA"
+DEC="$HOME/Desktop/Second Brain/$SBP/02-decisoes.md"
+if [ -f "$DEC" ]; then echo "ÚLTIMAS DECISÕES (02-decisoes.md, mais nova por último):"; grep -E "^- \[" "$DEC" | tail -n 8 | cut -c1-280; fi
 
 STOP=" para pode isso esse essa este esta mais muito como quando onde porque sobre entre depois antes
  ainda agora tudo todos todas nada algo alguma algum fazer feito tem temos tinha estou está estava
@@ -35,7 +40,7 @@ words="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]À
 [ -z "${words// /}" ] && exit 0
 
 # shellcheck disable=SC2086
-res="$(CHECAR_MAX=15 "$ROOT/scripts/checar-decisoes.sh" $words 2>/dev/null)" || exit 0
+res="$(CHECAR_MAX=8 "$ROOT/scripts/checar-decisoes.sh" $words 2>/dev/null)" || exit 0
 [ -z "$res" ] && exit 0
-printf 'DECISÕES JÁ REGISTRADAS SOBRE ESTE PEDIDO:\n%s\n' "$res" | head -c 9000
+printf 'DECISÕES JÁ REGISTRADAS SOBRE ESTE PEDIDO:\n%s\n' "$res" | head -c 2600
 exit 0
