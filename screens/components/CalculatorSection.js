@@ -2408,7 +2408,7 @@ const makeStyles = (c) => StyleSheet.create({
   unitBar: { alignSelf: 'flex-start' },
   fieldRow: { flexDirection: 'row', gap: 12 },
   fld: { gap: 10 },
-  fldHalf: { flex: 1, minWidth: 0, gap: 10 },
+  fldHalf: { flex: 1, minWidth: 0, gap: 10, justifyContent: 'space-between' },
   fieldLab: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
   fieldHint: { fontSize: 13, lineHeight: 18, color: c.ink2, paddingHorizontal: 4 },
   input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },

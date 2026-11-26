@@ -14,7 +14,7 @@ import { errorSheet } from '../../lib/errorSheet';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useTheme } from '../../lib/theme';
 import { syncAllNotifications } from '../../lib/notifications';
-import { normalizeMeals, presetMeals, cleanMeals, mealChoicePayload, nextMealTime, MAX_MEALS, MEAL_PLANS } from '../../lib/mealReminders';
+import { normalizeMeals, presetMeals, cleanMeals, mealChoicePayload, nextMealTime, MAX_MEALS, MEAL_PLANS, onMealsChanged, emitMealsChanged } from '../../lib/mealReminders';
 import { formatTime, pickerButtons, pickerIs24Hour } from '../../lib/timeFormat';
 import { timeColumns, timeAfter } from '../../lib/wheelPick';
 import { pluralKey } from '../../lib/plural';
@@ -67,7 +67,9 @@ export default function MealTimesSheet({ visible, onClose, onSaved }) {
     if (error) { setErr(errorSheet(t, 'save', friendlyError(error, t, 'error_save_failed'))); setSaving(false); return; }
     setSaving(false);
     syncAllNotifications().catch(() => {});
-    if (onSaved) onSaved(normalizeMeals(payload.food_meals));
+    const saved = normalizeMeals(payload.food_meals);
+    emitMealsChanged(saved);
+    if (onSaved) onSaved(saved);
     onClose();
   }
 
@@ -192,6 +194,7 @@ export function MealTimesRow({ onChange, variant = 'card' }) {
     return () => { alive = false; };
   }, []);
   useFocusEffect(load);
+  useEffect(() => onMealsChanged((n) => { setChoice(n); tell(n); }), []);
   const summary = choice
     ? `${t(`meal_plan_${choice.plan}`)} · ${choice.meals.map((m) => formatTime(m.at, language, timeFormat)).join(', ')}`
     : t('meal_row_none');
