@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { countIfDelivered } from './usage.ts';
+import { isTestAccount } from '../_shared/testAccounts.ts';
 
 // DoseTrace — AI nutrition parse (v11, 2026-11-23: stated macros used exactly, spoken corrections, JSON read from a wrapped reply + one retry; v10, 2026-11-09: fiber_g per item, a number only; v9 2026-09-27). Turns a user's free-text meal
 // description into STRUCTURED nutrition estimates. Acceptance checklist:
@@ -171,6 +172,8 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) return jsonResponse({ error: 'Invalid session', code: 'unauthorized' }, 401);
+    // Our own test accounts (founder 2026-11-26): no daily cap, no 24 h ceiling, nothing counted.
+    const noAiCap = isTestAccount(user);
 
     let body: { text?: unknown; entry_date?: unknown; local_day?: unknown; lang?: unknown; recent?: unknown; followup?: unknown };
     try { body = await req.json(); } catch { return jsonResponse({ error: 'Invalid JSON body', code: 'bad_request' }, 400); }
@@ -205,7 +208,7 @@ Deno.serve(async (req) => {
     // hard ceiling across all kinds stops anyone gaming the client-supplied date.
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     let adminClient: ReturnType<typeof createClient> | null = null;
-    if (serviceKey) {
+    if (serviceKey && !noAiCap) {
       adminClient = createClient(supabaseUrl, serviceKey);
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       const [{ count: hard, error: hardErr }, dayRes] = await Promise.all([

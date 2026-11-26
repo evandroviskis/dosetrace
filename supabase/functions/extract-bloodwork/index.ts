@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { lookupEntitlement, withScanBudget, scanUsageReply, scanUsable } from './quota.ts';
 import type { ScanStore } from './quota.ts';
+import { isTestAccount } from '../_shared/testAccounts.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -174,6 +175,8 @@ Deno.serve(async (req) => {
     if (userError || !user) {
       return jsonResponse({ error: 'Invalid session', code: 'unauthorized' }, 401);
     }
+    // Our own test accounts (founder 2026-11-26) are never capped and never consume the budget.
+    const noAiCap = isTestAccount(user);
 
     // ---- Monthly usage cap (spend protection + product limit) ----
     // Lab, vaccine, and vial scans share one budget (3 free / 20 Premium, ./quota.ts).
@@ -201,7 +204,7 @@ Deno.serve(async (req) => {
     // for the line under the lab journal's title. No file, no AI call, never a reservation.
     if (body?.mode === 'usage') {
       let used: number | null = null;
-      if (adminClient) {
+      if (adminClient && !noAiCap) {
         const { count, error } = await adminClient
           .from('ai_scan_usage')
           .select('id', { count: 'exact', head: true })
@@ -210,7 +213,7 @@ Deno.serve(async (req) => {
         if (error) console.error('[extract] usage count failed:', error.code, error.message);
         else if (typeof count === 'number') used = count;
       }
-      const reply = scanUsageReply({ count: used, now });
+      const reply = scanUsageReply({ count: used, now, unlimited: noAiCap });
       return jsonResponse(reply.body, reply.status);
     }
 
@@ -414,6 +417,7 @@ Deno.serve(async (req) => {
       // A scan counts only if it reaches the phone: if the client disconnected while
       // the AI was working (phone timeout, app closed), the reserved row is given back.
       abandoned: () => req.signal?.aborted === true,
+      unlimited: noAiCap,
     });
     if (outcome.status === 'refused') {
       return jsonResponse({ error: 'Monthly scan limit reached', code: 'quota_exceeded', limit: outcome.limit }, 429);

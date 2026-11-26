@@ -19,6 +19,8 @@ function serverWith(replies) {
   let src = SRC.replace(/^import \{ createClient \} from 'https:\/\/esm\.sh\/[^']+';$/m, '');
   const usageSrc = fs.readFileSync(path.join(__dirname, '..', 'supabase/functions/parse-food/usage.ts'), 'utf8').replace(/^export /gm, '');
   src = src.replace(/^import \{ countIfDelivered \} from '\.\/usage\.ts';$/m, usageSrc);
+  // _shared/testAccounts.ts (founder 2026-11-26: test accounts are never capped) is inlined the same way.
+  src = src.replace(/^import \{ isTestAccount \} from '\.\.\/_shared\/testAccounts\.ts';$/m, fs.readFileSync(path.join(__dirname, '..', 'supabase/functions/_shared/testAccounts.ts'), 'utf8').replace(/^export /gm, ''));
   const js = ts.transpileModule(src, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   const query = () => {
     const b = {
