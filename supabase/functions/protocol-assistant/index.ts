@@ -1,7 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SYSTEM, userMessage } from './prompt.ts';
 import { validateUnderstanding, OUTPUT_SCHEMA, STEPS, MAX_TEXT } from './schema.ts';
-import { startConversation, turnAllowed, isUuid, isMissingTable, WINDOW_MS } from './budget.ts';
+import { startConversation, turnAllowed, isUuid, isMissingTable, WINDOW_MS, WEEKLY_LIMIT } from './budget.ts';
+import { isTestAccount } from '../_shared/testAccounts.ts';
 
 // DoseTrace — AI protocol assistant (docs/specs/ai-protocol-assistant.md, signed 2026-10-02).
 //
@@ -41,6 +42,8 @@ Deno.serve(async (req) => {
     const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) return json({ error: 'Invalid session', code: 'unauthorized' }, 401);
+    // Our own test accounts (founder 2026-11-26): no weekly limit, no turn caps.
+    const noAiCap = isTestAccount(user);
 
     let body: Record<string, unknown>;
     try { body = await req.json(); } catch { return json({ error: 'Invalid JSON body', code: 'bad_request' }, 400); }
@@ -83,7 +86,7 @@ Deno.serve(async (req) => {
           return data?.id ?? null;
         },
         async release(id) { await admin.from('ai_assistant_usage').delete().eq('id', id); },
-      }, nowMs);
+      }, nowMs, WEEKLY_LIMIT, { unlimited: noAiCap });
       if (missing) return json({ error: 'Usage table missing', code: 'not_configured' }, 500);
       if (outcome.status === 'refused') {
         return json({ error: 'Weekly limit reached', code: 'quota_exceeded', limit: outcome.limit, resets_at: outcome.resetsAt }, 429);
@@ -121,7 +124,7 @@ Deno.serve(async (req) => {
         started: startRes.error ? undefined : (startRes.data && startRes.data[0] ? startRes.data[0].created_at : null),
         turns: turnsRes.error ? undefined : Math.max(0, (turnsRes.count ?? 1) - 1),
         turnsDay: dayRes.error ? undefined : Math.max(0, (dayRes.count ?? 1) - 1),
-      }, nowMs);
+      }, nowMs, { unlimited: noAiCap });
       if (startRes.error || turnsRes.error || dayRes.error) console.error('[protocol-assistant] turn count failed');
       if (!verdict.ok) {
         if (turnId != null) await admin.from('ai_assistant_usage').delete().eq('id', turnId).then(() => {}, () => {});

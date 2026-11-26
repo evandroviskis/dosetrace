@@ -123,15 +123,20 @@ export type BudgetOutcome<T> =
   | { status: 'failed'; response: T }
   | { status: 'abandoned'; response: T };
 
-export async function withScanBudget<T>({ store, email, lookup, work, abandoned }: {
+export async function withScanBudget<T>({ store, email, lookup, work, abandoned, unlimited }: {
   store: ScanStore;
   email?: string | null;
   lookup: () => Promise<Lookup>; // asks RevenueCat; called at most once, only when it matters
   work: () => Promise<{ ok: boolean; response: T }>;
   abandoned?: () => boolean; // true once the client has disconnected (index.ts: req.signal)
+  unlimited?: boolean; // one of our test accounts (_shared/testAccounts.ts): never capped, nothing reserved
 }): Promise<BudgetOutcome<T>> {
   const finish = (r: { ok: boolean; response: T }): BudgetOutcome<T> =>
     (r.ok ? { status: 'done', response: r.response } : { status: 'failed', response: r.response });
+
+  // Founder 2026-11-26: a test account is never refused and its scans do not consume the budget —
+  // the store is not read or written at all (no row, so its usage line stays at 0).
+  if (unlimited === true) return finish(await work());
 
   let known: Lookup = 'skipped';
   const decideAt = async (count: number) => {
@@ -180,7 +185,9 @@ export async function withScanBudget<T>({ store, email, lookup, work, abandoned 
 // the same count withScanBudget starts from (this user, this UTC month, every kind), plus the day
 // the budget renews (the next UTC month's first day). No count (infrastructure error) → 503 and no
 // number: the app then shows no line, never a guessed one. Reads only; never reserves a scan.
-export function scanUsageReply({ count, now }: { count: number | null; now: Date }): { status: number; body: Record<string, unknown> } {
+// A test account (unlimited, founder 2026-11-26) is never shown near a limit: always 0 used.
+export function scanUsageReply({ count, now, unlimited }: { count: number | null; now: Date; unlimited?: boolean }): { status: number; body: Record<string, unknown> } {
+  if (unlimited === true) count = 0;
   if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) {
     return { status: 503, body: { error: 'Usage unavailable', code: 'usage_unavailable' } };
   }

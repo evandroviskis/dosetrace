@@ -37,11 +37,18 @@ export function resetsAtFrom(rows: Array<{ created_at: string }>, limit = WEEKLY
 // request checks its own place among the window's rows, so starts fired together cannot all
 // pass on one stale count — exactly `limit` win. Infrastructure errors fail OPEN (a real,
 // signed-in user is never blocked by a broken counter; the manual form works regardless).
-export async function startConversation(store: StartStore, nowMs: number, limit = WEEKLY_LIMIT): Promise<StartOutcome> {
+// `opts.unlimited`: one of our test accounts (_shared/testAccounts.ts, founder 2026-11-26) — never
+// refused. The conversation is still recorded (its answers need the start row) but nothing is counted
+// against it, and no "remaining" is reported.
+export async function startConversation(store: StartStore, nowMs: number, limit = WEEKLY_LIMIT, opts: { unlimited?: boolean } = {}): Promise<StartOutcome> {
   const since = new Date(nowMs - WINDOW_MS).toISOString();
   // The same conversation is never counted twice (decided 2026-10-03 by logic: one use =
   // one conversation, counted at its first answer to the AI).
   if (store.hasStart && (await store.hasStart())) return { status: 'ok', remaining: null, resetsAt: null, counted: false };
+  if (opts.unlimited === true) {
+    await store.reserveStart();
+    return { status: 'ok', remaining: null, resetsAt: null, counted: false };
+  }
   const before = await store.startsSince(since);
   if (before == null) return { status: 'ok', remaining: null, resetsAt: null, counted: false };
   if (before.length >= limit) return { status: 'refused', limit, resetsAt: resetsAtFrom(before, limit) };
@@ -67,9 +74,12 @@ export async function startConversation(store: StartStore, nowMs: number, limit 
 //   turns     → turns already used in this conversation
 //   turnsDay  → this user's turns in the last 24 hours
 // Any of them undefined = an infrastructure error → allowed (fail open, logged by the caller).
-export function turnAllowed(known: { started?: string | null; turns?: number; turnsDay?: number }, nowMs: number):
+// `opts.unlimited` (a test account, founder 2026-11-26): only the conversation itself is required —
+// no age, per-conversation or per-day cap.
+export function turnAllowed(known: { started?: string | null; turns?: number; turnsDay?: number }, nowMs: number, opts: { unlimited?: boolean } = {}):
   { ok: true } | { ok: false; code: 'no_conversation' | 'conversation_expired' | 'turn_limit' | 'daily_turn_limit' } {
   if (known.started === null) return { ok: false, code: 'no_conversation' };
+  if (opts.unlimited === true) return { ok: true };
   if (typeof known.started === 'string') {
     const t = Date.parse(known.started);
     if (Number.isFinite(t) && nowMs - t > CONVERSATION_TTL_MS) return { ok: false, code: 'conversation_expired' };
