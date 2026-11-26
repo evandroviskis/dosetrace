@@ -78,7 +78,6 @@ const OLD = [
   ["es","nutri_entry_none","No encontré ningún alimento en tu mensaje. Prueba a decir qué comiste."],
   ["es","nutri_fix_hint","algo que ya registraste, tócalo en "],
   ["es","nutri_unparsed","No pude leer esta e"],
-  ["es","nutri_q_meal_past","¿Hiciste hoy alguna "],
   ["es","nutri_too_old_some","Registré la parte de los últimos 7 días. El resto era de hace más de 7 días, así que lo dejé fuera: tu m"],
   ["es","nutri_nr_bubble","{day} marcado como no registrado: queda fuer"],
   ["es","nutri_tot_today","· {carbs} g carbohidratos · {protein} g proteína"],
@@ -210,8 +209,6 @@ const OLD = [
   ["de","pw_prev_protos_body","Der kostenlose Plan fasst 3 Protokolle. Premium fasst so viele, wie du verfolgst, jedes mit e"],
   ["de","reset_pw_link_expired","dschirm auf Passwort vergessen?, um einen n"],
   ["de","nutri_no_check"," einträgst, wird deine Aufnahme."],
-  ["de","nutri_q_meal_past","eit – Mittag, Abendessen"],
-  ["de","nutri_q_more_forward"," sag es mir einfach dann."],
   ["de","nutri_nr_bubble"," markiert – er fällt aus dem Durchschni"],
   ["de","today_vial_mixed","Gemischt"],
   ["de","today_vial_mix_date","Mischdatum"],
@@ -299,6 +296,7 @@ const OLD = [
 
 // es.reset_switch_notbacked left with the blocked sign-out (A-119 OD-9, rebuild = replace).
 // es.report_header left with the old report text (adherence report for a doctor, 2026-11-24, rebuild = replace).
+// es/de nutri_q_* left with the day question after each entry (food log goodbye, FR-12, 2026-11-26, rebuild = replace).
 test('the 290 grammar fixes of 2026-10-15 stay fixed (6 languages)', () => {
   const back = [];
   for (const [lang, key, old] of OLD) {

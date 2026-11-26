@@ -52,7 +52,9 @@ test('A-133: the thread carries the user text on entries, echo, asked and the op
   ];
   const rows = [{ id: 7, source: 'ai', parse_status: 'done', sync_status: 'synced', raw_text: 'frango grelhado e arroz branco', entry_date: T, created_at: iso, parsed_items: JSON.stringify(items) }];
   const th = buildThread(rows, { todayISO: T });
-  for (const type of ['entry', 'echo', 'followup']) {
+  // FR-9 (founder 2026-11-26): no separate echo bubble any more — the entry's receipt is the echo.
+  assert.equal(th.filter((y) => y.type === 'echo').length, 0);
+  for (const type of ['entry', 'followup']) {
     const x = th.find((y) => y.type === type);
     assert.ok(x, type);
     assert.equal(x.raw, 'frango grelhado e arroz branco', type + ' carries raw');
@@ -64,7 +66,7 @@ test('A-133: the thread carries the user text on entries, echo, asked and the op
 test('A-133: the chat renders every food name through the user text (labels and questions)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', 'screens', 'FoodChatScreen.js'), 'utf8');
   assert.match(src, /itemLabel\(it, language, x\.raw\)/, 'entry card');
-  assert.match(src, /echoFor\(x\.items, x\.raw\)/, 'Noted echo');
+  assert.match(src, /echoFor\(x\.items, x\.raw\)/, 'what the screen reader hears on the receipt (FR-9)');
   assert.match(src, /foodCase\(x\.food, x\.raw, language\)/, 'asked question');
   assert.match(src, /foodCase\(x\.item\.food, x\.raw, language\)/, 'open follow-up question');
   assert.doesNotMatch(src, /toLowerCase\(\)[^\n]*food/, 'nothing else lowercases a food name');

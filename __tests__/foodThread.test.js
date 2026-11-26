@@ -22,8 +22,10 @@ test('buildThread: one message = one bubble; a multi-day catch-up shows one bubb
   const th = buildThread(rows, { todayISO: T });
   assert.equal(th.filter((x) => x.type === 'user').length, 1, 'not duplicated');
   assert.deepEqual(th.filter((x) => x.type === 'entry').map((x) => x.entry_date), ['2026-09-07', Y]);
-  assert.equal(th.filter((x) => x.type === 'echo').length, 1);
-  assert.equal(th.find((x) => x.type === 'echo').items.length, 2);
+  // FR-9 (founder 2026-11-26, amends FL-7): no separate echo bubble — each entry's receipt is the echo.
+  assert.equal(th.filter((x) => x.type === 'echo').length, 0);
+  assert.deepEqual(th.filter((x) => x.type === 'entry').map((x) => x.items.length), [1, 1]);
+  assert.equal(th.find((x) => x.type === 'entry').at, new Date(at(T, 9)).getTime(), 'the receipt knows when it was logged (FR-8)');
 });
 
 test('buildThread: messages in the order typed, with a day divider per typed day', () => {
@@ -51,7 +53,7 @@ test('buildThread: rebuilt from stored data only — pending, refused, closed, n
     { id: 5, source: 'day_closed', entry_date: T, created_at: at(T, 21), parse_status: 'done' },
   ];
   const types = buildThread(rows, { todayISO: T }).map((x) => x.type);
-  assert.deepEqual(types, ['divider', 'user', 'entry', 'echo', 'asked', 'user', 'user', 'refused', 'not_recorded', 'closed']);
+  assert.deepEqual(types, ['divider', 'user', 'entry', 'asked', 'user', 'user', 'refused', 'not_recorded', 'closed']); // FR-9: no echo bubble
   const pending = buildThread(rows, { todayISO: T }).find((x) => x.type === 'user' && x.text === 'eggs');
   assert.equal(pending.status, 'pending');
 });
@@ -66,9 +68,12 @@ test('openFollowup: the stored ask survives closing the chat; skipped / pending 
   assert.equal(openFollowup([pend]), null);
   assert.equal(pendingAnswers([pend])[0].answer, 'BUILT');
   assert.equal(pendingAnswers([pend])[0].kind, 'brand');
-  const th = buildThread([r], { todayISO: T, question: { id: 'drink', tense: 'neutral' } });
-  assert.equal(th[th.length - 1].type, 'followup', 'an open follow-up comes before any day question');
-  assert.equal(th.filter((x) => x.type === 'question').length, 0);
+  // FR-12: the goodbye replaced the day question; an open follow-up still asks first, the goodbye waits.
+  const th = buildThread([r], { todayISO: T, bye: { day: T, next: null } });
+  assert.equal(th[th.length - 1].type, 'followup', 'an open follow-up comes before the goodbye');
+  assert.equal(th.filter((x) => x.type === 'bye').length, 0);
+  const noAsk = buildThread([skipped], { todayISO: T, bye: { day: T, next: null } });
+  assert.equal(noAsk[noAsk.length - 1].type, 'bye', 'nothing open: the goodbye is last');
 });
 
 test('dayWord: today / yesterday / other — a next-morning tap on last night\'s reminder is about yesterday (FL-40)', () => {
@@ -120,7 +125,8 @@ test('legacy rows: the same text typed again later is a NEW bubble; rows written
   assert.notEqual(g.get(1), g.get(4), 'different text: a different message');
   const th = buildThread([morning, split, later], { todayISO: T, sinceISO: Y });
   assert.equal(th.filter((x) => x.type === 'user').length, 2, 'two bubbles, not one');
-  assert.deepEqual(th.filter((x) => x.type === 'echo').map((x) => x.items.length), [2, 1], 'no combined echo');
+  assert.deepEqual(th.filter((x) => x.type === 'entry').map((x) => x.items.length), [1, 1, 1], 'no combined receipt (FR-9: the receipt is the echo)');
+  assert.equal(th.filter((x) => x.type === 'echo').length, 0);
 });
 
 test('messageKey: rows with a message id group by it; legacy rows have none', () => {

@@ -15,27 +15,28 @@ const at = (day, hh, mm = 0) => { const [y, m, d] = day.split('-').map(Number); 
 const T = '2026-10-16';
 const answered = { food: 'Whey genérico', qty: 1, unit: 'batido', kcal: 180, protein_g: 25, carb_g: 8, msg: 'm1', ask: { kind: 'brand', options: ['Whey genérico'] }, asked: true, ask_done: { kind: 'brand', answer: 'Whey genérico', food: 'batido de proteína' } };
 const rows = [{ id: 1, source: 'ai', parse_status: 'done', sync_status: 'synced', raw_text: 'un batido de proteína', entry_date: T, created_at: at(T, 9), parsed_items: JSON.stringify([answered]) }];
-const question = { id: 'drink', tense: 'past' };
+// FR-12 (founder 2026-11-26): the prompt after an entry is now the goodbye (it replaced the day question).
+const bye = { day: T, next: null };
 const updated = { type: 'notice', key: 'notice', kind: 'updated', text: '1 × Whey genérico · ~180 kcal' };
 
-test('A-133: the Updated notice comes right after the answer, above the next question', () => {
-  const live = withNotice(buildThread(rows, { todayISO: T, question }), updated);
+test('A-133: the Updated notice comes right after the answer, above the goodbye', () => {
+  const live = withNotice(buildThread(rows, { todayISO: T, bye }), updated);
   const types = live.map((x) => x.type);
-  assert.deepEqual(types.slice(-3), ['asked', 'notice', 'question']);
+  assert.deepEqual(types.slice(-3), ['asked', 'notice', 'bye']);
 });
 
 test('A-133: the live thread keeps the rebuilt (reopened) order of everything else', () => {
-  const rebuilt = buildThread(rows, { todayISO: T, question });
-  const live = withNotice(buildThread(rows, { todayISO: T, question }), updated);
+  const rebuilt = buildThread(rows, { todayISO: T, bye });
+  const live = withNotice(buildThread(rows, { todayISO: T, bye }), updated);
   assert.deepEqual(live.filter((x) => x.type !== 'notice').map((x) => x.key), rebuilt.map((x) => x.key));
 });
 
-test('A-133: the notice also goes above an open follow-up or the evening question', () => {
+test('A-133: the notice also goes above an open follow-up or the evening question (FR-12: the goodbye is a prompt too)', () => {
   const open = [{ ...rows[0], parsed_items: JSON.stringify([{ ...answered, ask_done: undefined }]) }];
   const fu = withNotice(buildThread(open, { todayISO: T }), updated).map((x) => x.type);
   assert.deepEqual(fu.slice(-2), ['notice', 'followup']);
-  const ev = withNotice(buildThread(rows, { todayISO: T, question, evening: T }), updated).map((x) => x.type);
-  assert.deepEqual(ev.slice(-3), ['notice', 'question', 'evening']);
+  const ev = withNotice(buildThread(rows, { todayISO: T, bye, evening: T }), updated).map((x) => x.type);
+  assert.deepEqual(ev.slice(-3), ['notice', 'bye', 'evening']);
 });
 
 test('A-133: with no prompt open the notice is last; no notice changes nothing', () => {

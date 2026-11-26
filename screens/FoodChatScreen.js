@@ -14,7 +14,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Linking,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Linking, ScrollView,
   KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform, PanResponder,
 } from 'react-native';
 import { startsHeaderSwipe, closesOnRelease } from '../lib/headerSwipe';
@@ -34,10 +34,11 @@ import { requestSync, isOnlineNow, notifyDataChanged } from '../lib/sync';
 import { getFoodLogsSince, insertFoodLog, deleteFoodLog, getFoodLogById } from '../lib/database';
 import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
-  closedDays, CATEGORIES, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker, quotaWaitDay,
+  closedDays, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker, quotaWaitDay,
 } from '../lib/nutrition';
-import { mealChatAsk } from '../lib/mealReminders';
-import { buildThread, withNotice, withDayTotal, dayFoodTotal, liveNotice, threadQuestion, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, resumableQuestion, pendingNoteShown } from '../lib/foodThread';
+import { mealChatAsk, normalizeMeals } from '../lib/mealReminders';
+import { buildThread, withNotice, dayFoodTotal, liveNotice, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, pendingNoteShown, newMessageId } from '../lib/foodThread';
+import { recentMeals, repeatEntry, canRepeat, goodbyeFor } from '../lib/foodRecent';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
 import FoodGraceNote from './components/FoodGraceNote';
 import { DTSheet } from './components/ProtocolParts';
@@ -58,10 +59,12 @@ import { FoodDemo } from './components/NutritionLogger';
 import { formatDate, formatInt } from '../lib/localeFormat';
 import { pluralKey } from '../lib/plural';
 import { ERROR_ICON, errorTitle } from '../lib/errorSheet';
-// Per-device conveniences (not user data): today's asked questions (+ the one on
-// screen) and the unsent draft (FL-36, per user).
-const ASKED_KEY = 'dosetrace_food_asked';
+// Per-device convenience (not user data): the unsent draft (FL-36, per user).
 const draftKey = (uid) => `dosetrace_food_draft:${uid}`;
+// FR-5: how long "Undo" stays after a recent meal is logged with one tap (longer with a screen reader).
+const UNDO_MS = 6000;
+const UNDO_MS_SCREEN_READER = 15000;
+const BYE_NAMED = new Set(['breakfast', 'lunch', 'dinner']);
 const THREAD_DAYS = 7; // typed days shown in the thread
 // The follow-up answer typed and not sent is kept per question (one item of one entry) in
 // lib/draftStore while the app is open (S-26 BK-14, A-77), so leaving the chat, another
@@ -99,7 +102,14 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const [fuText, setFuText] = useState('');
   const [fuBusy, setFuBusy] = useState(false);
   const [notice, setNotice] = useState(null);     // transient app bubble: deflect | fix | earlier | quota | offline | updated
-  const [question, setQuestion] = useState(null); // { id, tense } — the one open question about today
+  // FR-12: the goodbye after an entry ({ day, next: { kind, at } | null }) — replaces the day question (FL-4).
+  const [bye, setBye] = useState(null);
+  // FR-5: the row a recent-meal tap just logged, while "Undo" shows ({ rowId, label }).
+  const [undo, setUndo] = useState(null);
+  const undoTimer = useRef(null);
+  const repeatingRef = useRef(false);
+  // FR-12: the meal times and the reminders switch (user_metadata), to know whether the next meal's reminder is on.
+  const mealMetaRef = useRef({ meals: null, on: false });
   const [evening, setEvening] = useState(null);   // day the 8 PM question is about
   const [mealAsk, setMealAsk] = useState(null);   // MR-11: { meal, day } — the meal a reminder's Log asks about
   const [logDay, setLogDay] = useState(null);     // "Log it" for an earlier day: entries land on that day (FL-40)
@@ -121,7 +131,6 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   // PA-7 / PA-8 (docs/specs/food-plan-actual.md): the Progress plan for the day's bars, or null (no plan yet).
   const [plan, setPlan] = useState(null);
   const inputRef = useRef(null);
-  const askedRef = useRef({ day: null, ids: [], current: null });
   const lastTouch = useRef(Date.now());
   const draftTimer = useRef(null);
 
@@ -151,21 +160,12 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     setPlan((await readProgressTile().catch(() => null))?.plan || null);
     setUserId(uid);
     userIdRef.current = uid;
-    try {
-      const raw = await AsyncStorage.getItem(ASKED_KEY);
-      const v = raw ? JSON.parse(raw) : null;
-      askedRef.current = v && v.day === localISO() && Array.isArray(v.ids) ? { current: null, ...v } : { day: localISO(), ids: [], current: null };
-    } catch { askedRef.current = { day: localISO(), ids: [], current: null }; }
+    const meta = (user && user.user_metadata) || {};
+    mealMetaRef.current = { meals: (normalizeMeals(meta.food_meals) || {}).meals || null, on: meta.food_reminders !== false };
     if (!uid) { setLoaded(true); return; }
     // The draft / put-back text survives closing the chat (FL-36).
     try { const d = await AsyncStorage.getItem(draftKey(uid)); if (d) setText((cur) => cur || d); } catch { /* ignore */ }
-    const r = refresh(uid, false);
-    // Resume the question that was on screen (FL-32) only while it still applies: like the
-    // prototype, a day question follows a log — never on open when nothing logged today
-    // calls for it (founder 2026-10-02).
-    const cur = askedRef.current.day === localISO() ? askedRef.current.current : null;
-    const keep = resumableQuestion(cur, r, localISO(), askedRef.current.ids, new Date());
-    if (keep) setQuestion(keep);
+    refresh(uid, false);
     setLoaded(true);
     // Offline rows and offline follow-up answers catch up now (FL-19/28).
     const { changed, updatedItems, updatedRowIds } = await catchUpFood(uid, language);
@@ -313,28 +313,85 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     });
   }
 
-  // ── Questions about today (FL-4/6) ─────────────────────────────
-  function rememberAsked(q) {
-    const prev = askedRef.current;
-    const base = prev.day === localISO() ? prev.ids : [];
-    const next = { day: localISO(), ids: q && !base.includes(q.id) ? [...base, q.id] : base, current: q || null };
-    askedRef.current = next;
-    AsyncStorage.setItem(ASKED_KEY, JSON.stringify(next)).catch(() => {});
+  // ── The goodbye after an entry (FR-12, amends FL-4) ────────────
+  // No question right after each entry: "Done, logged." and, only when the next meal's reminder is
+  // really on today, when it will ask (lib/foodRecent goodbyeFor). The day question keeps coming from
+  // the meal reminders and the 20:00 question.
+  function sayBye(day, r, acc = access) {
+    const meta = mealMetaRef.current || {};
+    const todayKey = localISO();
+    const list = r || rows || [];
+    const next = goodbyeFor({
+      todayISO: todayKey, entryDay: day, nowMs: Date.now(), meals: meta.meals, remindersOn: meta.on,
+      checkOpen: !!(rcStart && rcStart.date), access: acc, closed: closedDays(list).has(todayKey),
+      entries: list.filter((x) => x && x.entry_date >= todayKey),
+    });
+    setBye({ day, next });
   }
-  function askNext(r) {
-    const a = askedRef.current;
-    const q = threadQuestion(r, localISO(), a.day === localISO() ? a.ids : [], new Date());
-    setQuestion(q);
-    rememberAsked(q);
+  function byeText(x) {
+    const next = x && x.next;
+    if (!next) return `${t('nutri_bye')} ${t('nutri_bye_free')}`;
+    const key = BYE_NAMED.has(next.kind) ? `nutri_bye_next_${next.kind}` : 'nutri_bye_next_any';
+    return `${t('nutri_bye')} ${t(key).replace('{time}', formatTime(next.at, language, timeFormat))}`;
   }
 
-  // ── Echo (FL-7/8) ──────────────────────────────────────────────
+  // ── Echo (FL-7/8, FR-9) ────────────────────────────────────────
+  // The receipt is the echo on screen (no separate bubble); a screen reader still hears what was logged.
   // rawText: the user's own words for those items, so a generic food reads as they typed it (A-133).
   function echoFor(items, rawText) {
     const { shown, more } = echoParts(items, 3);
     if (!shown.length) return null;
     const list = shown.map((it) => `${itemLabel(it, language, rawText)} · ~${Math.round(Number(it.kcal) || 0)} ${t('cal_kcal')}`).join(', ');
     return more ? `${list} ${t(pluralKey('nutri_echo_more', more, language)).replace('{n}', String(more))}` : list;
+  }
+  function announceLogged(items, rawText) {
+    const e = echoFor(items, rawText);
+    if (e) { try { AccessibilityInfo.announceForAccessibility(t('nutri_echo').replace('{items}', e)); } catch { /* no screen reader API */ } }
+  }
+
+  // ── Recent meals (FR-1..FR-7) ──────────────────────────────────
+  // One tap logs a past meal again on the chat's day: no AI call (no daily read, works offline), the same
+  // numbers as last time, a new message, saved already read. "Undo" stays a few seconds (normal delete).
+  async function repeatMeal(meal) {
+    if (!meal || busy || fuBusy || repeatingRef.current || !userId) return;
+    touch();
+    repeatingRef.current = true;
+    try {
+      // FR-7: the same free days / Premium rule as typing (FL-41), asked again right now.
+      let a = access;
+      try { a = (await loadFoodAccess(userId)).access; setAccess(a); } catch { /* keep the last answer */ }
+      if (!canRepeat(a)) return;
+      const day = logDay || localISO();
+      ensureFreeStart(userId); // the free days' anchor: the real day of first use (FL-41)
+      // A new meal while a follow-up is open is a new entry; the earlier item stays flagged (FL-27).
+      const open = openFollowup(rows);
+      if (open) { updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); clearDraft(fuDraftKey(open)); }
+      setNotice(null);
+      const id = insertFoodLog(repeatEntry(meal, { userId, day, msgId: newMessageId() }));
+      requestSync?.();
+      const r = refresh(userId);
+      announceLogged(meal.items, meal.label);
+      sayBye(day, r, a);
+      clearTimeout(undoTimer.current);
+      setUndo({ rowId: id, label: meal.label });
+      undoTimer.current = setTimeout(() => setUndo(null), screenReader ? UNDO_MS_SCREEN_READER : UNDO_MS);
+    } finally { repeatingRef.current = false; }
+  }
+  function undoRepeat() {
+    const u = undo;
+    clearTimeout(undoTimer.current);
+    setUndo(null);
+    if (!u) return;
+    touch();
+    deleteFoodLog(u.rowId); // the normal delete: a synced tombstone
+    requestSync?.();
+    refresh(userId);
+    setBye(null);
+  }
+  useEffect(() => () => clearTimeout(undoTimer.current), []);
+  function openRecentInfo() {
+    touch();
+    alert(t('nutri_recent_title'), t('nutri_recent_body'), [{ text: t('nutri_how_cta') }], 'info');
   }
 
   // The user's own text of these rows (A-133 foodCase), for notices built outside the thread.
@@ -374,11 +431,11 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (open) { updateItem(open.rowId, open.index, (it) => ({ ...it, ask_skipped: true })); clearDraft(fuDraftKey(open)); } // stays an estimate
     requestSync?.();
     refresh(uid);
-    setQuestion(null); rememberAsked(null); setEvening(null); setMealAsk(null); setNotice(null); setFuText('');
+    setBye(null); setEvening(null); setMealAsk(null); setNotice(null); setFuText('');
     if (logDay === dayKey) setLogDay(null);
   }
 
-  // ── Send (FL-4/10/14/20/27/29) ─────────────────────────────────
+  // ── Send (FL-10/14/20/27/29, FR-12) ────────────────────────────
   async function onSubmit() {
     const raw = text.trim();
     if (!raw || busy || !userId) return;
@@ -387,20 +444,19 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (isNoText(raw)) {
       setText(''); saveDraftNow(''); setNotice(null);
       const open = openFollowup(rows);
-      if (open) { skipFollowup(open); return; }
-      if (question) askNext(rows);
+      if (open) skipFollowup(open);
       return;
     }
     const day = logDay || localISO(); // fixed before any await (a send can cross midnight)
     if (mustAskWhichEarlier(raw, recentForParse(getFoodLogsSince(userId, day) || [], day))) {
-      setNotice({ kind: 'earlier' }); setQuestion(null);
+      setNotice({ kind: 'earlier' }); setBye(null);
       return;
     }
     setConsentOpen(true);
     const consented = await askAIConsent();
     setConsentOpen(false);
     if (!consented) return;
-    setNotice(null);
+    setNotice(null); setBye(null);
     // A new meal while a follow-up is open is a new entry; the earlier item stays
     // flagged (FL-27) and its question is closed — stored, so it stays closed.
     const open = openFollowup(rows);
@@ -455,8 +511,10 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       const r = refresh(userId);
       // Some of it was too old: the recent part is saved, and the full typed text goes
       // back in the box so the older part isn't lost (FL-45).
-      if (outcome.notice === 'too_old_some') { setText(outcome.putBack); setNotice({ kind: 'too_old_some' }); setQuestion(null); rememberAsked(null); return; }
-      if (!askKept && day === localISO()) askNext(r); else { setQuestion(null); rememberAsked(null); }
+      announceLogged(keep, raw); // FR-9: the receipt is the echo; a screen reader still hears it
+      if (outcome.notice === 'too_old_some') { setText(outcome.putBack); setNotice({ kind: 'too_old_some' }); return; }
+      // FR-12: an open follow-up asks first; otherwise the goodbye (never a question right away).
+      if (!askKept) sayBye(day, r);
       return;
     }
     // "Saved — I'll estimate it when you're back online" ONLY when actually offline;
@@ -495,14 +553,14 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       else if (outcome === 'limit') setNotice({ kind: 'followup_limit' });
       else if (outcome === 'ceiling') setNotice({ kind: 'ceiling', at: res.retryAt || null });
     } else {
-      const e = echoFor([storedItem(open.rowId, open.index) || res.items[0]], open.raw || rawOfRows([open.rowId]));
-      if (e) setNotice({ kind: 'updated', text: e, rowIds: [open.rowId] });
+      // FR-9: the updated receipt is the echo (no "Updated" bubble under it); a screen reader hears it.
+      announceLogged([storedItem(open.rowId, open.index) || res.items[0]], open.raw || rawOfRows([open.rowId]));
     }
     requestSync?.();
     setFuText('');
     clearDraft(fuDraftKey(open));
     const r = refresh(userId);
-    if (open.entry_date === localISO() || outcome === 'applied') askNext(r);
+    sayBye(open.entry_date, r); // FR-12: after a follow-up answer, the goodbye
   }
 
   function skipFollowup(open) {
@@ -511,7 +569,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     requestSync?.();
     setFuText('');
     clearDraft(fuDraftKey(open));
-    askNext(refresh(userId));
+    sayBye(open.entry_date, refresh(userId));
   }
 
   function confirmRemove(rowId, status) {
@@ -539,7 +597,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     const th = buildThread(rows, {
       todayISO: today,
       sinceISO: localDaysAgoISO(THREAD_DAYS - 1),
-      question: question && !closedSet.has(today) ? question : null,
+      bye: bye && !closedSet.has(bye.day) && !busy ? bye : null,
       evening: eveningOpen ? evening : null,
     });
     // Today starts with the app's invitation (FL-1) until something is typed.
@@ -547,15 +605,20 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (lastDiv >= 0 && th[lastDiv].day === today && !th.slice(lastDiv).some((x) => x.type === 'user')) th.splice(lastDiv + 1, 0, { type: 'intro', key: 'intro:' + today });
     // A-133: the notice goes before the next prompt (live order = the order on reopen).
     // A-133: an Updated notice whose row was removed is stale and goes (liveNotice).
-    // FW-9: today's total after today's messages, before the notice and the next prompt.
-    const live = withNotice(withDayTotal(th, dayFoodTotal(rows, today), today), liveNotice(notice ? { type: 'notice', key: 'notice', ...notice } : null, rows));
+    // FR-10: today's total is no longer a line in the thread — it is the fixed panel on top.
+    const live = withNotice(th, liveNotice(notice ? { type: 'notice', key: 'notice', ...notice } : null, rows));
     // MR-11: the meal a reminder's Log opened the chat for, asked last — until something is logged
     // after it was asked (the answer) or the day closes.
     const answered = mealAsk && (rows || []).some((r) => r && !isMarker(r) && String(r.created_at || '') >= mealAsk.since);
     if (mealAsk && !answered && !closedSet.has(mealAsk.day) && !busy) live.push({ type: 'mealAsk', key: 'mealAsk', meal: mealAsk.meal });
     if (busy || fuBusy) live.push({ type: 'typing', key: 'typing' });
     return live;
-  }, [rows, today, question, closedSet, eveningOpen, evening, mealAsk, notice, busy, fuBusy]);
+  }, [rows, today, bye, closedSet, eveningOpen, evening, mealAsk, notice, busy, fuBusy]);
+  // FR-10: today's total, fixed on top (null until something is read today).
+  const dayTot = useMemo(() => dayFoodTotal(rows, today), [rows, today]);
+  // FR-1/FR-2: the recent meals for the row above the field, in the order of the time of day.
+  const minute = Math.floor(now / 60000);
+  const recent = useMemo(() => recentMeals(rows, { todayISO: today, now: new Date(minute * 60000), language }), [rows, today, minute, language]);
   const data = useMemo(() => thread.slice().reverse(), [thread]); // inverted list opens at the latest (FL-39)
   // PA-7: the entry just logged = the latest of today's entries; it carries "+N g protein in your day".
   const lastTodayEntry = useMemo(() => {
@@ -587,11 +650,12 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       <Text style={[s.pillText, on && s.pillTextOn]} numberOfLines={1}>{label}</Text>
     </TouchableOpacity>
   );
-  const doneChip = (day) => (
-    <View style={s.chips}>
-      <Pill label={t('nutri_day_done_btn')} onPress={() => closeDay(day)} />
-    </View>
-  );
+  // FR-8: the time a receipt was logged, in the user's 12/24 h choice.
+  const clock = (ms) => {
+    const d = ms ? new Date(ms) : null;
+    if (!d || Number.isNaN(d.getTime())) return null;
+    return formatTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, language, timeFormat);
+  };
 
   function renderItem({ item: x }) {
     switch (x.type) {
@@ -643,46 +707,38 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             </View>
           </View>
         );
-      case 'entry':
+      case 'entry': {
+        // FR-8 (picture registro-comida-visual.html option A): a receipt — names on the left, kcal in a
+        // right column, a total line; an estimate is a dotted underline plus "estimate · tap to fix". No
+        // per-item category tag (the category is still stored). FR-9: it is also the echo of the entry.
+        const est = x.items.some(needsEstimateFlag);
+        const time = clock(x.at);
+        const head = x.entry_date !== today || !time ? dayLabel(x.entry_date) : t('nutri_receipt_logged').replace('{time}', time);
+        const said = echoFor(x.items, x.raw);
         return (
-          <TouchableOpacity style={s.entry} activeOpacity={0.75} onPress={() => { touch(); setEditRow(getFoodLogById(x.rowId)); }} accessibilityRole="button" accessibilityLabel={t('nutri_edit_title')}>
-            {x.entry_date !== today && <Text style={s.entryDay}>{dayLabel(x.entry_date)}</Text>}
-            {x.items.map((it, i) => (
-              <View key={i} style={s.entryItem}>
-                <View style={s.entryRow}>
-                  <Text style={s.entryFood}>{itemLabel(it, language, x.raw)} · <Text style={s.mono}>~{Math.round(it.kcal || 0)}</Text> {t('cal_kcal')}</Text>
-                  {CATEGORIES.includes(it.category) && <Text style={s.catTag}>{t(`nutri_cat_${it.category}`)}</Text>}
-                </View>
-                {needsEstimateFlag(it) && <Text style={s.estFlag}>{t('nutri_estimate')}</Text>}
-              </View>
-            ))}
-            <View style={s.entryTot}>
-              <Text style={s.entryTotText}>≈ {Math.round(x.kcal || 0)} {t('cal_kcal')}</Text>
-              <Text style={s.entryMacro}>{Math.round(x.carb_g || 0)} g {t('nutri_carbs')} · {Math.round(x.protein_g || 0)} g {t('nutri_protein')}{x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}</Text>
-              {x.key === lastTodayEntry && addedProtein(x) != null ? <Text style={s.entryAdded}>{t('pa_added_protein').replace('{n}', formatInt(addedProtein(x), language))}</Text> : null}
+          <TouchableOpacity style={s.rc} activeOpacity={0.75} onPress={() => { touch(); setEditRow(getFoodLogById(x.rowId)); }} accessibilityRole="button" accessibilityLabel={said ? `${t('nutri_echo').replace('{items}', said)} ${t('nutri_edit_title')}` : t('nutri_edit_title')}>
+            <View style={s.rcHead}>
+              <Text style={s.rcWhen} numberOfLines={1}>{head}</Text>
+              <Text style={s.rcWhen}>{t('cal_kcal')}</Text>
             </View>
+            {x.items.map((it, i) => {
+              const flag = needsEstimateFlag(it);
+              return (
+                <View key={i} style={s.ln}>
+                  <Text style={[s.lnFood, flag && s.lnEst]}>{itemLabel(it, language, x.raw)}</Text>
+                  <Text style={s.lnKcal}>{`${flag ? '~' : ''}${formatInt(Math.round(Number(it.kcal) || 0), language)}`}</Text>
+                </View>
+              );
+            })}
+            <View style={s.tot}>
+              <Text style={s.totK}>{`${est ? '~' : ''}${formatInt(Math.round(Number(x.kcal) || 0), language)} ${t('cal_kcal')}`}</Text>
+              {/* FW-4: the fiber stays on the entry's line when it is known. */}
+              <Text style={s.totM}>{`${Math.round(x.carb_g || 0)} g ${t('nutri_carbs')} · ${Math.round(x.protein_g || 0)} g ${t('nutri_protein')}${x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}`}</Text>
+            </View>
+            {x.key === lastTodayEntry && addedProtein(x) != null ? <Text style={s.entryAdded}>{t('pa_added_protein').replace('{n}', formatInt(addedProtein(x), language))}</Text> : null}
+            {est ? <Text style={s.estn}>{t('nutri_estimate')}</Text> : null}
           </TouchableOpacity>
         );
-      case 'day_total':
-        // FW-9 (picture docs/design/food-week-fiber-pace.html column 4): the day's total, fiber only when known.
-        // PA-7 (picture food-goals-progress part 2): with a plan, "Today · your plan" and the three bars; the
-        // fiber stays a number (no fiber target). PA-8: no plan → the numbers as before and the way to set one.
-        return plan ? (
-          <View style={s.dayPlan} accessibilityRole="summary">
-            <Text style={s.dayTotalHead}>{t('pa_today_plan')}</Text>
-            <PlanBars rows={todayBars(x, plan)} />
-            {x.fiber_g != null ? <Text style={s.dayFiber}>{`${Math.round(x.fiber_g)} g ${t('nutri_fiber')}`}</Text> : null}
-          </View>
-        ) : (
-          <View style={s.dayTotal} accessibilityRole="summary">
-            <Text style={s.dayTotalHead}>{t('nutri_today')}</Text>
-            <Text style={s.dayTotalText}>{`~${formatInt(x.kcal, language)} ${t('cal_kcal')} · ${x.carb_g} g ${t('nutri_carbs')} · ${x.protein_g} g ${t('nutri_protein')}${x.fiber_g != null ? ` · ${Math.round(x.fiber_g)} g ${t('nutri_fiber')}` : ''}`}</Text>
-            <Text style={s.dayNoPlan}>{t('pa_no_plan')}</Text>
-          </View>
-        );
-      case 'echo': {
-        const e = echoFor(x.items, x.raw);
-        return e ? <AppBubble><Text style={s.appText}>{t('nutri_echo').replace('{items}', e)}</Text></AppBubble> : null;
       }
       case 'asked':
         // One root view: an inverted list lays out a cell's children in reverse,
@@ -732,21 +788,19 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
               />
               <Pill label={t('nutri_ask_send')} on={!!fuText.trim() && !fuBusy} disabled={!fuText.trim() || fuBusy} onPress={() => answerFollowup(x, fuText)} />
             </View>
+            {/* FR-11: the quick answers, the typed answer and Skip — no "That's all for today" here. */}
             <View style={s.fuFoot}>
               <TouchableOpacity onPress={() => skipFollowup(x)} disabled={fuBusy} style={s.linkHit} accessibilityRole="button">
                 <Text style={s.link}>{t('nutri_ask_skip')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => closeDay(x.entry_date)} disabled={fuBusy} style={s.linkHit} accessibilityRole="button">
-                <Text style={s.link}>{t('nutri_day_done_btn')}</Text>
-              </TouchableOpacity>
             </View>
           </AppBubble>
         );
-      case 'question':
+      case 'bye':
+        // FR-12: the human goodbye after an entry (replaces the question right after each entry, FL-4).
         return (
           <AppBubble>
-            <Text style={s.appText}>{t(`nutri_q_${x.id}${x.tense === 'neutral' ? '' : '_' + x.tense}`)}</Text>
-            {doneChip(today)}
+            <Text style={s.appText}>{byeText(x)}</Text>
           </AppBubble>
         );
       case 'mealAsk':
@@ -811,6 +865,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   return (
     <SafeAreaView style={s.container} edges={edges}>
       <View style={s.header} {...headerSwipe.panHandlers}>
+        {/* FR-14: the handle shows that pulling the title bar down closes the chat (a tab page has none). */}
+        {embedded ? null : <View style={s.grab} />}
         <View style={s.headTitleRow}>
           <FeatureIcon name="ai_spark" size={20} color={colors.ink} />
           <Text style={s.headTitle}>{t('nutri_ai_badge')}</Text>
@@ -838,6 +894,29 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
           {access && (access.reason === 'premium_ended' || access.reason === 'free_days_ending') && (
             <FoodGraceNote rcStart={rcStart} until={access.until} reason={access.reason} freeFrom={access.freeFrom} rows={rows} style={s.graceNote} />
           )}
+          {/* FR-10: today's total, fixed on top — kcal large, a ruler, carbs · protein and fiber (FW-9: fiber
+              only when known). PA-7: with a plan, "Today · your plan" and the three bars; PA-8: no plan → the
+              numbers and the way to set one. Not a line inside the thread any more. */}
+          {dayTot ? <View style={s.band}>{plan ? (
+            <View style={s.gauge} accessibilityRole="summary">
+              <Text style={s.gHead}>{t('pa_today_plan')}</Text>
+              <PlanBars rows={todayBars(dayTot, plan)} />
+              {dayTot.fiber_g != null ? <Text style={s.gSub}>{`${Math.round(dayTot.fiber_g)} g ${t('nutri_fiber')}`}</Text> : null}
+            </View>
+          ) : (
+            <View style={s.gauge} accessible accessibilityRole="summary" accessibilityLabel={`${t('nutri_today')}: ${formatInt(dayTot.kcal, language)} ${t('cal_kcal')}, ${dayTot.carb_g} g ${t('nutri_carbs')}, ${dayTot.protein_g} g ${t('nutri_protein')}${dayTot.fiber_g != null ? `, ${Math.round(dayTot.fiber_g)} g ${t('nutri_fiber')}` : ''}`}>
+              <View style={s.gLine}>
+                <Text style={s.gHead}>{t('nutri_today')}</Text>
+                <Text style={s.gK}>{`${formatInt(dayTot.kcal, language)} ${t('cal_kcal')}`}</Text>
+              </View>
+              <View style={s.ticks}>{Array.from({ length: 11 }, (_, i) => <View key={i} style={s.tick} />)}</View>
+              <View style={s.gLine}>
+                <Text style={s.gSub}>{`${dayTot.carb_g} g ${t('nutri_carbs')} · ${dayTot.protein_g} g ${t('nutri_protein')}`}</Text>
+                {dayTot.fiber_g != null ? <Text style={s.gSub}>{`${Math.round(dayTot.fiber_g)} g ${t('nutri_fiber')}`}</Text> : null}
+              </View>
+              <Text style={s.gNoPlan}>{t('pa_no_plan')}</Text>
+            </View>
+          )}</View> : null}
           <FlatList
             style={s.flex}
             contentContainerStyle={s.list}
@@ -851,7 +930,37 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
             initialNumToRender={20}
             windowSize={11}
           />
+          {/* FR-5: one tap logged a recent meal — "Undo" for a few seconds (the normal delete). */}
+          {undo ? (
+            <View style={s.band}>
+              <View style={s.toast} accessibilityLiveRegion="polite">
+                <Text style={s.toastText} numberOfLines={2}>{t('nutri_recent_logged').replace('{meal}', undo.label)}</Text>
+                <TouchableOpacity onPress={undoRepeat} style={s.toastHit} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button">
+                  <Text style={s.toastUndo}>{t('nutri_undo')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
           <View style={s.composer}>
+            {/* FR-1..FR-3 (picture refeicoes-recentes.html v2): a fixed row of recent meal NAMES above the
+                field, in the order of the time of day; hidden until the first meal is logged. The "i" explains it. */}
+            {recent.length > 0 && (
+              <View style={s.recent}>
+                <View style={s.recentHead}>
+                  <Text style={s.recentLabel} numberOfLines={1}>{t('nutri_recent_label')}</Text>
+                  <TouchableOpacity onPress={openRecentInfo} style={s.infoHit} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('nutri_recent_info')}>
+                    <FeatureIcon name="info" size={16} color={colors.ink3} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.recentRow}>
+                  {recent.map((m) => (
+                    <TouchableOpacity key={m.key} style={s.recentChip} onPress={() => repeatMeal(m)} disabled={busy || fuBusy} accessibilityRole="button" accessibilityLabel={m.label} accessibilityHint={t('nutri_recent_hint')}>
+                      <Text style={s.recentChipText} numberOfLines={1}>{m.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
             {logDay && (
               <TouchableOpacity style={s.logDayChip} onPress={() => setLogDay(null)} accessibilityRole="button">
                 <Text style={s.logDayText}>{t('nutri_logging_for').replace('{day}', dayLabel(logDay))} ×</Text>
@@ -872,7 +981,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
                 {busy ? <ActivityIndicator size="small" color={colors.onAct} /> : <FeatureIcon name="ai_spark" size={20} color={colors.onAct} />}
               </TouchableOpacity>
             </View>
-            <Text style={s.caveat}>{t('nutri_est_note')}{inFreeDays && freeLeft > 0 ? '  ·  ' + t(pluralKey('nutri_free_note', freeLeft, language)).replace('{n}', String(freeLeft)) : ''}</Text>
+            {/* FR-13: the AI notice stays, on one smaller line. */}
+            <Text style={s.caveat} numberOfLines={2}>{t('nutri_est_note')}{inFreeDays && freeLeft > 0 ? '  ·  ' + t(pluralKey('nutri_free_note', freeLeft, language)).replace('{n}', String(freeLeft)) : ''}</Text>
           </View>
         </KeyboardAvoidingView>
       )}
@@ -919,7 +1029,9 @@ function TypingDot({ delay, reduced, s }) {
 const makeStyles = (c) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.ground },
   flex: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.ground },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.ground },
+  // FR-14 (prototype .grab): the handle on top of the title bar.
+  grab: { position: 'absolute', top: 6, left: '50%', marginLeft: -18, width: 36, height: 4, borderRadius: 2, backgroundColor: c.line },
   headTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headTitle: { fontSize: 17, fontWeight: '600', color: c.ink },
   headDoneHit: { minHeight: 44, justifyContent: 'center' },
@@ -944,24 +1056,30 @@ const makeStyles = (c) => StyleSheet.create({
   userText: { fontSize: 17, lineHeight: 22, color: c.onAct },
   userNote: { fontSize: 13, lineHeight: 18, color: c.ink2, marginTop: 4, textAlign: 'right' },
   userNoteWarn: { color: c.attention },
-  entry: { alignSelf: 'flex-end', width: '88%', backgroundColor: c.raised, borderRadius: 20, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 6 },
-  entryDay: { fontSize: 12, fontWeight: '500', color: c.ink2 },
-  entryItem: { gap: 2 },
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  entryFood: { flex: 1, fontSize: 17, lineHeight: 22, color: c.ink },
-  catTag: { borderWidth: 1, borderColor: c.line, color: c.ink2, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 2, fontSize: 12, fontWeight: '600', overflow: 'hidden' },
-  estFlag: { fontSize: 13, lineHeight: 18, color: c.attention },
-  entryTot: { borderTopWidth: 1, borderTopColor: c.line, paddingTop: 8, marginTop: 2, gap: 2 },
-  entryTotText: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
-  entryMacro: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
-  dayTotal: { alignSelf: 'stretch', paddingHorizontal: 4, paddingVertical: 6, gap: 2 },
-  dayTotalHead: { fontSize: 12, fontWeight: '600', color: c.ink2, letterSpacing: 0.4, textTransform: 'uppercase' },
-  dayTotalText: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
-  // PA-7 / PA-8 (picture food-goals-progress part 2): the day against the plan, a raised card like an entry.
+  // FR-8 (picture registro-comida-visual.html option A, .rc / .ln / .tot / .estn): the receipt.
+  rc: { alignSelf: 'stretch', backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 11, marginVertical: 5, gap: 2 },
+  rcHead: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
+  rcWhen: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink3, letterSpacing: 0.5, textTransform: 'uppercase' },
+  ln: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, paddingVertical: 2 },
+  lnFood: { flex: 1, fontSize: 16, lineHeight: 21, color: c.ink },
+  lnEst: { textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.attention },
+  lnKcal: { fontFamily: MONO['500'], fontSize: 15, lineHeight: 21, color: c.ink2, fontVariant: ['tabular-nums'] },
+  tot: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, borderTopWidth: 1, borderTopColor: c.line, marginTop: 4, paddingTop: 7 },
+  totK: { fontFamily: MONO['500'], fontSize: 16, lineHeight: 21, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  totM: { fontFamily: MONO['500'], fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  estn: { fontSize: 13, lineHeight: 18, color: c.attention, marginTop: 4 },
+  // PA-7: "+N g protein in your day" on the latest entry.
   entryAdded: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: c.data, marginTop: 4, fontVariant: ['tabular-nums'] },
-  dayPlan: { alignSelf: 'stretch', backgroundColor: c.raised, borderRadius: 20, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 8 },
-  dayFiber: { fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
-  dayNoPlan: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  // FR-10 (picture option A, .gauge / .ticks): today's total, fixed on top with a ruler.
+  band: { paddingHorizontal: 16 },
+  gauge: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', marginTop: 10, marginBottom: 2, backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, gap: 6 },
+  gLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 },
+  gHead: { fontSize: 12, fontWeight: '600', color: c.ink2, letterSpacing: 0.5, textTransform: 'uppercase' },
+  gK: { fontFamily: MONO['500'], fontSize: 20, lineHeight: 26, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
+  gSub: { fontFamily: MONO['500'], fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
+  gNoPlan: { fontSize: 12, lineHeight: 16, color: c.ink2 },
+  ticks: { flexDirection: 'row', justifyContent: 'space-between', height: 8, borderBottomWidth: 1, borderBottomColor: c.tick, opacity: 0.55 },
+  tick: { width: 1, height: 8, backgroundColor: c.tick },
   // The fixed "no diet advice" card: an outline, never a tinted box.
   deflect: { alignSelf: 'stretch', borderWidth: 1, borderColor: c.line, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, marginVertical: 5, gap: 4 },
   deflectTitle: { fontSize: 17, lineHeight: 22, fontWeight: '600', color: c.ink },
@@ -977,14 +1095,27 @@ const makeStyles = (c) => StyleSheet.create({
   fuFoot: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   linkHit: { minHeight: 36, justifyContent: 'center' },
   link: { fontSize: 13, color: c.ink, textDecorationLine: 'underline', textDecorationColor: c.tick },
-  composer: { borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.ground, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4 },
+  composer: { borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.ground, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 4 },
+  // FR-1 (picture refeicoes-recentes.html v2, .rhead / .ibtn / .chips): the recent meals row.
+  recent: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', marginBottom: 8, gap: 6 },
+  recentHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  recentLabel: { flexShrink: 1, fontSize: 12, lineHeight: 16, color: c.ink2 },
+  infoHit: { minHeight: 24, minWidth: 24, alignItems: 'center', justifyContent: 'center' },
+  recentRow: { gap: 6, paddingRight: 8 },
+  recentChip: { minHeight: 36, maxWidth: 240, borderRadius: 18, borderWidth: 1.5, borderColor: c.line, backgroundColor: c.raised, paddingHorizontal: 12, justifyContent: 'center' },
+  recentChipText: { fontSize: 14, color: c.ink },
+  // FR-5 (picture .toast): "Logged: … · Undo" in the one ink action colour.
+  toast: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', marginBottom: 8, borderRadius: 14, backgroundColor: c.act, paddingHorizontal: 14, paddingVertical: 10 },
+  toastText: { flex: 1, fontSize: 14, lineHeight: 19, color: c.onAct },
+  toastHit: { minHeight: 32, justifyContent: 'center' },
+  toastUndo: { fontSize: 14, fontWeight: '700', color: c.onAct, textDecorationLine: 'underline', textDecorationColor: c.onAct },
   logDayChip: { alignSelf: 'flex-start', minHeight: 36, borderRadius: 18, borderWidth: 1.5, borderColor: c.ink, backgroundColor: c.raised, paddingHorizontal: 13.5, justifyContent: 'center', marginBottom: 8 },
   logDayText: { fontSize: 13, fontWeight: '600', color: c.ink },
   field: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   input: { flex: 1, minHeight: 46, maxHeight: 120, backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 23, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, fontSize: 17, color: c.ink },
   send: { width: 46, height: 46, borderRadius: 23, backgroundColor: c.act, alignItems: 'center', justifyContent: 'center' },
   // Disabled = well + ink3 (readable, clearly inactive), never a faded fill.
-  caveat: { fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink2, textAlign: 'center', marginTop: 6, paddingBottom: 4 },
+  caveat: { fontSize: 11, lineHeight: 14, fontWeight: '500', color: c.ink2, textAlign: 'center', marginTop: 5, paddingBottom: 4 },
   locked: { flex: 1, justifyContent: 'center', padding: 16 },
   lockedCard: { backgroundColor: c.raised, borderRadius: 24, padding: 18, gap: 12, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' },
   graceNote: { marginHorizontal: 16, marginTop: 10 },

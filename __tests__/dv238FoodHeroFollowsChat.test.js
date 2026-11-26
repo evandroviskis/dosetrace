@@ -11,7 +11,7 @@ test('DV-238: the chat announces its writes; the opening does not', () => {
   const fn = src.slice(src.indexOf('  function refresh(uid, announce = true) {'), src.indexOf('  useFocusEffect(useCallback(() => { load(); }, []));'));
   assert.match(fn, /if \(announce\) notifyDataChanged\('food_logs'\);/);
   const load = src.slice(src.indexOf('  async function load() {'), src.indexOf('  async function load() {') + 1600);
-  assert.match(load, /const r = refresh\(uid, false\);/);
+  assert.match(load, /\brefresh\(uid, false\);/); // FR-12: the opening no longer resumes a day question, so it keeps no copy of the rows
   const hero = fs.readFileSync(path.join(__dirname, '..', 'screens/components/FoodLogHero.js'), 'utf8');
   assert.match(hero, /e\.type !== 'data_changed'/);
 });

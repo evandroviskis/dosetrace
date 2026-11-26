@@ -113,7 +113,7 @@ test('FW-7: texts in 6 languages, pt as approved, never "muito/pouco" or a targe
 // chat's day total, FW-11 weight pace in kg and in % per week. ──
 const { progressTile } = require('../lib/progressTile');
 const { energyPlan, goalsForTdee, weeklyPace } = require('../lib/energyCalc');
-const { dayFoodTotal, withDayTotal } = require('../lib/foodThread');
+const { dayFoodTotal } = require('../lib/foodThread');
 
 test('FW-8: the plan is the Progress plan card\'s number (chosen goal, measured burn when a check exists), or null', () => {
   const saved = { unit: 'metric', weight: '86', height: '180', goal: 'lose', bodyFat: '', bfSource: 'unknown', activity: 1.55 };
@@ -147,7 +147,7 @@ test('FW-8: the food card shows the plan beside the week\'s calories; Journey ha
   assert.equal(T.pt.nutri_week_plan_days, 'plano desses {n} dias: {plan}');
 });
 
-test('FW-9: the chat shows today\'s total (kcal, carbs, protein, fiber when known) before the next prompt', () => {
+test('FW-9 / FR-10: the chat shows today\'s total (kcal, carbs, protein, fiber when known), fixed on top', () => {
   const rows = [
     row(TODAY, 350, [{ food: 'ovos', fiber_g: 2 }], { p: 18, c: 28 }),
     row(TODAY, 80, [{ food: 'maçã', fiber_g: 4 }], { p: 0, c: 21 }),
@@ -156,14 +156,15 @@ test('FW-9: the chat shows today\'s total (kcal, carbs, protein, fiber when know
   assert.deepEqual(dayFoodTotal(rows, TODAY), { kcal: 430, carb_g: 49, protein_g: 18, fiber_g: 6 });
   assert.equal(dayFoodTotal([row(TODAY, 300, [{ food: 'old' }])], TODAY).fiber_g, null, 'no fiber number → no fiber');
   assert.equal(dayFoodTotal(rows, '2026-11-07'), null, 'no food that day → no total');
-  const th = [{ type: 'divider', day: TODAY }, { type: 'entry' }, { type: 'echo' }, { type: 'question' }];
-  const out = withDayTotal(th, dayFoodTotal(rows, TODAY), TODAY);
-  assert.deepEqual(out.map((x) => x.type), ['divider', 'entry', 'echo', 'day_total', 'question']);
-  assert.deepEqual(withDayTotal(th, null, TODAY), th);
+  // FR-10 (docs/specs/food-log-recent-receipt.md, founder 2026-11-26): the total is no longer a line in the
+  // thread before the next prompt — it is the small panel fixed on top (kcal, carbs · protein, fiber when known).
   const chat = read('screens/FoodChatScreen.js');
-  assert.match(chat, /withNotice\(withDayTotal\(th, dayFoodTotal\(rows, today\), today\)/);
-  assert.match(chat, /case 'day_total':/);
-  assert.match(chat, /`~\$\{formatInt\(x\.kcal, language\)\} \$\{t\('cal_kcal'\)\} · \$\{x\.carb_g\} g \$\{t\('nutri_carbs'\)\} · \$\{x\.protein_g\} g \$\{t\('nutri_protein'\)\}\$\{x\.fiber_g != null \? ` · \$\{Math\.round\(x\.fiber_g\)\} g \$\{t\('nutri_fiber'\)\}` : ''\}`/);
+  assert.match(chat, /const dayTot = useMemo\(\(\) => dayFoodTotal\(rows, today\), \[rows, today\]\);/);
+  assert.doesNotMatch(chat, /case 'day_total':/, 'no total line inside the thread');
+  assert.doesNotMatch(chat, /withDayTotal/);
+  assert.match(chat, /\{`\$\{formatInt\(dayTot\.kcal, language\)\} \$\{t\('cal_kcal'\)\}`\}/);
+  assert.match(chat, /\{`\$\{dayTot\.carb_g\} g \$\{t\('nutri_carbs'\)\} · \$\{dayTot\.protein_g\} g \$\{t\('nutri_protein'\)\}`\}/);
+  assert.match(chat, /\{dayTot\.fiber_g != null \? <Text style=\{s\.gSub\}>\{`\$\{Math\.round\(dayTot\.fiber_g\)\} g \$\{t\('nutri_fiber'\)\}`\}<\/Text> : null\}/);
 });
 
 test('FW-11: weight pace in kg and in % of the weight per week, from the weigh-ins; Premium; never below the healthy range', () => {
