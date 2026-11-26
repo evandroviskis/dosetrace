@@ -152,7 +152,7 @@ function OpenScene({ clock, c, s, t }) {
   );
 }
 
-// ── 1. Syringe (OB-3): the fields fill in one by one, then the syringe fills to 30 units ──
+// ── 1. Syringe (OB-3): the fields fill in one by one, then the syringe fills to 28 units ──
 // The app's own syringe drawing (lib/syringeGeometry, as components SyringeScale): fill, stopper and
 // rod move with the clock; when the fill lands the real SyringeScale takes over (same drawing,
 // the ticks inside the dose in onData), so the final frame IS the app's syringe.
@@ -192,7 +192,7 @@ function IntroSyringe({ clock, c, width, units, size }) {
 function SyringeScene({ clock, c, s, t, language }) {
   const B = BEATS.syringe;
   const ex = SYRINGE_EXAMPLE;
-  const units = syringeUnits(); // 10 mg in 2 mL, a 1,5 mg dose → 30 (lib/doseMath computeDraw)
+  const units = syringeUnits(); // 10 mg in 2 mL, a 1,4 mg dose → 28 (lib/doseMath computeDraw)
   const ml = syringeMl(); // 0,3 mL
   const rows = [
     [t('obi_syr_l_compound'), t('obi_ex_compound1')],

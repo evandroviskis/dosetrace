@@ -131,11 +131,11 @@ test('OB-27 / Reduce Motion: each scene is shown complete and Avançar goes to t
 });
 
 // ── OB-3: syringe ──
-test('OB-3: the syringe example is 10 mg in 2 mL, a 1,5 mg dose: 30 units, 0,3 mL, from the app dose math', () => {
+test('OB-3: the syringe example is 10 mg in 2 mL, a 1,4 mg dose: 28 units, 0,28 mL (founder 2026-11-26: 1,5 mg is a known pen step), from the app dose math', () => {
   const ex = F.SYRINGE_EXAMPLE;
-  assert.deepEqual([ex.amount, ex.unit, ex.water, ex.dose, ex.doseUnit, ex.syringeSize], ['10', 'mg', '2', '1.5', 'mg', 100]);
-  assert.equal(F.syringeUnits(), 30);
-  assert.equal(F.syringeMl(), 0.3);
+  assert.deepEqual([ex.amount, ex.unit, ex.water, ex.dose, ex.doseUnit, ex.syringeSize], ['10', 'mg', '2', '1.4', 'mg', 100]);
+  assert.equal(F.syringeUnits(), 28);
+  assert.equal(F.syringeMl(), 0.28);
   assert.match(read('lib/obFeatures.js'), /computeDraw\(/, 'lib/doseMath computeDraw, never typed');
   const s = src();
   assert.match(s, /syringeUnits\(\)/);
