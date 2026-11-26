@@ -95,8 +95,9 @@ test('FR-4: the copy is a new, already read entry on the chat day with only the 
   assert.equal(items.length, 2);
   for (const it of items) {
     assert.equal(it.msg, 'new1', 'a new message id');
-    for (const k of ['ask', 'ask_pending', 'ask_done', 'ask_skipped', 'days_ago', 'raw_text', 'category']) assert.ok(!(k in it), `no ${k}`);
-    assert.deepEqual(Object.keys(it).filter((k) => !['food', 'qty', 'unit', 'kcal', 'carb_g', 'protein_g', 'fat_g', 'fiber_g', 'confidence', 'asked', 'msg'].includes(k)), []);
+    for (const k of ['ask', 'ask_pending', 'ask_done', 'ask_skipped', 'days_ago', 'raw_text']) assert.ok(!(k in it), `no ${k}`);
+    assert.equal(it.category, 'meal', 'the meal category is kept (journey review 2026-11-26)');
+    assert.deepEqual(Object.keys(it).filter((k) => !['food', 'qty', 'unit', 'kcal', 'carb_g', 'protein_g', 'fat_g', 'fiber_g', 'confidence', 'category', 'asked', 'msg'].includes(k)), []);
   }
   assert.equal(e.kcal, 320);
   assert.equal(e.protein_g, 25);

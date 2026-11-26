@@ -193,7 +193,7 @@ function SyringeScene({ clock, c, s, t, language }) {
   const B = BEATS.syringe;
   const ex = SYRINGE_EXAMPLE;
   const units = syringeUnits(); // 10 mg in 2 mL, a 1,4 mg dose → 28 (lib/doseMath computeDraw)
-  const ml = syringeMl(); // 0,3 mL
+  const ml = syringeMl(); // 0,28 mL
   const rows = [
     [t('obi_syr_l_compound'), t('obi_ex_compound1')],
     [t('obi_syr_l_vial'), `${demoDec(ex.amount, language)}${NB}${ex.unit}`],

@@ -66,7 +66,7 @@ test('FR-4 / FL-27: a tap while a follow-up is open closes that question; the ea
 test('FR-5: "Undo" shows for a few seconds; undo deletes the new row through the normal delete (tombstone)', async () => {
   const h = repeatHarness();
   await h.repeatMeal(MEAL);
-  assert.deepEqual(h.log.undo, [{ rowId: 41, label: MEAL.label }]);
+  assert.deepEqual(h.log.undo, [{ rowId: 41, label: MEAL.label, reopen: null }]);
   assert.equal(h.timer().ms, 6000, 'a few seconds');
   const log = { deleted: [], bye: [], undo: [] };
   const undoRepeat = loadFn('screens/FoodChatScreen.js', 'function undoRepeat(', 'undoRepeat', {
@@ -181,7 +181,7 @@ test('FR-12: the goodbye text — "Done, logged." and the next meal only when it
   assert.equal(byeText({ day: '2026-11-26', next: null }), 'Pronto, anotado. Se comer mais alguma coisa, é só me contar.');
   assert.equal(byeText({ day: '2026-11-26', next: { kind: 'snack', at: '17:00' } }), 'Pronto, anotado. Até daqui a pouco: às 17:00 eu pergunto de novo.');
   // The reminder state comes from the account (Settings switch + meal times), read on open.
-  assert.match(SRC, /mealMetaRef\.current = \{ meals: \(normalizeMeals\(meta\.food_meals\) \|\| \{\}\)\.meals \|\| null, on: meta\.food_reminders !== false \};/);
+  assert.match(SRC, /mealMetaRef\.current = \{ meals: \(normalizeMeals\(meta\.food_meals\) \|\| \{\}\)\.meals \|\| null, on: meta\.food_reminders !== false && granted \};/); // + the phone permission (council 2026-11-26)
   assert.match(SRC, /checkOpen: !!\(rcStart && rcStart\.date\), access: acc, closed: closedDays\(list\)\.has\(todayKey\),/);
 });
 

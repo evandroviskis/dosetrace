@@ -36,7 +36,7 @@ import { parseFood, parseFollowup } from '../lib/nutritionClient';
 import {
   closedDays, catchUpOutcome, isDoneText, isNoText, mustAskWhichEarlier, itemLabel, foodCase, needsEstimateFlag, echoParts, recentForParse, isMarker, quotaWaitDay,
 } from '../lib/nutrition';
-import { mealChatAsk, normalizeMeals } from '../lib/mealReminders';
+import { mealChatAsk, normalizeMeals, onMealsChanged } from '../lib/mealReminders';
 import { buildThread, withNotice, dayFoodTotal, liveNotice, openFollowup, shouldAutoClose, dayWord, sendFailureNotice, pendingNoteShown, newMessageId } from '../lib/foodThread';
 import { recentMeals, repeatEntry, canRepeat, goodbyeFor } from '../lib/foodRecent';
 import { saveParsed, updateItem, applyAnswer, storedItem, catchUpFood, rememberTypedHere, inFlight, loadFoodAccess, ensureFreeStart, markAteNothing } from '../lib/foodLogActions';
@@ -45,7 +45,7 @@ import { DTSheet } from './components/ProtocolParts';
 import { hasAIConsent, grantAIConsent, AI_PRIVACY_URL } from '../lib/aiConsent';
 import { localISO, localDaysAgoISO } from '../lib/localDate';
 import { formatTime } from '../lib/timeFormat';
-import { syncAllNotifications, closeFoodDay } from '../lib/notifications';
+import { syncAllNotifications, closeFoodDay, notificationsGranted } from '../lib/notifications';
 import FeatureIcon from '../components/FeatureIcon';
 import FoodEntryEditor from './components/FoodEntryEditor';
 import PlanBars from './components/PlanBars';
@@ -110,6 +110,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const repeatingRef = useRef(false);
   // FR-12: the meal times and the reminders switch (user_metadata), to know whether the next meal's reminder is on.
   const mealMetaRef = useRef({ meals: null, on: false });
+  // A meal-time change made while the chat is open (MealTimesSheet) reaches the goodbye at once.
+  useEffect(() => onMealsChanged((n) => { mealMetaRef.current = { ...mealMetaRef.current, meals: (n && n.meals) || null }; }), []);
   const [evening, setEvening] = useState(null);   // day the 8 PM question is about
   const [mealAsk, setMealAsk] = useState(null);   // MR-11: { meal, day } — the meal a reminder's Log asks about
   const [logDay, setLogDay] = useState(null);     // "Log it" for an earlier day: entries land on that day (FL-40)
@@ -161,7 +163,10 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     setUserId(uid);
     userIdRef.current = uid;
     const meta = (user && user.user_metadata) || {};
-    mealMetaRef.current = { meals: (normalizeMeals(meta.food_meals) || {}).meals || null, on: meta.food_reminders !== false };
+    // FR-12: the goodbye names a reminder time only when it can really arrive — the account switch AND
+    // the phone's notification permission (council 2026-11-26: never promise a question that never comes).
+    const granted = await notificationsGranted().catch(() => false);
+    mealMetaRef.current = { meals: (normalizeMeals(meta.food_meals) || {}).meals || null, on: meta.food_reminders !== false && granted };
     if (!uid) { setLoaded(true); return; }
     // The draft / put-back text survives closing the chat (FL-36).
     try { const d = await AsyncStorage.getItem(draftKey(uid)); if (d) setText((cur) => cur || d); } catch { /* ignore */ }
@@ -373,7 +378,8 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
       announceLogged(meal.items, meal.label);
       sayBye(day, r, a);
       clearTimeout(undoTimer.current);
-      setUndo({ rowId: id, label: meal.label });
+      // Undo puts back everything the tap changed: the follow-up it closed reopens (journey review 2026-11-26).
+      setUndo({ rowId: id, label: meal.label, reopen: open ? { rowId: open.rowId, index: open.index } : null });
       undoTimer.current = setTimeout(() => setUndo(null), screenReader ? UNDO_MS_SCREEN_READER : UNDO_MS);
     } finally { repeatingRef.current = false; }
   }
@@ -384,6 +390,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     if (!u) return;
     touch();
     deleteFoodLog(u.rowId); // the normal delete: a synced tombstone
+    if (u.reopen) updateItem(u.reopen.rowId, u.reopen.index, (it) => { const { ask_skipped, ...rest } = it || {}; return rest; });
     requestSync?.();
     refresh(userId);
     setBye(null);
