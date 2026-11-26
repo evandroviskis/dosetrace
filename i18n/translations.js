@@ -1667,7 +1667,7 @@ export const translations = {
           {
             id: 'premium_price',
             q: "How much does Premium cost?",
-            a: "Current prices for Monthly and Annual Premium are shown in the app on the upgrade screen. New subscribers can start either plan with a 7-day free trial; the upgrade screen shows whether it applies to you."
+            a: "Current prices for each Premium plan are shown in the app on the upgrade screen, together with any free trial or offer that applies to you."
           },
           {
             id: 'premium_cancel',
@@ -5176,7 +5176,7 @@ export const translations = {
           {
             id: 'premium_price',
             q: "¿Cuánto cuesta Premium?",
-            a: "Los precios actuales de los planes mensual y anual de Premium aparecen en la app, en la pantalla de Premium. Los nuevos suscriptores pueden empezar cualquiera de los dos planes con una prueba gratuita de 7 días; la pantalla de Premium te muestra si te corresponde."
+            a: "Los precios actuales de cada plan de Premium aparecen en la app, en la pantalla de Premium, junto con cualquier prueba gratuita u oferta que te corresponda."
           },
           {
             id: 'premium_cancel',
@@ -8685,7 +8685,7 @@ export const translations = {
           {
             id: 'premium_price',
             q: "Quanto custa o Premium?",
-            a: "Os preços atuais do Premium Mensal e Anual aparecem no app na tela de assinatura. Novos assinantes podem começar qualquer um dos planos com um teste grátis de 7 dias; a tela de assinatura mostra se ele vale para você."
+            a: "Os preços atuais de cada plano do Premium aparecem no app, na tela de assinatura, junto com qualquer teste grátis ou oferta que valha para você."
           },
           {
             id: 'premium_cancel',
@@ -12193,7 +12193,7 @@ export const translations = {
           {
             id: 'premium_price',
             q: "Combien coûte Premium ?",
-            a: "Les prix actuels des formules Premium mensuelle et annuelle sont affichés dans l'app, sur l'écran Premium. Les nouveaux abonnés peuvent commencer l'une ou l'autre formule par un essai gratuit de 7 jours ; l'écran Premium vous indique s'il s'applique à vous."
+            a: "Les prix actuels de chaque formule Premium sont affichés dans l'app, sur l'écran Premium, avec l'essai gratuit ou l'offre qui s'applique à vous, le cas échéant."
           },
           {
             id: 'premium_cancel',
@@ -15701,7 +15701,7 @@ export const translations = {
           {
             id: 'premium_price',
             q: "Wie viel kostet Premium?",
-            a: "Die aktuellen Preise für Premium (monatlich und jährlich) werden in der App auf dem Upgrade-Bildschirm angezeigt. Neue Abonnenten können beide Pläne 7 Tage kostenlos testen; auf dem Upgrade-Bildschirm siehst du, ob das für dich gilt."
+            a: "Die aktuellen Preise aller Premium-Pläne siehst du in der App auf dem Upgrade-Bildschirm – zusammen mit einem kostenlosen Test oder Angebot, falls es für dich gilt."
           },
           {
             id: 'premium_cancel',
@@ -19210,7 +19210,7 @@ export const translations = {
           {
             id: 'premium_price',
             q: "Quanto costa Premium?",
-            a: "I prezzi attuali di Premium mensile e annuale sono indicati nell'app, nella schermata Premium. I nuovi abbonati possono iniziare entrambi i piani con una prova gratuita di 7 giorni; la schermata Premium ti mostra se è disponibile per te."
+            a: "I prezzi attuali di ogni piano Premium sono indicati nell'app, nella schermata Premium, insieme a eventuali prove gratuite o offerte disponibili per te."
           },
           {
             id: 'premium_cancel',

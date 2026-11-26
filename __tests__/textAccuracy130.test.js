@@ -41,17 +41,17 @@ test('5a: the FAQ reality-check answer says it estimates, never measures', () =>
   }
 });
 
-test('5b: the FAQ price answer offers the 7-day trial to eligible new subscribers only', () => {
+test('5b: the FAQ price answer never promises a trial; the upgrade screen shows what applies', () => {
+  // 2026-11-26: the 7-day trial is only on the annual (2026-11-19) and leaves the stores on the offer
+  // day, so the answer names no trial length at all (__tests__/faqPremiumPriceNoTrialClaim.test.js).
   const i = idx(/How much does Premium/i); // WT-7 added "How much can weight change"
   assert.ok(i >= 0);
-  const NEW = { en: /New subscribers/, es: /nuevos suscriptores/i, pt: /Novos assinantes/, fr: /nouveaux abonnés/i, de: /Neue Abonnent/, it: /nuovi abbonati/i };
-  const SHOWS = { en: /shows whether it applies to you/, es: /te muestra si/, pt: /mostra se/, fr: /vous indique s/, de: /siehst du, ob/, it: /ti mostra se/ };
+  const SHOWS = { en: /upgrade screen, together with any free trial or offer that applies to you/, es: /prueba gratuita u oferta que te corresponda/, pt: /teste grátis ou oferta que valha para você/, fr: /l'essai gratuit ou l'offre qui s'applique à vous/, de: /kostenlosen Test oder Angebot, falls es für dich gilt/, it: /prove gratuite o offerte disponibili per te/ };
   const OLD = /Both plans include|Ambos planes incluyen|Ambos os planos incluem|Les deux formules incluent|Bei beiden Plänen kannst du|Entrambi i piani includono/;
   for (const l of LANGS) {
     const a = qs(l)[i].a;
-    assert.match(a, /7/, `${l}: 7 days`);
-    assert.match(a, NEW[l], `${l}: new subscribers`);
-    assert.match(a, SHOWS[l], `${l}: the upgrade screen shows whether it applies`);
+    assert.doesNotMatch(a, /7/, `${l}: no trial length`);
+    assert.match(a, SHOWS[l], `${l}: the upgrade screen shows any trial or offer that applies`);
     assert.doesNotMatch(a, OLD, `${l}: no unconditional trial`);
   }
   // The rule the text describes (lib/paywallPlans trialOf): iOS unknown eligibility claims no trial.
