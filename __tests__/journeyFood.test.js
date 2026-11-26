@@ -16,7 +16,9 @@ test('Part 21: the food chat opens full screen (slides up, swipe down to close),
   assert.ok(line);
   assert.doesNotMatch(line[0], /presentation: 'modal'/, 'no iOS card sheet with the Journey peeking above');
   assert.match(line[0], /cardStyleInterpolator: CardStyleInterpolators\.forVerticalIOS/);
-  assert.match(line[0], /gestureDirection: 'vertical'/);
+  // Swipe down to close: from the title bar only (2026-11-26), so the thread scrolls; the card gesture is off.
+  assert.match(line[0], /gestureEnabled: false/);
+  assert.match(read('screens/FoodChatScreen.js'), /<View style=\{s\.header\}\s*\{\.\.\.headerSwipe\.panHandlers\}>/);
   // Full screen holds the status bar itself: the top edge is padded on both platforms.
   const chat = read('screens/FoodChatScreen.js');
   assert.match(chat, /const edges = embedded \? \['left', 'right'\] : TAB_SCREEN_EDGES;/);

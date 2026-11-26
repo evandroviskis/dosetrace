@@ -202,7 +202,8 @@ test('BK-5: embedded food chat has no Done, no top edge, no auto-close, params f
   assert.doesNotMatch(src, /route\?\.params/, 'no direct route params left');
   assert.match(src, /if \(!embedded && shouldAutoClose\(\{[^\n]*'idle'\)/, 'idle auto-close would switch tabs on a page');
   assert.match(src, /if \(!embedded && st === 'background' && shouldAutoClose/);
-  assert.match(src, /if \(!embedded\) navigation\.setOptions/);
+  // The swipe-down close lives on the title bar now (2026-11-26) and never acts on a page.
+  assert.match(src, /onMoveShouldSetPanResponder: \(_, g\) => !embedded && startsHeaderSwipe\(g\)/);
 });
 
 test('BK-10: the food chat writes its draft before it moves, and on unmount', () => {

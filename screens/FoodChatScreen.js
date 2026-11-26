@@ -15,8 +15,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, FlatList, Linking,
-  KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform,
+  KeyboardAvoidingView, Keyboard, AppState, AccessibilityInfo, Platform, PanResponder,
 } from 'react-native';
+import { startsHeaderSwipe, closesOnRelease } from '../lib/headerSwipe';
 import Modal from '../components/PresenceModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_SCREEN_EDGES } from '../lib/tabBarStyle';
@@ -252,9 +253,15 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
     });
     return () => { clearInterval(tick); kShow.remove(); kHide.remove(); sr?.remove?.(); app.remove(); };
   }, [navigation, embedded]);
-  // Swipe-down is the user's choice — but never while a message is being sent. (A tab page
-  // has no swipe-down: the options would land on the Journey tab.)
-  useEffect(() => { if (!embedded) navigation.setOptions({ gestureEnabled: !busy && !fuBusy }); }, [busy, fuBusy, navigation, embedded]);
+  // Swipe-down closes the chat (FL-32) only from the title bar, never while a message is being sent;
+  // a downward drag on the thread scrolls back through it (founder 2026-11-26: the stack's vertical
+  // gesture took the drag from almost anywhere and closed the chat). A tab page has no swipe-down.
+  const busyRef = useRef(false);
+  busyRef.current = busy || fuBusy;
+  const headerSwipe = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => !embedded && startsHeaderSwipe(g),
+    onPanResponderRelease: (_, g) => { if (!embedded && closesOnRelease(g) && !busyRef.current && navigation.canGoBack()) navigation.goBack(); },
+  })).current;
   useEffect(() => () => { saveDraftNow(guardRef.current.text); }, [userId]);
   // BK-10: unfolding moves this pushed chat onto the Journey right page; the draft is written
   // first so the page's chat reads it back (never lose what was typed).
@@ -803,7 +810,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
   const edges = embedded ? ['left', 'right'] : TAB_SCREEN_EDGES; // above the glass bar, which clears the system bar
   return (
     <SafeAreaView style={s.container} edges={edges}>
-      <View style={s.header}>
+      <View style={s.header} {...headerSwipe.panHandlers}>
         <View style={s.headTitleRow}>
           <FeatureIcon name="ai_spark" size={20} color={colors.ink} />
           <Text style={s.headTitle}>{t('nutri_ai_badge')}</Text>

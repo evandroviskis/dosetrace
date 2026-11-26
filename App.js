@@ -361,7 +361,7 @@ function MainStack() {
           reminder all open it. Journey redesign part 21 (founder 2026-10-02): full screen,
           sliding up from the bottom (no iOS sheet with the screen behind peeking above);
           swipe down or Done to close. */}
-      <Stack.Screen name="FoodChat" component={FoodChatScreen} options={{ gestureEnabled: true, gestureDirection: 'vertical', cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }} />
+      <Stack.Screen name="FoodChat" component={FoodChatScreen} options={{ gestureEnabled: false, cardStyleInterpolator: CardStyleInterpolators.forVerticalIOS }} />
     </Stack.Navigator>
   );
 }
