@@ -74,7 +74,16 @@ test('Part 23: editedItems — a renamed or re-numbered item is the user\'s; an 
   assert.equal(out[0].food, 'brown rice');
   assert.equal(out[0].confidence, 'user', 'a renamed item is no longer an estimate');
   assert.equal(out[0].category, 'meal', 'the category is kept (FL-23)');
-  assert.equal(out[0].qty, 1, 'the quantity is kept');
+  // FR-16 (founder 2026-11-26): the quantity is no longer fixed. It stays as it was when the person does
+  // not change it; a changed quantity is saved, scales the numbers (lib/nutrition withQty) and makes the
+  // item the user's like any other edit (__tests__/foodQtyEdit.test.js).
+  assert.equal(out[0].qty, 1, 'the quantity is kept when the person does not change it');
+  const { editorItems, withQty } = require('../lib/nutrition');
+  const moved = editedItems(orig, [withQty(editorItems(orig)[0], '2')])[0];
+  assert.equal(moved.qty, 2, 'a changed quantity is saved');
+  assert.equal(moved.kcal, 410, 'and the numbers follow it in the same proportion');
+  assert.equal(moved.confidence, 'user');
+  assert.equal(moved.category, 'meal', 'the category is still kept (FL-23)');
   assert.equal(out[1].confidence, 'high', 'an untouched item keeps its confidence');
   assert.equal(out[1].kcal, 5);
   assert.ok(!('__orig' in out[0]) && !('__orig' in out[1]), 'the helper key never reaches the database');

@@ -18,6 +18,12 @@
  * Fiber (founder 2026-11-24, docs/design/comida-fibra-corrigir.html option A, FW-12..FW-16): the
  * numbers are a 2x2 grid, kcal | carbs, then protein | fiber. Fiber shows the stored number with
  * one decimal in the app language and a decimal keyboard; empty = no fiber (a faded "—"), never 0.
+ *
+ * Quantity (founder 2026-11-26, decision 2dfc02ff, docs/design/quantidade-refeicao.html, FR-16): above
+ * each item's numbers a "Quantidade" block − [number unit] +. Changing it multiplies kcal, carbs, protein,
+ * fat and fiber by new / old on the phone (no AI, works offline); a number typed after it wins. g and ml
+ * step by 10, counted units by 1, any number can be typed (0,5 in the app language). No quantity = empty
+ * field, the current numbers count as 1 portion. The name field shows the food without the amount.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -37,6 +43,8 @@ import { CONTENT_MAX_WIDTH } from '../../lib/responsive';
 import { requestSync } from '../../lib/sync';
 import { updateFoodLog, deleteFoodLog } from '../../lib/database';
 import { editedItems, fiberFieldText } from '../../lib/nutrition';
+// FR-16: the quantity block (pure math in lib/nutrition, no AI)
+import { editorItems, withQty, withField, stepQty, qtyFieldText, qtyUnitText, qtyBefore, fieldMoved } from '../../lib/nutrition';
 import { safeItems } from '../../lib/foodThread';
 import { localISO, localDaysAgoISO } from '../../lib/localDate';
 import { dayChoice, pickDay, stepEarlier, earlierBounds } from '../../lib/foodEntryDay';
@@ -72,8 +80,8 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   useEffect(() => {
     const kept = key ? getDraft(key) : null;
     // Each copy remembers its place in the stored items, so a renamed item still compares
-    // against its own original on Save.
-    setItems(kept ? kept.items : (row ? safeItems(row.parsed_items).map((it, i) => ({ ...it, __orig: i })) : []));
+    // against its own original on Save; each also keeps the base its quantity scales from (FR-16).
+    setItems(kept ? kept.items : (row ? editorItems(safeItems(row.parsed_items)) : []));
     setDate(kept ? kept.date : (row ? row.entry_date : null));
     loadedKey.current = key;
   }, [row]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -96,7 +104,20 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
   const pickDayChoice = (k) => setDate((d) => pickDay(k, d, localISO()));
   const stepDay = (delta) => setDate((d) => stepEarlier(d, delta, localISO()));
   const bounds = date ? earlierBounds(date, today) : { canOlder: false, canNewer: false };
-  const setField = (i, field, val) => setItems((p) => p.map((it, idx) => (idx === i ? { ...it, [field]: val } : it)));
+  // A typed number wins and becomes the base a later quantity change scales from (FR-16).
+  const setField = (i, field, val) => setItems((p) => p.map((it, idx) => (idx === i ? withField(it, field, val, language) : it)));
+  const setQty = (i, val) => setItems((p) => p.map((it, idx) => (idx === i ? withQty(it, val, language) : it)));
+  const stepQtyAt = (i, dir) => setItems((p) => p.map((it, idx) => {
+    if (idx !== i) return it;
+    const n = stepQty(it, dir, language);
+    return n == null ? it : withQty(it, n, language);
+  }));
+  const stored = row ? safeItems(row.parsed_items) : [];
+  const origOf = (it) => (Number.isInteger(it.__orig) && stored[it.__orig]) || {};
+  function qtyHint(it) {
+    const before = qtyBefore(origOf(it), language);
+    return t('nutri_qty_hint') + ' ' + (before ? t('nutri_qty_before').replace('{amount}', before) : t('nutri_qty_portion'));
+  }
   const removeItem = (i) => setItems((p) => p.filter((_, idx) => idx !== i));
   const done = () => { if (key) clearDraft(key); requestSync?.(); onSaved && onSaved(); onClose && onClose(); };
 
@@ -183,14 +204,29 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
                     <CrossMark size={16} color={colors.ink2} />
                   </TouchableOpacity>
                 </View>
+                <QtyField
+                  s={s}
+                  colors={colors}
+                  label={t('nutri_qty_label')}
+                  value={qtyFieldText(it.qty, language)}
+                  unit={qtyUnitText(it, language)}
+                  hint={qtyHint(it)}
+                  canLess={stepQty(it, -1, language) != null}
+                  lessLabel={t('nutri_qty_less')}
+                  moreLabel={t('nutri_qty_more')}
+                  onLess={() => stepQtyAt(i, -1)}
+                  onMore={() => stepQtyAt(i, 1)}
+                  onChange={(v) => setQty(i, v)}
+                  onFocus={lift.liftField}
+                />
                 <View style={s.fields}>
                   <View style={s.fieldRow}>
-                    <EditNum s={s} colors={colors} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setField(i, 'kcal', v)} onFocus={lift.liftField} />
-                    <EditNum s={s} colors={colors} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setField(i, 'carb_g', v)} onFocus={lift.liftField} />
+                    <EditNum s={s} colors={colors} changed={fieldMoved(origOf(it), it, 'kcal', language)} label={t('cal_kcal')} value={it.kcal} onChange={(v) => setField(i, 'kcal', v)} onFocus={lift.liftField} />
+                    <EditNum s={s} colors={colors} changed={fieldMoved(origOf(it), it, 'carb_g', language)} label={t('nutri_carbs')} value={it.carb_g} onChange={(v) => setField(i, 'carb_g', v)} onFocus={lift.liftField} />
                   </View>
                   <View style={s.fieldRow}>
-                    <EditNum s={s} colors={colors} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setField(i, 'protein_g', v)} onFocus={lift.liftField} />
-                    <EditNum s={s} colors={colors} label={t('nutri_fiber')} value={fiberFieldText(it.fiber_g, language)} onChange={(v) => setField(i, 'fiber_g', v)} decimal placeholder="—" onFocus={lift.liftField} />
+                    <EditNum s={s} colors={colors} changed={fieldMoved(origOf(it), it, 'protein_g', language)} label={t('nutri_protein')} value={it.protein_g} onChange={(v) => setField(i, 'protein_g', v)} onFocus={lift.liftField} />
+                    <EditNum s={s} colors={colors} changed={fieldMoved(origOf(it), it, 'fiber_g', language)} label={t('nutri_fiber')} value={fiberFieldText(it.fiber_g, language)} onChange={(v) => setField(i, 'fiber_g', v)} decimal placeholder="—" onFocus={lift.liftField} />
                   </View>
                 </View>
               </View>
@@ -210,7 +246,8 @@ export default function FoodEntryEditor({ row, onClose, onSaved }) {
 
 // kcal / carbs / protein: whole numbers on the number pad. decimal (fiber): the text as given, on the
 // decimal pad (read back with parseDecimal in the app language, lib/nutrition editedItems).
-function EditNum({ s, colors, label, value, onChange, onFocus, decimal = false, placeholder }) {
+// changed (FR-16): the number differs from the stored one, shown in the data colour (the picture).
+function EditNum({ s, colors, label, value, onChange, onFocus, decimal = false, placeholder, changed = false }) {
   const ref = useRef(null);
   return (
     <View style={s.num}>
@@ -218,7 +255,7 @@ function EditNum({ s, colors, label, value, onChange, onFocus, decimal = false, 
       <TextInput
         ref={ref}
         onFocus={() => { if (onFocus) onFocus(ref); }}
-        style={s.input}
+        style={[s.input, changed && s.inputMoved]}
         value={decimal ? value : value == null ? '' : String(Math.round(Number(value) || 0))}
         onChangeText={onChange}
         keyboardType={decimal ? 'decimal-pad' : 'number-pad'}
@@ -227,6 +264,49 @@ function EditNum({ s, colors, label, value, onChange, onFocus, decimal = false, 
         accessibilityLabel={label}
       />
     </View>
+  );
+}
+
+// FR-16 (docs/design/quantidade-refeicao.html): "Quantidade", then − [number unit] +, then the hint. The
+// number is typed on the decimal pad (0,5 in the app language) or stepped; − is off when it would reach 0.
+function QtyField({ s, colors, label, value, unit, hint, canLess, lessLabel, moreLabel, onLess, onMore, onChange, onFocus }) {
+  const ref = useRef(null);
+  return (
+    <View style={s.qty}>
+      <Text style={s.qtyLabel}>{label}</Text>
+      <View style={s.qtyRow}>
+        <TouchableOpacity style={[s.qtyBtn, !canLess && s.stepOff]} onPress={onLess} disabled={!canLess} accessibilityRole="button" accessibilityLabel={lessLabel}>
+          <PlusMinus plus={false} color={colors.ink} />
+        </TouchableOpacity>
+        <View style={s.qtyMid}>
+          <TextInput
+            ref={ref}
+            onFocus={() => { if (onFocus) onFocus(ref); }}
+            style={s.qtyInput}
+            value={value}
+            onChangeText={onChange}
+            keyboardType="decimal-pad"
+            placeholder="—"
+            placeholderTextColor={colors.ink3}
+            accessibilityLabel={unit ? label + ' (' + unit + ')' : label}
+            selectTextOnFocus
+          />
+          {unit ? <Text style={s.qtyUnit}>{unit}</Text> : null}
+        </View>
+        <TouchableOpacity style={s.qtyBtn} onPress={onMore} accessibilityRole="button" accessibilityLabel={moreLabel}>
+          <PlusMinus plus color={colors.ink} />
+        </TouchableOpacity>
+      </View>
+      <Text style={s.qtyHint}>{hint}</Text>
+    </View>
+  );
+}
+
+function PlusMinus({ plus, color }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 16 16">
+      <Path d={plus ? 'M3 8h10M8 3v10' : 'M3 8h10'} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
   );
 }
 
@@ -265,6 +345,16 @@ const makeStyles = (c) => StyleSheet.create({
   // prototype .winp: system 17/400, tabular figures
   input: { backgroundColor: c.raised, borderWidth: 1, borderColor: c.line, borderRadius: 14, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] },
   nameInput: { flex: 1, minWidth: 0 },
+  inputMoved: { color: c.data },
+  // FR-16 quantity block (picture .qty: the highlight surface with a data-colour edge, both palettes)
+  qty: { backgroundColor: c.hit, borderWidth: 1.5, borderColor: c.data, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, gap: 6 },
+  qtyLabel: { fontSize: 13, lineHeight: 18, color: c.ink2 },
+  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  qtyBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.line, backgroundColor: c.raised, alignItems: 'center', justifyContent: 'center' },
+  qtyMid: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  qtyInput: { minWidth: 56, maxWidth: '70%', textAlign: 'center', fontSize: 20, color: c.ink, fontVariant: ['tabular-nums'], paddingVertical: 6, paddingHorizontal: 4 },
+  qtyUnit: { fontSize: 15, color: c.ink2, flexShrink: 1 },
+  qtyHint: { fontSize: 13, lineHeight: 18, color: c.ink2 },
   danger: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: 17, fontWeight: '600', color: c.risk },
 });
