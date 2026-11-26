@@ -725,7 +725,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
               const flag = needsEstimateFlag(it);
               return (
                 <View key={i} style={s.ln}>
-                  <Text style={[s.lnFood, flag && s.lnEst]}>{itemLabel(it, language, x.raw)}</Text>
+                  <View style={s.lnFoodBox}><View style={[s.lnEstWrap, flag && s.lnEstBox]}><Text style={s.lnFood}>{itemLabel(it, language, x.raw)}</Text></View></View>
                   <Text style={s.lnKcal}>{`${flag ? '~' : ''}${formatInt(Math.round(Number(it.kcal) || 0), language)}`}</Text>
                 </View>
               );
@@ -1061,8 +1061,11 @@ const makeStyles = (c) => StyleSheet.create({
   rcHead: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 2 },
   rcWhen: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontWeight: '500', color: c.ink3, letterSpacing: 0.5, textTransform: 'uppercase' },
   ln: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, paddingVertical: 2 },
-  lnFood: { flex: 1, fontSize: 16, lineHeight: 21, color: c.ink },
-  lnEst: { textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.attention },
+  lnFoodBox: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
+  lnEstWrap: { maxWidth: '100%' },
+  lnFood: { fontSize: 16, lineHeight: 21, color: c.ink },
+  // FR-8: dotted underline drawn as a border (text decoration styles are iOS-only).
+  lnEstBox: { borderBottomWidth: 1.5, borderStyle: 'dotted', borderColor: c.attention },
   lnKcal: { fontFamily: MONO['500'], fontSize: 15, lineHeight: 21, color: c.ink2, fontVariant: ['tabular-nums'] },
   tot: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, borderTopWidth: 1, borderTopColor: c.line, marginTop: 4, paddingTop: 7 },
   totK: { fontFamily: MONO['500'], fontSize: 16, lineHeight: 21, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },

@@ -108,13 +108,13 @@ test('FR-1: the row sits above the field, names only, sideways scroll, hidden un
 
 test('FR-8: each entry is a receipt — names left, kcal in a right column, a total line, the estimate underlined; no category tag', () => {
   const entry = SRC.slice(SRC.indexOf("case 'entry': {"), SRC.indexOf("case 'asked':"));
-  assert.match(entry, /<Text style=\{\[s\.lnFood, flag && s\.lnEst\]\}>\{itemLabel\(it, language, x\.raw\)\}<\/Text>/);
+  assert.match(entry, /<View style=\{\[s\.lnEstWrap, flag && s\.lnEstBox\]\}><Text style=\{s\.lnFood\}>\{itemLabel\(it, language, x\.raw\)\}<\/Text><\/View>/);
   assert.match(entry, /<Text style=\{s\.lnKcal\}>/);
   assert.match(entry, /<Text style=\{s\.totK\}>/);
   assert.match(entry, /\{est \? <Text style=\{s\.estn\}>\{t\('nutri_estimate'\)\}<\/Text> : null\}/);
   assert.match(entry, /t\('nutri_receipt_logged'\)\.replace\('\{time\}', time\)/);
   assert.doesNotMatch(SRC, /nutri_cat_|catTag/, 'no per-item "Meal" tag (the category is still stored)');
-  assert.match(SRC, /lnEst: \{ textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c\.attention \}/);
+  assert.match(SRC, /lnEstBox: \{ borderBottomWidth: 1\.5, borderStyle: 'dotted', borderColor: c\.attention \}/);
   assert.match(SRC, /lnKcal: \{ fontFamily: MONO\['500'\][^}]*fontVariant: \['tabular-nums'\] \}/, 'tabular numbers');
   assert.equal(tr.pt.nutri_estimate, 'estimativa · toque para corrigir');
 });

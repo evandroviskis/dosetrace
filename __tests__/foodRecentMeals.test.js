@@ -70,7 +70,7 @@ test('FR-2: the order follows the time of day, then most recent first', () => {
 
 test('FR-3: a chip is the meal as logged (item names joined); same items and quantities = one chip', () => {
   const list = recentMeals(history(), { todayISO: TODAY, now: new Date(2026, 10, 26, 7, 40), language: 'pt' });
-  assert.equal(list[0].label, '2 × ovos, bacon');
+  assert.equal(list[0].label, '2 ovos, bacon');
   assert.equal(mealKey(eggs), mealKey(eggs.slice().reverse()), 'item order does not matter');
   assert.equal(mealKey([{ food: ' Ovos ', qty: 2, unit: '' }]), mealKey([{ food: 'ovos', qty: 2, unit: null }]), 'case and spaces do not matter');
   assert.notEqual(mealKey([{ food: 'ovos', qty: 2 }]), mealKey([{ food: 'ovos', qty: 3 }]), 'a different quantity is another meal');
@@ -85,12 +85,12 @@ test('FR-3: a chip is the meal as logged (item names joined); same items and qua
 
 test('FR-4: the copy is a new, already read entry on the chat day with only the item values', () => {
   const item = { ...eggs[0], ask: { kind: 'size', options: ['M'] }, ask_skipped: true, ask_pending: 'x', ask_done: { kind: 'size', answer: 'M' }, days_ago: 2, msg: 'old1', category: 'meal' };
-  const meal = { label: '2 × ovos', items: [item, eggs[1]] };
+  const meal = { label: '2 ovos', items: [item, eggs[1]] };
   const e = repeatEntry(meal, { userId: 'u1', day: '2026-11-25', msgId: 'new1' });
   assert.equal(e.user_id, 'u1');
   assert.equal(e.entry_date, '2026-11-25', 'the day open in the chat');
   assert.equal(e.parse_status, 'done', 'saved already read: never sent to the AI');
-  assert.equal(e.raw_text, '2 × ovos', 'the user bubble shows the meal name, never the old message text');
+  assert.equal(e.raw_text, '2 ovos', 'the user bubble shows the meal name, never the old message text');
   const items = JSON.parse(e.parsed_items);
   assert.equal(items.length, 2);
   for (const it of items) {
