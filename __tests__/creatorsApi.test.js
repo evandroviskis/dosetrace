@@ -294,7 +294,9 @@ test('CR-NOME (Evandro 2026-11-26, aba nº 23: "código de indicação"): the pu
   const TX = (0, eval)('(' + src.match(/const TX = (\{[\s\S]*?\n\});/)[1] + ')');
   for (const [l, name] of Object.entries(want)) {
     assert.ok(TX[l].title.toLowerCase().includes(name.toLowerCase()), l + ' title: ' + TX[l].title);
-    assert.ok(TX[l].where.includes(name), l + ' where: ' + TX[l].where);
+    assert.ok(TX[l].where.toLowerCase().includes(name.toLowerCase()), l + ' where: ' + TX[l].where);
+    // App session 2026-11-26: the field exists only on the entry offer right after sign-up; Settings › … is AP1, not in the app yet.
+    assert.ok(!/›/.test(TX[l].where), l + ' names a Settings path the app does not have yet: ' + TX[l].where);
     assert.ok(!/creator|criador|creador|créateur/i.test(TX[l].title + ' ' + TX[l].where), l + ' still says creator');
   }
 });
