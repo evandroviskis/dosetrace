@@ -347,7 +347,7 @@ export const translations = {
     nutri_offline_saved: "Saved — I'll estimate the calories when you're back online.",
     nutri_delete: 'Delete',
     nutri_delete_confirm: 'Remove this entry?',
-    nutri_est_note: 'AI estimates (±10–15%) — not medical or diet advice.',
+    nutri_est_note: 'AI estimates — not medical or diet advice.',
     // Food log: recent meals, receipt and goodbye (docs/specs/food-log-recent-receipt.md FR-1..FR-15)
     nutri_recent_label: "Recent meals · tap to log again",
     nutri_recent_info: "What are recent meals?",
@@ -3915,7 +3915,7 @@ export const translations = {
     nutri_offline_saved: 'Guardado: calcularé las calorías cuando vuelvas a tener conexión.',
     nutri_delete: 'Eliminar',
     nutri_delete_confirm: '¿Eliminar esta entrada?',
-    nutri_est_note: 'Estimaciones de IA (±10–15%): no son consejo médico ni dietético.',
+    nutri_est_note: 'Estimaciones de IA: no son consejo médico ni dietético.',
     // Food log: recent meals, receipt and goodbye (docs/specs/food-log-recent-receipt.md FR-1..FR-15)
     nutri_recent_label: "Comidas recientes · toca para registrar de nuevo",
     nutri_recent_info: "¿Qué son las comidas recientes?",
@@ -7481,7 +7481,7 @@ export const translations = {
     nutri_offline_saved: 'Salvo — vou estimar as calorias quando você estiver online de novo.',
     nutri_delete: 'Excluir',
     nutri_delete_confirm: 'Remover este registro?',
-    nutri_est_note: 'Estimativas de IA (±10–15%) — não são aconselhamento médico nem nutricional.',
+    nutri_est_note: 'Estimativas de IA — não são aconselhamento médico nem nutricional.',
     // Food log: recent meals, receipt and goodbye (docs/specs/food-log-recent-receipt.md FR-1..FR-15)
     nutri_recent_label: "Refeições recentes · toque para registrar de novo",
     nutri_recent_info: "O que são as refeições recentes?",
@@ -11046,7 +11046,7 @@ export const translations = {
     nutri_offline_saved: "Enregistré — j'estimerai les calories dès que vous serez de nouveau en ligne.",
     nutri_delete: 'Supprimer',
     nutri_delete_confirm: 'Supprimer cette entrée ?',
-    nutri_est_note: 'Estimations IA (±10–15 %) — ni un avis médical ni un conseil diététique.',
+    nutri_est_note: 'Estimations IA — ni un avis médical ni un conseil diététique.',
     // Food log: recent meals, receipt and goodbye (docs/specs/food-log-recent-receipt.md FR-1..FR-15)
     nutri_recent_label: "Repas récents · touchez pour les noter à nouveau",
     nutri_recent_info: "Que sont les repas récents ?",
@@ -14611,7 +14611,7 @@ export const translations = {
     nutri_offline_saved: 'Gespeichert – ich schätze die Kalorien, sobald du wieder online bist.',
     nutri_delete: 'Löschen',
     nutri_delete_confirm: 'Diesen Eintrag entfernen?',
-    nutri_est_note: 'KI-Schätzungen (±10–15 %) – keine medizinische oder Ernährungsberatung.',
+    nutri_est_note: 'KI-Schätzungen – keine medizinische oder Ernährungsberatung.',
     // Food log: recent meals, receipt and goodbye (docs/specs/food-log-recent-receipt.md FR-1..FR-15)
     nutri_recent_label: "Letzte Mahlzeiten · tippen, um sie erneut einzutragen",
     nutri_recent_info: "Was sind die letzten Mahlzeiten?",
@@ -18177,7 +18177,7 @@ export const translations = {
     nutri_offline_saved: 'Salvato — stimerò le calorie quando torni online.',
     nutri_delete: 'Elimina',
     nutri_delete_confirm: 'Rimuovere questa voce?',
-    nutri_est_note: "Stime dell'IA (±10–15%): non sono consigli medici o dietetici.",
+    nutri_est_note: "Stime dell'IA: non sono consigli medici o dietetici.",
     // Food log: recent meals, receipt and goodbye (docs/specs/food-log-recent-receipt.md FR-1..FR-15)
     nutri_recent_label: "Pasti recenti · tocca per registrarli di nuovo",
     nutri_recent_info: "Cosa sono i pasti recenti?",
