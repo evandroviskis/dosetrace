@@ -18,7 +18,11 @@
 --      7 Taken doses D-25 … D-1 at 09:00.
 -- created_at is set in the past (the app never offers a slot from before the protocol existed, and the phone's
 -- schedule ledger starts at the creation); updated_at = now so the phone pulls the rows.
--- Food log, exams, vaccines: not touched here (day 2 handles them; see the roteiro).
+-- Food log: ONE D-2 meal in the round's language: the account's existing meal row(s) are UPDATED in place
+-- (the phone pulls the update); only an account with none gets a new row (id = md5 of the user id). Never delete food_logs rows here: food_logs has no tombstone, so a server delete never
+-- reaches the phone (S25 2026-11-26: every remount added one more local copy; cleaned in the app). A meal a
+-- take logged on the phone is removed in the app (Corrigir este registro > Remover registro).
+-- Exams, vaccines: not touched here (an exam a take imported is removed in the app: Excluir este exame).
 
 DO $$
 DECLARE
@@ -31,6 +35,7 @@ DECLARE
   p1   uuid := gen_random_uuid();
   p2   uuid := gen_random_uuid();
   k    int;
+  meal text; f1 text; u1 text; f2 text; mid uuid;
   nm   text; -- protocol name per language (Ads 2026-11-26; fr "Produit": adb cannot type "é")
 BEGIN
   IF lang NOT IN ('pt','en','es','fr','de','it') THEN RAISE EXCEPTION 'language %', lang; END IF;
@@ -39,6 +44,13 @@ BEGIN
   IF uid IS NULL THEN RAISE EXCEPTION 'no account %', v_email; END IF;
   d0 := (now() AT TIME ZONE tz)::date;
   nm := CASE lang WHEN 'pt' THEN 'Composto' WHEN 'en' THEN 'Compound' WHEN 'es' THEN 'Compuesto' WHEN 'fr' THEN 'Produit' WHEN 'de' THEN 'Wirkstoff' ELSE 'Composto' END;
+  SELECT x.meal, x.f1, x.u1, x.f2 INTO meal, f1, u1, f2 FROM (VALUES
+    ('pt','iogurte natural e 1 banana','iogurte natural','pote','banana'),
+    ('en','plain yogurt and 1 banana','plain yogurt','cup','banana'),
+    ('es','yogur natural y 1 banana','yogur natural',null,'banana'),
+    ('fr','yaourt nature et 1 banane','yaourt nature','pot','banane'),
+    ('de','Naturjoghurt und 1 Banane','Naturjoghurt','Becher','Banane'),
+    ('it','yogurt bianco e 1 banana','yogurt bianco','vasetto','banana')) AS x(l, meal, f1, u1, f2) WHERE x.l = lang;
 
   -- 1. what a previous round left
   DELETE FROM public.dose_logs WHERE user_id = uid;
@@ -85,6 +97,23 @@ BEGIN
     INSERT INTO public.dose_logs (id, user_id, protocol_id, logged_at, outcome, dose_amount, dose_unit, outcome_by_person, checkin_completed, created_at, updated_at)
     VALUES (gen_random_uuid(), uid, p2, ((d0 - 25 + 4 * k) + time '09:00') AT TIME ZONE tz, 'Taken', 1.4, 'mg', true, false, now(), now());
   END LOOP;
+
+  -- 5. the D-2 meal (same row every round, updated so the phone pulls it)
+  UPDATE public.food_logs SET entry_date = to_char(d0 - 2, 'YYYY-MM-DD'), raw_text = meal,
+      parsed_items = jsonb_build_array(
+        jsonb_build_object('qty',1,'unit',u1,'food',f1,'kcal',100,'protein_g',6,'carb_g',8,'fat_g',5,'fiber_g',0,'category','breakfast','days_ago',null,'confidence','med'),
+        jsonb_build_object('qty',1,'unit',null,'food',f2,'kcal',105,'protein_g',1.3,'carb_g',27,'fat_g',0.4,'fiber_g',3.1,'category','breakfast','days_ago',null,'confidence','med')),
+      kcal = 205, protein_g = 7, carb_g = 35, fat_g = 5, updated_at = now()
+    WHERE user_id = uid;
+  IF FOUND THEN RETURN; END IF;
+  mid := md5(uid::text || '-d2meal')::uuid;
+  INSERT INTO public.food_logs (id, user_id, entry_date, raw_text, parsed_items, kcal, protein_g, carb_g, fat_g, source, parse_status, created_at, updated_at)
+  VALUES (mid, uid, to_char(d0 - 2, 'YYYY-MM-DD'), meal,
+    jsonb_build_array(
+      jsonb_build_object('qty',1,'unit',u1,'food',f1,'kcal',100,'protein_g',6,'carb_g',8,'fat_g',5,'fiber_g',0,'category','breakfast','days_ago',null,'confidence','med'),
+      jsonb_build_object('qty',1,'unit',null,'food',f2,'kcal',105,'protein_g',1.3,'carb_g',27,'fat_g',0.4,'fiber_g',3.1,'category','breakfast','days_ago',null,'confidence','med')),
+    205, 7, 35, 5, 'ai', 'done', ((d0 - 2) + time '08:00') AT TIME ZONE tz, now())
+  ON CONFLICT (id) DO UPDATE SET entry_date = EXCLUDED.entry_date, raw_text = EXCLUDED.raw_text, parsed_items = EXCLUDED.parsed_items, updated_at = now();
 END $$;
 
 -- Check (run after): what the phone should show.
