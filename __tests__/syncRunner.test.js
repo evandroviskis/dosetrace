@@ -64,10 +64,12 @@ test('an exclusive job (the full import) never overlaps a pass, and waitIdle wai
   runner.run();
   const imp = runner.runExclusive(async () => { log.push('import-start'); await tick(10); log.push('import-end'); });
   await tick(1);
+  const late = runner.run(); // asked while the pass still runs: one follow-up pass first (2026-11-27)
+  await tick(12); // the import is running now
   const shared = runner.run(); // requested during the import: shares it
   await runner.waitIdle();
-  await imp; await shared;
-  assert.deepEqual(log, ['pass', 'import-start', 'import-end']);
+  await imp; await shared; await late;
+  assert.deepEqual(log, ['pass', 'pass', 'import-start', 'import-end']);
 });
 
 // A-93 (senior review 2026-10-04, reproduced: max concurrency 2): forceSync awaited the running
@@ -97,4 +99,48 @@ test('a job that throws synchronously never leaves the runner stuck', async () =
   await runner.runExclusive(() => { throw new Error('sync throw'); }).catch(() => {});
   assert.equal(runner.isRunning(), false);
   await Promise.race([runner.forceSync(), new Promise((_, rej) => setTimeout(() => rej(new Error('stuck')), 200))]);
+});
+
+// How-to recording 2026-11-27 (iPhone, +qa): Mark complete on "Pending from yesterday", then Undo
+// about 2 s later. The take's pass was already pushing when the Undo asked for a sync; that request
+// shared the running pass, which had read its pending rows before the Undo, so the deletion stayed
+// on the phone (sync_status 'deleted') and the server kept the Taken row until some later sync.
+// A request that arrives once a pass has started runs ONE more pass right after it (several such
+// requests share that one); a request made before the pass begins still shares it.
+test('a request while a pass is under way runs one more pass after it (the Undo reaches the server)', async () => {
+  const order = [];
+  let n = 0;
+  const runner = createSyncRunner(async () => { const k = ++n; order.push(`start${k}`); await tick(15); order.push(`end${k}`); });
+  runner.run();        // the take's pass
+  await tick(3);       // it is pushing
+  const a = runner.run(); // the Undo asks for a sync
+  const b = runner.run(); // another change meanwhile: shares the same follow-up
+  await Promise.all([a, b]);
+  assert.deepEqual(order, ['start1', 'end1', 'start2', 'end2']);
+  assert.equal(runner.isRunning(), false);
+});
+
+test('the follow-up pass keeps the runner busy until it ends (no gap for waitIdle / forceSync)', async () => {
+  let live = 0, max = 0, n = 0;
+  const runner = createSyncRunner(async () => { n++; live++; max = Math.max(max, live); await tick(10); live--; });
+  runner.run();
+  await tick(2);
+  runner.run(); // follow-up asked
+  await runner.waitIdle();
+  assert.equal(n, 2, 'waitIdle returned only after the follow-up');
+  runner.run(); await tick(2); runner.run();
+  await runner.forceSync();
+  assert.equal(max, 1, 'never two passes at once');
+});
+
+test('a pass that throws still runs the follow-up asked during it, and the runner ends idle', async () => {
+  let n = 0;
+  const runner = createSyncRunner(async () => { n++; await tick(5); if (n === 1) throw new Error('net'); });
+  const first = runner.run().catch(() => 'failed');
+  await tick(2);
+  const follow = runner.run();
+  assert.equal(await first, 'failed');
+  await follow;
+  assert.equal(n, 2);
+  assert.equal(runner.isRunning(), false);
 });
