@@ -103,8 +103,8 @@ test('picker: a protocol stored with a legacy hex shows its colour selected', ()
   assert.match(pro, /PALETTE\.map\(\(\{ hex: col \}\)/);
   assert.match(pro, /\.map\(p => displayColor\(p\.color\)\)/);
   assert.match(pro, /useState\(DEFAULT_PROTOCOL_COLOR\)/);
-  assert.match(form, /color: DEFAULT_PROTOCOL_COLOR,/);
-  assert.match(pro, /applyForm\(newProtocolForm\(new Date\(\)\)\)/);
+  assert.match(form, /color: usedColors \? firstFreeColor\(usedColors\) : DEFAULT_PROTOCOL_COLOR,/); // S25 2026-11-26: a new protocol starts on a free colour (protocolFreeColor.test.js)
+  assert.match(pro, /applyForm\(newProtocolForm\(new Date\(\)(, protocols\.map\(\(p\) => displayColor\(p\.color\)\))?\)\)/);
   assert.doesNotMatch(pro, /#185FA5/i, 'no hardcoded legacy Ocean left in the Protocols screen');
   assert.match(read('lib/database.js'), /data\.color \|\| DEFAULT_PROTOCOL_COLOR/);
 });

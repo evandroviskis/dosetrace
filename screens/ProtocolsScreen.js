@@ -1755,7 +1755,7 @@ export default function ProtocolsScreen() {
 
   // A new protocol: the first dose is Today (founder decision 2, 2026-10-02).
   function resetForm() {
-    applyForm(newProtocolForm(new Date()));
+    applyForm(newProtocolForm(new Date(), protocols.map((p) => displayColor(p.color))));
     editStartRef.current = null;
     setStep(1); setIuInput(''); setIuOpen(false); setShowStartPicker(false);
     compositionForRef.current = null;

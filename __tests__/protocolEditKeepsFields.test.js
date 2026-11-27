@@ -113,7 +113,7 @@ test('decision 2: the screen builds the edit save from the patch, never the whol
   assert.match(save, /rtuVialPatch\(editStartRef\.current, currentForm\(\), language\)/);
   assert.doesNotMatch(save, /updateProtocol\(editingId, \{\s*name, compound_id/, 'the old whole-row write is gone');
   assert.match(fnBody(SCREEN, 'openEdit'), /editStartRef\.current = f;/);
-  assert.match(fnBody(SCREEN, 'resetForm'), /newProtocolForm\(new Date\(\)\)/);
+  assert.match(fnBody(SCREEN, 'resetForm'), /newProtocolForm\(new Date\(\)(, protocols\.map\(\(p\) => displayColor\(p\.color\)\))?\)/);
 });
 
 test('decision 3: Next on step 1 needs a name (prototype wnext)', () => {
