@@ -176,8 +176,8 @@ test('council (5): the tracker\'s two side rows share one label size and one cou
   assert.equal(sideTextSize(40, ['30 dias', '7 dias'], 15), narrow, 'the longest decides, in any order');
   assert.ok(sideTextSize(10, ['30 giorni'], 15) >= 15 * 0.75, 'floor');
   const src = read('screens/components/TodayTracker.js');
-  assert.match(src, /import \{ trackerFit, sideTextSize \} from '\.\.\/\.\.\/lib\/trackerFit';/);
-  assert.match(src, /const labelSize = sideTextSize\(col, \[label7, label30\], 15\);/);
+  assert.match(src, /import \{ trackerFit, sideTextSize(, labelEm)? \} from '\.\.\/\.\.\/lib\/trackerFit';/);
+  assert.match(src, /const labelSize = sideTextSize\(col, \[label7, label30\], 15(, labelEm)?\);/); // S25 2026-11-26: per-character estimate (trackerLabelWidth.test.js)
   assert.match(src, /const subSize = sideTextSize\(col, \[sub7, sub30\], 13, 0\.5\);/);
   assert.match(src, /<Text style=\{\[s\.sideLabel, \{ fontSize: labelSize \}\]\} numberOfLines=\{1\}>\{label\}<\/Text>/);
   assert.match(src, /<Text style=\{\[s\.sideSub, \{ fontSize: subSize \}\]\} numberOfLines=\{1\}>\{sub\}<\/Text>/);

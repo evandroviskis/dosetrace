@@ -10,7 +10,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { useTheme } from '../../lib/theme';
 import { ringPct } from '../../lib/adherenceRings';
-import { trackerFit, sideTextSize } from '../../lib/trackerFit';
+import { trackerFit, sideTextSize, labelEm } from '../../lib/trackerFit';
 import { trackerStreakLine } from '../../lib/trackerStreak';
 import FeatureIcon from '../../components/FeatureIcon';
 import RowChevron from '../../components/RowChevron';
@@ -101,7 +101,7 @@ export default function TodayTracker({ rings, weekDots = [], streak = 0, streakD
   const subOf = (r) => (r && r.due ? ofText(r) : '—');
   const sub7 = subOf(rings && rings.week);
   const sub30 = subOf(rings && rings.month);
-  const labelSize = sideTextSize(col, [label7, label30], 15);
+  const labelSize = sideTextSize(col, [label7, label30], 15, labelEm);
   const subSize = sideTextSize(col, [sub7, sub30], 13, 0.5);
   const side = (i, label, r, sub) => {
     const p = ringPct(r);
