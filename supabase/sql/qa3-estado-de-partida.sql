@@ -18,8 +18,8 @@
 --      7 Taken doses D-25 … D-1 at 09:00.
 -- created_at is set in the past (the app never offers a slot from before the protocol existed, and the phone's
 -- schedule ledger starts at the creation); updated_at = now so the phone pulls the rows.
--- Food log: ONE D-2 meal in the round's language: the account's existing meal row(s) are UPDATED in place
--- (the phone pulls the update); only an account with none gets a new row (id = md5 of the user id). Never delete food_logs rows here: food_logs has no tombstone, so a server delete never
+-- Food log: ONE D-2 meal in the round's language, always the same row (id = md5 of the user id), upserted so
+-- the phone pulls it; no other row of the account is touched (the app's free_start marker stays). Never delete food_logs rows here: food_logs has no tombstone, so a server delete never
 -- reaches the phone (S25 2026-11-26: every remount added one more local copy; cleaned in the app). A meal a
 -- take logged on the phone is removed in the app (Corrigir este registro > Remover registro).
 -- Exams, vaccines: not touched here (an exam a take imported is removed in the app: Excluir este exame).
@@ -99,13 +99,7 @@ BEGIN
   END LOOP;
 
   -- 5. the D-2 meal (same row every round, updated so the phone pulls it)
-  UPDATE public.food_logs SET entry_date = to_char(d0 - 2, 'YYYY-MM-DD'), raw_text = meal,
-      parsed_items = jsonb_build_array(
-        jsonb_build_object('qty',1,'unit',u1,'food',f1,'kcal',100,'protein_g',6,'carb_g',8,'fat_g',5,'fiber_g',0,'category','breakfast','days_ago',null,'confidence','med'),
-        jsonb_build_object('qty',1,'unit',null,'food',f2,'kcal',105,'protein_g',1.3,'carb_g',27,'fat_g',0.4,'fiber_g',3.1,'category','breakfast','days_ago',null,'confidence','med')),
-      kcal = 205, protein_g = 7, carb_g = 35, fat_g = 5, updated_at = now()
-    WHERE user_id = uid;
-  IF FOUND THEN RETURN; END IF;
+  -- Only the fixed-id row: an UPDATE by user_id alone also rewrote the app's free_start marker row.
   mid := md5(uid::text || '-d2meal')::uuid;
   INSERT INTO public.food_logs (id, user_id, entry_date, raw_text, parsed_items, kcal, protein_g, carb_g, fat_g, source, parse_status, created_at, updated_at)
   VALUES (mid, uid, to_char(d0 - 2, 'YYYY-MM-DD'), meal,
