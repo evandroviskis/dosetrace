@@ -921,7 +921,7 @@ export default function FoodChatScreen({ embedded = false, params: paramsProp = 
                 <Text style={s.gK}>{`${formatInt(dayTot.kcal, language)} ${t('cal_kcal')}`}</Text>
               </View>
               <View style={s.ticks}>{Array.from({ length: 11 }, (_, i) => <View key={i} style={s.tick} />)}</View>
-              <View style={s.gLine}>
+              <View style={s.gLineWrap}>
                 <Text style={s.gSub}>{`${dayTot.carb_g} g ${t('nutri_carbs')} · ${dayTot.protein_g} g ${t('nutri_protein')}`}</Text>
                 {dayTot.fiber_g != null ? <Text style={s.gSub}>{`${Math.round(dayTot.fiber_g)} g ${t('nutri_fiber')}`}</Text> : null}
               </View>
@@ -1088,6 +1088,8 @@ const makeStyles = (c) => StyleSheet.create({
   band: { paddingHorizontal: 16 },
   gauge: { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center', marginTop: 10, marginBottom: 2, backgroundColor: c.raised, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, gap: 6 },
   gLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 },
+  // German "Ballaststoffe" (recording 2026-11-26): the carbs · protein / fiber row wraps instead of running past the card.
+  gLineWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', columnGap: 10, rowGap: 2 },
   gHead: { fontSize: 12, fontWeight: '600', color: c.ink2, letterSpacing: 0.5, textTransform: 'uppercase' },
   gK: { fontFamily: MONO['500'], fontSize: 20, lineHeight: 26, fontWeight: '600', color: c.ink, fontVariant: ['tabular-nums'] },
   gSub: { fontFamily: MONO['500'], fontSize: 13, lineHeight: 18, color: c.ink2, fontVariant: ['tabular-nums'] },
