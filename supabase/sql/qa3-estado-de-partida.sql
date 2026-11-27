@@ -31,12 +31,14 @@ DECLARE
   p1   uuid := gen_random_uuid();
   p2   uuid := gen_random_uuid();
   k    int;
+  nm   text; -- protocol name per language (Ads 2026-11-26; fr "Produit": adb cannot type "é")
 BEGIN
   IF lang NOT IN ('pt','en','es','fr','de','it') THEN RAISE EXCEPTION 'language %', lang; END IF;
   IF v_email NOT IN ('evandro1985+qa3@gmail.com', 'evandro1985+qa@gmail.com', 'dosetrace.io+s25@gmail.com', 'evandro1985+qa2@gmail.com', 'evandro1985+qa4@gmail.com') THEN RAISE EXCEPTION 'not a recording test account: %', v_email; END IF;
   SELECT id INTO uid FROM auth.users WHERE auth.users.email = v_email;
   IF uid IS NULL THEN RAISE EXCEPTION 'no account %', v_email; END IF;
   d0 := (now() AT TIME ZONE tz)::date;
+  nm := CASE lang WHEN 'pt' THEN 'Composto' WHEN 'en' THEN 'Compound' WHEN 'es' THEN 'Compuesto' WHEN 'fr' THEN 'Produit' WHEN 'de' THEN 'Wirkstoff' ELSE 'Composto' END;
 
   -- 1. what a previous round left
   DELETE FROM public.dose_logs WHERE user_id = uid;
@@ -55,7 +57,7 @@ BEGIN
   INSERT INTO public.protocols (id, user_id, name, type, color, unit, amount, water, dose, dose_unit, syringe_size,
       concentration_unit, frequency, reminder_time, active, created_at, updated_at, interval_days, doses_per_day,
       start_date, vial_valid_days, units_taken)
-  VALUES (p1, uid, 'Composto 1', 'recon', '#387BC4', 'mg', 10, 2, 1.4, 'mg', 100,
+  VALUES (p1, uid, nm || ' 1', 'recon', '#387BC4', 'mg', 10, 2, 1.4, 'mg', 100,
       'mg', 'Daily', '23:00', true, ((d0 - 3) + time '10:00') AT TIME ZONE tz, now(), 1, 1,
       d0 - 3, 30, 0);
   INSERT INTO public.vials (id, user_id, protocol_id, mixed_on, water_ml, total_doses, doses_taken, expiry_alert_days, active, created_at, updated_at)
@@ -74,7 +76,7 @@ BEGIN
   INSERT INTO public.protocols (id, user_id, name, type, color, unit, amount, water, dose, dose_unit, syringe_size,
       concentration_unit, frequency, reminder_time, active, created_at, updated_at, interval_days, doses_per_day,
       start_date, vial_valid_days, units_taken)
-  VALUES (p2, uid, 'Composto 2', 'recon', '#098964', 'mg', 10, 2, 1.4, 'mg', 100,
+  VALUES (p2, uid, nm || ' 2', 'recon', '#098964', 'mg', 10, 2, 1.4, 'mg', 100,
       'mg', 'Every 4 days', '09:00', true, ((d0 - 25) + time '08:00') AT TIME ZONE tz, now(), 4, 1,
       d0 - 25, 30, 0);
   INSERT INTO public.vials (id, user_id, protocol_id, mixed_on, water_ml, total_doses, doses_taken, expiry_alert_days, active, created_at, updated_at)
